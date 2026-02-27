@@ -1,0 +1,98 @@
+plugins {
+    id "com.android.application"
+    // START: FlutterFire Configuration
+    // Firebase 플러그인은 kokonut flavor에서만 적용
+    // id 'com.google.gms.google-services'
+    // END: FlutterFire Configuration
+    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
+    id "dev.flutter.flutter-gradle-plugin"
+}
+
+// pubspec.yaml에서 버전 정보 읽어오기
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file('local.properties')
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.withReader('UTF-8') { reader ->
+        localProperties.load(reader)
+    }
+}
+
+def flutterVersionCode = localProperties.getProperty('flutter.versionCode')
+if (flutterVersionCode == null) {
+    flutterVersionCode = '1'
+}
+def flutterVersionName = localProperties.getProperty('flutter.versionName')
+if (flutterVersionName == null) {
+    flutterVersionName = '1.0'
+}
+
+// 릴리즈 서명 키 설정 읽기
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file('key.properties')
+if (keystorePropertiesFile.exists()) {
+    keystorePropertiesFile.withReader('UTF-8') { reader ->
+        keystoreProperties.load(reader)
+    }
+}
+
+android {
+    namespace "co.kr.waldlust.order.receive"
+    compileSdk 36
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+        coreLibraryDesugaringEnabled true
+    }
+
+    defaultConfig {
+        // Flutter가 자동으로 pubspec.yaml의 version을 읽어와서 설정
+        // version: 1.0.0+1 -> versionName: 1.0.0, versionCode: 1
+        applicationId "co.kr.waldlust.order.receive"
+        versionCode flutterVersionCode.toInteger()
+        versionName flutterVersionName
+        
+        // Android 7 (API 24) 지원
+        minSdkVersion 24
+        targetSdkVersion 35
+    }
+
+    signingConfigs {
+        release {
+            keyAlias keystoreProperties['keyAlias']
+            keyPassword keystoreProperties['keyPassword']
+            storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
+            storePassword keystoreProperties['storePassword']
+        }
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.release
+        }
+        release {
+            signingConfig signingConfigs.release
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+flutter {
+    source = "../.."
+}
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    implementation 'com.android.volley:volley:1.2.1'
+    implementation 'com.sunmi:printerlibrary:1.0.23'
+    implementation 'com.journeyapps:zxing-android-embedded:4.3.0'
+    implementation 'androidx.cardview:cardview:1.0.0'
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'
+    implementation files('libs/com.posbank.charset.jar')
+    implementation files('libs/com.posbank.hardware.serial.jar')
+    implementation files('libs/com.posbank.printer.jar')
+    implementation files('libs/com.posbank.util.jar')
+    implementation files('libs/autoreplyprint.aar')
+}

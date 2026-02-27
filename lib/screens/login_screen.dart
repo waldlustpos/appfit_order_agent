@@ -1,0 +1,883 @@
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:appfit_core/appfit_core.dart'; // AppFitConfig (패키지)
+import 'package:kokonut_order_agent/models/store_model.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import '../utils/logger.dart';
+import '../services/platform_service.dart';
+import '../services/preference_service.dart';
+import '../providers/auth_provider.dart';
+import '../providers/store_provider.dart';
+
+import '../services/ota_update_service.dart';
+import '../widgets/common/common_dialog.dart';
+import '../constants/app_styles.dart';
+import '../services/local_server_service.dart';
+import '../providers/providers.dart';
+import '../providers/kds_unified_providers.dart';
+import '../providers/order_provider.dart';
+import 'package:flutter/foundation.dart'; // For kDebugMode if needed
+import 'package:kokonut_order_agent/i18n/strings.g.dart';
+import 'package:kokonut_order_agent/providers/locale_provider.dart';
+import 'package:kokonut_order_agent/utils/print/label_painter.dart';
+
+class LoginScreen extends ConsumerStatefulWidget {
+  const LoginScreen({Key? key}) : super(key: key);
+
+  @override
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends ConsumerState<LoginScreen>
+    with TickerProviderStateMixin {
+  final _formKey = GlobalKey<FormState>();
+  final _idController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _isLoading = false;
+  bool _obscurePassword = true;
+  bool _isSaveId = false;
+  bool _isAutoLogin = false;
+  bool _isSubDisplay = false;
+
+  var tag = '로그인';
+
+  @override
+  void initState() {
+    super.initState();
+
+    /// 연결된 USB 디바이스 확인 및 라벨 프린터 식별
+
+    Future<void> _checkUsbDevices() async {
+      try {
+        final devices = await PlatformService.getConnectedUsbDevices();
+        if (devices.isEmpty) {
+          logToFile(tag: LogTag.PLATFORM, message: '연결된 USB 디바이스가 없습니다.');
+          logger.d('연결된 USB 디바이스가 없습니다.');
+          return;
+        }
+
+        logToFile(
+            tag: LogTag.PLATFORM,
+            message: '연결된 USB 디바이스 목록 (${devices.length}개):');
+
+        for (var device in devices) {
+          final vendorId = device['vendorId'];
+          final productId = device['productId'];
+          final manufacturer = device['manufacturerName'] ?? 'Unknown';
+          final productName = device['productName'] ?? 'Unknown';
+
+          String identification = '';
+          // Posbank VID: 0x1552 (5458)
+          if (vendorId == 5458 || vendorId == 0x1552) {
+            identification = ' [라벨 프린터 식별됨: Posbank]';
+          }
+
+          logToFile(
+            tag: LogTag.PLATFORM,
+            message:
+                ' - $productName ($manufacturer): VID=$vendorId, PID=$productId$identification',
+          );
+        }
+      } catch (e, s) {
+        logger.e('USB 디바이스 확인 중 오류 발생', error: e, stackTrace: s);
+      }
+    }
+
+    _checkUsbDevices();
+
+    // 텍스트 필드 리스너 추가
+    _idController.addListener(() {
+      setState(() {}); // 버튼 색상 업데이트를 위해 setState 호출
+    });
+    _passwordController.addListener(() {
+      setState(() {}); // 버튼 색상 업데이트를 위해 setState 호출
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // 로그인 정보 로드
+      await _loadSavedLoginInfo();
+      await _loadSubDisplaySetting();
+      await _setWindowSoftInputMode('resize');
+
+      // 화면이 표시된 후 권한 요청
+      if (mounted) {
+        await _requestAllPermissions();
+      }
+
+      // 업데이트 체크 (권한 요청 후)
+      if (mounted) {
+        await _checkForUpdate();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _idController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  // 모든 권한 요청
+  Future<void> _requestAllPermissions() async {
+    try {
+      // 1. 파일 권한 요청
+      await _checkAndRequestFilePermissions();
+
+      // 2. 오버레이 권한 선제적 확인 및 요청 (Android 14 포함 모든 버전 대응)
+      if (Platform.isAndroid && mounted) {
+        await _checkAndRequestOverlayPermission();
+      }
+    } catch (e, s) {
+      logger.e('권한 요청 중 오류 발생', error: e, stackTrace: s);
+      if (mounted) {
+        await CommonDialog.showInfoDialog(
+          context: context,
+          title: t.common.error,
+          content: t.login.permission_error,
+        );
+      }
+    }
+  }
+
+  // 파일 권한 확인 및 요청
+  Future<void> _checkAndRequestFilePermissions() async {
+    logger.d('파일 권한 확인 중...');
+    try {
+      bool permissionGranted =
+          await PlatformService.checkAndRequestFilePermissions();
+
+      // 파일 권한은 OS 자체 권한 창만 표시 (추가 팝업 없음)
+      logger.d('파일 권한 요청 완료: $permissionGranted');
+    } catch (e, s) {
+      logger.e('파일 권한 요청 중 오류 발생', error: e, stackTrace: s);
+    }
+  }
+
+  // 인터넷 연결 상태 확인 메서드
+  Future<bool> _checkInternetConnection() async {
+    final connectivityResult = await Connectivity().checkConnectivity();
+    // 연결이 비어있거나 모든 연결이 none인 경우 인터넷 문제로 처리
+    bool hasConnection = connectivityResult.isNotEmpty &&
+        !connectivityResult.contains(ConnectivityResult.none);
+
+    if (!hasConnection && mounted) {
+      CommonDialog.showInfoDialog(
+        context: context,
+        title: t.login.internet_error_title,
+        content: t.login.internet_error_msg,
+      );
+    }
+
+    return hasConnection;
+  }
+
+  Future<void> _loadSavedLoginInfo() async {
+    final preferenceService = PreferenceService();
+
+    // 저장된 ID와 비밀번호 불러오기
+    final savedId = preferenceService.getId();
+    final savedPassword = await preferenceService.getPassword(savedId ?? '');
+    final isSaveId = preferenceService.getIsSaveId();
+    final isAutoLogin = preferenceService.getIsAutoLogin();
+
+    logger.i(
+        '[LoginScreen] 로그인 정보 로드 시작: isSaveId = $isSaveId, isAutoLogin = $isAutoLogin, savedId = $savedId');
+
+    if (savedId != null) {
+      _idController.text = savedId;
+    }
+    if (savedPassword != null) {
+      _passwordController.text = savedPassword;
+    }
+
+    setState(() {
+      _isSaveId = isSaveId == 'T';
+      _isAutoLogin = isAutoLogin == 'T';
+    });
+
+    // 디버그 모드인 경우 테스트 계정 정보 자동 입력
+    if (kDebugMode) {
+      _idController.text = 'TPCP00001';
+      _passwordController.text = '01040506955';
+      logger.i('[LoginScreen] 디버그 모드: 테스트 계정 정보가 설정되었습니다.');
+    }
+  }
+
+  // ... (중략)
+
+  Future<void> _saveLoginInfo() async {
+    final preferenceService = PreferenceService();
+
+    logger.i('로그인 정보 저장: _isSubDisplay=$_isSubDisplay');
+
+    final storeId = _idController.text.trim();
+
+    if (_isSaveId) {
+      await preferenceService.saveId(storeId);
+    }
+    if (_isAutoLogin) {
+      await preferenceService.saveId(storeId);
+      await preferenceService.savePassword(storeId, _passwordController.text);
+    } else {
+      await preferenceService.clearLoginInfo();
+    }
+
+    await preferenceService.setSaveId(_isSaveId);
+    await preferenceService.setAutoLogin(_isAutoLogin);
+    await preferenceService.setSubDisplay(_isSubDisplay);
+
+    logger.i('설정 저장 완료');
+  }
+
+  /// 업데이트 체크
+  Future<void> _checkForUpdate() async {
+    try {
+      final otaService = OtaUpdateService();
+
+      final updateInfo = await otaService.checkForUpdate();
+
+      if (updateInfo != null && updateInfo.hasUpdate && mounted) {
+        final shouldDownload = await CommonDialog.showUpdateProgressDialog(
+          context: context,
+          updateInfo: updateInfo,
+          onStartUpdate:
+              (downloadUrl, destinationFilename, onEvent, onDone, onError) {
+            otaService.executeUpdate(
+              downloadUrl: downloadUrl,
+              destinationFilename: destinationFilename,
+              onEvent: onEvent,
+              onDone: onDone,
+              onError: onError,
+            );
+          },
+        );
+
+        if (shouldDownload == true) {
+          logger.i('업데이트 다운로드 완료 - 설치 진행');
+        }
+      }
+
+      // 업데이트 체크 완료 후 자동 로그인 수행
+      await _performAutoLogin();
+    } catch (e, s) {
+      logger.e('업데이트 체크 중 오류 발생', error: e, stackTrace: s);
+      await _performAutoLogin();
+    }
+  }
+
+  /// 자동 로그인 수행
+  Future<void> _performAutoLogin() async {
+    try {
+      final preferenceService = PreferenceService();
+      final isAutoLogin = preferenceService.getIsAutoLogin();
+      final savedId = preferenceService.getId();
+
+      logger.i(
+          '[LoginScreen] _performAutoLogin 시작: isAutoLogin=$isAutoLogin, savedId=$savedId');
+
+      if (isAutoLogin != 'T') {
+        logger.i('[LoginScreen] 자동 로그인 설정이 비활성화 상태입니다.');
+        return;
+      }
+
+      if (savedId == null || savedId.isEmpty) {
+        logger.w('[LoginScreen] 저장된 매장 ID가 없어 자동 로그인을 건너뜁니다.');
+        return;
+      }
+
+      final savedPassword = await preferenceService.getPassword(savedId);
+
+      // 자동 로그인 설정이 되어 있고 저장된 정보가 있다면 로그인 시도
+      if (savedPassword != null && savedPassword.isNotEmpty && mounted) {
+        logger.i('[LoginScreen] 자동 로그인 조건 충족. 로그인 시도 중... (ID: $savedId)');
+
+        // 인터넷 연결 확인
+        final hasConnection = await _checkInternetConnection();
+        if (!hasConnection) {
+          logger.w('[LoginScreen] 인터넷 연결이 없어 자동 로그인을 중단합니다.');
+          return;
+        }
+
+        // 자동 로그인 수행
+        await _login();
+      } else {
+        logger.w(
+            '[LoginScreen] 자동 로그인 실패: 저장된 비밀번호가 없거나 비어 있습니다. (최초 1회 수동 로그인 필요)');
+      }
+    } catch (e, s) {
+      logger.e('[LoginScreen] 자동 로그인 중 예외 발생', error: e, stackTrace: s);
+    }
+  }
+
+  Future<void> _loadSubDisplaySetting() async {
+    final preferenceService = PreferenceService();
+    final isSubDisplay = preferenceService.getSubDisplay();
+    setState(() {
+      _isSubDisplay = isSubDisplay;
+    });
+  }
+
+  Future<void> _login() async {
+    logToFile(tag: LogTag.API, message: '로그인시도');
+
+    // 인터넷 연결 확인
+    final hasConnection = await _checkInternetConnection();
+    if (!hasConnection) return;
+
+    // 자동 로그인이 아닌 경우에만 form validation 실행
+    if (!_isAutoLogin) {
+      if (!_formKey.currentState!.validate()) {
+        return;
+      }
+    }
+
+    // 로그인 시도 전에 현재 선택된 탭의 모드 설정을 먼저 저장
+    await _saveLoginInfo();
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // [FIX] 로그인 ID 대문자 강제 변환 (AppFit 소켓 채널 일치 보장)
+      String storeId = _idController.text.trim().toUpperCase();
+
+      // ServerConfig usages removed
+      // ServerConfig.setMainUrl(storeId, isDev: isDev); removed
+      // ref.read(serverUrlProvider.notifier).state = ServerConfig.checkURL; removed
+
+      final (success, rewardType, errorMessage) = await ref
+          .read(authProvider.notifier)
+          .login(storeId, _passwordController.text);
+
+      if (success) {
+        await _setWindowSoftInputMode('pan');
+
+        StoreModel? storeModel =
+            await ref.read(storeProvider.notifier).setStoreModel(storeId);
+
+        ref.read(storeProvider.notifier).setStoreRewardType(rewardType);
+
+        String? storeName;
+        if (storeModel != null) {
+          storeName = storeModel.name;
+        }
+
+        if (mounted) {
+          // 앱 버전 정보 가져오기 (ref.read 사용)
+          final appInfo = await ref.read(appInfoProvider.future);
+
+          logToFile(
+              tag: LogTag.API,
+              message:
+                  '로그인성공: $storeId ${storeName ?? ''}, AppVersion: ${appInfo.version} (${appInfo.buildNumber}), 서브디스플레이: $_isSubDisplay');
+
+          // 1. 네비게이션 및 모드 설정을 먼저 처리 (권한 요청보다 우선)
+          if (_isSubDisplay) {
+            // KDS 모드 활성화 전에 로컬 서버 중지
+            final localServer = LocalServerService.instance;
+            if (localServer != null) {
+              await localServer.stopServer();
+              logger.i('[LoginScreen] KDS 모드 전환: 로컬 서버 중지 완료');
+            }
+
+            // KDS 모드 활성화
+            ref.read(kdsModeProvider.notifier).setKdsMode(true);
+            Navigator.pushReplacementNamed(context, '/home');
+
+            // 홈화면 진입 후 설정 재로드
+            Future.delayed(const Duration(milliseconds: 100), () {
+              ref.read(orderProvider.notifier).reloadSettings();
+            });
+          } else {
+            // 일반 모드 활성화
+            ref.read(kdsModeProvider.notifier).setKdsMode(false);
+            Navigator.pushReplacementNamed(context, '/home');
+
+            // 일반 모드에서도 설정 재로드
+            Future.delayed(const Duration(milliseconds: 100), () {
+              ref.read(orderProvider.notifier).reloadSettings();
+            });
+          }
+
+          // 2. 네이티브 저장은 백그라운드에서 실행
+          final isKdsMode = ref.read(kdsModeProvider);
+          Future.microtask(() async {
+            // native에 onDestroy등에서 사용할 storeId 저장
+            await _saveStoreIdToNative(
+                storeId, isKdsMode, AppFitConfig.baseUrl);
+          });
+        }
+      } else {
+        if (mounted) {
+          logToFile(
+              tag: LogTag.API,
+              message: '로그인실패: ${errorMessage ?? '로그인에 실패했습니다.'}');
+          CommonDialog.showErrorDialog(
+              context: context,
+              title: t.login.fail_title,
+              content: errorMessage ?? t.login.fail_msg);
+        }
+      }
+    } catch (e, s) {
+      logToFile(tag: LogTag.ERROR, message: '로그인 중 오류 발생: $s');
+      if (mounted) {
+        CommonDialog.showErrorDialog(
+            context: context, title: t.login.fail_title, content: e.toString());
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  // 오버레이 권한 확인 및 요청
+  Future<void> _checkAndRequestOverlayPermission() async {
+    try {
+      // 네이티브 메서드로 더 정확하게 체크 (특히 Android 7 대응)
+      final hasPermission =
+          await PlatformService.checkOverlayPermissionNative();
+
+      if (!hasPermission && mounted) {
+        // 권한이 없으면 안내 메시지 표시 후 권한 요청
+        final shouldRequest = await CommonDialog.showConfirmDialog(
+          context: context,
+          title: t.login.overlay_permission.title,
+          content: t.login.overlay_permission.content,
+          confirmText: t.login.overlay_permission.set,
+          cancelText: t.login.overlay_permission.later,
+        );
+
+        if (shouldRequest == true && mounted) {
+          // 네이티브 메서드로 권한 요청 화면 이동
+          await PlatformService.requestOverlayPermissionNative();
+        }
+      }
+    } catch (e, s) {
+      logToFile(tag: LogTag.ERROR, message: '오버레이 권한 확인 중 오류 발생: $s');
+    }
+  }
+
+  Future<void> _handleTestPrint() async {
+    try {
+      // 1. Generate Label Image
+      final imageBytes = await LabelPainter.generateLabelImage(
+        menuName: '아이스 아메리카노',
+        options: ['샷추가', '얼음많이'], // Sample options
+        shopOrderNo: '123',
+        orderTime: '12:34',
+        beanType: 'Standard',
+        temperature: 'Ice',
+        sizeOption: 'Tall',
+        qrData: '123', // QR 데이터 추가
+      );
+
+      // 2. Send to Printer
+      await ref.read(printServiceProvider).printLabel(imageBytes);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Test label print sent')),
+        );
+      }
+    } catch (e) {
+      logger.e('Test print failed', error: e);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Test print failed: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _setWindowSoftInputMode(String mode) async {
+    try {
+      await platform
+          .invokeMethod(mode == 'pan' ? 'setAdjustPan' : 'setAdjustResize');
+      logger.d("set windowSoftInputMode: '$mode'");
+    } on PlatformException catch (e) {
+      logger.w("Failed to set windowSoftInputMode: '${e.message}'.");
+    }
+  }
+
+  Future<void> _saveStoreIdToNative(
+      String storeId, bool isKdsMode, String mainURL) async {
+    try {
+      await platform.invokeMethod('saveStoreIdToNative',
+          {'storeId': storeId, 'isKdsMode': isKdsMode, 'mainURL': mainURL});
+    } on PlatformException catch (e) {
+      logger.w("Failed to _saveStoreIdToNative: '${e.message}'.");
+    }
+  }
+
+  // 로그인 폼 위젯
+  Widget _buildLoginForm({required GlobalKey<FormState> formKey}) {
+    return Form(
+      key: formKey,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // KDS 모드 토글 상단 배치 (새로운 UI 디자인)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            margin: const EdgeInsets.only(bottom: 24),
+            decoration: BoxDecoration(
+              color: _isSubDisplay
+                  ? AppStyles.kMainColor.withValues(alpha: 0.1)
+                  : Colors.grey[100],
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: _isSubDisplay ? AppStyles.kMainColor : Colors.grey[300]!,
+                width: 1.5,
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.display_settings,
+                      color: _isSubDisplay
+                          ? AppStyles.kMainColor
+                          : Colors.grey[600],
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      '주방모니터(KDS) 전용 로그인',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight:
+                            _isSubDisplay ? FontWeight.bold : FontWeight.w600,
+                        color: _isSubDisplay
+                            ? AppStyles.kMainColor
+                            : Colors.grey[800],
+                      ),
+                    ),
+                  ],
+                ),
+                Switch(
+                  value: _isSubDisplay,
+                  onChanged: (value) {
+                    setState(() {
+                      _isSubDisplay = value;
+                    });
+                  },
+                  activeColor: AppStyles.kMainColor,
+                  inactiveThumbColor: Colors.grey[400],
+                  inactiveTrackColor: Colors.grey[300],
+                ),
+              ],
+            ),
+          ),
+
+          // 아이디 입력 필드
+          TextFormField(
+            controller: _idController,
+            decoration: InputDecoration(
+              labelText: t.login.id_label,
+              floatingLabelBehavior: FloatingLabelBehavior.never, // 힌트 애니메이션 제거
+              prefixIcon: const Icon(Icons.person),
+              filled: true,
+              fillColor: Colors.grey[200], // gray2 색상
+              border: OutlineInputBorder(
+                borderSide: BorderSide.none,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderSide:
+                    const BorderSide(color: AppStyles.kMainColor, width: 2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderSide: BorderSide.none,
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            keyboardType: TextInputType.text,
+            textInputAction: TextInputAction.next,
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return t.login.id_placeholder;
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 16),
+
+          // 비밀번호 입력 필드
+          TextFormField(
+            controller: _passwordController,
+            decoration: InputDecoration(
+              labelText: t.login.pw_label,
+              floatingLabelBehavior: FloatingLabelBehavior.never, // 힌트 애니메이션 제거
+              prefixIcon: const Icon(Icons.lock),
+              filled: true,
+              fillColor: Colors.grey[200], // gray2 색상
+              border: OutlineInputBorder(
+                borderSide: BorderSide.none,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderSide:
+                    const BorderSide(color: AppStyles.kMainColor, width: 2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderSide: BorderSide.none,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                ),
+                onPressed: () {
+                  setState(() {
+                    _obscurePassword = !_obscurePassword;
+                  });
+                },
+              ),
+            ),
+            obscureText: _obscurePassword,
+            textInputAction: TextInputAction.done,
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return t.login.pw_placeholder;
+              }
+              return null;
+            },
+            onFieldSubmitted: (_) => _login(),
+          ),
+          const SizedBox(height: 24),
+
+          // 로그인 버튼
+          ElevatedButton(
+            onPressed: (_idController.text.trim().isEmpty ||
+                    _passwordController.text.trim().isEmpty ||
+                    _isLoading)
+                ? null
+                : _login,
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              backgroundColor: (_idController.text.trim().isEmpty ||
+                      _passwordController.text.trim().isEmpty)
+                  ? Colors.grey[400] // gray4 색상
+                  : AppStyles.kMainColor,
+              disabledBackgroundColor: Colors.grey[400], // gray4 색상
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: _isLoading
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : Text(
+                    t.login.button,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                        color: Colors.white), // 글자 크기 증가
+                  ),
+          ),
+          const SizedBox(height: 16),
+
+          // 체크박스 영역
+          Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Transform.scale(
+                    scale: 1.3, // 체크박스 크기 30% 증가
+                    child: Checkbox(
+                      value: _isSaveId,
+                      onChanged: (value) {
+                        setState(() {
+                          _isSaveId = value ?? false;
+                        });
+                      },
+                      shape: const CircleBorder(), // 원형 디자인
+                      fillColor: WidgetStateProperty.resolveWith<Color>(
+                        (Set<WidgetState> states) {
+                          if (states.contains(WidgetState.selected)) {
+                            return AppStyles.green100; // green100 색상
+                          }
+                          return Colors.white;
+                        },
+                      ),
+                    ),
+                  ),
+                  Text(t.login.save_id, style: const TextStyle(fontSize: 15)),
+                  const SizedBox(width: 16),
+                  Transform.scale(
+                    scale: 1.3, // 체크박스 크기 30% 증가
+                    child: Checkbox(
+                      value: _isAutoLogin,
+                      onChanged: (value) {
+                        setState(() {
+                          _isAutoLogin = value ?? false;
+                          if (_isAutoLogin) {
+                            _isSaveId = true;
+                          }
+                        });
+                      },
+                      shape: const CircleBorder(), // 원형 디자인
+                      fillColor: WidgetStateProperty.resolveWith<Color>(
+                        (Set<WidgetState> states) {
+                          if (states.contains(WidgetState.selected)) {
+                            return AppStyles.green100; // green100 색상
+                          }
+                          return Colors.white;
+                        },
+                      ),
+                    ),
+                  ),
+                  Text(t.login.auto_login,
+                      style: const TextStyle(fontSize: 15)),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 언어 선택 위젯
+  Widget _buildLanguageSwitcher() {
+    final currentLocale = ref.watch(localeNotifierProvider);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: AppLocale.values.map((locale) {
+          final isSelected = currentLocale == locale;
+          return GestureDetector(
+            onTap: () {
+              ref.read(localeNotifierProvider.notifier).changeLocale(locale);
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: isSelected ? AppStyles.kMainColor : Colors.transparent,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Text(
+                _getLocaleDisplay(locale),
+                style: TextStyle(
+                  color: isSelected ? Colors.white : Colors.grey[600],
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  String _getLocaleDisplay(AppLocale locale) {
+    switch (locale) {
+      case AppLocale.ko:
+        return '한국어';
+      case AppLocale.en:
+        return 'ENG';
+      case AppLocale.ja:
+        return '日本語';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      resizeToAvoidBottomInset: true,
+      floatingActionButton: FloatingActionButton(
+        onPressed: _handleTestPrint,
+        tooltip: 'Test Print',
+        child: const Icon(Icons.print),
+      ),
+      body: Stack(
+        children: [
+          // 배경 이미지
+          Container(
+            decoration: const BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage('assets/images/login-bg.png'),
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
+
+          SafeArea(
+            child: GestureDetector(
+              onTap: () => FocusScope.of(context).unfocus(),
+              behavior: HitTestBehavior.translucent,
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    maxWidth: 460,
+                  ),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.grey.withOpacity(0.1),
+                          spreadRadius: 1,
+                          blurRadius: 10,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: SingleChildScrollView(
+                      child: Padding(
+                        padding: const EdgeInsets.all(40.0),
+                        child: _buildLoginForm(formKey: _formKey),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // 언어 선택 위젯 (우측 상단)
+          Positioned(
+            top: 20,
+            right: 20,
+            child: SafeArea(
+              child: _buildLanguageSwitcher(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

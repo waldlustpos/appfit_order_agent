@@ -1,0 +1,17 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 매장별 주문 데이터 접근 규칙
+    match /{storeId}/order {
+      // 모든 읽기/쓰기 허용 (개발/테스트용)
+      // 실제 운영 시에는 더 엄격한 규칙 적용 필요
+      allow read, write: if true;
+    }
+    
+    // 기본적으로 모든 다른 문서는 접근 거부
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

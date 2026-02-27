@@ -1,0 +1,121 @@
+# ----------------------------------------------------------------------------
+# Miscellaneous / Desktop
+# ----------------------------------------------------------------------------
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.buildlog/
+.history
+.svn/
+migrate_working_dir/
+
+# ----------------------------------------------------------------------------
+# IntelliJ / Android Studio
+# ----------------------------------------------------------------------------
+*.iml
+*.ipr
+*.iws
+.idea/
+.gradle/
+build/
+captures/
+local.properties
+
+# ----------------------------------------------------------------------------
+# Visual Studio Code
+# ----------------------------------------------------------------------------
+# .vscode/ 폴더는 환경에 따라 포함할 수 있으므로 기본 유지 (사용자 요청 반영)
+# .vscode/
+
+# ----------------------------------------------------------------------------
+# Flutter / Dart
+# ----------------------------------------------------------------------------
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+flutter_export_environment.sh
+
+# Symbolication / Obfuscation
+app.*.symbols
+app.*.map.json
+
+# ----------------------------------------------------------------------------
+# Android Specific
+# ----------------------------------------------------------------------------
+/android/app/debug
+/android/app/profile
+/android/app/release
+/android/app/.cxx/
+**/android/local.properties
+**/android/.gradle
+**/android/captures/
+**/android/gradlew
+**/android/gradlew.bat
+
+# ----------------------------------------------------------------------------
+# iOS Specific
+# ----------------------------------------------------------------------------
+**/ios/.symlinks/
+**/ios/Pods/
+**/ios/Podfile.lock
+**/ios/Flutter/App.framework
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/app.flx
+**/ios/Flutter/app.zip
+**/ios/Flutter/flutter_assets/
+**/ios/ServiceDefinitions.json
+**/ios/Runner/GeneratedPluginRegistrant.*
+
+# ----------------------------------------------------------------------------
+# Secrets and Credentials
+# ----------------------------------------------------------------------------
+sentry.properties
+sentry-wizard
+SignKey
+LightsailDefaultKey-ap-northeast-3.pem
+*.apk
+*.aab
+.env
+.env
+!.env
+
+
+
+# ----------------------------------------------------------------------------
+# Custom Patterns
+# ----------------------------------------------------------------------------
+.agent/
+.antigravity/
+analysis_*.txt
+*.log
+build_log*.txt
+analyze_output.txt
+deleted_files.txt
+android/gradle_build_info.txt
+temp_*.java
+appfit_legacy_backup/
+external/
+docs/
+
+# AppFit Generated
+lib/services/appfit/*.g.dart
+
+# Environment and Config (Local)
+.env
+/.env
+lib/config/app_env.dart
+
+# VS Code
+.vscode/
+
+# 릴리즈 서명 키 정보 (보안)
+android/key.properties

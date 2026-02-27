@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView 
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/bubble_card_view"
+    android:layout_width="80dp"
+    android:layout_height="80dp"
+    app:cardCornerRadius="32.5dp"
+    app:cardBackgroundColor="@color/zxing_transparent"
+    tools:ignore="MissingClass">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <ImageView
+            android:id="@+id/bubble_icon"
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:layout_centerInParent="true"
+            android:src="@drawable/ic_order_on"
+            />
+
+
+    </RelativeLayout>
+</androidx.cardview.widget.CardView> 

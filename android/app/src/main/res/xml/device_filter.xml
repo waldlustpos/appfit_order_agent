@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Label Printers VID/PID Filter -->
+    <!-- VID:0x4B43, PID:0x3538 -->
+    <usb-device vendor-id="19267" product-id="13624" />
+    <!-- VID:0x4B43, PID:0x3830 -->
+    <usb-device vendor-id="19267" product-id="14384" />
+    <!-- VID:0x0FE6, PID:0x811E -->
+    <usb-device vendor-id="4070" product-id="33054" />
+    <!-- VID:0x067B, PID:0x2303 -->
+    <usb-device vendor-id="1659" product-id="8963" />
+</resources>

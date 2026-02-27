@@ -1,0 +1,381 @@
+{
+    "app": {
+        "name": "ココナッツ注文エージェント"
+    },
+    "common": {
+        "confirm": "確認",
+        "cancel": "キャンセル",
+        "close": "閉じる",
+        "refresh": "更新",
+        "error": "エラー",
+        "error_title": "エラーが発生しました",
+        "loading": "ロード中...",
+        "next": "次へ",
+        "retry": "再試行",
+        "yes": "はい",
+        "no": "いいえ",
+        "unknown": "不明",
+        "later": "後で"
+    },
+    "login": {
+        "title": "ログイン",
+        "id_label": "ID",
+        "pw_label": "パスワード",
+        "id_placeholder": "IDを入力してください",
+        "pw_placeholder": "パスワードを入力してください",
+        "button": "ログイン",
+        "save_id": "ID保存",
+        "auto_login": "自動ログイン",
+        "fail_title": "ログイン失敗",
+        "fail_msg": "ログインに失敗しました。",
+        "permission_error": "権限リクエスト中にエラーが発生しました。",
+        "internet_error_title": "接続エラー",
+        "internet_error_msg": "インターネット接続を確認してください。",
+        "auto_login_disabled": "自動ログイン設定が無効です。",
+        "auto_login_no_id": "保存された店舗IDがないため、自動ログインをスキップします。",
+        "auto_login_fail_no_pw": "自動ログイン失敗：保存されたパスワードがないか空です。(初回は手動ログインが必要です)",
+        "tabs": {
+            "order": "注文受付",
+            "kitchen": "キッチン(KDS)"
+        },
+        "overlay_permission": {
+            "title": "権限が必要",
+            "content": "最小化機能を使用するには「다른 앱 위에 표시」権限が必要です。\n今すぐ設定しますか？",
+            "set": "設定する",
+            "later": "後で"
+        }
+    },
+    "settings": {
+        "title": "設定",
+        "save": "保存",
+        "save_success": "設定が保存されました。",
+        "save_error": "設定の保存中にエラーが発生しました: {error}",
+        "auto_start": {
+            "title": "PC起動時に自動実行",
+            "desc": "PC起動時にエージェントを自動的に実行します。",
+            "desc_general": "PC起動時にエージェントを自動的に実行합니다.\n注文を受け付けるには営業中に設定する必要があります。",
+            "on": "ON",
+            "off": "OFF"
+        },
+        "auto_receipt": {
+            "title": "ピックアップ注文自動受付",
+            "desc": "注文受信時に自動的に受け付けます。"
+        },
+        "print_order": {
+            "title": "注文書出力",
+            "desc": "注文書を出力します。"
+        },
+        "builtin_printer": {
+            "title": "内蔵プリンター使用",
+            "desc": "デバイスの内蔵プリンターを使用します。"
+        },
+        "external_printer": {
+            "title": "外部プリンター使用",
+            "desc": "USB接続された外部プリンターを使用します。\n使用時、注文書は設定に従い、レシートは外部プリンターのみで出力されます。"
+        },
+        "label_printer": {
+            "title": "ラベルプリンター使用",
+            "desc": "USB接続されたラベルプリンターを使用します。(50mm x 70mm)"
+        },
+        "volume": {
+            "title": "通知音量設定",
+            "desc": "通知音の大きさを調節します。"
+        },
+        "sound": {
+            "title": "通知音設定",
+            "desc": "通知音を選択します。",
+            "sound1": "通知音 1",
+            "sound2": "通知音 2"
+        },
+        "alert_count": {
+            "title": "通知回数設定",
+            "desc": "通知が鳴る回数を設定します。",
+            "count": "{n}回",
+            "unlimited": "無制限"
+        },
+        "print_count": {
+            "title": "出力枚数",
+            "desc": "注文受付時に印刷する伝票枚数を設定します。",
+            "count": "{n}枚"
+        },
+        "language": {
+            "title": "言語設定",
+            "desc": "アプリの言語を設定します。"
+        },
+        "developer_options": {
+            "title": "開発者オプション",
+            "appfit_test": {
+                "title": "AppFit API テ스트",
+                "desc": "Waldlust Platform AppFit API 設定確認とテスト",
+                "btn": "テスト"
+            }
+        },
+        "local_server": {
+            "title": "ローカルサーバー有効化",
+            "desc": "キ오스크で商品状態を照会できる\nローカルサーバーを有効にします。",
+            "info": "サーバー情報",
+            "ip": "IPアドレス: {ip}",
+            "port": "ポート: {port}",
+            "started": "ローカルサーバーが開始されました。",
+            "stopped": "ローカルサーバーが停止しました。",
+            "url": "URL: {url}"
+        },
+        "connection": {
+            "connected": "接続済み",
+            "disconnected": "未接続",
+            "reconnect": "再接続"
+        }
+    },
+    "home": {
+        "tabs": {
+            "order_status": "注文状況",
+            "order_history": "注文履歴",
+            "product_management": "商品管理",
+            "membership": "メンバーシップ"
+        },
+        "logout_confirm": "ログアウトしますか？",
+        "minimize_error": "最小化中にエラーが発生しました。",
+        "invalid_tab": "無効なタブインデックスです。"
+    },
+    "app_bar": {
+        "time_loading": "日付読み込み中...",
+        "time_error": "時刻読み込みエラー",
+        "morning": "午前",
+        "afternoon": "午後",
+        "new_order_count(plural, arg=n)": {
+            "other": "新規 {n} 件"
+        },
+        "kds_mode": "厨房モニター",
+        "order_toggle": "オーダー",
+        "order_start_confirm_title": "オーダー開始確認",
+        "order_stop_confirm_title": "オーダー停止確認",
+        "order_start_confirm_content": "営業中に変更しますか？",
+        "order_stop_confirm_content": "準備中に変更しますか？",
+        "exit_app": "アプリ終了",
+        "exit_app_desc": "アプリを終了しますか？ \n終了時に営業状態가自動的にOFFになります。",
+        "exit_app_kds_desc": "アプリを終了しますか？",
+        "burst_test_start": "⚡️ 注文ラッシュシミュレーション開始 (10件)"
+    },
+    "order_status": {
+        "tab_new": "新規注文",
+        "tab_preparing": "注文受付",
+        "tab_ready": "商品準備\n完了",
+        "tab_done": "完了",
+        "order_count(plural, arg=n)": {
+            "other": "{n} 件"
+        },
+        "batch_complete_confirm_title": "ピックアップ準備完了",
+        "batch_complete_confirm_content": "{n}件一括完了処理しますか？",
+        "batch_result_title": "一括完了処理結果",
+        "batch_result_success": "処理完了: {n}件すべて正常に処理されました。",
+        "batch_result_partial": "処理完了: 成功 {success}件, 失敗 {fail}件",
+        "batch_result_fail": "処理失敗: {error}",
+        "batch_result_error": "エラー: 処理中に例外が発生했습니다。",
+        "scroll_to_start": "先頭へ"
+    },
+    "order_history": {
+        "title": "注文履歴",
+        "search_today": "今日の注文照会",
+        "sort": "整列",
+        "filter_all": "全注文",
+        "filter_completed": "ピックアップ完了",
+        "filter_cancelled": "注文取消",
+        "total_count(plural, arg=n)": {
+            "other": "合計 {n}件"
+        },
+        "cancel_count(plural, arg=n)": {
+            "other": "取消 {n}件"
+        },
+        "loading": "読み込み中...",
+        "no_data_today": "今日の注文履歴がありません。",
+        "no_completed_today": "今日完了した注文がありません。",
+        "no_cancelled_today": "今日取り消された注文がありません。",
+        "no_data_date": "該当日付に注文履歴がありません。",
+        "no_completed_date": "該当日付に完了した注文がありません。",
+        "no_cancelled_date": "該当日付に取り消された注文がありません。",
+        "error_load": "注文履歴の読み込みに失敗しました: {error}。\n店舗情報が読み込まれているか確認してください。"
+    },
+    "product_mgmt": {
+        "title": "商品管理",
+        "search_placeholder": "商品名検索",
+        "sold_out": "品切れ",
+        "count": "{n}個",
+        "total_count": "全体 {n}個",
+        "error_load": "商品リストの読み込み中にエラーが発生しました。\n{error}",
+        "dialog_hidden_title": "非表示処理",
+        "dialog_hidden_content": "[ {name} ] を非表示(キー削除)にしますか？",
+        "btn_hidden": "非表示(キー削除)"
+    },
+    "order": {
+        "new_order": "新規",
+        "preparing": "受付",
+        "ready": "待機",
+        "cancelled": "取消",
+        "done": "完了",
+        "type_dine_in": "店内",
+        "type_takeout": "持ち帰り",
+        "type_both": "複合",
+        "count(plural, arg=n)": {
+            "other": "{n} 個"
+        },
+        "count_items(plural, arg=n)": {
+            "other": "注文メニュー合計 {n}個"
+        },
+        "menu_no_info": "メニュー情報がありません。",
+        "qty": "{n}個",
+        "memo": "メモ",
+        "amount": "注文金額",
+        "discount": "割引金額",
+        "payment": "決済金額",
+        "customer_honorific": "{name}様"
+    },
+    "order_detail": {
+        "loading": "注文詳細情報を読み込んでいます...",
+        "error_prefix": "エラーが発生しました: {error}",
+        "status_update_fail": "注文状態の変更에 失敗했습니다。",
+        "dialog_kiosk_cancel_title": "注文取消",
+        "dialog_kiosk_cancel_content": "キオスク注文はキオスク端末で取り消してください。",
+        "dialog_cancel_confirm_content": "{n}番의 注文を取り消しますか？",
+        "dialog_repickup_confirm_title": "ピックアップ再要請",
+        "dialog_repickup_confirm_content": "{n}番의 注文의 ピックアップを再要請しますか？",
+        "dialog_not_picked_up_confirm_title": "未ピックアップ",
+        "dialog_not_picked_up_confirm_content": "{n}番의 注文を未ピックアップ処理しますか？",
+        "print_receipt_fail": "領収書印刷失敗: {error}",
+        "btn_receipt_reprint": "領収書再印刷",
+        "btn_label_reprint": "ラベル再印刷",
+        "btn_pickup_request": "ピックアップ要請",
+        "btn_order_accept": "注文受付",
+        "btn_order_complete": "注文完了",
+        "btn_order_cancel": "注文取消",
+        "time_select_title": "準備時間選択",
+        "time_select_content": "注文準備に必要な時間を選択してください。",
+        "minutes": "{n}分"
+    },
+    "dialog": {
+        "status_change": {
+            "title": "状態変更",
+            "content": "[ {item} ] の状態を変更しますか？",
+            "current": "現在の状態: ",
+            "sale": "販売",
+            "sold_out": "品切れ",
+            "hidden": "非表示",
+            "hidden_delete": "非表示(キー削除)"
+        },
+        "exit": {
+            "title": "アプリ終了",
+            "content": "本当に終了しますか？",
+            "confirm": "終了"
+        },
+        "update": {
+            "title": "アプリのアップデート",
+            "new_update": "新しいアップデートがあります。",
+            "ask_download": "アップデートをダウンロードしますか？",
+            "downloading": "アップデートをダウンロード中...",
+            "download_complete": "ダウンロードが完了했습니다！",
+            "installing": "アップデート가自動的이インストールされます。",
+            "fail": "ダウンロード失敗",
+            "download": "ダウンロード"
+        }
+    },
+    "drawer": {
+        "settings": "設定",
+        "logout": "ログアウト",
+        "customer_center": "カスタマーセンター",
+        "version": "バージョン: {version} ({build})",
+        "version_loading": "バージョン: 読み込み中...",
+        "version_error": "バージョン: エラー"
+    },
+    "membership": {
+        "title": "メンバーシップ照会",
+        "search": {
+            "hint": "電話番号またはクーポン番号を入力してください。",
+            "hint_searched": "スタンプの個数を入力してください。(最大20個まで)",
+            "btn_search": "会員照会",
+            "btn_other_member": "他の会員を照会",
+            "btn_save_stamp": "スタンプ積立",
+            "btn_use_coupon": "クーポン使用",
+            "btn_validate_coupon": "クーポン検証",
+            "btn_scan": "バーコードスキャン"
+        },
+        "customer": {
+            "status_none": "会員情報がありません。",
+            "honorific": "{name}様",
+            "summary": "スタンプ {stamps} | クーポン {coupons}"
+        },
+        "tabs": {
+            "stamps": "スタンプ内訳",
+            "coupons": "クーポン使用内訳",
+            "available": "保有クーポン"
+        },
+        "history": {
+            "no_stamps": "スタンプ内訳がありません。",
+            "no_coupons": "クーポン内訳がありません。",
+            "no_available": "保有しているクーポンがありません。",
+            "col_date": "積立日時",
+            "col_count": "積立個数",
+            "col_remark": "備考",
+            "col_coupon": "クーポン名",
+            "col_use_date": "使用日",
+            "col_expiry": "有効期限",
+            "btn_cancel_save": "積立取消",
+            "btn_cancel_use": "使用取消",
+            "btn_use": "使用",
+            "status_cancelled": "取消完了",
+            "status_converted": "クーポン変換完了",
+            "status_issued": "発行完了",
+            "status_expired": "期間満了",
+            "prev_page": "前のページ",
+            "next_page": "次のページ"
+        },
+        "dialog": {
+            "invalid_barcode": "サポートされていないバーコード形式です。",
+            "enter_phone": "電話番号を入力してください。",
+            "cancel_stamp_title": "スタンプ積立取消",
+            "cancel_stamp_content": "{date} に積立された {count}個의 スタンプ積立を取り消しますか？",
+            "cancel_coupon_title": "クーポン使用取消",
+            "cancel_coupon_content": "[{title}] クーポンの使用を取り消しますか？",
+            "use_coupon_title": "クーポン使用",
+            "use_coupon_content": "{title} クーポンを使用しますか？",
+            "use_coupon_code_content": "クーポンコード [{code}] を使用しますか？",
+            "scanner_not_supported": "QR버코드를 サポートしていない端末입니다.",
+            "enter_coupon_code": "クーポンコードを入力してください。",
+            "store_info_missing": "店舗情報가ありません。再度ログインしてください。",
+            "input_error_title": "入力エラー",
+            "stamp_input_error": "スタンプ個数は1以上の数字で入力してください。",
+            "stamp_limit_error": "スタンプ個数は20個以下で入力してください。",
+            "coupon_info_title": "クーポン情報",
+            "coupon_info_content": "クーポン名: {name}\n特典: {benefit}\n使用可能です。",
+            "processing_complete": "完了",
+            "notification": "通知"
+        },
+        "keypad": {
+            "clear": "初期化",
+            "delete": "削除"
+        }
+    },
+    "kds": {
+        "tabs": {
+            "all": "全体 {n}",
+            "progress": "進行 {n}",
+            "completed": "完了 {n}",
+            "cancelled": "取消 {n}"
+        },
+        "sort": {
+            "oldest": "古い順",
+            "newest": "新しい順"
+        },
+        "order_time": "注文時間 {time}",
+        "total_items(plural, arg=n)": {
+            "other": "合計 {n}個"
+        },
+        "item_qty(plural, arg=n)": {
+            "other": "{n}個"
+        },
+        "loading_detail": "詳細情報読み込み中...",
+        "no_menu_info": "メニュー情報なし",
+        "btn_detail": "詳細",
+        "btn_pickup_request": "呼出",
+        "msg_pickup_confirm": "{n}番の注文のピックアップを要請しますか？",
+        "loading_orders": "注文 정보를 読み込んでいます..."
+    }
+}

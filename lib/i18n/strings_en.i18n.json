@@ -1,0 +1,389 @@
+{
+    "app": {
+        "name": "Kokonut Order Agent"
+    },
+    "common": {
+        "confirm": "Confirm",
+        "cancel": "Cancel",
+        "close": "Close",
+        "refresh": "Refresh",
+        "error": "Error",
+        "error_title": "Operation Failed",
+        "loading": "Loading...",
+        "next": "Next",
+        "retry": "Retry",
+        "yes": "Yes",
+        "no": "No",
+        "unknown": "Unknown",
+        "later": "Later"
+    },
+    "login": {
+        "title": "Login",
+        "id_label": "ID",
+        "pw_label": "Password",
+        "id_placeholder": "Please enter your ID",
+        "pw_placeholder": "Please enter your password",
+        "button": "Login",
+        "save_id": "Save ID",
+        "auto_login": "Auto Login",
+        "fail_title": "Login Failed",
+        "fail_msg": "Failed to login.",
+        "permission_error": "Error occurred while requesting permissions.",
+        "internet_error_title": "Connection Error",
+        "internet_error_msg": "Please check your internet connection.",
+        "auto_login_disabled": "Auto login is disabled.",
+        "auto_login_no_id": "No saved Store ID, skipping auto login.",
+        "auto_login_fail_no_pw": "Auto login failed: No saved password. (Manual login required once)",
+        "tabs": {
+            "order": "Reception",
+            "kitchen": "KDS"
+        },
+        "overlay_permission": {
+            "title": "Permission Required",
+            "content": "\"Display over other apps\" permission is required for minimize feature.\nSettings now?",
+            "set": "Settings",
+            "later": "Later"
+        }
+    },
+    "settings": {
+        "title": "Settings",
+        "save": "Save",
+        "save_success": "Settings saved.",
+        "save_error": "Error saving settings: {error}",
+        "auto_start": {
+            "title": "Auto Start on Boot",
+            "desc": "Automatically launch agent on PC startup.",
+            "desc_general": "Automatically launch agent on PC startup.\nStore must be open to receive orders.",
+            "on": "ON",
+            "off": "OFF"
+        },
+        "auto_receipt": {
+            "title": "Auto Accept Pickup Orders",
+            "desc": "Automatically accept orders upon receipt."
+        },
+        "print_order": {
+            "title": "Print Tickets",
+            "desc": "Print order tickets."
+        },
+        "builtin_printer": {
+            "title": "Use Built-in Printer",
+            "desc": "Use the device's built-in printer."
+        },
+        "external_printer": {
+            "title": "Use External Printer",
+            "desc": "Use USB-connected external printer.\nOrders follow settings, receipts print only on external printer."
+        },
+        "label_printer": {
+            "title": "Use Label Printer",
+            "desc": "Use USB-connected label printer. (50mm x 70mm)"
+        },
+        "volume": {
+            "title": "Volume",
+            "desc": "Adjust notification volume."
+        },
+        "sound": {
+            "title": "Notification Sound",
+            "desc": "Select notification sound.",
+            "sound1": "Sound 1",
+            "sound2": "Sound 2"
+        },
+        "alert_count": {
+            "title": "Alert Count",
+            "desc": "Set number of times alert plays.",
+            "count": "{n} times",
+            "unlimited": "Unlimited"
+        },
+        "print_count": {
+            "title": "Print Copies",
+            "desc": "Set the number of order receipts to print on order.",
+            "count": "{n} copies"
+        },
+        "language": {
+            "title": "Language",
+            "desc": "Set the application language."
+        },
+        "developer_options": {
+            "title": "Developer Options",
+            "appfit_test": {
+                "title": "AppFit API Test",
+                "desc": "Test Waldlust Platform AppFit API settings",
+                "btn": "Test"
+            }
+        },
+        "local_server": {
+            "title": "Enable Local Server",
+            "desc": "Enable local server for Kiosk status check.",
+            "info": "Server Info",
+            "ip": "IP Address: {ip}",
+            "port": "Port: {port}",
+            "started": "Local server started.",
+            "stopped": "Local server stopped.",
+            "url": "URL: {url}"
+        },
+        "connection": {
+            "connected": "Connected",
+            "disconnected": "Disconnected",
+            "reconnect": "Reconnect"
+        }
+    },
+    "home": {
+        "tabs": {
+            "order_status": "Status",
+            "order_history": "History",
+            "product_management": "Products",
+            "membership": "Membership"
+        },
+        "logout_confirm": "Are you sure you want to logout?",
+        "minimize_error": "An error occurred while minimizing the app.",
+        "invalid_tab": "Invalid tab index."
+    },
+    "app_bar": {
+        "time_loading": "Loading date...",
+        "time_error": "Time load error",
+        "morning": "AM",
+        "afternoon": "PM",
+        "new_order_count(plural, arg=n)": {
+            "one": "1 New Order",
+            "other": "{n} New Orders"
+        },
+        "kds_mode": "KDS Mode",
+        "order_toggle": "Order",
+        "order_start_confirm_title": "Confirm Order Start",
+        "order_stop_confirm_title": "Confirm Order Stop",
+        "order_start_confirm_content": "Change status to Open?",
+        "order_stop_confirm_content": "Change status to Preparing (Closed)?",
+        "exit_app": "Exit App",
+        "exit_app_desc": "Are you sure you want to exit? \nOperating status will be set to OFF automatically.",
+        "exit_app_kds_desc": "Are you sure you want to exit?",
+        "burst_test_start": "⚡️ Starting simulation (10 orders)"
+    },
+    "order_status": {
+        "tab_new": "New",
+        "tab_preparing": "Accepted",
+        "tab_ready": "Ready",
+        "tab_done": "Done",
+        "order_count(plural, arg=n)": {
+            "one": "1 Order",
+            "other": "{n} Orders"
+        },
+        "batch_complete_confirm_title": "Ready for Pickup",
+        "batch_complete_confirm_content": "Do you want to complete all {n} orders?",
+        "batch_result_title": "Result",
+        "batch_result_success": "Completed: All {n} orders processed successfully.",
+        "batch_result_partial": "Completed: Success {success}, Fail {fail}",
+        "batch_result_fail": "Processing failed: {error}",
+        "batch_result_error": "Error: An exception occurred during processing.",
+        "scroll_to_start": "Go to Start"
+    },
+    "order_history": {
+        "title": "History",
+        "search_today": "Today's Orders",
+        "sort": "Sort",
+        "filter_all": "All",
+        "filter_completed": "Completed",
+        "filter_cancelled": "Cancelled",
+        "total_count(plural, arg=n)": {
+            "one": "Total 1 Order",
+            "other": "Total {n} Orders"
+        },
+        "cancel_count(plural, arg=n)": {
+            "one": "1 Cancelled",
+            "other": "{n} Cancelled"
+        },
+        "loading": "Loading...",
+        "no_data_today": "No history for today.",
+        "no_completed_today": "No completed orders today.",
+        "no_cancelled_today": "No cancelled orders today.",
+        "no_data_date": "No history for this date.",
+        "no_completed_date": "No completed orders for this date.",
+        "no_cancelled_date": "No cancelled orders for this date.",
+        "error_load": "Failed to load history: {error}.\nPlease check if store information is loaded."
+    },
+    "product_mgmt": {
+        "title": "Products",
+        "search_placeholder": "Search product name",
+        "sold_out": "Sold Out",
+        "count": "{n}",
+        "total_count": "Total {n}",
+        "error_load": "An error occurred while loading products.\n{error}",
+        "dialog_hidden_title": "Set to Hidden",
+        "dialog_hidden_content": "Do you want to set [ {name} ] to hidden?",
+        "btn_hidden": "Hidden"
+    },
+    "order": {
+        "new_order": "New",
+        "preparing": "Accepted",
+        "ready": "Ready",
+        "cancelled": "Cancelled",
+        "done": "Done",
+        "type_dine_in": "Dine-in",
+        "type_takeout": "Takeout",
+        "type_both": "Both",
+        "count(plural, arg=n)": {
+            "one": "1 Item",
+            "other": "{n} Items"
+        },
+        "count_items(plural, arg=n)": {
+            "one": "Total 1 item",
+            "other": "Total {n} items"
+        },
+        "menu_no_info": "No menu info available.",
+        "qty": "{n} qty",
+        "memo": "Memo",
+        "amount": "Amount",
+        "discount": "Discount",
+        "payment": "Total Payment",
+        "customer_honorific": "{name}"
+    },
+    "order_detail": {
+        "loading": "Loading details...",
+        "error_prefix": "An error occurred: {error}",
+        "status_update_fail": "Failed to change status.",
+        "dialog_kiosk_cancel_title": "Cancel Order",
+        "dialog_kiosk_cancel_content": "Please cancel kiosk orders at the kiosk device.",
+        "dialog_cancel_confirm_content": "Do you want to cancel order #{n}?",
+        "dialog_repickup_confirm_title": "Pickup Re-request",
+        "dialog_repickup_confirm_content": "Do you want to re-request pickup for order #{n}?",
+        "dialog_not_picked_up_confirm_title": "Not Picked Up",
+        "dialog_not_picked_up_confirm_content": "Process order #{n} as not picked up?",
+        "print_receipt_fail": "Receipt printing failed: {error}",
+        "btn_receipt_reprint": "Reprint Receipt",
+        "btn_label_reprint": "Reprint Label",
+        "btn_pickup_request": "Request Pickup",
+        "btn_order_accept": "Accept",
+        "btn_order_complete": "Complete",
+        "btn_order_cancel": "Cancel",
+        "time_select_title": "Select Prep Time",
+        "time_select_content": "Please select the time needed for preparation.",
+        "minutes": "{n} min"
+    },
+    "dialog": {
+        "status_change": {
+            "title": "Change Status",
+            "content": "Do you want to change the status of [ {item} ]?",
+            "current": "Current status: ",
+            "sale": "On Sale",
+            "sold_out": "Sold Out",
+            "hidden": "Hidden",
+            "hidden_delete": "Hidden"
+        },
+        "exit": {
+            "title": "Exit App",
+            "content": "Are you sure you want to exit?",
+            "confirm": "Exit"
+        },
+        "update": {
+            "title": "App Update",
+            "new_update": "A new update is available.",
+            "ask_download": "Do you want to download the update?",
+            "downloading": "Downloading update...",
+            "download_complete": "Download complete!",
+            "installing": "The update will be installed automatically.",
+            "fail": "Download failed",
+            "download": "Download"
+        }
+    },
+    "drawer": {
+        "settings": "Settings",
+        "logout": "Logout",
+        "customer_center": "Customer Center",
+        "version": "Version: {version} ({build})",
+        "version_loading": "Version: Loading...",
+        "version_error": "Version: Error"
+    },
+    "membership": {
+        "title": "Membership Search",
+        "search": {
+            "hint": "Please enter phone number or coupon number.",
+            "hint_searched": "Please enter number of stamps. (Up to 20)",
+            "btn_search": "Search Member",
+            "btn_other_member": "Search Other Member",
+            "btn_save_stamp": "Save Stamp",
+            "btn_use_coupon": "Use Coupon",
+            "btn_validate_coupon": "Validate Coupon",
+            "btn_scan": "Scan Barcode"
+        },
+        "customer": {
+            "status_none": "No member info found.",
+            "honorific": "{name}",
+            "summary": "Stamp {stamps} | Coupon {coupons}"
+        },
+        "tabs": {
+            "stamps": "Stamps",
+            "coupons": "Usage",
+            "available": "Coupons"
+        },
+        "history": {
+            "no_stamps": "No stamp history.",
+            "no_coupons": "No coupon history.",
+            "no_available": "No coupons available.",
+            "col_date": "Date/Time",
+            "col_count": "Count",
+            "col_remark": "Remark",
+            "col_coupon": "Coupon Name",
+            "col_use_date": "Use Date",
+            "col_expiry": "Expiry Date",
+            "btn_cancel_save": "Cancel Save",
+            "btn_cancel_use": "Cancel Use",
+            "btn_use": "Use",
+            "status_cancelled": "Cancelled",
+            "status_converted": "Converted",
+            "status_issued": "Issued",
+            "status_expired": "Expired",
+            "prev_page": "Prev",
+            "next_page": "Next"
+        },
+        "dialog": {
+            "invalid_barcode": "Unsupported format.",
+            "enter_phone": "Please enter phone number.",
+            "cancel_stamp_title": "Cancel Stamp Save",
+            "cancel_stamp_content": "Cancel {count} stamps saved on {date}?",
+            "cancel_coupon_title": "Cancel Coupon Usage",
+            "cancel_coupon_content": "Cancel usage of [{title}]?",
+            "use_coupon_title": "Use Coupon",
+            "use_coupon_content": "Use {title} coupon?",
+            "use_coupon_code_content": "Use coupon code [{code}]?",
+            "scanner_not_supported": "QR scanning not supported.",
+            "enter_coupon_code": "Please enter coupon code.",
+            "store_info_missing": "Store info missing. Please login again.",
+            "input_error_title": "Input Error",
+            "stamp_input_error": "Please enter 1 or more stamps.",
+            "stamp_limit_error": "20 stamps or less.",
+            "coupon_info_title": "Coupon Info",
+            "coupon_info_content": "Name: {name}\nBenefit: {benefit}\nAvailable.",
+            "processing_complete": "Complete",
+            "notification": "Notification"
+        },
+        "keypad": {
+            "clear": "Clear",
+            "delete": "Delete"
+        }
+    },
+    "kds": {
+        "tabs": {
+            "all": "All {n}",
+            "progress": "Progress {n}",
+            "completed": "Done {n}",
+            "cancelled": "Cancelled {n}"
+        },
+        "sort": {
+            "oldest": "Oldest",
+            "newest": "Newest"
+        },
+        "order_time": "Ordered At {time}",
+        "total_items(plural, arg=n)": {
+            "one": "Total 1 item",
+            "other": "Total {n} items"
+        },
+        "item_qty(plural, arg=n)": {
+            "one": "1 item",
+            "other": "{n} items"
+        },
+        "loading_detail": "Loading details...",
+        "no_menu_info": "No menu info",
+        "btn_detail": "Details",
+        "btn_pickup_request": "Pickup",
+        "msg_pickup_confirm": "Would you like to request a pickup for Order #{n}?",
+        "loading_orders": "Loading orders..."
+    }
+}

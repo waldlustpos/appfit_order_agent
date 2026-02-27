@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">mmthcoffee.kokonutstamp.com</domain>
+        <domain includeSubdomains="true">mmthcoffee-noti.kokonutstamp.com</domain>
+        <domain includeSubdomains="true">mmthcoffee-dev.kokonutstamp2.com</domain>
+
+        <domain includeSubdomains="true">cafebombom.kokonutstamp2.com</domain>
+        <domain includeSubdomains="true">http://cafebombom-noti.kokonutstamp.com</domain>
+
+        <domain includeSubdomains="true">cafegate.kokonutstamp.com</domain>
+        <domain includeSubdomains="true">http://cafegate-noti.kokonutstamp.com</domain>
+
+        <domain includeSubdomains="true">blackline.kokonutstamp.com</domain>
+        <domain includeSubdomains="true">http://blackline-noti.kokonutstamp.com</domain>
+
+        <domain includeSubdomains="true">gc.kokonutstamp2.com</domain>
+        <domain includeSubdomains="true">http://gc-noti.kokonutstamp2.com</domain>
+
+        <domain includeSubdomains="true">theliter.kokonutstamp2.com</domain>
+        <domain includeSubdomains="true">http://theliter-noti.kokonutstamp2.com</domain>
+
+        <domain includeSubdomains="true">mass-coffee.kokonutstamp2.com</domain>
+        <domain includeSubdomains="true">http://mass-coffee-noti.kokonutstamp2.com</domain>
+
+        <domain includeSubdomains="true">waldpay.kokonutstamp2.com</domain>
+        <domain includeSubdomains="true">http://waldpay-noti.kokonutstamp2.com</domain>
+
+        <domain includeSubdomains="true">blushaak.kokonutstamp2.com</domain>
+        <domain includeSubdomains="true">http://blushaak-noti.kokonutstamp2.com</domain>
+
+        <domain includeSubdomains="true">cafe051.kokonutstamp2.com</domain>
+        <domain includeSubdomains="true">http://cafe051-noti.kokonutstamp2.com</domain>
+
+        <domain includeSubdomains="true">oozycoffee.kokonutstamp2.com</domain>
+        <domain includeSubdomains="true">http://oozycoffee-noti.kokonutstamp2.com</domain>
+
+        <domain includeSubdomains="true">milkypresso.kokonutstamp3.com"</domain>
+        <domain includeSubdomains="true">http://milkypresso-noti.kokonutstamp3.com</domain>
+
+        <domain includeSubdomains="true">sandwalker.kokonutstamp3.com"</domain>
+        <domain includeSubdomains="true">http://sandwalker-noti.kokonutstamp3.com</domain>
+    </domain-config>
+</network-security-config>

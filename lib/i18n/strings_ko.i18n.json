@@ -1,0 +1,384 @@
+{
+    "app": {
+        "name": "코코넛 주문 에이전트"
+    },
+    "common": {
+        "confirm": "확인",
+        "cancel": "취소",
+        "close": "닫기",
+        "refresh": "새로고침",
+        "error": "오류",
+        "error_title": "작업 실패",
+        "loading": "로딩 중...",
+        "next": "다음",
+        "retry": "다시 시도",
+        "yes": "예",
+        "no": "아니요",
+        "unknown": "알 수 없음",
+        "later": "나중에"
+    },
+    "login": {
+        "title": "로그인",
+        "id_label": "아이디",
+        "pw_label": "비밀번호",
+        "id_placeholder": "아이디를 입력해주세요",
+        "pw_placeholder": "비밀번호를 입력해주세요",
+        "button": "로그인",
+        "save_id": "아이디 저장",
+        "auto_login": "자동 로그인",
+        "fail_title": "로그인 실패",
+        "fail_msg": "로그인에 실패했습니다.",
+        "permission_error": "권한 요청 중 오류가 발생했습니다.",
+        "internet_error_title": "인터넷 연결 오류",
+        "internet_error_msg": "인터넷 연결을 확인해주세요.",
+        "auto_login_disabled": "자동 로그인 설정이 비활성화 상태입니다.",
+        "auto_login_no_id": "저장된 매장 ID가 없어 자동 로그인을 건너뜜.",
+        "auto_login_fail_no_pw": "자동 로그인 실패: 저장된 비밀번호가 없습니다. (최초 1회 수동 로그인 필요)",
+        "tabs": {
+            "order": "주문접수",
+            "kitchen": "주방모니터"
+        },
+        "overlay_permission": {
+            "title": "권한 필요",
+            "content": "최소화 기능을 사용하려면 \"다른 앱 위에 표시\" 권한이 필요합니다.\n지금 설정하시겠습니까?",
+            "set": "설정하기",
+            "later": "나중에"
+        }
+    },
+    "settings": {
+        "title": "설정",
+        "save": "저장",
+        "save_success": "설정이 저장되었습니다.",
+        "save_error": "설정 저장 중 오류가 발생했습니다: {error}",
+        "auto_start": {
+            "title": "PC시작 시 자동 실행",
+            "desc": "PC시작시 자동으로 에이전트를 실행합니다.",
+            "desc_general": "PC시작시 자동으로 에이전트를 실행합니다.\n오더를 영업중으로 설정해야 주문접수가 가능합니다.",
+            "on": "ON",
+            "off": "OFF"
+        },
+        "auto_receipt": {
+            "title": "픽업 오더 자동 접수",
+            "desc": "주문 수신 시 자동으로 접수됩니다."
+        },
+        "print_order": {
+            "title": "주문서 출력",
+            "desc": "주문서를 출력합니다."
+        },
+        "builtin_printer": {
+            "title": "기기 내장 프린터 사용",
+            "desc": "기기에 내장된 프린터를 사용합니다."
+        },
+        "external_printer": {
+            "title": "외부 프린터 사용",
+            "desc": "USB 연결된 외부 프린터를 사용합니다.\n사용시 주문서는 내장/외부프린터 설정에 따라, 영수증은 외부프린터로만 출력됩니다."
+        },
+        "label_printer": {
+            "title": "라벨 프린터 사용",
+            "desc": "USB 연결된 라벨 프린터를 사용합니다. (50mm x 70mm)"
+        },
+        "volume": {
+            "title": "알림음 크기설정",
+            "desc": "알림음의 크기를 조절합니다."
+        },
+        "sound": {
+            "title": "알림음 설정",
+            "desc": "알림음을 선택합니다.",
+            "sound1": "알림음 1",
+            "sound2": "알림음 2"
+        },
+        "alert_count": {
+            "title": "알림횟수 설정",
+            "desc": "알림이 울리는 횟수를 설정합니다.",
+            "count": "{n}회",
+            "unlimited": "무제한"
+        },
+        "print_count": {
+            "title": "출력 매수",
+            "desc": "주문 접수 시 출력할 주문서 개수를 설정합니다.",
+            "count": "{n}매"
+        },
+        "language": {
+            "title": "언어 설정",
+            "desc": "앱의 언어를 설정합니다."
+        },
+        "developer_options": {
+            "title": "개발자 옵션",
+            "appfit_test": {
+                "title": "AppFit API 테스트",
+                "desc": "Waldlust Platform AppFit API 설정 확인 및 테스트",
+                "btn": "테스트"
+            }
+        },
+        "local_server": {
+            "title": "로컬 서버 활성화",
+            "desc": "키오스크에서 상품 상태를 조회할 수 있는\n로컬 서버를 활성화합니다.",
+            "info": "서버 정보",
+            "ip": "IP 주소: {ip}",
+            "port": "포트: {port}",
+            "started": "로컬 서버가 시작되었습니다.",
+            "stopped": "로컬 서버가 중지되었습니다.",
+            "url": "URL: {url}"
+        },
+        "connection": {
+            "connected": "연결됨",
+            "disconnected": "연결 안 됨",
+            "reconnect": "재연결"
+        }
+    },
+    "home": {
+        "tabs": {
+            "order_status": "주문현황",
+            "order_history": "주문내역",
+            "product_management": "상품관리",
+            "membership": "멤버십"
+        },
+        "logout_confirm": "정말 로그아웃 하시겠습니까?",
+        "minimize_error": "최소화 기능 실행 중 오류가 발생했습니다.",
+        "invalid_tab": "잘못된 탭 인덱스입니다."
+    },
+    "app_bar": {
+        "time_loading": "날짜 로딩 중...",
+        "time_error": "시간 로드 오류",
+        "morning": "오전",
+        "afternoon": "오후",
+        "new_order_count(plural, arg=n)": {
+            "other": "신규 {n} 건"
+        },
+        "kds_mode": "주방모니터",
+        "order_toggle": "오더",
+        "order_start_confirm_title": "오더 시작 확인",
+        "order_stop_confirm_title": "오더 중지 확인",
+        "order_start_confirm_content": "오더 영업중으로 변경하시겠습니까?",
+        "order_stop_confirm_content": "오더 준비중으로 변경하시겠습니까?",
+        "exit_app": "앱 종료",
+        "exit_app_desc": "앱을 종료하시겠습니까? \n종료 시 자동으로 영업 상태가 OFF처리 됩니다.",
+        "exit_app_kds_desc": "앱을 종료하시겠습니까?",
+        "burst_test_start": "⚡️ 주문 폭주 시뮬레이션 시작 (10건)"
+    },
+    "order_status": {
+        "tab_new": "신규주문",
+        "tab_preparing": "주문접수",
+        "tab_ready": "상품준비\n완료",
+        "tab_done": "완료",
+        "order_count(plural, arg=n)": {
+            "other": "{n} 건"
+        },
+        "batch_complete_confirm_title": "픽업 준비 완료",
+        "batch_complete_confirm_content": "{n}건 일괄 완료처리 하시겠습니까?",
+        "batch_result_title": "일괄 완료 처리 결과",
+        "batch_result_success": "처리 완료: {n}건 모두 성공적으로 처리되었습니다.",
+        "batch_result_partial": "처리 완료: 성공 {success}건, 실패 {fail}건",
+        "batch_result_fail": "처리 실패: {error}",
+        "batch_result_error": "오류 발생: 처리 중 예외가 발생했습니다.",
+        "scroll_to_start": "맨 앞으로"
+    },
+    "order_history": {
+        "title": "주문내역",
+        "search_today": "오늘날짜조회",
+        "sort": "정렬",
+        "filter_all": "전체주문",
+        "filter_completed": "픽업완료",
+        "filter_cancelled": "주문취소",
+        "total_count(plural, arg=n)": {
+            "other": "총 {n}건"
+        },
+        "cancel_count(plural, arg=n)": {
+            "other": "취소 {n}건"
+        },
+        "loading": "로딩중...",
+        "no_data_today": "오늘 주문 내역이 없습니다.",
+        "no_completed_today": "오늘 완료된 주문이 없습니다.",
+        "no_cancelled_today": "오늘 취소된 주문이 없습니다.",
+        "no_data_date": "해당 날짜에 주문 내역이 없습니다.",
+        "no_completed_date": "해당 날짜에 완료된 주문이 없습니다.",
+        "no_cancelled_date": "해당 날짜에 취소된 주문이 없습니다.",
+        "error_load": "주문 내역 로딩 실패: {error}.\n매장 정보가 로드되었는지 확인하세요."
+    },
+    "product_mgmt": {
+        "title": "상품관리",
+        "search_placeholder": "상품명 검색",
+        "sold_out": "품절",
+        "count": "{n}개",
+        "total_count": "전체 {n}개",
+        "error_load": "상품 목록을 불러오는 중 오류가 발생했습니다.\n{error}",
+        "dialog_hidden_title": "미노출 처리",
+        "dialog_hidden_content": "[ {name} ] 미노출(키삭제) 처리하시겠습니까?",
+        "btn_hidden": "미노출(키삭제)"
+    },
+    "order": {
+        "new_order": "신규",
+        "preparing": "접수",
+        "ready": "대기",
+        "cancelled": "취소",
+        "done": "완료",
+        "type_dine_in": "매장",
+        "type_takeout": "포장",
+        "type_both": "복합",
+        "count(plural, arg=n)": {
+            "other": "{n}개"
+        },
+        "count_items(plural, arg=n)": {
+            "other": "총 {n}개"
+        },
+        "menu_no_info": "상세 메뉴 정보가 없습니다.",
+        "qty": "{n}개",
+        "memo": "메모",
+        "amount": "주문금액",
+        "discount": "할인금액",
+        "payment": "결제금액",
+        "customer_honorific": "{name} 님"
+    },
+    "order_detail": {
+        "loading": "주문 상세 정보를 불러오는 중...",
+        "error_prefix": "오류 발생: {error}",
+        "status_update_fail": "주문 상태 변경에 실패했습니다.",
+        "dialog_kiosk_cancel_title": "주문 취소",
+        "dialog_kiosk_cancel_content": "키오스크 주문은 키오스크 기기에서 취소해주세요.",
+        "dialog_cancel_confirm_content": "#{n}번 주문을 취소하시겠습니까?",
+        "dialog_repickup_confirm_title": "픽업 재요청",
+        "dialog_repickup_confirm_content": "#{n}번 주문 픽업을 재요청하시겠습니까?",
+        "dialog_not_picked_up_confirm_title": "미픽업 처리",
+        "dialog_not_picked_up_confirm_content": "#{n}번 주문을 미픽업 처리하시겠습니까?",
+        "print_receipt_fail": "영수증 출력에 실패했습니다: {error}",
+        "btn_receipt_reprint": "영수증 재출력",
+        "btn_label_reprint": "라벨 재출력",
+        "btn_pickup_request": "픽업 요청",
+        "btn_order_accept": "주문 접수",
+        "btn_order_complete": "주문 완료",
+        "btn_order_cancel": "주문 취소",
+        "time_select_title": "조리 시간 선택",
+        "time_select_content": "주문 준비에 필요한 시간을 선택해주세요.",
+        "minutes": "{n}분"
+    },
+    "dialog": {
+        "status_change": {
+            "title": "상태 변경",
+            "content": "[ {item} ] 상태를 변경하시겠습니까?",
+            "current": "현재 상태: ",
+            "sale": "판매",
+            "sold_out": "품절",
+            "hidden": "미노출",
+            "hidden_delete": "미노출(키삭제)"
+        },
+        "exit": {
+            "title": "앱 종료",
+            "content": "정말 종료하시겠습니까?",
+            "confirm": "종료"
+        },
+        "update": {
+            "title": "앱 업데이트",
+            "new_update": "새로운 업데이트가 있습니다.",
+            "ask_download": "업데이트를 다운로드하시겠습니까?",
+            "downloading": "업데이트 다운로드 중...",
+            "download_complete": "다운로드가 완료되었습니다!",
+            "installing": "업데이트가 자동으로 설치됩니다.",
+            "fail": "다운로드 실패",
+            "download": "다운로드"
+        }
+    },
+    "drawer": {
+        "settings": "설정",
+        "logout": "로그아웃",
+        "customer_center": "고객센터",
+        "version": "버전: {version} ({build})",
+        "version_loading": "버전: 로딩 중...",
+        "version_error": "버전: 오류"
+    },
+    "membership": {
+        "title": "멤버십 조회",
+        "search": {
+            "hint": "전화번호 또는 쿠폰번호를 입력해주세요.",
+            "hint_searched": "스탬프 개수를 입력해주세요. (최대 20개까지)",
+            "btn_search": "회원조회",
+            "btn_other_member": "다른 회원 조회",
+            "btn_save_stamp": "스탬프 적립",
+            "btn_use_coupon": "쿠폰사용",
+            "btn_validate_coupon": "쿠폰검증",
+            "btn_scan": "바코드 스캔"
+        },
+        "customer": {
+            "status_none": "회원 정보가 없습니다.",
+            "honorific": "{name}님",
+            "summary": "스탬프 {stamps} | 쿠폰 {coupons}"
+        },
+        "tabs": {
+            "stamps": "스탬프내역",
+            "coupons": "쿠폰사용내역",
+            "available": "보유쿠폰"
+        },
+        "history": {
+            "no_stamps": "스탬프 내역이 없습니다.",
+            "no_coupons": "쿠폰 내역이 없습니다.",
+            "no_available": "보유한 쿠폰이 없습니다.",
+            "col_date": "적립일시",
+            "col_count": "적립개수",
+            "col_remark": "비고",
+            "col_coupon": "쿠폰명",
+            "col_use_date": "사용일",
+            "col_expiry": "유효기간",
+            "btn_cancel_save": "적립취소",
+            "btn_cancel_use": "사용취소",
+            "btn_use": "사용",
+            "status_cancelled": "취소완료",
+            "status_converted": "쿠폰변환완료",
+            "status_issued": "발급완료",
+            "status_expired": "기간만료",
+            "prev_page": "이전 페이지",
+            "next_page": "다음 페이지"
+        },
+        "dialog": {
+            "invalid_barcode": "지원하지 않는 바코드 형식입니다.",
+            "enter_phone": "전화번호를 입력해주세요.",
+            "cancel_stamp_title": "스탬프 적립 취소",
+            "cancel_stamp_content": "{date} 에 적립된 {count}개의 스탬프 적립을 취소하시겠습니까?",
+            "cancel_coupon_title": "쿠폰 사용 취소",
+            "cancel_coupon_content": "[{title}] 쿠폰 사용을 취소하시겠습니까?",
+            "use_coupon_title": "쿠폰 사용",
+            "use_coupon_content": "{title} 쿠폰을 사용하시겠습니까?",
+            "use_coupon_code_content": "쿠폰 코드 [{code}]를 사용하시겠습니까?",
+            "scanner_not_supported": "QR 바코드를 지원하지 않는 단말입니다.",
+            "enter_coupon_code": "쿠폰 코드를 입력해주세요.",
+            "store_info_missing": "매장 정보가 없습니다. 다시 로그인해주세요.",
+            "input_error_title": "입력 오류",
+            "stamp_input_error": "스탬프 개수는 1 이상의 숫자로 입력해주세요.",
+            "stamp_limit_error": "스탬프 개수는 20개 이하로 입력해주세요.",
+            "coupon_info_title": "쿠폰 정보",
+            "coupon_info_content": "쿠폰명: {name}\n혜택: {benefit}\n사용 가능합니다.",
+            "processing_complete": "처리 완료",
+            "notification": "알림"
+        },
+        "keypad": {
+            "clear": "초기화",
+            "delete": "Delete"
+        }
+    },
+    "kds": {
+        "tabs": {
+            "all": "전체 {n}",
+            "progress": "진행 {n}",
+            "pickup": "픽업 {n}",
+            "completed": "완료 {n}",
+            "cancelled": "취소 {n}"
+        },
+        "btn_batch_complete": "일괄 완료",
+        "btn_order_complete": "주문 완료",
+        "sort": {
+            "oldest": "오래된 주문순",
+            "newest": "최신 주문순"
+        },
+        "order_time": "주문시간 {time}",
+        "total_items(plural, arg=n)": {
+            "other": "총 {n}개"
+        },
+        "item_qty(plural, arg=n)": {
+            "other": "{n}개"
+        },
+        "loading_detail": "상세 정보 로딩중...",
+        "no_menu_info": "메뉴 정보 없음",
+        "btn_detail": "주문 상세",
+        "btn_pickup_request": "픽업 요청",
+        "msg_pickup_confirm": "{n}번 주문 픽업 요청 하시겠습니까?",
+        "loading_orders": "주문 정보를 불러오는 중..."
+    }
+}

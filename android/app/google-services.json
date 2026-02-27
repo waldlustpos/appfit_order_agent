@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "491396695871",
+    "project_id": "orderkds-ab33b",
+    "storage_bucket": "orderkds-ab33b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:491396695871:android:f9e68f9e2d248f2631b58a",
+        "android_client_info": {
+          "package_name": "co.kr.waldlust.order.receive"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDMvAOsRufTVMkNuuv0OzTAQu_dDuDZZ1Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

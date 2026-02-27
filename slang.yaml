@@ -1,0 +1,14 @@
+base_locale: ko
+fallback_strategy: base_locale
+input_directory: lib/i18n
+input_file_pattern: .i18n.json
+output_directory: lib/i18n
+output_file_name: strings.g.dart
+namespaces: false
+translate_var: t
+enum_name: AppLocale
+key_case: snake
+param_case: camel
+flat_map: false
+timestamp: true
+string_interpolation: braces
