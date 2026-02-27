@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../constants/app_styles.dart';
 import '../../models/product_model.dart';
 import '../../i18n/strings.g.dart';
-import '../../services/ota_update_service.dart';
+import 'package:appfit_core/appfit_core.dart';
 
 /// 공통 다이얼로그 위젯
 /// 상태 변경 및 확인용 다이얼로그

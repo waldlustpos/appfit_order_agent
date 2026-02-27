@@ -6,12 +6,12 @@ import 'package:appfit_core/appfit_core.dart'; // AppFitConfig (패키지)
 import 'package:appfit_order_agent/models/store_model.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import '../utils/logger.dart';
+import 'package:appfit_core/appfit_core.dart';
 import '../services/platform_service.dart';
 import '../services/preference_service.dart';
 import '../providers/auth_provider.dart';
 import '../providers/store_provider.dart';
 
-import '../services/ota_update_service.dart';
 import '../widgets/common/common_dialog.dart';
 import '../constants/app_styles.dart';
 import '../services/local_server_service.dart';
@@ -235,9 +235,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   /// 업데이트 체크
   Future<void> _checkForUpdate() async {
     try {
-      final otaService = OtaUpdateService();
+      final otaManager = OtaUpdateManager();
 
-      final updateInfo = await otaService.checkForUpdate();
+      final updateInfo = await otaManager.checkForUpdate(
+        versionUrl: 'http://waldpay.kokonutstamp2.com/appfit_order_agent_version.json',
+        downloadUrl: 'http://waldpay.kokonutstamp2.com/appfit_order_agent.apk',
+      );
 
       if (updateInfo != null && updateInfo.hasUpdate && mounted) {
         final shouldDownload = await CommonDialog.showUpdateProgressDialog(
@@ -245,10 +248,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           updateInfo: updateInfo,
           onStartUpdate:
               (downloadUrl, destinationFilename, onEvent, onDone, onError) {
-            otaService.executeUpdate(
+            otaManager.executeUpdate(
               downloadUrl: downloadUrl,
               destinationFilename: destinationFilename,
-              onEvent: onEvent,
+              onStatus: (status, progress) {
+                onEvent(OtaDownloadEvent(status: status, progress: progress));
+              },
               onDone: onDone,
               onError: onError,
             );
