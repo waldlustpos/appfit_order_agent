@@ -1,10 +1,10 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:kokonut_order_agent/models/membership_model.dart';
-import 'package:kokonut_order_agent/providers/providers.dart';
-import 'package:kokonut_order_agent/services/api_service.dart';
-import 'package:kokonut_order_agent/utils/logger.dart';
-import 'package:kokonut_order_agent/services/platform_service.dart';
-import 'package:kokonut_order_agent/exceptions/api_exceptions.dart';
+import 'package:appfit_order_agent/models/membership_model.dart';
+import 'package:appfit_order_agent/providers/providers.dart';
+import 'package:appfit_order_agent/services/api_service.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/services/platform_service.dart';
+import 'package:appfit_order_agent/exceptions/api_exceptions.dart';
 import 'dart:math' as math;
 
 part 'membership_provider.g.dart';

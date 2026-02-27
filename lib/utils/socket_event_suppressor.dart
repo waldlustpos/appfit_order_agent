@@ -1,4 +1,4 @@
-import 'package:kokonut_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
 
 /// 소켓 이벤트 중복 처리를 방지하기 위한 유틸리티 클래스
 ///

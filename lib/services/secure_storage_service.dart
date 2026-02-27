@@ -1,6 +1,6 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kokonut_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
 
 /// 보안 저장소 서비스
 ///

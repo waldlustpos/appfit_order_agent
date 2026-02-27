@@ -1,10 +1,10 @@
 import 'package:flutter/services.dart';
-import 'package:kokonut_order_agent/utils/logger.dart';
-import 'package:kokonut_order_agent/services/platform_bridge_service.dart';
-import 'package:kokonut_order_agent/services/overlay_service.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/services/platform_bridge_service.dart';
+import 'package:appfit_order_agent/services/overlay_service.dart';
 
 const platform =
-    MethodChannel('co.kr.waldlust.order.receive.kokonut_order_agent');
+    MethodChannel('co.kr.waldlust.order.receive.appfit_order_agent');
 
 enum LogTag {
   UI_ACTION,

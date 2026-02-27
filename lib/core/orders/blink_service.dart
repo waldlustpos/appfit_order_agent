@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kokonut_order_agent/providers/providers.dart';
+import 'package:appfit_order_agent/providers/providers.dart';
 
 class BlinkService {
   final Ref ref;

@@ -1,4 +1,4 @@
-import 'package:kokonut_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
 
 /// 처리된 주문을 추적하여 중복 처리를 방지하는 캐시
 /// 소켓과 폴링 간의 경쟁 상태(Race Condition)를 해결하기 위해 사용됩니다.

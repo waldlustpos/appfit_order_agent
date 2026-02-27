@@ -922,7 +922,7 @@ class _StringsAppEn extends _StringsAppKo {
 	@override final _StringsEn _root; // ignore: unused_field
 
 	// Translations
-	@override String get name => 'Kokonut Order Agent';
+	@override String get name => 'Appfit Order Agent';
 }
 
 // Path: common

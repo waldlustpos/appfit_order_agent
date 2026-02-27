@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kokonut_order_agent/screens/membership_screen.dart';
-import 'package:kokonut_order_agent/services/preference_service.dart';
-import 'package:kokonut_order_agent/utils/logger.dart';
-import 'package:kokonut_order_agent/i18n/strings.g.dart';
+import 'package:appfit_order_agent/screens/membership_screen.dart';
+import 'package:appfit_order_agent/services/preference_service.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/i18n/strings.g.dart';
 import '../constants/app_styles.dart';
 import '../providers/kds_unified_providers.dart';
 import '../providers/product_provider.dart';
@@ -16,7 +16,7 @@ import '../services/local_server_service.dart';
 import '../services/platform_service.dart';
 import '../services/platform_bridge_service.dart'; // PlatformBridgeService 사용 위해 추가
 
-import 'package:kokonut_order_agent/services/overlay_service.dart';
+import 'package:appfit_order_agent/services/overlay_service.dart';
 
 import '../widgets/home/app_bar_widget.dart';
 import '../widgets/home/tab_button_widget.dart';

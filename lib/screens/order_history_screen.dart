@@ -6,7 +6,7 @@ import '../widgets/home/order_card_widget.dart';
 import '../constants/app_styles.dart';
 import '../widgets/order/order_detail_popup.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:kokonut_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
 import '../models/order_model.dart';
 import '../providers/order_history_provider.dart';
 import '../i18n/strings.g.dart';

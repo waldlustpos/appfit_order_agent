@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kokonut_order_agent/constants/app_styles.dart';
-import 'package:kokonut_order_agent/services/platform_service.dart';
-import 'package:kokonut_order_agent/utils/common_util.dart';
+import 'package:appfit_order_agent/constants/app_styles.dart';
+import 'package:appfit_order_agent/services/platform_service.dart';
+import 'package:appfit_order_agent/utils/common_util.dart';
 import '../../models/product_model.dart';
 import '../../providers/product_provider.dart';
 import '../common/common_dialog.dart';

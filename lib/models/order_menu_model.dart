@@ -1,5 +1,5 @@
 import 'menu_option_model.dart';
-import 'package:kokonut_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
 
 class OrderMenuModel {
   final String orderNo;

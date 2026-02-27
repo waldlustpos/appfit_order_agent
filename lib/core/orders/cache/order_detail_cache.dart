@@ -1,4 +1,4 @@
-import 'package:kokonut_order_agent/models/order_model.dart';
+import 'package:appfit_order_agent/models/order_model.dart';
 
 class _CacheEntry {
   final OrderModel order;

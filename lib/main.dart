@@ -6,9 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // import 'package:flutter_dotenv/flutter_dotenv.dart'; // Removed
 
-import 'package:kokonut_order_agent/services/platform_service.dart';
-import 'package:kokonut_order_agent/services/preference_service.dart';
-import 'package:kokonut_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/services/platform_service.dart';
+import 'package:appfit_order_agent/services/preference_service.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:appfit_core/appfit_core.dart'; // AppFit Core 추가
 import 'firebase_options.dart';
 import 'screens/home_screen.dart';
@@ -19,8 +19,8 @@ import 'package:firebase_core/firebase_core.dart';
 
 import 'config/app_env.dart'; // AppEnv 추가
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:kokonut_order_agent/i18n/strings.g.dart';
-import 'package:kokonut_order_agent/providers/locale_provider.dart';
+import 'package:appfit_order_agent/i18n/strings.g.dart';
+import 'package:appfit_order_agent/providers/locale_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

@@ -19,13 +19,13 @@ import '../services/print_service.dart';
 import 'package:flutter/material.dart'; // For TextEditingController and AppLifecycleState
 import '../utils/logger.dart'; // For logger
 import 'package:intl/intl.dart'; // DateFormat 사용
-import 'package:kokonut_order_agent/models/order_model.dart';
-import 'package:kokonut_order_agent/providers/auth_provider.dart';
-import 'package:kokonut_order_agent/providers/order_provider.dart';
-import 'package:kokonut_order_agent/providers/store_provider.dart';
-import 'package:kokonut_order_agent/providers/product_provider.dart';
-import 'package:kokonut_order_agent/services/preference_service.dart';
-import 'package:kokonut_order_agent/providers/lifecycle_provider.dart';
+import 'package:appfit_order_agent/models/order_model.dart';
+import 'package:appfit_order_agent/providers/auth_provider.dart';
+import 'package:appfit_order_agent/providers/order_provider.dart';
+import 'package:appfit_order_agent/providers/store_provider.dart';
+import 'package:appfit_order_agent/providers/product_provider.dart';
+import 'package:appfit_order_agent/services/preference_service.dart';
+import 'package:appfit_order_agent/providers/lifecycle_provider.dart';
 import 'dart:async'; // For Timer
 
 // Generated part file

@@ -1,8 +1,8 @@
-import 'package:kokonut_order_agent/models/order_model.dart';
-import 'package:kokonut_order_agent/models/order_menu_model.dart';
-import 'package:kokonut_order_agent/models/menu_option_model.dart';
-import 'package:kokonut_order_agent/core/orders/order_queue_service.dart';
-import 'package:kokonut_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/models/order_model.dart';
+import 'package:appfit_order_agent/models/order_menu_model.dart';
+import 'package:appfit_order_agent/models/menu_option_model.dart';
+import 'package:appfit_order_agent/core/orders/order_queue_service.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
 
 /// 주문 폭주 시뮬레이션 테스트 유틸리티
 class SocketBurstTest {

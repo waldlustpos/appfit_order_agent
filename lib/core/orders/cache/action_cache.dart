@@ -1,5 +1,5 @@
 import 'package:appfit_core/appfit_core.dart';
-import 'package:kokonut_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
 
 /// 클라이언트가 직접 수행한 주문 동작을 일시적으로 저장하여
 /// 소켓으로 동일한 이벤트가 중복 수신될 때 필터링하기 위한 캐시입니다.

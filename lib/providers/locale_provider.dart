@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:kokonut_order_agent/i18n/strings.g.dart';
-import 'package:kokonut_order_agent/services/preference_service.dart';
-import 'package:kokonut_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/i18n/strings.g.dart';
+import 'package:appfit_order_agent/services/preference_service.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
 
 part 'locale_provider.g.dart';
 

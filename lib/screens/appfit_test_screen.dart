@@ -3,13 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 // import 'package:flutter_dotenv/flutter_dotenv.dart'; // Removed
 import '../config/app_env.dart'; // AppEnv 추가 // import 추가
 import 'package:appfit_core/appfit_core.dart';
-import 'package:kokonut_order_agent/services/appfit/appfit_providers.dart';
-import 'package:kokonut_order_agent/utils/logger.dart';
-import 'package:kokonut_order_agent/services/api_service.dart';
-import 'package:kokonut_order_agent/providers/providers.dart';
-import 'package:kokonut_order_agent/models/membership_model.dart';
+import 'package:appfit_order_agent/services/appfit/appfit_providers.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/services/api_service.dart';
+import 'package:appfit_order_agent/providers/providers.dart';
+import 'package:appfit_order_agent/models/membership_model.dart';
 import 'package:intl/intl.dart';
-import 'package:kokonut_order_agent/utils/print/label_painter.dart';
+import 'package:appfit_order_agent/utils/print/label_painter.dart';
 
 /// AppFit API 설정 및 테스트 화면
 ///

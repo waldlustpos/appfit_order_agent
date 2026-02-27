@@ -1,6 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:kokonut_order_agent/services/platform_service.dart';
-import 'package:kokonut_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/services/platform_service.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
 import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -11,7 +11,7 @@ import 'dart:convert';
 class PreferenceService {
   static const String PREFERENCES_NAME = "KOKONUT_AGENT";
   static const methodChannel =
-      MethodChannel('co.kr.waldlust.order.receive.kokonut_order_agent');
+      MethodChannel('co.kr.waldlust.order.receive.appfit_order_agent');
 
   static const String KEY_MID = "KOKONUT_M_ID";
   static const String KEY_PWD = "KOKONUT_M_PWD";

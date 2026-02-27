@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kokonut_order_agent/models/order_model.dart';
-import 'package:kokonut_order_agent/providers/providers.dart';
-import 'package:kokonut_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/models/order_model.dart';
+import 'package:appfit_order_agent/providers/providers.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
 
 class OrderQueueService {
   final Ref ref;

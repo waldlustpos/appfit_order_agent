@@ -1,15 +1,15 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:kokonut_order_agent/models/order_model.dart';
-import 'package:kokonut_order_agent/providers/providers.dart';
-import 'package:kokonut_order_agent/providers/product_provider.dart'; // [NEW] 상품 목록 연동
-import 'package:kokonut_order_agent/services/platform_service.dart';
-import 'package:kokonut_order_agent/utils/logger.dart';
-import 'package:kokonut_order_agent/core/orders/sound_service.dart';
-import 'package:kokonut_order_agent/utils/print/label_painter.dart';
+import 'package:appfit_order_agent/models/order_model.dart';
+import 'package:appfit_order_agent/providers/providers.dart';
+import 'package:appfit_order_agent/providers/product_provider.dart'; // [NEW] 상품 목록 연동
+import 'package:appfit_order_agent/services/platform_service.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/core/orders/sound_service.dart';
+import 'package:appfit_order_agent/utils/print/label_painter.dart';
 import 'package:collection/collection.dart'; // [NEW] firstWhereOrNull 사용
 
-import 'package:kokonut_order_agent/constants/order_constants.dart';
+import 'package:appfit_order_agent/constants/order_constants.dart';
 import '../../providers/kds_unified_providers.dart';
 
 class OutputService {

@@ -8,7 +8,7 @@ import 'providers.dart';
 import '../services/appfit/appfit_providers.dart';
 import '../services/api_service.dart';
 import 'package:appfit_core/appfit_core.dart' as appfit_core;
-import 'package:kokonut_order_agent/utils/socket_event_suppressor.dart';
+import 'package:appfit_order_agent/utils/socket_event_suppressor.dart';
 
 /// 소켓 관련 기능을 관리하는 클래스
 /// 소켓 연결, 구독, 알림 처리 등을 담당합니다.

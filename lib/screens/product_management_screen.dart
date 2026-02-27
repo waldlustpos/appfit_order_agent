@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kokonut_order_agent/constants/app_styles.dart';
+import 'package:appfit_order_agent/constants/app_styles.dart';
 import '../providers/product_provider.dart';
 import '../widgets/product/product_card_widget.dart';
 import '../models/product_model.dart';

@@ -1,7 +1,7 @@
 import 'package:appfit_core/appfit_core.dart';
 import '../../utils/logger.dart';
 
-class KokonutAppFitLogger implements AppFitLogger {
+class AppfitAppFitLogger implements AppFitLogger {
   @override
   Future<void> log(String message) async {
     // [API] 태그를 추가하여 CustomLogOutput에서 필터링 가능하게 함

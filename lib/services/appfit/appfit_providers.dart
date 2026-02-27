@@ -16,7 +16,7 @@ final appFitTokenManagerProvider = Provider<AppFitTokenManager>((ref) {
   return AppFitTokenManager(
     projectId: '', // 런타임에 saveProjectCredentials()로 SecureStorage에서 관리
     baseUrl: AppFitConfig.baseUrl,
-    logger: KokonutAppFitLogger(),
+    logger: AppfitAppFitLogger(),
   );
 });
 
@@ -27,7 +27,7 @@ final appFitDioProvider = Provider<Dio>((ref) {
   final dioProvider = AppFitDioProvider(
     tokenManager: tokenManager,
     authProvider: _AgentAuthStateProvider(),
-    logger: KokonutAppFitLogger(),
+    logger: AppfitAppFitLogger(),
   );
 
   return dioProvider.instance;
@@ -49,7 +49,7 @@ class AppFitNotifierNotifier extends Notifier<ConnectionStatus> {
 
   @override
   ConnectionStatus build() {
-    _coreService = AppFitNotifierService(logger: KokonutAppFitLogger());
+    _coreService = AppFitNotifierService(logger: AppfitAppFitLogger());
     _connectionStateSubscription = _coreService.connectionStateStream.listen(
       (status) => state = status,
     );

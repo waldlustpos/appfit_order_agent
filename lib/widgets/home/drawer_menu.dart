@@ -4,7 +4,7 @@ import '../../constants/app_styles.dart';
 import '../../providers/store_provider.dart';
 import '../../providers/app_info_provider.dart';
 import '../../services/platform_service.dart';
-import 'package:kokonut_order_agent/i18n/strings.g.dart';
+import 'package:appfit_order_agent/i18n/strings.g.dart';
 
 class DrawerMenu extends ConsumerWidget {
   final int currentIndex;

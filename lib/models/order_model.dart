@@ -1,6 +1,6 @@
 import 'order_menu_model.dart';
 import 'package:intl/intl.dart';
-import 'package:kokonut_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
 import '../utils/kds_utils.dart' as kds_utils;
 import 'enums/order_status.dart';
 

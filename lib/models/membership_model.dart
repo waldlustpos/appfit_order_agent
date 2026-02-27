@@ -1,6 +1,6 @@
 // lib/models/membership_model.dart
 import 'package:intl/intl.dart';
-import 'package:kokonut_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
 
 class CouponInfo {
   final String couponId;

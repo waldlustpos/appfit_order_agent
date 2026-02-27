@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:appfit_core/appfit_core.dart'; // AppFitConfig (패키지)
-import 'package:kokonut_order_agent/models/store_model.dart';
+import 'package:appfit_order_agent/models/store_model.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import '../utils/logger.dart';
 import '../services/platform_service.dart';
@@ -19,9 +19,9 @@ import '../providers/providers.dart';
 import '../providers/kds_unified_providers.dart';
 import '../providers/order_provider.dart';
 import 'package:flutter/foundation.dart'; // For kDebugMode if needed
-import 'package:kokonut_order_agent/i18n/strings.g.dart';
-import 'package:kokonut_order_agent/providers/locale_provider.dart';
-import 'package:kokonut_order_agent/utils/print/label_painter.dart';
+import 'package:appfit_order_agent/i18n/strings.g.dart';
+import 'package:appfit_order_agent/providers/locale_provider.dart';
+import 'package:appfit_order_agent/utils/print/label_painter.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);

@@ -2,9 +2,9 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kokonut_order_agent/models/product_model.dart';
-import 'package:kokonut_order_agent/utils/logger.dart';
-import 'package:kokonut_order_agent/providers/product_provider.dart';
+import 'package:appfit_order_agent/models/product_model.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/providers/product_provider.dart';
 
 class LocalServerService {
   final WidgetRef _ref;

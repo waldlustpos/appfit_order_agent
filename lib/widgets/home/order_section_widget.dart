@@ -5,8 +5,8 @@ import '../../models/order_model.dart';
 import '../../providers/order_provider.dart';
 import 'order_card_widget.dart';
 import '../../widgets/common/common_dialog.dart';
-import 'package:kokonut_order_agent/utils/logger.dart';
-import 'package:kokonut_order_agent/i18n/strings.g.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/i18n/strings.g.dart';
 
 // ConsumerStatefulWidget으로 변경
 class OrderSectionWidget extends ConsumerStatefulWidget {

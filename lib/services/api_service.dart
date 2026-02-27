@@ -3,7 +3,7 @@ import '../config/app_env.dart'; // AppEnv 추가
 import 'package:dio/dio.dart'; // Added for DioException
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:kokonut_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
 import '../models/order_model.dart';
 import '../models/order_menu_model.dart';
 import '../models/menu_option_model.dart';

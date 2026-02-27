@@ -1,6 +1,6 @@
 import 'dart:math';
-import 'package:kokonut_order_agent/models/order_model.dart';
-import 'package:kokonut_order_agent/models/order_menu_model.dart';
+import 'package:appfit_order_agent/models/order_model.dart';
+import 'package:appfit_order_agent/models/order_menu_model.dart';
 
 /// 테스트용 가상 주문 생성기
 class MockOrderGenerator {

@@ -15,18 +15,18 @@ import 'order_queue_manager.dart';
 import 'order_socket_manager.dart';
 import 'providers.dart';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:kokonut_order_agent/core/orders/sound_service.dart';
-import 'package:kokonut_order_agent/core/orders/blink_service.dart';
-import 'package:kokonut_order_agent/core/orders/output_service.dart';
-import 'package:kokonut_order_agent/core/orders/order_queue_service.dart';
-import 'package:kokonut_order_agent/services/output_queue_service.dart'; // [NEW]
+import 'package:appfit_order_agent/core/orders/sound_service.dart';
+import 'package:appfit_order_agent/core/orders/blink_service.dart';
+import 'package:appfit_order_agent/core/orders/output_service.dart';
+import 'package:appfit_order_agent/core/orders/order_queue_service.dart';
+import 'package:appfit_order_agent/services/output_queue_service.dart'; // [NEW]
 
-import 'package:kokonut_order_agent/core/orders/cache/order_detail_cache.dart';
-import 'package:kokonut_order_agent/core/orders/cache/processed_order_cache.dart';
-import 'package:kokonut_order_agent/services/appfit/appfit_providers.dart';
-import 'package:kokonut_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/core/orders/cache/order_detail_cache.dart';
+import 'package:appfit_order_agent/core/orders/cache/processed_order_cache.dart';
+import 'package:appfit_order_agent/services/appfit/appfit_providers.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
 import 'order_state.dart';
-import 'package:kokonut_order_agent/utils/socket_event_suppressor.dart';
+import 'package:appfit_order_agent/utils/socket_event_suppressor.dart';
 import 'package:appfit_core/appfit_core.dart' as appfit_core;
 import 'order_helper_methods.dart';
 

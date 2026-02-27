@@ -5,7 +5,7 @@ import '../services/platform_service.dart';
 import '../services/preference_service.dart';
 import 'kds_unified_providers.dart';
 import 'providers.dart';
-import 'package:kokonut_order_agent/utils/logger.dart'; // logger import 추가
+import 'package:appfit_order_agent/utils/logger.dart'; // logger import 추가
 
 part 'store_provider.g.dart';
 

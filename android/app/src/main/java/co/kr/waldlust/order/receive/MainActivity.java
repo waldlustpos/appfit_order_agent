@@ -75,7 +75,7 @@ import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbManager;
 
 public class MainActivity extends FlutterActivity {
-    private static final String CHANNEL = "co.kr.waldlust.order.receive.kokonut_order_agent";
+    private static final String CHANNEL = "co.kr.waldlust.order.receive.appfit_order_agent";
     private static final String PREFERENCES_NAME = "KOKONUT_AGENT";
     private static final String LEGACY_PREFERENCES_NAME = "KOKONUT_AGENT";
     private static final String LEGACY_PACKAGE_NAME = "co.kr.waldlust.order.receive";

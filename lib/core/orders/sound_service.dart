@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kokonut_order_agent/services/preference_service.dart';
-import 'package:kokonut_order_agent/utils/logger.dart';
-import 'package:kokonut_order_agent/providers/preference_provider.dart';
+import 'package:appfit_order_agent/services/preference_service.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/providers/preference_provider.dart';
 
 class SoundService {
   final Ref ref;

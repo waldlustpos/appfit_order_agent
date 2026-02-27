@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kokonut_order_agent/widgets/kds/kds_card_grid_layout_widget.dart';
+import 'package:appfit_order_agent/widgets/kds/kds_card_grid_layout_widget.dart';
 import 'package:table_calendar/table_calendar.dart';
 import '../providers/kds_unified_providers.dart';
 import '../providers/kds_order_tracking_provider.dart';

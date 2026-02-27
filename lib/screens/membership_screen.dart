@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // Required for TextInputFormatter
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart'; // DateFormat 사용 위해 추가
-import 'package:kokonut_order_agent/providers/providers.dart'; // providers import
-import 'package:kokonut_order_agent/models/membership_model.dart'; // Membership 모델 import
-import 'package:kokonut_order_agent/utils/logger.dart'; // Logger import
-import 'package:kokonut_order_agent/widgets/common/common_dialog.dart';
-import 'package:kokonut_order_agent/i18n/strings.g.dart';
+import 'package:appfit_order_agent/providers/providers.dart'; // providers import
+import 'package:appfit_order_agent/models/membership_model.dart'; // Membership 모델 import
+import 'package:appfit_order_agent/utils/logger.dart'; // Logger import
+import 'package:appfit_order_agent/widgets/common/common_dialog.dart';
+import 'package:appfit_order_agent/i18n/strings.g.dart';
 import '../services/platform_service.dart'; // <<< Import logToFile
 import '../constants/app_styles.dart';
 

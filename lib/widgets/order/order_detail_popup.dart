@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:kokonut_order_agent/constants/app_styles.dart';
-import 'package:kokonut_order_agent/services/platform_service.dart';
-import 'package:kokonut_order_agent/utils/common_util.dart';
-import 'package:kokonut_order_agent/widgets/common/common_dialog.dart';
+import 'package:appfit_order_agent/constants/app_styles.dart';
+import 'package:appfit_order_agent/services/platform_service.dart';
+import 'package:appfit_order_agent/utils/common_util.dart';
+import 'package:appfit_order_agent/widgets/common/common_dialog.dart';
 import '../../models/order_model.dart';
 import '../../providers/providers.dart';
-import 'package:kokonut_order_agent/utils/logger.dart';
-import 'package:kokonut_order_agent/core/orders/output_service.dart';
-import 'package:kokonut_order_agent/i18n/strings.g.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/core/orders/output_service.dart';
+import 'package:appfit_order_agent/i18n/strings.g.dart';
 
 class OrderDetailPopup extends ConsumerStatefulWidget {
   final OrderModel order;

@@ -1,5 +1,5 @@
-import 'package:kokonut_order_agent/services/platform_bridge_service.dart';
-import 'package:kokonut_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/services/platform_bridge_service.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
 
 /// 오버레이(버블)의 비즈니스 로직 및 수명 주기를 관리하는 서비스
 class OverlayService {

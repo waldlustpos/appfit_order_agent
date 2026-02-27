@@ -43,7 +43,7 @@ class OtaUpdateService {
   OtaUpdateService._internal();
 
   static const String _versionUrl =
-      'http://waldpay.kokonutstamp2.com/kokonut_version.json';
+      'http://waldpay.kokonutstamp2.com/order_agent_version.json';
   static const String _apkUrl =
       'http://waldpay.kokonutstamp2.com/appfit_order_agent.apk';
   static const String _apkFilename = 'appfit_order_agent.apk';

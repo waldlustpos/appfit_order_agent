@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:appfit_core/appfit_core.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kokonut_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
 import '../services/platform_service.dart';
 
 // ServerConfig URL 변경을 추적하는 provider

@@ -1,10 +1,10 @@
 import 'package:flutter/services.dart';
-import 'package:kokonut_order_agent/services/platform_service.dart';
+import 'package:appfit_order_agent/services/platform_service.dart';
 import '../models/order_model.dart';
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/providers.dart';
-import 'package:kokonut_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
 import '../services/preference_service.dart';
 
 class PrinterStatus {

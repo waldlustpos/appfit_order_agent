@@ -6,7 +6,7 @@
 ###############################################################################
 
 # 0) 사용자 정의 변수
-PPROJECT_PATH="."
+PROJECT_PATH="."
 PEM_KEY_PATH="$HOME/.ssh/LightsailDefaultKey-ap-northeast-3.pem"
 REMOTE_USER="ec2-user"
 REMOTE_HOST="52.78.172.188"
@@ -79,7 +79,7 @@ echo "빌드 번호: $BUILD_NUMBER"
 echo "==== 6) Upload version JSON to server ===="
 VERSION_JSON="{\"version\": $BUILD_NUMBER}"
 echo "$VERSION_JSON" > version.json
-scp -o StrictHostKeyChecking=no -i "$PEM_KEY_PATH" version.json "$REMOTE_USER@$REMOTE_HOST:$REMOTE_DIR/kokonut_version.json"
+scp -o StrictHostKeyChecking=no -i "$PEM_KEY_PATH" version.json "$REMOTE_USER@$REMOTE_HOST:$REMOTE_DIR/order_agent.json"
 if [ $? -ne 0 ]; then
   echo "[오류] version JSON 업로드 실패!"
   rm -f version.json
@@ -92,5 +92,5 @@ echo "##########################################################################
 echo "[완료] $APK_NAME 업로드 완료!"
 echo "서버 경로: $REMOTE_HOST:$REMOTE_DIR/$APK_NAME"
 echo "OTA 업데이트 URL: http://waldpay.kokonutstamp2.com/$APK_NAME"
-echo "버전 JSON URL: http://waldpay.kokonutstamp2.com/kokonut_version.json (version=$BUILD_NUMBER)"
+echo "버전 JSON URL: http://waldpay.kokonutstamp2.com/order_agent.json (version=$BUILD_NUMBER)"
 echo "###############################################################################"

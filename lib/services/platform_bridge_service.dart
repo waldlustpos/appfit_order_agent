@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/services.dart';
-import 'package:kokonut_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:window_manager/window_manager.dart';
 
 /// 플랫폼별 기능(최소화, 오버레이 등)을 추상화하여 제공하는 서비스
@@ -15,7 +15,7 @@ class PlatformBridgeService {
   PlatformBridgeService._internal();
 
   static const _channel =
-      MethodChannel('co.kr.waldlust.order.receive.kokonut_order_agent');
+      MethodChannel('co.kr.waldlust.order.receive.appfit_order_agent');
 
   /// 앱 최소화 (백그라운드 이동)
   Future<void> minimizeApp() async {

@@ -3,7 +3,7 @@ import 'dart:convert'; // JsonEncoder 사용 위해 추가
 import 'dart:developer' as developer;
 import 'package:logger/logger.dart';
 import 'package:flutter/foundation.dart'; // kReleaseMode 사용 위해 추가
-import 'package:kokonut_order_agent/services/platform_service.dart'; // PlatformService import
+import 'package:appfit_order_agent/services/platform_service.dart'; // PlatformService import
 
 /// 전역으로 사용할 Logger 인스턴스
 final logger = Logger(

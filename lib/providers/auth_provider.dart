@@ -2,7 +2,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 // import 'package:flutter_dotenv/flutter_dotenv.dart'; // Removed
 import '../config/app_env.dart'; // AppEnv 추가
 import 'providers.dart';
-import 'package:kokonut_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
 import '../services/appfit/appfit_providers.dart'; // appFitTokenManagerProvider
 import '../services/api_service.dart';
 import '../services/platform_service.dart'; // logToFile, LogTag 사용 위해 추가
