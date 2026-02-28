@@ -163,7 +163,7 @@ class Order extends _$Order {
     // 소켓 연결 상태에 따른 adaptive polling 간격 조정
     ref.listen(appFitNotifierServiceProvider, (previous, isConnected) {
       if (previous == isConnected) return;
-      if (isConnected == appfit_core.ConnectionStatus.connected) {
+      if (isConnected.isConnected) {
         logger.d(
             '[OrderProvider] 소켓 연결됨 → 폴링 간격 ${OrderTimerManager.socketConnectedIntervalSeconds}s');
         _timerManager
@@ -1506,7 +1506,7 @@ class Order extends _$Order {
     final Set<String> processedOrderIds = {};
 
     // 소켓 연결 상태 확인 (폴링으로 주문이 감지되었을 때 소켓 상태를 죽이지 않기 위함)
-    final isSocketConnected = ref.read(appFitNotifierServiceProvider) == appfit_core.ConnectionStatus.connected;
+    final isSocketConnected = ref.read(appFitNotifierServiceProvider).isConnected;
     bool latencyDetected = false;
 
     for (final order in newOrders) {

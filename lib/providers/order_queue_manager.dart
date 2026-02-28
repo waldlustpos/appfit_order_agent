@@ -18,8 +18,10 @@ class OrderQueueManager {
   // 2. Emitting Stage
   final Queue<OrderModel> _emitQueue = Queue();
   Timer? _emitTimer;
-  // 요구사항: 일정 term으로 보여짐 (0.5초 간격)
+  // 요구사항: 일정 term으로 보여짐 (0.5초 간격, 대량 인입 시 0.25초로 단축)
   static const Duration _emitInterval = Duration(milliseconds: 500);
+  static const Duration _emitIntervalFast = Duration(milliseconds: 250);
+  static const int _fastEmitThreshold = 20;
 
   // 주문 처리 콜백 (UI 업데이트)
   final Future<void> Function(OrderModel) onProcessSingleOrder;
@@ -108,9 +110,12 @@ class OrderQueueManager {
       logger.e('[QueueManager] 주문 처리 실패', error: e);
     }
 
-    // 다음 처리를 위한 타이머 예약 (Throttling)
+    // 다음 처리를 위한 타이머 예약 (적응형 Throttling)
     if (_emitQueue.isNotEmpty) {
-      _emitTimer = Timer(_emitInterval, _processNextEmit);
+      final interval = _emitQueue.length > _fastEmitThreshold
+          ? _emitIntervalFast
+          : _emitInterval;
+      _emitTimer = Timer(interval, _processNextEmit);
     } else {
       _emitTimer = null;
     }

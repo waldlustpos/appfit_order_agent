@@ -15,14 +15,9 @@ import 'package:appfit_order_agent/utils/socket_event_suppressor.dart';
 class OrderSocketManager {
   final Ref ref;
 
-  // 재연결 감지용 플래그 (초기 연결과 재연결 구분)
-  bool _hasEverConnected = false;
-
-  // 소켓 관련 구독
   // 소켓 관련 구독
   StreamSubscription<Map<String, dynamic>>? _messageStreamSubscription;
 
-  // 외부 서비스 참조
   // 외부 서비스 참조
   late final OrderQueueService _orderQueueService;
 
@@ -42,33 +37,30 @@ class OrderSocketManager {
   void listenToSocketChanges() {
     // 1. AppFit Notifier Listener
     ref.listen(appFitNotifierServiceProvider, (previous, next) {
-      final isConnected = next == appfit_core.ConnectionStatus.connected;
-      logger.d('[AppFitNotifier] 상태 변경: 연결됨=$isConnected');
+      final isConnected = next.isConnected;
+      logger.d('[AppFitNotifier] 상태 변경: $next (연결됨=$isConnected)');
 
       if (isConnected) {
-        // 구독이 필요한지 확인 (이미 구독중이면 스킵?)
-        // _messageStreamSubscription 체크로 변경
         if (_messageStreamSubscription == null) {
           logger.i('[OrderSocketManager] AppFit 소켓 연결됨 - 구독 시작');
           _subscribeToAppFitNotifications();
         }
-        // 재연결 시 놓친 주문 동기화 (초기 연결 제외)
-        if (_hasEverConnected) {
+        // 재연결 시 놓친 주문 동기화 (initialConnected 제외)
+        if (next == appfit_core.ConnectionStatus.reconnected) {
           logger.i('[OrderSocketManager] 소켓 재연결 감지 → 놓친 주문 새로고침');
           onRefreshOrders?.call();
         }
-        _hasEverConnected = true;
       } else {
         logger.i('[OrderSocketManager] AppFit 소켓 끊김 - 구독 해제');
-        _unsubscribeFromOrderNotifications(); // 공용메서드 사용 가능 여부 확인
+        _unsubscribeFromOrderNotifications();
       }
     });
 
     // 앱 시작시 초기 소켓 상태 확인
     Future.microtask(() {
-      final isConnected = ref.read(appFitNotifierServiceProvider) == appfit_core.ConnectionStatus.connected;
-      logger.d('앱 시작시 AppFit 소켓 상태 확인: 연결됨=$isConnected');
-      if (isConnected) {
+      final status = ref.read(appFitNotifierServiceProvider);
+      logger.d('앱 시작시 AppFit 소켓 상태 확인: $status');
+      if (status.isConnected) {
         _subscribeToAppFitNotifications();
       }
     });
@@ -82,7 +74,7 @@ class OrderSocketManager {
     }
 
     // AppFit 모드 연결 확인
-    final isConnected = ref.read(appFitNotifierServiceProvider) == appfit_core.ConnectionStatus.connected;
+    final isConnected = ref.read(appFitNotifierServiceProvider).isConnected;
     if (!isConnected) {
       // AppFit은 AuthProvider login시 자동 연결되지만,
       // 앱 재시작 등 상황에서 재연결 로직이 필요하다면 여기서 트리거 가능
@@ -112,24 +104,24 @@ class OrderSocketManager {
   /// AppFit 이벤트 처리
   void _handleAppFitEvent(Map<String, dynamic> data) async {
     try {
-      final eventType = data['eventType'];
-      final payload = data['payload'] as Map<String, dynamic>?;
+      final event = appfit_core.SocketEventPayload.fromSocketMessage(data);
 
-      if (payload == null) {
+      if (event.rawPayload.isEmpty) {
         logger.w('[AppFit Event] Payload가 없습니다: $data');
         return;
       }
 
-      // Payload에서 orderNo를 우선적으로 찾고, 없으면 orderId를 찾음
-      String? orderId = payload['orderNo']?.toString();
-      if (orderId == null || orderId.isEmpty) {
-        orderId = payload['orderId']?.toString();
+      if (event.eventTypeRaw == null) {
+        logger.w('[AppFit Event] eventType이 없습니다: $data');
+        return;
       }
+      final eventType = event.eventTypeRaw!;
 
-      if (orderId == null || orderId.isEmpty) {
+      if (!event.hasOrderId) {
         logger.w('[AppFit Event] orderNo 또는 orderId가 없습니다: $data');
         return;
       }
+      final orderId = event.orderId!;
 
       logger.d('[AppFit Event] 수신타입: $eventType, OrderId: $orderId');
 
@@ -139,7 +131,7 @@ class OrderSocketManager {
       }
 
       final storeId = ref.read(preferenceServiceProvider).getId();
-      final eventShopCode = payload['shopCode']?.toString();
+      final eventShopCode = event.shopCode;
 
       // shopCode가 제공된 경우 현재 매장과 일치하는지 확인
       if (eventShopCode != null &&
@@ -344,7 +336,6 @@ class OrderSocketManager {
 
   /// 로그아웃 시 정리
   void clearOnLogout() {
-    _hasEverConnected = false;
     _unsubscribeFromOrderNotifications();
     clearSubscriptions();
     logger.d('[OrderSocketManager] 로그아웃 시 정리 완료');

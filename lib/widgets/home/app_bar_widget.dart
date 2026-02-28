@@ -572,7 +572,7 @@ class _HomeAppBarWidgetState extends ConsumerState<HomeAppBarWidget> {
                         ? widget.onReconnect
                         : null,
                     child: Tooltip(
-                      message: socketStatus == appfit_core.ConnectionStatus.connected
+                      message: socketStatus.isConnected
                           ? '실시간 주문 수신 중'
                           : socketStatus == appfit_core.ConnectionStatus.reconnecting
                               ? '재연결 중...'
@@ -581,7 +581,7 @@ class _HomeAppBarWidgetState extends ConsumerState<HomeAppBarWidget> {
                         socketStatus != appfit_core.ConnectionStatus.disconnected
                             ? Icons.sensors
                             : Icons.sensors_off,
-                        color: socketStatus == appfit_core.ConnectionStatus.connected
+                        color: socketStatus.isConnected
                             ? Colors.green
                             : socketStatus == appfit_core.ConnectionStatus.reconnecting
                                 ? Colors.orange

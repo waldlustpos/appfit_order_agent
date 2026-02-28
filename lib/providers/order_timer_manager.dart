@@ -19,9 +19,9 @@ class OrderTimerManager {
   StreamSubscription? _orderNotificationSubscription;
   StreamSubscription<Map<String, dynamic>>? _messageStreamSubscription;
 
-  // 폴링 간격 상수
-  static const int socketConnectedIntervalSeconds = 300; // 5분 (소켓 연결 중 안전망)
-  static const int socketDisconnectedIntervalSeconds = 30; // 30초 (소켓 단절 중 보완)
+  // 폴링 간격 상수 (appfit_core 공용 상수 참조)
+  static const int socketConnectedIntervalSeconds = AppFitSyncIntervals.connectedSeconds;
+  static const int socketDisconnectedIntervalSeconds = AppFitSyncIntervals.disconnectedSeconds;
 
   // 설정
   int _currentPollingIntervalSeconds = socketConnectedIntervalSeconds;

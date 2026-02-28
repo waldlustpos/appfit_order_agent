@@ -52,7 +52,7 @@ class Auth extends _$Auth {
 
     // SocketState 기반으로 ConnectionStatus 계산
     ConnectionStatus status;
-    if (appFitStatus == appfit_core.ConnectionStatus.connected) {
+    if (appFitStatus.isConnected) {
       status = ConnectionStatus.connected;
     } else {
       status = ConnectionStatus.disconnected;
