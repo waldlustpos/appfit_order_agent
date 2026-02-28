@@ -402,6 +402,7 @@ class _StringsOrderDetailKo {
 	String dialog_repickup_confirm_content({required Object n}) => '#${n}번 주문 픽업을 재요청하시겠습니까?';
 	String get dialog_not_picked_up_confirm_title => '미픽업 처리';
 	String dialog_not_picked_up_confirm_content({required Object n}) => '#${n}번 주문을 미픽업 처리하시겠습니까?';
+	String dialog_complete_confirm_content({required Object n}) => '#${n}번 주문을 완료 처리하시겠습니까?';
 	String print_receipt_fail({required Object error}) => '영수증 출력에 실패했습니다: ${error}';
 	String get btn_receipt_reprint => '영수증 재출력';
 	String get btn_label_reprint => '라벨 재출력';
@@ -1164,6 +1165,7 @@ class _StringsOrderDetailEn extends _StringsOrderDetailKo {
 	@override String dialog_repickup_confirm_content({required Object n}) => 'Do you want to re-request pickup for order #${n}?';
 	@override String get dialog_not_picked_up_confirm_title => 'Not Picked Up';
 	@override String dialog_not_picked_up_confirm_content({required Object n}) => 'Process order #${n} as not picked up?';
+	@override String dialog_complete_confirm_content({required Object n}) => 'Do you want to complete order #${n}?';
 	@override String print_receipt_fail({required Object error}) => 'Receipt printing failed: ${error}';
 	@override String get btn_receipt_reprint => 'Reprint Receipt';
 	@override String get btn_label_reprint => 'Reprint Label';

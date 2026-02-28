@@ -141,7 +141,7 @@ class KdsPickupBottomButtonsWidget extends ConsumerWidget {
                 final isDone = await CommonDialog.showConfirmDialog(
                   context: context,
                   title: t.kds.btn_order_complete,
-                  content: t.order_detail.dialog_not_picked_up_confirm_content(
+                  content: t.order_detail.dialog_complete_confirm_content(
                       n: order.displayNum), // "주문을 완료 처리하시겠습니까?" 와 유사한 문구 사용
                   confirmText: t.common.confirm,
                   cancelText: t.common.cancel,

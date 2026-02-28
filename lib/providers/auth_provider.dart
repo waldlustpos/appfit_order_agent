@@ -193,9 +193,34 @@ class Auth extends _$Auth {
   }
 
   Future<void> reconnect() async {
-    // AppFit은 내부적으로 재연결을 시도하므로 별도 호출 불필요
-    // 필요한 경우 Credentials을 다시 로드하여 connect 호출 가능
-    logger.i('[Auth] Reconnect requested (AppFit handles this internally)');
+    logger.i('[Auth] 수동/라이프사이클 재연결 요청');
+    try {
+      final secureStorage = ref.read(secureStorageServiceProvider);
+      final projectId =
+          await secureStorage.read(SecureStorageService.appFitProjectId) ?? '';
+      final apiKey =
+          await secureStorage.read(SecureStorageService.appFitProjectApiKey) ??
+              '';
+      final aesKey = AppEnv.aesKey;
+      final storeId = ref.read(preferenceServiceProvider).getId() ?? '';
+
+      if (storeId.isNotEmpty &&
+          projectId.isNotEmpty &&
+          apiKey.isNotEmpty &&
+          aesKey.isNotEmpty) {
+        await ref.read(appFitNotifierServiceProvider.notifier).connect(
+              shopCode: storeId,
+              projectId: projectId,
+              apiKey: apiKey,
+              aesKey: aesKey,
+            );
+        logToFile(tag: LogTag.API, message: '[Auth] 재연결 완료');
+      } else {
+        logger.w('[Auth] 재연결 실패: 자격증명 불충분');
+      }
+    } catch (e) {
+      logger.e('[Auth] 재연결 오류', error: e);
+    }
   }
 }
 

@@ -240,6 +240,7 @@
         "dialog_repickup_confirm_content": "#{n}번 주문 픽업을 재요청하시겠습니까?",
         "dialog_not_picked_up_confirm_title": "미픽업 처리",
         "dialog_not_picked_up_confirm_content": "#{n}번 주문을 미픽업 처리하시겠습니까?",
+        "dialog_complete_confirm_content": "#{n}번 주문을 완료 처리하시겠습니까?",
         "print_receipt_fail": "영수증 출력에 실패했습니다: {error}",
         "btn_receipt_reprint": "영수증 재출력",
         "btn_label_reprint": "라벨 재출력",

@@ -113,6 +113,7 @@ class HomeAppBarWidget extends ConsumerStatefulWidget {
   final GlobalKey<ScaffoldState> scaffoldKey;
   final bool isSettingsScreen;
   final VoidCallback? onBackPressed;
+  final VoidCallback? onReconnect;
 
   const HomeAppBarWidget({
     Key? key,
@@ -122,6 +123,7 @@ class HomeAppBarWidget extends ConsumerStatefulWidget {
     required this.scaffoldKey,
     this.isSettingsScreen = false,
     this.onBackPressed,
+    this.onReconnect,
   }) : super(key: key);
 
   @override
@@ -258,7 +260,7 @@ class _HomeAppBarWidgetState extends ConsumerState<HomeAppBarWidget> {
   @override
   Widget build(BuildContext context) {
     final isKdsMode = ref.watch(kdsModeProvider);
-    final isSocketConnected = ref.watch(appFitNotifierServiceProvider) == appfit_core.ConnectionStatus.connected;
+    final socketStatus = ref.watch(appFitNotifierServiceProvider);
     return AppBar(
       elevation: 0,
       scrolledUnderElevation: 0,
@@ -564,13 +566,28 @@ class _HomeAppBarWidgetState extends ConsumerState<HomeAppBarWidget> {
                     size: 26,
                   ),
                   const SizedBox(width: 4),
-                  // 소켓(실시간 주문) 연결 상태 아이콘
-                  Tooltip(
-                    message: isSocketConnected ? '실시간 주문 수신 중' : '실시간 주문 연결 끊김',
-                    child: Icon(
-                      isSocketConnected ? Icons.sensors : Icons.sensors_off,
-                      color: isSocketConnected ? Colors.green : Colors.red,
-                      size: 26,
+                  // 소켓(실시간 주문) 연결 상태 아이콘 (3-state)
+                  GestureDetector(
+                    onTap: socketStatus == appfit_core.ConnectionStatus.disconnected
+                        ? widget.onReconnect
+                        : null,
+                    child: Tooltip(
+                      message: socketStatus == appfit_core.ConnectionStatus.connected
+                          ? '실시간 주문 수신 중'
+                          : socketStatus == appfit_core.ConnectionStatus.reconnecting
+                              ? '재연결 중...'
+                              : '실시간 주문 연결 끊김 - 탭하여 재연결',
+                      child: Icon(
+                        socketStatus != appfit_core.ConnectionStatus.disconnected
+                            ? Icons.sensors
+                            : Icons.sensors_off,
+                        color: socketStatus == appfit_core.ConnectionStatus.connected
+                            ? Colors.green
+                            : socketStatus == appfit_core.ConnectionStatus.reconnecting
+                                ? Colors.orange
+                                : Colors.red,
+                        size: 26,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),

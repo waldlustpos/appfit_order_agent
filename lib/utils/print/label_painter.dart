@@ -33,7 +33,7 @@ class LabelPainter extends CustomPainter {
   static const double width = 480;
   static const double height = 600;
   static const double defaultMargin = 55;
-  static const double offsetX = -35; // 우측 쏠림 보정 (음수: 좌측 이동) - 기존 -45에서 조정
+  static const double offsetX = 0; // 우측 쏠림 보정 (음수: 좌측 이동) - 기존 -45에서 조정
   static const double offsetY = -30;
 
   // Font Sizes

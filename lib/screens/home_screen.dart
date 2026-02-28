@@ -254,6 +254,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               _currentIndex = 0;
             });
           },
+          onReconnect: _handleManualReconnect,
         ),
       ),
       drawer: DrawerMenu(
@@ -388,6 +389,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         Navigator.pushReplacementNamed(context, '/login');
       }
     }
+  }
+
+  Future<void> _handleManualReconnect() async {
+    await ref.read(authProvider.notifier).reconnect();
   }
 
   void _handleMinimize() async {
