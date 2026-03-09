@@ -22,6 +22,8 @@ import 'package:flutter/foundation.dart'; // For kDebugMode if needed
 import 'package:appfit_order_agent/i18n/strings.g.dart';
 import 'package:appfit_order_agent/providers/locale_provider.dart';
 import 'package:appfit_order_agent/utils/print/label_painter.dart';
+import '../services/secure_storage_service.dart';
+import '../services/appfit/appfit_providers.dart' as appfit_providers;
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -40,6 +42,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   bool _isSaveId = false;
   bool _isAutoLogin = false;
   bool _isSubDisplay = false;
+  String _selectedEnv = PreferenceService().getEnvironment();
 
   var tag = '로그인';
 
@@ -501,6 +504,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     }
   }
 
+  Future<void> _onEnvChanged(String env) async {
+    await PreferenceService().setEnvironment(env);
+
+    // 환경이 바뀌면 이전 환경의 토큰 및 프로젝트 크리덴셜 삭제
+    await ref.read(appfit_providers.appFitTokenManagerProvider).clearToken();
+    final secureStorage = SecureStorageService();
+    await secureStorage.delete(SecureStorageService.appFitProjectId);
+    await secureStorage.delete(SecureStorageService.appFitProjectApiKey);
+
+    setState(() => _selectedEnv = env);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('환경이 $env로 변경되었습니다. 앱을 재시작하면 반영됩니다.')),
+      );
+    }
+  }
+
   Future<void> _setWindowSoftInputMode(String mode) async {
     try {
       await platform
@@ -756,6 +777,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               ),
             ],
           ),
+
+          // 디버그 모드 전용 환경 선택 UI
+          if (kDebugMode) ...[
+            const SizedBox(height: 20),
+            const Divider(),
+            const SizedBox(height: 8),
+            Text(
+              '서버 환경 선택 (재시작 후 반영)',
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            SegmentedButton<String>(
+              segments: const [
+                ButtonSegment(value: 'dev', label: Text('Dev')),
+                ButtonSegment(value: 'staging', label: Text('Stage')),
+                ButtonSegment(value: 'live', label: Text('Live')),
+              ],
+              selected: {_selectedEnv},
+              onSelectionChanged: (s) => _onEnvChanged(s.first),
+            ),
+          ],
         ],
       ),
     );

@@ -4,6 +4,9 @@ import 'package:appfit_core/appfit_core.dart';
 import '../preference_service.dart';
 import 'kokonut_appfit_logger.dart';
 
+AppFitLogger _makeSentryLogger() =>
+    SentryAppFitLogger(delegate: AppfitAppFitLogger());
+
 /// AppFit TokenManager Provider (Core 사용)
 ///
 /// appfit_core의 AppFitConfig.configure()에서 설정된 baseUrl을 사용합니다.
@@ -15,7 +18,7 @@ final appFitTokenManagerProvider = Provider<AppFitTokenManager>((ref) {
   return AppFitTokenManager(
     projectId: '', // 런타임에 saveProjectCredentials()로 SecureStorage에서 관리
     baseUrl: AppFitConfig.baseUrl,
-    logger: AppfitAppFitLogger(),
+    logger: _makeSentryLogger(),
   );
 });
 
@@ -26,7 +29,7 @@ final appFitDioProvider = Provider<Dio>((ref) {
   final dioProvider = AppFitDioProvider(
     tokenManager: tokenManager,
     authProvider: _AgentAuthStateProvider(),
-    logger: AppfitAppFitLogger(),
+    logger: _makeSentryLogger(),
   );
 
   return dioProvider.instance;
@@ -34,7 +37,7 @@ final appFitDioProvider = Provider<Dio>((ref) {
 
 final appFitNotifierServiceProvider =
     NotifierProvider<AppFitNotifierNotifier, ConnectionStatus>(
-        () => AppFitNotifierNotifier(logger: AppfitAppFitLogger()));
+        () => AppFitNotifierNotifier(logger: _makeSentryLogger()));
 
 /// AuthStateProvider 구현체 for Dio Interceptor
 ///

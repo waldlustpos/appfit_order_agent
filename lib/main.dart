@@ -1,9 +1,11 @@
 import 'dart:io';
+import 'dart:ui';
 import 'package:flutter/services.dart';
 
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 // import 'package:flutter_dotenv/flutter_dotenv.dart'; // Removed
 
 import 'package:appfit_order_agent/services/platform_service.dart';
@@ -21,6 +23,7 @@ import 'config/app_env.dart'; // AppEnv 추가
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:appfit_order_agent/i18n/strings.g.dart';
 import 'package:appfit_order_agent/providers/locale_provider.dart';
+import 'services/monitoring/order_agent_monitoring_context.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,8 +31,10 @@ void main() async {
   // 한국어 복수형 resolver 설정 (한국어는 복수형 구분 없음)
   LocaleSettings.setPluralResolver(
     locale: AppLocale.ko,
-    cardinalResolver: (n, {zero, one, two, few, many, other}) => other ?? zero ?? '',
-    ordinalResolver: (n, {zero, one, two, few, many, other}) => other ?? zero ?? '',
+    cardinalResolver: (n, {zero, one, two, few, many, other}) =>
+        other ?? zero ?? '',
+    ordinalResolver: (n, {zero, one, two, few, many, other}) =>
+        other ?? zero ?? '',
   );
 
   // 화면 방향을 가로(Landscape)로 고정
@@ -38,9 +43,19 @@ void main() async {
     DeviceOrientation.landscapeRight,
   ]);
 
+  // 저장된 환경 설정 읽기 (AppFitConfig.configure 이전에 초기화 필요)
+  final preferenceServiceForEnv = PreferenceService();
+  await preferenceServiceForEnv.init();
+  final savedEnv = preferenceServiceForEnv.getEnvironment();
+  final environment = switch (savedEnv) {
+    'live' => AppFitEnvironment.live,
+    'dev' => AppFitEnvironment.dev,
+    _ => AppFitEnvironment.staging,
+  };
+
   // AppFit 공통 패키지 설정
   AppFitConfig.configure(
-    environment: AppFitEnvironment.staging,
+    environment: environment,
     requestSource: 'ORDER_AGENT',
   );
 
@@ -51,11 +66,40 @@ void main() async {
         .w('[Main] APPFIT_AES_KEY is missing. Check --dart-define arguments.');
   }
 
-  try {
-    // 환경 변수 로드 (Removed dotenv.load)
-    // await dotenv.load(fileName: '.env');
-    // logger.i('환경 변수 로드 완료');
+  // 기기 및 앱 정보 수집 (MonitoringService 초기화에 필요)
+  final monitoringContext = await _buildMonitoringContext();
 
+  // MonitoringService 초기화 (Sentry DSN이 있을 때만)
+  if (AppEnv.hasSentryDsn) {
+    await MonitoringService.instance.init(
+      dsn: AppEnv.sentryDsn,
+      context: monitoringContext,
+    );
+    logger.i('MonitoringService 초기화 완료');
+
+    // Flutter UI 오류 (치명적 오류 자동 수집)
+    FlutterError.onError = (details) {
+      MonitoringService.instance.captureError(
+        details.exception,
+        details.stack,
+        hint: 'Flutter fatal error: ${details.exceptionAsString()}',
+      );
+    };
+
+    // Dart 비동기 미처리 오류 (Zone 외부 오류 자동 수집)
+    PlatformDispatcher.instance.onError = (error, stack) {
+      MonitoringService.instance.captureError(
+        error,
+        stack,
+        hint: 'Unhandled async error',
+      );
+      return true;
+    };
+  } else {
+    logger.w('[Main] SENTRY_DSN is missing. Monitoring disabled.');
+  }
+
+  try {
     // Firebase 초기화
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
@@ -70,17 +114,52 @@ void main() async {
     await preferenceService.init();
     logger.i('PreferenceService 초기화 완료');
 
-
     // 앱 실행
-    runApp(const ProviderScope(
-      child: MyApp(),
-    ));
+    runApp(const ProviderScope(child: MyApp()));
   } catch (e, s) {
     logger.e('앱 초기화 중 오류 발생', error: e, stackTrace: s);
-    runApp(const ProviderScope(
-      child: MyApp(),
-    ));
+    MonitoringService.instance.captureError(e, s, hint: '앱 초기화 중 오류 발생');
+    runApp(const ProviderScope(child: MyApp()));
   }
+}
+
+/// 기기/앱 정보를 수집하여 MonitoringContext 생성
+Future<OrderAgentMonitoringContext> _buildMonitoringContext() async {
+  String deviceModel = 'Unknown';
+  String deviceManufacturer = 'Unknown';
+  String appVersion = '';
+  String buildNumber = '';
+
+  try {
+    final deviceInfo = DeviceInfoPlugin();
+    if (Platform.isAndroid) {
+      final info = await deviceInfo.androidInfo;
+      deviceModel = info.model;
+      deviceManufacturer = info.manufacturer;
+    } else if (Platform.isIOS) {
+      final info = await deviceInfo.iosInfo;
+      deviceModel = info.model;
+      deviceManufacturer = 'Apple';
+    }
+  } catch (e) {
+    logger.d('Failed to get device info: $e');
+  }
+
+  try {
+    final pkgInfo = await PackageInfo.fromPlatform();
+    appVersion = pkgInfo.version;
+    buildNumber = pkgInfo.buildNumber;
+  } catch (e) {
+    logger.d('Failed to get package info: $e');
+  }
+
+  return OrderAgentMonitoringContext(
+    appVersion: appVersion,
+    buildNumber: buildNumber,
+    deviceModel: deviceModel,
+    deviceManufacturer: deviceManufacturer,
+    environment: AppFitConfig.environment.name,
+  );
 }
 
 /// 레거시 데이터 접근 권한 확인 및 요청
@@ -125,34 +204,6 @@ Future<void> _checkLegacyDataPermissions() async {
   } catch (e, s) {
     logger.e('레거시 데이터 접근 권한 확인 중 오류 발생', error: e, stackTrace: s);
   }
-}
-
-Future<void> getDeviceInfo() async {
-  DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
-  String deviceModel = 'Unknown';
-  String deviceManufacturer = 'Unknown';
-
-  try {
-    if (Platform.isAndroid) {
-      AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
-      deviceModel = androidInfo.model; // 예: "Pixel 6"
-      deviceManufacturer = androidInfo.manufacturer; // 예: "Google"
-    } else if (Platform.isIOS) {
-      IosDeviceInfo iosInfo = await deviceInfo.iosInfo;
-      deviceModel = iosInfo.model; // 예: "iPhone"
-      // iOS에서는 제조사 정보가 따로 제공되지 않음 (항상 "Apple")
-      deviceManufacturer = "Apple";
-      // iosInfo.utsname.machine 등을 통해 더 상세한 모델 식별자(예: "iPhone14,5")를 얻을 수 있습니다.
-    }
-    // 다른 플랫폼(웹, 리눅스 등)에 대한 처리도 추가 가능
-  } catch (e) {
-    logger.d('Failed to get device info: $e');
-  }
-
-  logToFile(
-      tag: LogTag.SYSTEM,
-      message:
-          'Device Info: model=$deviceModel, manufacturer=$deviceManufacturer');
 }
 
 class MyApp extends ConsumerWidget {

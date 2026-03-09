@@ -29,6 +29,10 @@ class LabelPainter extends CustomPainter {
     this.logoImage,
   });
 
+  // --- Logo Cache ---
+  static ui.Image? _cachedLogo;
+  static bool _logoLoadAttempted = false;
+
   // --- Constants (Layout & Sizes) ---
   static const double width = 480;
   static const double height = 600;
@@ -119,8 +123,8 @@ class LabelPainter extends CustomPainter {
       );
       return dividerY + spacingSectionSmall;
     } else {
-      // Default Divider if no logo
-      double dividerY = 80;
+      // Default Divider if no logo — same Y as logo branch to keep layout stable
+      double dividerY = startY + logoWidthDefault + 10;
       canvas.drawLine(
         Offset(defaultMargin, dividerY),
         Offset(size.width - defaultMargin, dividerY),
@@ -131,10 +135,7 @@ class LabelPainter extends CustomPainter {
   }
 
   double _drawBody(Canvas canvas, Size size, double startY) {
-    double currentY = startY;
-    if (logoImage != null) {
-      currentY = startY + (spacingSectionLarge - spacingSectionSmall);
-    }
+    double currentY = startY + (spacingSectionLarge - spacingSectionSmall);
 
     // 1. Sub Info (with Reverse effect)
     _drawSubInfo(canvas, size, currentY);
@@ -389,18 +390,20 @@ class LabelPainter extends CustomPainter {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
 
-    ui.Image? logo;
-    try {
-      // 최종 선정된 1비트 BMP 로고 로드
-      const String assetPath = 'assets/images/label_logo.bmp';
-      final ByteData data = await rootBundle.load(assetPath);
-      final Uint8List bytes = data.buffer.asUint8List();
-      final Completer<ui.Image> completer = Completer();
-      ui.decodeImageFromList(bytes, (img) => completer.complete(img));
-      logo = await completer.future;
-    } catch (e) {
-      debugPrint('Failed to load logo image: $e');
+    if (!_logoLoadAttempted) {
+      _logoLoadAttempted = true;
+      try {
+        const String assetPath = 'assets/images/label_logo.bmp';
+        final ByteData data = await rootBundle.load(assetPath);
+        final Uint8List bytes = data.buffer.asUint8List();
+        final Completer<ui.Image> completer = Completer();
+        ui.decodeImageFromList(bytes, (img) => completer.complete(img));
+        _cachedLogo = await completer.future;
+      } catch (e) {
+        debugPrint('Failed to load logo image: $e');
+      }
     }
+    final ui.Image? logo = _cachedLogo;
 
     final painter = LabelPainter(
       menuName: menuName,

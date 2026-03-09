@@ -17,6 +17,9 @@ import '../widgets/common/common_dialog.dart';
 import 'appfit_test_screen.dart';
 import '../utils/mock_order_generator.dart' as __MockOrderGenerator;
 import '../core/orders/order_queue_service.dart';
+import 'package:appfit_core/appfit_core.dart';
+import '../services/secure_storage_service.dart';
+import '../services/appfit/appfit_providers.dart' as appfit_providers;
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({Key? key}) : super(key: key);
@@ -49,6 +52,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   int _alertCount = 3;
   int _printCount = 1; // 주문서 출력 개수
   bool _isLocalServerEnabled = false; // 로컬 서버 활성화 상태
+  String _selectedEnv = PreferenceService().getEnvironment();
 
   // AudioPlayer 상태 관리를 위한 플래그 추가
   bool _isVolumeChanging = false;
@@ -1060,6 +1064,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ),
                   ),
                   _buildSettingItem(
+                    title: '서버 환경',
+                    description: '현재 실행 중: ${AppFitConfig.environment.name} | 재시작 후 반영됩니다.',
+                    isVertical: true,
+                    trailing: SegmentedButton<String>(
+                      segments: const [
+                        ButtonSegment(value: 'dev', label: Text('Dev')),
+                        ButtonSegment(value: 'staging', label: Text('Stage')),
+                        ButtonSegment(value: 'live', label: Text('Live')),
+                      ],
+                      selected: {_selectedEnv},
+                      onSelectionChanged: (s) => _onEnvChanged(s.first),
+                    ),
+                  ),
+                  _buildSettingItem(
                     title: t.settings.developer_options.appfit_test.title,
                     description: t.settings.developer_options.appfit_test.desc,
                     isVertical: true,
@@ -1171,6 +1189,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       );
     } catch (e, s) {
       logger.e('Mock Order Generation Failed', error: e, stackTrace: s);
+    }
+  }
+
+  Future<void> _onEnvChanged(String env) async {
+    await _preferenceService.setEnvironment(env);
+
+    // 환경이 바뀌면 이전 환경의 토큰 및 프로젝트 크리덴셜 삭제
+    await ref.read(appfit_providers.appFitTokenManagerProvider).clearToken();
+    final secureStorage = SecureStorageService();
+    await secureStorage.delete(SecureStorageService.appFitProjectId);
+    await secureStorage.delete(SecureStorageService.appFitProjectApiKey);
+
+    setState(() => _selectedEnv = env);
+    if (mounted) {
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('환경 변경'),
+          content: Text('$env 환경으로 변경되었습니다.\n앱을 재시작하면 반영됩니다.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('확인'),
+            ),
+          ],
+        ),
+      );
     }
   }
 

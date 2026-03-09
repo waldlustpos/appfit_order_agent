@@ -36,8 +36,8 @@ if [ -z "$APPFIT_AES_KEY" ]; then
   # 필요 시 exit 1 로 중단 가능
 fi
 
-echo "APPFIT_AES_KEY 주입하여 빌드..."
-flutter build apk --release --dart-define=APPFIT_AES_KEY="$APPFIT_AES_KEY"
+echo ".env 주입하여 빌드..."
+flutter build apk --release --dart-define-from-file=.env
 if [ $? -ne 0 ]; then
   echo "[오류] Flutter 빌드 실패!"
   exit 1

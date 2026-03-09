@@ -28,6 +28,7 @@ import 'settings_screen.dart';
 import '../widgets/common/common_dialog.dart';
 import 'package:flutter/widgets.dart';
 import 'package:audioplayers/audioplayers.dart';
+import '../services/monitoring/monitoring_sync_provider.dart';
 import 'kds_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -215,6 +216,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   @override
   Widget build(BuildContext context) {
+    // 매장 정보 로드 시 Sentry 컨텍스트 업데이트
+    ref.watch(monitoringSyncProvider);
+
     ref.listen<AppLifecycleState>(appLifecycleObserverProvider,
         (previous, next) async {
       logger.d('HomeScreen: AppLifecycleState changed from $previous to $next');

@@ -74,6 +74,8 @@ dependencies:
   # AppFit 공통 패키지
   appfit_core:
     path: ../packages/appfit_core
+
+  sentry_flutter: ^8.0.0
   
   # 환경 변수 관리
   # flutter_dotenv: ^5.1.0
@@ -92,6 +94,7 @@ dependencies:
   window_manager: ^0.4.3
   android_intent_plus: ^6.0.0
 dev_dependencies:
+  sentry_dart_plugin: ^3.2.1
   flutter_test:
     sdk: flutter
   flutter_lints: ^2.0.0
@@ -167,3 +170,9 @@ flutter:
   # see https://flutter.dev/to/font-from-package
 
 
+
+sentry:
+  upload_debug_symbols: true
+  upload_source_maps: true
+  project: appfit-order-agent
+  org: waldlust

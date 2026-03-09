@@ -34,6 +34,7 @@ class PreferenceService {
   static const String KEY_USE_PRINT = "KEY_USE_PRINT";
   static const String KEY_PRINTED_ORDERS = "KEY_PRINTED_ORDERS";
   static const String KEY_IS_DEV = "IS_DEV";
+  static const String KEY_ENVIRONMENT = 'appfit_environment';
 
   // New Printer Setting Keys
   static const String KEY_USE_BUILTIN_PRINTER = "KOKONUT_USE_BUILTIN_PRINTER";
@@ -313,6 +314,14 @@ class PreferenceService {
   String getIsDev() {
     return _prefs.getString(KEY_IS_DEV) ?? 'F';
   }
+
+  // 서버 환경 조회 (dev / staging / live)
+  String getEnvironment() =>
+      _prefs.getString(KEY_ENVIRONMENT) ?? 'staging';
+
+  // 서버 환경 저장
+  Future<void> setEnvironment(String env) =>
+      _prefs.setString(KEY_ENVIRONMENT, env);
 
   // 모든 로그인 정보 삭제
   Future<void> clearLoginInfo() async {
