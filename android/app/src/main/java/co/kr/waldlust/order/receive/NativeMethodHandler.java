@@ -2,6 +2,8 @@ package co.kr.waldlust.order.receive;
 
 import android.Manifest;
 import android.app.ActivityManager;
+import android.app.AlarmManager;
+import android.app.PendingIntent;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
@@ -272,6 +274,20 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
             case "getConnectedUsbDevices":
                 result.success(activity.getConnectedUsbDevices());
                 break;
+
+            case "restartApp": {
+                Intent restartIntent = activity.getPackageManager()
+                        .getLaunchIntentForPackage(activity.getPackageName());
+                restartIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+                PendingIntent pendingIntent = PendingIntent.getActivity(
+                        activity, 0, restartIntent,
+                        PendingIntent.FLAG_CANCEL_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+                AlarmManager alarmManager = (AlarmManager) activity.getSystemService(Context.ALARM_SERVICE);
+                alarmManager.set(AlarmManager.RTC, System.currentTimeMillis() + 100, pendingIntent);
+                result.success(null);
+                android.os.Process.killProcess(android.os.Process.myPid());
+                break;
+            }
 
             default:
                 result.notImplemented();

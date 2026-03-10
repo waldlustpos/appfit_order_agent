@@ -1205,13 +1205,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (mounted) {
       showDialog(
         context: context,
+        barrierDismissible: false,
         builder: (_) => AlertDialog(
           title: const Text('환경 변경'),
-          content: Text('$env 환경으로 변경되었습니다.\n앱을 재시작하면 반영됩니다.'),
+          content: Text('$env 환경으로 변경되었습니다.\n지금 재시작하시겠습니까?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('확인'),
+              child: const Text('나중에'),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                await PlatformService().restartApp();
+              },
+              child: const Text('재시작'),
             ),
           ],
         ),

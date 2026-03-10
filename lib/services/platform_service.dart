@@ -285,6 +285,11 @@ class PlatformService {
     }
   }
 
+  /// 앱 재시작
+  Future<void> restartApp() async {
+    await platform.invokeMethod('restartApp');
+  }
+
   /// 배치 로그 기록 (정적 메서드)
   static Future<void> logBatchToFile(List<String> messages) async {
     if (messages.isEmpty) return;
