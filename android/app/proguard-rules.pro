@@ -89,3 +89,29 @@
 -keep class com.sun.jna.** { *; }
 -keep class * implements com.sun.jna.** { *; }
 -dontwarn com.sun.jna.**
+
+# Sentry Replay - Jetpack Compose 미사용 프로젝트에서 참조 경고 무시
+-dontwarn androidx.compose.runtime.internal.StabilityInferred
+-dontwarn androidx.compose.ui.Modifier
+-dontwarn androidx.compose.ui.geometry.Offset
+-dontwarn androidx.compose.ui.geometry.OffsetKt
+-dontwarn androidx.compose.ui.geometry.Rect
+-dontwarn androidx.compose.ui.graphics.Color$Companion
+-dontwarn androidx.compose.ui.graphics.Color
+-dontwarn androidx.compose.ui.graphics.ColorKt
+-dontwarn androidx.compose.ui.layout.LayoutCoordinates
+-dontwarn androidx.compose.ui.layout.LayoutCoordinatesKt
+-dontwarn androidx.compose.ui.layout.ModifierInfo
+-dontwarn androidx.compose.ui.node.LayoutNode
+-dontwarn androidx.compose.ui.node.NodeCoordinator
+-dontwarn androidx.compose.ui.node.Owner
+-dontwarn androidx.compose.ui.semantics.AccessibilityAction
+-dontwarn androidx.compose.ui.semantics.SemanticsActions
+-dontwarn androidx.compose.ui.semantics.SemanticsConfiguration
+-dontwarn androidx.compose.ui.semantics.SemanticsConfigurationKt
+-dontwarn androidx.compose.ui.semantics.SemanticsProperties
+-dontwarn androidx.compose.ui.semantics.SemanticsPropertyKey
+-dontwarn androidx.compose.ui.text.TextLayoutInput
+-dontwarn androidx.compose.ui.text.TextLayoutResult
+-dontwarn androidx.compose.ui.text.TextStyle
+-dontwarn androidx.compose.ui.unit.IntSize
