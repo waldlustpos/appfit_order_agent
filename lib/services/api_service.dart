@@ -166,9 +166,28 @@ class ApiService {
       });
 
       return response.statusCode == 200;
-    } catch (e) {
+    } catch (e, s) {
       // Dio/AppFitCore에서 이미 상세한 에러 로그를 남겼으므로, 여기서는 콘솔용 로그만 남김
       logger.i('[AppFit API] updateOrderStatus 실패: $e');
+      if (e is DioException) {
+        final data = e.response?.data;
+        if (data is Map<String, dynamic> && data['code'] == 'INVALID_ORDER_STATUS') {
+          String message = data['message']?.toString() ?? '유효하지 않은 주문 상태입니다.';
+          try {
+            final currentOrder = await getOrder(orderId);
+            message = switch (currentOrder.status) {
+              OrderStatus.CANCELLED => '취소된 주문입니다.',
+              OrderStatus.READY     => '이미 픽업 요청된 주문입니다.',
+              OrderStatus.DONE      => '이미 완료된 주문입니다.',
+              OrderStatus.PREPARING => '이미 수락된 주문입니다.',
+              _                     => message,
+            };
+          } catch (_) {
+            // 조회 실패 시 원본 서버 메시지 유지
+          }
+          throw ApiException(message, e, e.stackTrace);
+        }
+      }
       return false;
     }
   }

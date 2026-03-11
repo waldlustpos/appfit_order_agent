@@ -8,6 +8,7 @@ import '../../widgets/common/common_dialog.dart';
 import '../../providers/providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../i18n/strings.g.dart';
+import '../../exceptions/api_exceptions.dart';
 
 // 공통 버튼 스타일
 class KdsButtonStyle {
@@ -64,6 +65,11 @@ class KdsProgressBottomButtonsWidget extends ConsumerWidget {
           Expanded(
             child: ElevatedButton(
               onPressed: () async {
+                // await 전에 캡처 (다이얼로그 대기 중 위젯 dispose 대비)
+                final animationsNotifier = ref.read(kdsCardAnimationsProvider.notifier);
+                final orderNotifier = ref.read(orderProvider.notifier);
+                final navigator = Navigator.of(context);
+
                 final isPickup = await CommonDialog.showConfirmDialog(
                   context: context,
                   title: t.kds.btn_pickup_request,
@@ -72,20 +78,25 @@ class KdsProgressBottomButtonsWidget extends ConsumerWidget {
                   cancelText: t.common.cancel,
                 );
                 if (isPickup == true) {
-                  // 1단계: 애니메이션 먼저 시작
-                  logger.d('KDS: 픽업 버튼 클릭 - ${order.orderId}, 애니메이션 시작');
-                  ref
-                      .read(kdsCardAnimationsProvider.notifier)
-                      .startStatusChangeAnimation(order.orderId);
+                  try {
+                    // 1단계: 애니메이션 먼저 시작
+                    animationsNotifier.startStatusChangeAnimation(order.orderId);
 
-                  // 2단계: 약간의 지연 후 상태 변경 (애니메이션이 보이도록)
-                  await Future.delayed(const Duration(milliseconds: 300));
+                    // 2단계: 약간의 지연 후 상태 변경 (애니메이션이 보이도록)
+                    await Future.delayed(const Duration(milliseconds: 300));
 
-                  // 3단계: 실제 상태 변경
-                  ref.read(orderProvider.notifier).updateOrderStatus(
-                        order,
-                        OrderStatus.READY,
+                    // 3단계: 실제 상태 변경
+                    await orderNotifier.updateOrderStatus(order, OrderStatus.READY);
+                  } catch (e, s) {
+                    logger.e('KDS: 픽업 처리 오류 - ${e.runtimeType}: $e', error: e, stackTrace: s);
+                    if (e is ApiException && navigator.mounted) {
+                      CommonDialog.showInfoDialog(
+                        context: navigator.context,
+                        title: t.common.error_title,
+                        content: e.message,
                       );
+                    }
+                  }
                 }
               },
               style: KdsButtonStyle.primary,

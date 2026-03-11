@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:appfit_order_agent/constants/app_styles.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/widgets/common/common_dialog.dart';
+import 'package:appfit_order_agent/exceptions/api_exceptions.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import '../../models/order_model.dart';
 import '../../providers/providers.dart';
@@ -203,7 +204,7 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
         errorMessage = t.order_detail.status_update_fail;
       }
     } catch (e, s) {
-      errorMessage = '오류 발생: $e';
+      errorMessage = e is ApiException ? e.message : '오류 발생: $e';
       logger.e('상태 업데이트 처리 중 오류', error: e, stackTrace: s);
     } finally {
       if (mounted) {

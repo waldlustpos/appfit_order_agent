@@ -5,6 +5,7 @@ import '../services/preference_service.dart';
 import '../services/platform_service.dart';
 import '../services/api_service.dart';
 import '../models/order_model.dart';
+import '../exceptions/api_exceptions.dart';
 
 import 'kds_unified_providers.dart';
 import 'order_cache_manager.dart';
@@ -1376,10 +1377,11 @@ class Order extends _$Order {
         state = state.copyWith(error: '서버에서 주문 상태 업데이트 실패 (orderId: $orderId)');
         return false;
       }
-    } catch (e) {
+    } catch (e, s) {
       // ApiService에서 이미 [API] ERROR 로그를 남겼을 것이므로, 여기서는 경고 수준으로 기록
-      logger.w('주문 상태 업데이트 API 오류: $e');
-      state = state.copyWith(error: '주문 상태 업데이트 API 오류: $e');
+      logger.e('[OrderProvider] updateOrderStatus 오류', error: e, stackTrace: s);
+      if (e is ApiException) rethrow;
+      state = state.copyWith(error: e.toString());
       return false;
     }
   }
