@@ -33,10 +33,7 @@ class OrderStatusScreen extends ConsumerWidget {
               onPressed: () {
                 ref.read(orderProvider.notifier).refreshOrders();
               },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppStyles.kMainColor,
-                foregroundColor: Colors.white,
-              ),
+              style: AppStyles.primaryButton(),
             ),
           ],
         ),

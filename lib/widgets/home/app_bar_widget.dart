@@ -273,30 +273,43 @@ class _HomeAppBarWidgetState extends ConsumerState<HomeAppBarWidget> {
                 logToFile(tag: LogTag.UI_ACTION, message: '햄버거버튼 선택');
               },
       ),
-      title: Stack(
-        alignment: Alignment.center,
-        children: [
-          // Replace Text widget with the new _CurrentTimeWidget
-          Center(
-            child: GestureDetector(
-              onLongPress: () {
-                // 테스트 모드 진입 또는 폭주 테스트 실행
-                logger.w('시계 영역 롱프레스 감지 - 소켓 폭주 테스트 실행');
-                // import가 없으므로 dynamic import 대신 파일 상단 임포트가 필요하지만,
-                // 여기서는 리플렉션 없이 그냥 실행할 수 없으므로,
-                // 상단에 import 문 추가가 선행되어야 함.
-                // 또는 간단히:
-                _runSocketBurstTest(ref);
-              },
-              child: const _CurrentTimeWidget(),
-            ),
+      title: _buildTitle(isKdsMode, socketStatus),
+      bottom: PreferredSize(
+        preferredSize: const Size.fromHeight(1),
+        child: Container(
+          height: isKdsMode ? 0 : 1,
+          color: Colors.grey[400],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTitle(bool isKdsMode, appfit_core.ConnectionStatus socketStatus) {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        Center(
+          child: GestureDetector(
+            onLongPress: () {
+              logger.w('시계 영역 롱프레스 감지 - 소켓 폭주 테스트 실행');
+              _runSocketBurstTest(ref);
+            },
+            child: const _CurrentTimeWidget(),
           ),
-          // 양쪽 영역의 컨테이너
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              // 왼쪽 영역
-              Row(
+        ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _buildLeftActions(isKdsMode),
+            _buildRightActions(isKdsMode, socketStatus),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLeftActions(bool isKdsMode) {
+    return Row(
                 children: [
                   // 매장명 및 주문 건수
                   Row(
@@ -469,12 +482,14 @@ class _HomeAppBarWidgetState extends ConsumerState<HomeAppBarWidget> {
                     ],
                   ),
                 ],
-              ),
+    );
+  }
 
-              // 오른쪽 영역
-              Row(
-                children: [
-                  // 서브디스플레이 모드가 아닐 때만 오더 토글 스위치 표시
+  Widget _buildRightActions(
+      bool isKdsMode, appfit_core.ConnectionStatus socketStatus) {
+    return Row(
+      children: [
+        // 서브디스플레이 모드가 아닐 때만 오더 토글 스위치 표시
                   Consumer(
                     builder: (context, ref, _) {
                       return isKdsMode
@@ -617,19 +632,7 @@ class _HomeAppBarWidgetState extends ConsumerState<HomeAppBarWidget> {
                     },
                   ),
                 ],
-              ),
-            ],
-          ),
-        ],
-      ),
-      bottom: PreferredSize(
-        preferredSize: const Size.fromHeight(1),
-        child: Container(
-          height: isKdsMode ? 0 : 1,
-          color: Colors.grey[400],
-        ),
-      ),
-    );
+      );
   }
 
   // 앱 종료 확인 대화상자

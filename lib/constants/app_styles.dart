@@ -33,4 +33,130 @@ class AppStyles {
   static const Color gray2 = Color(0xffedf1f3);
 
   static const Color green100 = Color(0xff37dc28);
+
+  // ─── 공통 버튼 스타일 ───────────────────────────────────────────────────────
+
+  /// 메인 컬러 filled 버튼 (kMainColor 배경, 흰 글씨)
+  static ButtonStyle primaryButton({
+    EdgeInsetsGeometry? padding,
+    Size? minimumSize,
+    double elevation = 0,
+  }) =>
+      ElevatedButton.styleFrom(
+        backgroundColor: kMainColor,
+        foregroundColor: Colors.white,
+        padding: padding,
+        minimumSize: minimumSize,
+        elevation: elevation,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+      );
+
+  /// kMainColor 테두리 outlined 버튼 (흰 배경, kMainColor 글씨/테두리)
+  static ButtonStyle outlinedPrimaryButton({
+    EdgeInsetsGeometry? padding,
+    Size? minimumSize,
+  }) =>
+      ElevatedButton.styleFrom(
+        backgroundColor: Colors.white,
+        foregroundColor: kMainColor,
+        side: const BorderSide(color: kMainColor),
+        elevation: 0,
+        padding: padding,
+        minimumSize: minimumSize,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+      );
+
+  /// 회색 테두리 outlined 버튼 (흰 배경, 어두운 글씨)
+  static ButtonStyle outlinedButton({
+    EdgeInsetsGeometry? padding,
+    Size? minimumSize,
+    Color borderColor = const Color(0xffc9cdd1), // gray4
+  }) =>
+      ElevatedButton.styleFrom(
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black87,
+        side: BorderSide(color: borderColor),
+        elevation: 0,
+        padding: padding,
+        minimumSize: minimumSize,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+      );
+
+  /// 설정 화면 토글 버튼 (선택/미선택 상태)
+  static ButtonStyle settingsToggleButton(bool isSelected) =>
+      ElevatedButton.styleFrom(
+        shape: RoundedRectangleBorder(
+          side: BorderSide(
+            color: isSelected ? kMainColor : gray4,
+            width: 1,
+          ),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        elevation: 0,
+        backgroundColor: Colors.white,
+        foregroundColor: isSelected ? kMainColor : gray6,
+        minimumSize: const Size(60, 40),
+      );
+
+  // ─── 공통 InputDecoration ──────────────────────────────────────────────────
+
+  /// filled 스타일 입력 필드 (회색 배경, 포커스 시 kMainColor 테두리)
+  static InputDecoration filledInputDecoration({
+    String? labelText,
+    String? hintText,
+    Widget? prefixIcon,
+    Widget? suffixIcon,
+    FloatingLabelBehavior floatingLabelBehavior = FloatingLabelBehavior.never,
+  }) =>
+      InputDecoration(
+        labelText: labelText,
+        hintText: hintText,
+        floatingLabelBehavior: floatingLabelBehavior,
+        prefixIcon: prefixIcon,
+        suffixIcon: suffixIcon,
+        filled: true,
+        fillColor: const Color(0xffedf1f3), // gray2
+        border: OutlineInputBorder(
+          borderSide: BorderSide.none,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderSide: BorderSide.none,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderSide: const BorderSide(color: kMainColor, width: 2),
+          borderRadius: BorderRadius.circular(8),
+        ),
+      );
+
+  /// outlined 스타일 입력 필드 (회색 테두리, 포커스 시 kMainColor 테두리)
+  static InputDecoration outlinedInputDecoration({
+    String? hintText,
+    String? labelText,
+    Widget? prefixIcon,
+    Widget? suffixIcon,
+    TextStyle? hintStyle,
+  }) =>
+      InputDecoration(
+        hintText: hintText,
+        labelText: labelText,
+        hintStyle: hintStyle,
+        prefixIcon: prefixIcon,
+        suffixIcon: suffixIcon,
+        enabledBorder: OutlineInputBorder(
+          borderSide: const BorderSide(color: Color(0xffc9cdd1)), // gray4
+          borderRadius: BorderRadius.circular(8),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderSide: const BorderSide(color: kMainColor, width: 2),
+          borderRadius: BorderRadius.circular(8),
+        ),
+      );
 }

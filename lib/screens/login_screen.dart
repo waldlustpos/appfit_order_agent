@@ -624,25 +624,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           // 아이디 입력 필드
           TextFormField(
             controller: _idController,
-            decoration: InputDecoration(
+            decoration: AppStyles.filledInputDecoration(
               labelText: t.login.id_label,
-              floatingLabelBehavior: FloatingLabelBehavior.never, // 힌트 애니메이션 제거
               prefixIcon: const Icon(Icons.person),
-              filled: true,
-              fillColor: Colors.grey[200], // gray2 색상
-              border: OutlineInputBorder(
-                borderSide: BorderSide.none,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderSide:
-                    const BorderSide(color: AppStyles.kMainColor, width: 2),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderSide: BorderSide.none,
-                borderRadius: BorderRadius.circular(8),
-              ),
             ),
             keyboardType: TextInputType.text,
             textInputAction: TextInputAction.next,
@@ -658,25 +642,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           // 비밀번호 입력 필드
           TextFormField(
             controller: _passwordController,
-            decoration: InputDecoration(
+            decoration: AppStyles.filledInputDecoration(
               labelText: t.login.pw_label,
-              floatingLabelBehavior: FloatingLabelBehavior.never, // 힌트 애니메이션 제거
               prefixIcon: const Icon(Icons.lock),
-              filled: true,
-              fillColor: Colors.grey[200], // gray2 색상
-              border: OutlineInputBorder(
-                borderSide: BorderSide.none,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderSide:
-                    const BorderSide(color: AppStyles.kMainColor, width: 2),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderSide: BorderSide.none,
-                borderRadius: BorderRadius.circular(8),
-              ),
               suffixIcon: IconButton(
                 icon: Icon(
                   _obscurePassword ? Icons.visibility_off : Icons.visibility,
@@ -707,16 +675,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                     _isLoading)
                 ? null
                 : _login,
-            style: ElevatedButton.styleFrom(
+            style: AppStyles.primaryButton(
               padding: const EdgeInsets.symmetric(vertical: 16),
-              backgroundColor: (_idController.text.trim().isEmpty ||
-                      _passwordController.text.trim().isEmpty)
-                  ? Colors.grey[400] // gray4 색상
-                  : AppStyles.kMainColor,
-              disabledBackgroundColor: Colors.grey[400], // gray4 색상
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
+            ).copyWith(
+              backgroundColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.disabled)) {
+                  return AppStyles.gray4;
+                }
+                return AppStyles.kMainColor;
+              }),
             ),
             child: _isLoading
                 ? const SizedBox(

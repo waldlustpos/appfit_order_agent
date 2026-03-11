@@ -254,10 +254,7 @@ class _ProductManagementScreenState
                                             .read(productProvider.notifier)
                                             .refresh();
                                       },
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: AppStyles.kMainColor,
-                                        foregroundColor: Colors.white,
-                                      ),
+                                      style: AppStyles.primaryButton(),
                                     ),
                                   ],
                                 ),

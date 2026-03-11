@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:appfit_order_agent/constants/app_styles.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
-import 'package:appfit_order_agent/utils/common_util.dart';
 import 'package:appfit_order_agent/widgets/common/common_dialog.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
 import '../../models/order_model.dart';
 import '../../providers/providers.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:appfit_order_agent/core/orders/output_service.dart';
 import 'package:appfit_order_agent/i18n/strings.g.dart';
+import 'order_menu_list_widget.dart';
+import 'order_payment_info_widget.dart';
+import 'order_info_panel_widget.dart';
 
 class OrderDetailPopup extends ConsumerStatefulWidget {
   final OrderModel order;
@@ -284,10 +286,7 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
             icon: const Icon(Icons.refresh),
             label: Text(t.common.refresh),
             onPressed: _fetchOrderDetailIfNeeded,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppStyles.kMainColor,
-              foregroundColor: Colors.white,
-            ),
+            style: AppStyles.primaryButton(),
           ),
           const SizedBox(height: 8),
           TextButton(
@@ -312,18 +311,22 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
             children: [
               Expanded(
                 flex: 1,
-                child: _buildMenuList(order),
+                child: OrderMenuListWidget(
+                  menus: order.orderMenuList,
+                  scrollController: _menuScrollController,
+                ),
               ),
               const SizedBox(width: 20),
               Expanded(
                 flex: 1,
-                child: _buildPaymentInfo(order),
+                child: OrderPaymentInfoWidget(
+                  totalAmount: order.totalAmount,
+                  discountAmount: order.discountAmount,
+                  paymentAmount: order.paymentAmount,
+                ),
               ),
               const SizedBox(width: 20),
-              Expanded(
-                flex: 1,
-                child: _buildOrderInfo(order),
-              ),
+              OrderInfoPanelWidget(order: order),
             ],
           ),
         ),
@@ -361,321 +364,6 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
     );
   }
 
-  // 주문 상태에 따른 색상 반환
-  Color _getStatusColor(OrderStatus status) {
-    switch (status) {
-      case OrderStatus.NEW:
-        return Colors.blue;
-      case OrderStatus.PREPARING:
-        return Colors.orange;
-      case OrderStatus.READY:
-        return AppStyles.kMainColor;
-      case OrderStatus.DONE:
-        return Colors.green;
-      case OrderStatus.CANCELLED:
-        return Colors.red;
-    }
-  }
-
-  // 주문 상태에 따른 텍스트 반환
-  String _getStatusText(OrderStatus status) {
-    switch (status) {
-      case OrderStatus.NEW:
-        return t.order.new_order;
-      case OrderStatus.PREPARING:
-        return t.order.preparing;
-      case OrderStatus.READY:
-        return t.order.ready;
-      case OrderStatus.DONE:
-        return t.order.done;
-      case OrderStatus.CANCELLED:
-        return t.order.cancelled;
-    }
-  }
-
-  Widget _buildMenuList(OrderModel order) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: order.orderMenuList.isEmpty
-              ? Center(child: Text(t.order.menu_no_info))
-              : RawScrollbar(
-                  thumbVisibility: true,
-                  radius: const Radius.circular(10),
-                  thickness: 5,
-                  controller: _menuScrollController,
-                  child: ListView.builder(
-                    controller: _menuScrollController,
-                    itemCount: order.orderMenuList.length,
-                    itemBuilder: (context, index) {
-                      final menu = order.orderMenuList[index];
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // 메뉴 정보
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                vertical: 10, horizontal: 12),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  flex: 5,
-                                  child: Text(
-                                    menu.itemName.replaceAll('\\n', ''),
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.bold),
-                                  ),
-                                ),
-                                Expanded(
-                                  flex: 2,
-                                  child: Text(
-                                    t.order.qty(n: menu.qty.toString()),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ),
-                                Expanded(
-                                  flex: 3,
-                                  child: Text(
-                                    CommonUtil.formatPrice(
-                                        menu.itemPrice / menu.qty),
-                                    textAlign: TextAlign.right,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          // 옵션 정보
-                          ...menu.options.map((option) => Container(
-                                padding: const EdgeInsets.symmetric(
-                                    vertical: 4, horizontal: 12),
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      flex: 5,
-                                      child: Text(
-                                        '   - ${option.optionName}',
-                                        style: TextStyle(
-                                            fontSize: 13,
-                                            color: Colors.grey[700]),
-                                      ),
-                                    ),
-                                    Expanded(
-                                      flex: 2,
-                                      child: Text(
-                                        t.order.qty(n: option.qty.toString()),
-                                        style: TextStyle(
-                                            fontSize: 13,
-                                            color: Colors.grey[700]),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ),
-                                    Expanded(
-                                      flex: 3,
-                                      child: Text(
-                                        option.optionPrice != 0
-                                            ? CommonUtil.formatPrice(
-                                                option.optionPrice * option.qty)
-                                            : '-',
-                                        style: TextStyle(
-                                            fontSize: 13,
-                                            color: Colors.grey[700]),
-                                        textAlign: TextAlign.right,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              )),
-                          const Divider(),
-                        ],
-                      );
-                    },
-                  ),
-                ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPaymentInfo(OrderModel order) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.grey[400]!),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildPaymentRow(t.order.amount, order.totalAmount),
-              const SizedBox(height: 12),
-              _buildPaymentRow(t.order.discount, order.discountAmount,
-                  isDiscount: true),
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 8),
-                child: Divider(thickness: 1),
-              ),
-              _buildPaymentRow(
-                t.order.payment,
-                order.paymentAmount,
-                isBold: true,
-                textSize: 18,
-                color: AppStyles.kMainColor,
-              ),
-              /*const SizedBox(height: 16),
-              _buildPaymentMethodRow('결제 방법', _order.paymentType),*/
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPaymentRow(String label, double amount,
-      {bool isDiscount = false,
-      bool isBold = false,
-      double textSize = 14,
-      Color color = Colors.black}) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-            fontSize: textSize,
-          ),
-        ),
-        Text(
-          isDiscount
-              ? '-${CommonUtil.formatPrice(amount)}'
-              : CommonUtil.formatPrice(amount),
-          style: TextStyle(
-            color: color,
-            fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-            fontSize: textSize,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildOrderInfo(OrderModel order) {
-    String editNote(String? note) {
-      if (note == null) return '';
-      return note.replaceAll('\\n', ' ');
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey[400]!),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                    child: Text(
-                  order.displayNum,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: AppStyles.kOrderCardTitleSize),
-                )),
-                const SizedBox(height: 12),
-                if (order.userName != null)
-                  Center(
-                      child: Text(
-                    order.userName == null
-                        ? ''
-                        : t.order.customer_honorific(name: order.userName!),
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: AppStyles.kSectionTitleSize),
-                  )),
-                if (order.userName != null) const SizedBox(height: 12),
-                Center(
-                    child: Text(
-                        DateFormat('yyyy-MM-dd HH:mm:ss')
-                            .format(order.orderedAt),
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: AppStyles.kAppBarTitleSize))),
-                const SizedBox(height: 16),
-
-                // 주문 상태 표시
-                Center(
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: _getStatusColor(order.status),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Text(
-                      _getStatusText(order.status),
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                Text(
-                  t.order.memo,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Expanded(
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: Colors.grey[400]!),
-                    ),
-                    child: RawScrollbar(
-                      thumbVisibility: true,
-                      radius: const Radius.circular(10),
-                      thickness: 5,
-                      child: SingleChildScrollView(
-                        child: Text(
-                          editNote(order.note ?? ''),
-                          style: TextStyle(
-                            fontSize: 13,
-                            color:
-                                order.note == null ? Colors.grey : Colors.black,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
 
   Widget _buildFooter(
       BuildContext context, OrderModel order, String? loadingActionId) {
@@ -783,17 +471,15 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
                     .map((time) => Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 6.0),
                           child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppStyles.kMainColor,
-                              foregroundColor: Colors.white,
+                            style: AppStyles.primaryButton(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 24, vertical: 12),
-                              textStyle: const TextStyle(fontSize: 16),
                               minimumSize: const Size(90, 48),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
                               elevation: 2,
+                            ).copyWith(
+                              textStyle: const WidgetStatePropertyAll(
+                                TextStyle(fontSize: 16),
+                              ),
                             ),
                             onPressed: () {
                               logToFile(
@@ -1199,16 +885,15 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
     final bool isActionInProgress = providerState.loadingActionId != null;
 
     return ElevatedButton(
-      style: ElevatedButton.styleFrom(
-        backgroundColor: AppStyles.kSub, // KDS 전용 색상
-        foregroundColor: Colors.white,
+      style: AppStyles.primaryButton(
         padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-        textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         minimumSize: const Size(120, 48),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
+        elevation: 3,
+      ).copyWith(
+        backgroundColor: const WidgetStatePropertyAll(AppStyles.kSub),
+        textStyle: const WidgetStatePropertyAll(
+          TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
-        elevation: 3, // 더 강조된 그림자
       ),
       onPressed: isActionInProgress ? null : onPressed,
       child: Stack(
@@ -1251,19 +936,21 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
     }
 
     return ElevatedButton(
-      style: ElevatedButton.styleFrom(
-        backgroundColor: isMainAction ? AppStyles.kMainColor : Colors.white,
-        foregroundColor: isMainAction ? Colors.white : Colors.black87,
-        padding: EdgeInsets.symmetric(
-            horizontal: isMainAction ? 32 : 24, vertical: 12),
-        textStyle: const TextStyle(fontSize: 16),
-        side: isMainAction ? null : BorderSide(color: Colors.grey.shade300),
-        minimumSize: isMainAction ? const Size(120, 48) : const Size(100, 48),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
-        elevation: isMainAction ? 2 : 0,
-      ),
+      style: isMainAction
+          ? AppStyles.primaryButton(
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+              minimumSize: const Size(120, 48),
+              elevation: 2,
+            ).copyWith(
+              textStyle: const WidgetStatePropertyAll(TextStyle(fontSize: 16)),
+            )
+          : AppStyles.outlinedButton(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              minimumSize: const Size(100, 48),
+              borderColor: Colors.grey.shade300,
+            ).copyWith(
+              textStyle: const WidgetStatePropertyAll(TextStyle(fontSize: 16)),
+            ),
       // 액션 진행 중이면 모든 버튼 비활성화
       onPressed: isActionInProgress ? null : onPressed,
       child: Stack(

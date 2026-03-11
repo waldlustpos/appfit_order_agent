@@ -183,18 +183,15 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen> {
                   ),
                   const SizedBox(width: 12.0),
                   ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: Colors.black87,
+                    style: AppStyles.outlinedButton(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 12),
-                      textStyle: const TextStyle(fontSize: 16),
-                      side: BorderSide(color: Colors.grey.shade300),
                       minimumSize: const Size(100, 48),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                      borderColor: Colors.grey.shade300,
+                    ).copyWith(
+                      textStyle: WidgetStatePropertyAll(
+                        const TextStyle(fontSize: 16),
                       ),
-                      elevation: 0,
                     ),
                     onPressed: () {
                       ref

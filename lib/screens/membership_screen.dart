@@ -9,6 +9,7 @@ import 'package:appfit_order_agent/widgets/common/common_dialog.dart';
 import 'package:appfit_order_agent/i18n/strings.g.dart';
 import '../services/platform_service.dart'; // <<< Import logToFile
 import '../constants/app_styles.dart';
+import '../widgets/membership/numeric_keypad_widget.dart';
 
 class MembershipScreen extends ConsumerStatefulWidget {
   const MembershipScreen({Key? key}) : super(key: key);
@@ -25,24 +26,18 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
   String? _previousSuccess; // Local cache for success message
 
   // Define a common button style
-  late final ButtonStyle _actionButtonStyle;
+  ButtonStyle get _actionButtonStyle => AppStyles.outlinedPrimaryButton(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        minimumSize: const Size(80, 36),
+      ).copyWith(
+        textStyle: const WidgetStatePropertyAll(
+          TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+        ),
+      );
 
   @override
   void initState() {
     super.initState();
-    // Initialize the button style (can't access AppStyles directly here, so define inline)
-    _actionButtonStyle = ElevatedButton.styleFrom(
-      backgroundColor: Colors.white,
-      foregroundColor: AppStyles.kMainColor, // Assuming AppStyles is accessible
-      side: const BorderSide(color: AppStyles.kMainColor),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-      ),
-      elevation: 0,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-      minimumSize: const Size(80, 36),
-    );
     _setupMethodChannel();
   }
 
@@ -333,20 +328,12 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
                 readOnly: true,
                 showCursor: true,
                 autofocus: true,
-                decoration: InputDecoration(
+                decoration: AppStyles.outlinedInputDecoration(
                   hintText: hintText,
                   hintStyle: const TextStyle(fontSize: 15),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.grey[400]!),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: const BorderSide(
-                        color: AppStyles.kMainColor, width: 2.0),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                ).copyWith(
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 16),
                 ),
               );
             },
@@ -365,76 +352,16 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
 
   // --- 키패드 및 버튼 위젯 빌드 ---
   Widget _buildKeypadAndButtons() {
-    // 키패드 버튼 스타일 정의 (재사용을 위해)
-    final keypadButtonStyle = TextButton.styleFrom(
-      shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8), // 버튼 모서리 둥글게
-          side: BorderSide(color: Colors.grey[300]!) // 버튼 테두리
-          ),
-      // 정사각형 버튼에 맞춰 패딩 조정 (세로 패딩 제거 또는 축소)
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-      textStyle: const TextStyle(
-          // 필요 시 폰트 크기 조정
-          fontSize: 24, // 폰트 크기를 약간 키움
-          fontWeight: FontWeight.bold),
-      foregroundColor: Colors.black87,
-      // 버튼이 셀 영역을 꽉 채우도록 minimumSize 설정 (선택 사항)
-      minimumSize: const Size(double.infinity, double.infinity),
-      alignment: Alignment.center, // 내용 가운데 정렬
-    );
-
-    // 키패드 버튼 생성 함수
-    Widget buildKeypadButton(String label,
-        {VoidCallback? onPressed, IconData? icon, double fontSize = 30}) {
-      return TextButton(
-        style: keypadButtonStyle,
-        onPressed:
-            onPressed ?? () => _onKeypadPressed(label), // 기본 동작: 숫자/문자 입력
-        child: icon != null
-            ? Icon(icon, size: 28) // 아이콘 크기도 약간 키움
-            : Text(
-                label,
-                style: TextStyle(fontSize: fontSize),
-              ),
-      );
-    }
-
     return Column(
       children: [
-        // --- 키패드 영역 (GridView 사용) ---
+        // --- 키패드 영역 ---
         Expanded(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10.0),
-            child: LayoutBuilder(builder: (context, constraints) {
-              // 가로 세로 비율 계산
-              final aspectRatio = (constraints.maxWidth / 3) /
-                  ((constraints.maxHeight - 60) / 4);
-
-              return GridView.count(
-                crossAxisCount: 3,
-                mainAxisSpacing: 8,
-                crossAxisSpacing: 8,
-                childAspectRatio: aspectRatio,
-                physics: const NeverScrollableScrollPhysics(),
-                children: [
-                  buildKeypadButton('1'),
-                  buildKeypadButton('2'),
-                  buildKeypadButton('3'),
-                  buildKeypadButton('4'),
-                  buildKeypadButton('5'),
-                  buildKeypadButton('6'),
-                  buildKeypadButton('7'),
-                  buildKeypadButton('8'),
-                  buildKeypadButton('9'),
-                  buildKeypadButton(t.membership.keypad.clear,
-                      onPressed: _onClearPressed, fontSize: 19),
-                  buildKeypadButton('0'),
-                  buildKeypadButton(t.membership.keypad.delete,
-                      onPressed: _onDeletePressed,
-                      icon: Icons.backspace_outlined),
-                ],
-              );
-            }),
+          child: NumericKeypadWidget(
+            onKeyPressed: _onKeypadPressed,
+            onClear: _onClearPressed,
+            onDelete: _onDeletePressed,
+            clearLabel: t.membership.keypad.clear,
+            deleteLabel: t.membership.keypad.delete,
           ),
         ),
 
@@ -497,19 +424,23 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
                         : (isCouponMode
                             ? () => _validateCoupon(inputText)
                             : (isCustomerSearched ? null : _scanBarcode)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: Colors.black87,
+                    style: AppStyles.outlinedButton(
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      textStyle: const TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.w500),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        side: BorderSide(color: Colors.grey[300]!),
+                      borderColor: Colors.grey[300]!,
+                    ).copyWith(
+                      textStyle: const WidgetStatePropertyAll(
+                        TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
                       ),
-                      elevation: 0,
-                      disabledBackgroundColor: Colors.grey[400],
-                      disabledForegroundColor: Colors.white70,
+                      backgroundColor: WidgetStateProperty.resolveWith(
+                        (states) => states.contains(WidgetState.disabled)
+                            ? Colors.grey[400]
+                            : Colors.white,
+                      ),
+                      foregroundColor: WidgetStateProperty.resolveWith(
+                        (states) => states.contains(WidgetState.disabled)
+                            ? Colors.white70
+                            : Colors.black87,
+                      ),
                     ),
                   ),
                 ),
@@ -519,18 +450,28 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
                     icon: Icon(buttonIcon),
                     label: Text(buttonText),
                     onPressed: isButtonEnabled ? onPressedAction : null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor:
-                          isCouponMode ? Colors.orange : AppStyles.kMainColor,
-                      foregroundColor: Colors.white,
+                    style: AppStyles.primaryButton(
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      textStyle: const TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.bold),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8)),
                       elevation: 2,
-                      disabledBackgroundColor: Colors.grey[400],
-                      disabledForegroundColor: Colors.white70,
+                    ).copyWith(
+                      backgroundColor: WidgetStateProperty.resolveWith(
+                        (states) {
+                          if (states.contains(WidgetState.disabled)) {
+                            return Colors.grey[400];
+                          }
+                          return isCouponMode
+                              ? Colors.orange
+                              : AppStyles.kMainColor;
+                        },
+                      ),
+                      foregroundColor: WidgetStateProperty.resolveWith(
+                        (states) => states.contains(WidgetState.disabled)
+                            ? Colors.white70
+                            : Colors.white,
+                      ),
+                      textStyle: const WidgetStatePropertyAll(
+                        TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
                     ),
                   ),
                 ),
