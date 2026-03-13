@@ -111,7 +111,7 @@ class LabelPainter extends CustomPainter {
         Rect.fromLTWH(
             0, 0, logoImage!.width.toDouble(), logoImage!.height.toDouble()),
         dstRect,
-        Paint()..filterQuality = FilterQuality.high,
+        Paint()..filterQuality = FilterQuality.none,
       );
 
       // Header Divider
