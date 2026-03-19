@@ -50,20 +50,28 @@ public class LabelPrinter {
             if (AutoReplyPrint.INSTANCE.CP_Port_IsOpened(hPrinter)) {
                 Log.d(TAG, "Sending bitmap to label printer...");
 
+                int bitmapWidth = bitmap.getWidth();
+                int bitmapHeight = bitmap.getHeight();
+
                 // 프린터 초기화 (연속 출력 시 위치 밀림 방지)
                 AutoReplyPrint.INSTANCE.CP_Pos_ResetPrinter(hPrinter);
 
                 // Back paper to print position
                 AutoReplyPrint.INSTANCE.CP_Label_BackPaperToPrintPosition(hPrinter);
 
-                // Print Bitmap
-                AutoReplyPrint.CP_Pos_PrintRasterImageFromData_Helper.PrintRasterImageFromBitmap(
-                        hPrinter,
-                        bitmap.getWidth(),
-                        bitmap.getHeight(),
-                        bitmap,
+                // 좌우 위치 절대 고정: CP_Label_PageBegin으로 x=0, y=0 명시 지정하여
+                // ESC/POS 상태값에 무관하게 항상 동일한 위치에 출력
+                AutoReplyPrint.INSTANCE.CP_Label_PageBegin(
+                        hPrinter, 0, 0, bitmapWidth, bitmapHeight,
+                        AutoReplyPrint.CP_Label_Rotation_0);
+
+                // DrawImageFromBitmap 헬퍼: 내부적으로 올바른 파라미터 순서로 CP_Label_DrawImageFromPixels 호출
+                AutoReplyPrint.CP_Label_DrawImageFromData_Helper.DrawImageFromBitmap(
+                        hPrinter, 0, 0, bitmapWidth, bitmapHeight, bitmap,
                         AutoReplyPrint.CP_ImageBinarizationMethod_Thresholding,
-                        0);
+                        AutoReplyPrint.CP_Label_Rotation_0);
+
+                AutoReplyPrint.INSTANCE.CP_Label_PagePrint(hPrinter, 1);
 
                 // Feed paper
                 AutoReplyPrint.INSTANCE.CP_Label_FeedPaperToTearPosition(hPrinter);
