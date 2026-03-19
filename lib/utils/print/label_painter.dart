@@ -15,6 +15,8 @@ class LabelPainter extends CustomPainter {
   final String? qrData; // QR 데이터
   final String? memo; // 주문 메모 (note)
   final ui.Image? logoImage; // 로고 이미지
+  final int? orderIndex; // 현재 라벨 번호 (예: 1)
+  final int? orderTotal; // 전체 라벨 수 (예: 10)
 
   LabelPainter({
     required this.menuName,
@@ -27,6 +29,8 @@ class LabelPainter extends CustomPainter {
     this.qrData,
     this.memo,
     this.logoImage,
+    this.orderIndex,
+    this.orderTotal,
   });
 
   // --- Logo Cache ---
@@ -98,10 +102,10 @@ class LabelPainter extends CustomPainter {
 
     double logoHeight = 0;
     if (logoImage != null) {
-      // Logo
+      // Logo (centered)
       logoHeight = logoWidthDefault;
       final Rect dstRect = Rect.fromLTWH(
-          size.width - defaultMargin - logoWidthDefault,
+          size.width / 2 - logoWidthDefault / 2,
           startY,
           logoWidthDefault,
           logoHeight);
@@ -114,6 +118,18 @@ class LabelPainter extends CustomPainter {
         Paint()..filterQuality = FilterQuality.none,
       );
 
+      // Order index (right side)
+      if (orderIndex != null && orderTotal != null) {
+        _drawText(
+          canvas,
+          '$orderIndex/$orderTotal',
+          Offset(size.width - defaultMargin, startY + 5),
+          fontSize: fsSubInfo,
+          isBold: true,
+          align: TextAlign.right,
+        );
+      }
+
       // Header Divider
       double dividerY = startY + logoHeight + 10;
       canvas.drawLine(
@@ -124,6 +140,16 @@ class LabelPainter extends CustomPainter {
       return dividerY + spacingSectionSmall;
     } else {
       // Default Divider if no logo — same Y as logo branch to keep layout stable
+      if (orderIndex != null && orderTotal != null) {
+        _drawText(
+          canvas,
+          '$orderIndex/$orderTotal',
+          Offset(size.width - defaultMargin, startY + 5),
+          fontSize: fsSubInfo,
+          isBold: true,
+          align: TextAlign.right,
+        );
+      }
       double dividerY = startY + logoWidthDefault + 10;
       canvas.drawLine(
         Offset(defaultMargin, dividerY),
@@ -386,6 +412,8 @@ class LabelPainter extends CustomPainter {
     String? sizeOption,
     String? qrData,
     String? memo,
+    int? orderIndex,
+    int? orderTotal,
   }) async {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
@@ -416,6 +444,8 @@ class LabelPainter extends CustomPainter {
       qrData: qrData,
       memo: memo,
       logoImage: logo,
+      orderIndex: orderIndex,
+      orderTotal: orderTotal,
     );
 
     painter.paint(canvas, const Size(width, height));

@@ -985,6 +985,8 @@ ${orders.length > 5 ? '...외 ${orders.length - 5}개 더 있음' : ''}
         temperature: dummyTemp,
         sizeOption: dummySize,
         qrData: dummyQrData,
+        orderIndex: 1,
+        orderTotal: 3,
       );
 
       // 출력 요청

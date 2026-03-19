@@ -119,6 +119,11 @@ class OutputService {
       // 전체 상품 목록 로드 (완성된 모델 대기)
       final allProducts = await ref.read(productProvider.future);
 
+      // 전체 라벨 수 계산 (모든 메뉴 수량 합산)
+      final int totalLabels =
+          orderToPrint.menus.fold(0, (sum, m) => sum + m.qty);
+      int labelIndex = 0;
+
       for (final menu in orderToPrint.menus) {
         // 서브 정보 추출 (원두, 온도, 사이즈)
         String? beanType;
@@ -154,24 +159,26 @@ class OutputService {
             .map((e) => e.optionName)
             .toList();
 
-        final imageBytes = await LabelPainter.generateLabelImage(
-          menuName: menu.itemName,
-          options: filteredOptions,
-          shopOrderNo: orderToPrint.shopOrderNo,
-          orderTime:
-              DateFormat('MM/dd\nHH:mm:ss').format(orderToPrint.orderedAt),
-          beanType: beanType,
-          temperature: temperature,
-          sizeOption: sizeOption,
-          //qrData: orderToPrint.orderNo,
-          memo: orderToPrint.note,
-        );
-
-        // 해당 메뉴 수량만큼 반복 출력
+        // 해당 메뉴 수량만큼 반복 출력 (순번별로 이미지 생성)
         for (int i = 0; i < menu.qty; i++) {
+          labelIndex++;
+          final imageBytes = await LabelPainter.generateLabelImage(
+            menuName: menu.itemName,
+            options: filteredOptions,
+            shopOrderNo: orderToPrint.shopOrderNo,
+            orderTime:
+                DateFormat('MM/dd\nHH:mm:ss').format(orderToPrint.orderedAt),
+            beanType: beanType,
+            temperature: temperature,
+            sizeOption: sizeOption,
+            //qrData: orderToPrint.orderNo,
+            memo: orderToPrint.note,
+            orderIndex: labelIndex,
+            orderTotal: totalLabels,
+          );
           await printService.printLabel(imageBytes);
           logger.d(
-              '[OutputService] 라벨 출력(${menu.itemName}): ${i + 1}/${menu.qty}');
+              '[OutputService] 라벨 출력(${menu.itemName}): $labelIndex/$totalLabels');
           // 연속 출력 시 프린터 버퍼 안정화를 위한 딜레이
           if (i < menu.qty - 1) {
             await Future.delayed(const Duration(milliseconds: 300));

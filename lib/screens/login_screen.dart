@@ -484,6 +484,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         temperature: 'Ice',
         sizeOption: 'Tall',
         qrData: '123', // QR 데이터 추가
+        orderIndex: 1,
+        orderTotal: 3,
       );
 
       // 2. Send to Printer
