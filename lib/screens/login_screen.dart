@@ -204,7 +204,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     // 디버그 모드인 경우 테스트 계정 정보 자동 입력
     if (kDebugMode) {
       _idController.text = 'TPCP00001';
-      _passwordController.text = '01040506955';
+      _passwordController.text = '1234';
       logger.i('[LoginScreen] 디버그 모드: 테스트 계정 정보가 설정되었습니다.');
     }
   }
@@ -509,11 +509,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   Future<void> _onEnvChanged(String env) async {
     await PreferenceService().setEnvironment(env);
 
-    // 환경이 바뀌면 이전 환경의 토큰 및 프로젝트 크리덴셜 삭제
+    // AppFitConfig 정적 상태를 새 환경으로 즉시 업데이트
+    final newEnvironment = switch (env) {
+      'live' => AppFitEnvironment.live,
+      'dev' => AppFitEnvironment.dev,
+      _ => AppFitEnvironment.staging,
+    };
+    AppFitConfig.configure(
+        environment: newEnvironment, requestSource: 'ORDER_AGENT');
+
+    // 이전 환경의 토큰 및 프로젝트 크리덴셜 삭제
     await ref.read(appfit_providers.appFitTokenManagerProvider).clearToken();
     final secureStorage = SecureStorageService();
     await secureStorage.delete(SecureStorageService.appFitProjectId);
     await secureStorage.delete(SecureStorageService.appFitProjectApiKey);
+
+    // Provider를 무효화하여 새 환경의 baseUrl로 재생성되도록 함
+    ref.invalidate(appfit_providers.appFitTokenManagerProvider);
+    ref.invalidate(appfit_providers.appFitDioProvider);
 
     setState(() => _selectedEnv = env);
     if (mounted) {

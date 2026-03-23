@@ -1176,11 +1176,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Future<void> _onEnvChanged(String env) async {
     await _preferenceService.setEnvironment(env);
 
-    // 환경이 바뀌면 이전 환경의 토큰 및 프로젝트 크리덴셜 삭제
+    // AppFitConfig 정적 상태를 새 환경으로 즉시 업데이트
+    final newEnvironment = switch (env) {
+      'live' => AppFitEnvironment.live,
+      'dev' => AppFitEnvironment.dev,
+      _ => AppFitEnvironment.staging,
+    };
+    AppFitConfig.configure(
+        environment: newEnvironment, requestSource: 'ORDER_AGENT');
+
+    // 이전 환경의 토큰 및 프로젝트 크리덴셜 삭제
     await ref.read(appfit_providers.appFitTokenManagerProvider).clearToken();
     final secureStorage = SecureStorageService();
     await secureStorage.delete(SecureStorageService.appFitProjectId);
     await secureStorage.delete(SecureStorageService.appFitProjectApiKey);
+
+    // Provider를 무효화하여 새 환경의 baseUrl로 재생성되도록 함
+    ref.invalidate(appfit_providers.appFitTokenManagerProvider);
+    ref.invalidate(appfit_providers.appFitDioProvider);
 
     setState(() => _selectedEnv = env);
     if (mounted) {
@@ -1192,7 +1205,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           content: Text('$env 환경으로 변경되었습니다.\n지금 재시작하시겠습니까?'),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () {
+                Navigator.pop(context);
+                // 토큰 삭제 후 재시작하지 않으면 WebSocket 등이 끊긴 상태이므로
+                // 로그인 화면으로 강제 이동
+                Navigator.pushNamedAndRemoveUntil(
+                    context, '/login', (route) => false);
+              },
               child: const Text('나중에'),
             ),
             TextButton(
