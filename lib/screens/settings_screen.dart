@@ -1064,6 +1064,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ButtonSegment(value: 'dev', label: Text('Dev')),
                   ButtonSegment(value: 'staging', label: Text('Stage')),
                   ButtonSegment(value: 'live', label: Text('Live')),
+                  ButtonSegment(value: 'japanLive', label: Text('JP Live')),
                 ],
                 selected: {_selectedEnv},
                 onSelectionChanged: (s) => _onEnvChanged(s.first),
@@ -1185,8 +1186,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     // AppFitConfig 정적 상태를 새 환경으로 즉시 업데이트
     final newEnvironment = switch (env) {
       'live' => AppFitEnvironment.live,
+      'japanLive' => AppFitEnvironment.japanLive,
       'dev' => AppFitEnvironment.dev,
-      _ => AppFitEnvironment.staging,
+      'staging' => AppFitEnvironment.staging,
+      _ => AppFitEnvironment.japanLive,
     };
     AppFitConfig.configure(
         environment: newEnvironment, requestSource: 'ORDER_AGENT');
@@ -1208,24 +1211,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         barrierDismissible: false,
         builder: (_) => AlertDialog(
           title: const Text('환경 변경'),
-          content: Text('$env 환경으로 변경되었습니다.\n지금 재시작하시겠습니까?'),
+          content: Text('$env 환경으로 변경되었습니다.\n로그인 화면으로 이동합니다.'),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.pop(context);
-                // 토큰 삭제 후 재시작하지 않으면 WebSocket 등이 끊긴 상태이므로
-                // 로그인 화면으로 강제 이동
+                // 인증 상태(WebSocket) 해제 후 로그인 화면으로 이동
+                ref.read(authProvider.notifier).unauthenticate();
                 Navigator.pushNamedAndRemoveUntil(
                     context, '/login', (route) => false);
               },
-              child: const Text('나중에'),
-            ),
-            TextButton(
-              onPressed: () async {
-                Navigator.pop(context);
-                await PlatformService().restartApp();
-              },
-              child: const Text('재시작'),
+              child: const Text('확인'),
             ),
           ],
         ),

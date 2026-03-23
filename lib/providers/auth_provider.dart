@@ -192,6 +192,11 @@ class Auth extends _$Auth {
     // state = AuthState(...); // 필요 시 초기 상태로 명시적 리셋
   }
 
+  /// 환경 변경 시 호출 — WebSocket 연결만 해제 (앱 재시작 없이 로그인 화면으로 이동)
+  void unauthenticate() {
+    ref.read(appFitNotifierServiceProvider.notifier).disconnect();
+  }
+
   Future<void> reconnect() async {
     logger.i('[Auth] 수동/라이프사이클 재연결 요청');
     try {

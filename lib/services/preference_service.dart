@@ -315,9 +315,9 @@ class PreferenceService {
     return _prefs.getString(KEY_IS_DEV) ?? 'F';
   }
 
-  // 서버 환경 조회 (dev / staging / live)
+  // 서버 환경 조회 (dev / staging / live / japanLive)
   String getEnvironment() =>
-      _prefs.getString(KEY_ENVIRONMENT) ?? 'staging';
+      _prefs.getString(KEY_ENVIRONMENT) ?? 'japanLive';
 
   // 서버 환경 저장
   Future<void> setEnvironment(String env) =>

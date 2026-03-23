@@ -78,7 +78,7 @@ final kdsSortDirectionProvider =
 
 typedef _$KdsSortDirection = AutoDisposeNotifier<OrderSortDirection>;
 String _$kdsTabSortDirectionsHash() =>
-    r'08a532f5217bbdb694e7033ea712f3d0059951a6';
+    r'77e6d0aa75f3b9f20fc78d5ff4006533f99883ae';
 
 /// 탭별 정렬 방향 통합 관리
 ///

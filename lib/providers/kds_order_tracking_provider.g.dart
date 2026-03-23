@@ -6,7 +6,7 @@ part of 'kds_order_tracking_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$kdsOrderTrackingHash() => r'b1fb404d1d4c77b1a855cea61b7552372f6126cf';
+String _$kdsOrderTrackingHash() => r'f9c9e6bd3031455d9c6ab46c1c2959fbb43a66a3';
 
 /// See also [KdsOrderTracking].
 @ProviderFor(KdsOrderTracking)

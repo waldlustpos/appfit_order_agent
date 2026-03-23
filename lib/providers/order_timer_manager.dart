@@ -11,6 +11,7 @@ class OrderTimerManager {
 
   // 타이머들
   Timer? _pollingTimer;
+  Timer? _pollingStartupTimer; // 초기 30초 딜레이용 (취소 가능)
   Timer? _cacheCleanupTimer;
   Timer? _midnightRefreshTimer;
   Timer? _batchProcessingTimer;
@@ -55,25 +56,24 @@ class OrderTimerManager {
 
     logger.d('주문폴링 시작');
 
+    _pollingStartupTimer?.cancel();
     _pollingTimer?.cancel();
 
-    void adjustPolling() {
+    _pollingStartupTimer = Timer(const Duration(seconds: 30), () {
+      _pollingStartupTimer = null;
       _pollingTimer?.cancel();
-      // Start polling after initial delay
-      Future.delayed(const Duration(seconds: 30), () {
-        _pollingTimer = Timer.periodic(
-            Duration(seconds: _currentPollingIntervalSeconds), (_) {
-          logger.d('폴링 실행 -> _pollNewOrders');
-          onPollNewOrders?.call();
-        });
+      _pollingTimer = Timer.periodic(
+          Duration(seconds: _currentPollingIntervalSeconds), (_) {
+        logger.d('폴링 실행 -> _pollNewOrders');
+        onPollNewOrders?.call();
       });
-    }
-
-    adjustPolling();
+    });
   }
 
   /// 소켓 상태에 따른 폴링 간격 재설정
   void restartPolling(int intervalSeconds) {
+    _pollingStartupTimer?.cancel();
+    _pollingStartupTimer = null;
     _currentPollingIntervalSeconds = intervalSeconds;
     _pollingTimer?.cancel();
     _pollingTimer = Timer.periodic(Duration(seconds: intervalSeconds), (_) {
@@ -163,6 +163,9 @@ class OrderTimerManager {
     logger.d('OrderTimerManager disposing...');
 
     // 타이머 정리
+    _pollingStartupTimer?.cancel();
+    _pollingStartupTimer = null;
+
     _pollingTimer?.cancel();
     _pollingTimer = null;
 

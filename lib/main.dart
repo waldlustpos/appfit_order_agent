@@ -49,8 +49,10 @@ void main() async {
   final savedEnv = preferenceServiceForEnv.getEnvironment();
   final environment = switch (savedEnv) {
     'live' => AppFitEnvironment.live,
+    'japanLive' => AppFitEnvironment.japanLive,
     'dev' => AppFitEnvironment.dev,
-    _ => AppFitEnvironment.staging,
+    'staging' => AppFitEnvironment.staging,
+    _ => AppFitEnvironment.japanLive,
   };
 
   // AppFit 공통 패키지 설정

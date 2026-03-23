@@ -22,8 +22,6 @@ import 'package:flutter/foundation.dart'; // For kDebugMode if needed
 import 'package:appfit_order_agent/i18n/strings.g.dart';
 import 'package:appfit_order_agent/providers/locale_provider.dart';
 import 'package:appfit_order_agent/utils/print/label_painter.dart';
-import '../services/secure_storage_service.dart';
-import '../services/appfit/appfit_providers.dart' as appfit_providers;
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -42,7 +40,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   bool _isSaveId = false;
   bool _isAutoLogin = false;
   bool _isSubDisplay = false;
-  String _selectedEnv = PreferenceService().getEnvironment();
 
   var tag = '로그인';
 
@@ -506,54 +503,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     }
   }
 
-  Future<void> _onEnvChanged(String env) async {
-    await PreferenceService().setEnvironment(env);
-
-    // AppFitConfig 정적 상태를 새 환경으로 즉시 업데이트
-    final newEnvironment = switch (env) {
-      'live' => AppFitEnvironment.live,
-      'dev' => AppFitEnvironment.dev,
-      _ => AppFitEnvironment.staging,
-    };
-    AppFitConfig.configure(
-        environment: newEnvironment, requestSource: 'ORDER_AGENT');
-
-    // 이전 환경의 토큰 및 프로젝트 크리덴셜 삭제
-    await ref.read(appfit_providers.appFitTokenManagerProvider).clearToken();
-    final secureStorage = SecureStorageService();
-    await secureStorage.delete(SecureStorageService.appFitProjectId);
-    await secureStorage.delete(SecureStorageService.appFitProjectApiKey);
-
-    // Provider를 무효화하여 새 환경의 baseUrl로 재생성되도록 함
-    ref.invalidate(appfit_providers.appFitTokenManagerProvider);
-    ref.invalidate(appfit_providers.appFitDioProvider);
-
-    setState(() => _selectedEnv = env);
-    if (mounted) {
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) => AlertDialog(
-          title: const Text('환경 변경'),
-          content: Text('$env 환경으로 변경되었습니다.\n지금 재시작하시겠습니까?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('나중에'),
-            ),
-            TextButton(
-              onPressed: () async {
-                Navigator.pop(context);
-                await PlatformService().restartApp();
-              },
-              child: const Text('재시작'),
-            ),
-          ],
-        ),
-      );
-    }
-  }
-
   Future<void> _setWindowSoftInputMode(String mode) async {
     try {
       await platform
@@ -777,27 +726,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             ],
           ),
 
-          // 디버그 모드 전용 환경 선택 UI
-          if (kDebugMode) ...[
-            const SizedBox(height: 20),
-            const Divider(),
-            const SizedBox(height: 8),
-            Text(
-              '서버 환경 선택 (재시작 후 반영)',
-              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            SegmentedButton<String>(
-              segments: const [
-                ButtonSegment(value: 'dev', label: Text('Dev')),
-                ButtonSegment(value: 'staging', label: Text('Stage')),
-                ButtonSegment(value: 'live', label: Text('Live')),
-              ],
-              selected: {_selectedEnv},
-              onSelectionChanged: (s) => _onEnvChanged(s.first),
-            ),
-          ],
         ],
       ),
     );
