@@ -4,9 +4,9 @@
 /// To regenerate, run: `dart run slang`
 ///
 /// Locales: 3
-/// Strings: 836 (278 per locale)
+/// Strings: 879 (293 per locale)
 ///
-/// Built on 2026-02-25 at 00:15 UTC
+/// Built on 2026-03-23 at 01:33 UTC
 
 // coverage:ignore-file
 // ignore_for_file: type=lint
@@ -229,6 +229,7 @@ class _StringsSettingsKo {
 	String get save => '저장';
 	String get save_success => '설정이 저장되었습니다.';
 	String save_error({required Object error}) => '설정 저장 중 오류가 발생했습니다: ${error}';
+	late final _StringsSettingsModeSwitchKo mode_switch = _StringsSettingsModeSwitchKo._(_root);
 	late final _StringsSettingsAutoStartKo auto_start = _StringsSettingsAutoStartKo._(_root);
 	late final _StringsSettingsAutoReceiptKo auto_receipt = _StringsSettingsAutoReceiptKo._(_root);
 	late final _StringsSettingsPrintOrderKo print_order = _StringsSettingsPrintOrderKo._(_root);
@@ -482,6 +483,11 @@ class _StringsKdsKo {
 	String get btn_pickup_request => '픽업 요청';
 	String msg_pickup_confirm({required Object n}) => '${n}번 주문 픽업 요청 하시겠습니까?';
 	String get loading_orders => '주문 정보를 불러오는 중...';
+	String get msg_no_pickup_to_complete => '완료할 픽업 주문이 없습니다.';
+	String get empty_progress => '진행 중인 주문이 없습니다.';
+	String get empty_pickup => '픽업 대기 중인 주문이 없습니다.';
+	String get empty_completed => '완료된 주문이 없습니다.';
+	String get empty_cancelled => '취소된 주문이 없습니다.';
 }
 
 // Path: login.tabs
@@ -506,6 +512,22 @@ class _StringsLoginOverlayPermissionKo {
 	String get content => '최소화 기능을 사용하려면 "다른 앱 위에 표시" 권한이 필요합니다.\n지금 설정하시겠습니까?';
 	String get set => '설정하기';
 	String get later => '나중에';
+}
+
+// Path: settings.mode_switch
+class _StringsSettingsModeSwitchKo {
+	_StringsSettingsModeSwitchKo._(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+	String get to_main => '메인 시스템으로 전환';
+	String get to_kds => 'KDS 모드로 전환';
+	String get confirm_to_main => '메인 시스템(일반 접수)으로 전환하시겠습니까?';
+	String get confirm_to_kds => '주방모니터(KDS) 전용 시스템으로 전환하시겠습니까?';
+	String get btn_switch => '전환하기';
+	String get desc_to_main => '일반 접수 화면으로 변경합니다.';
+	String get desc_to_kds => '주방 전용 모니터로 변경합니다.';
 }
 
 // Path: settings.auto_start
@@ -923,7 +945,7 @@ class _StringsAppEn extends _StringsAppKo {
 	@override final _StringsEn _root; // ignore: unused_field
 
 	// Translations
-	@override String get name => 'Appfit Order Agent';
+	@override String get name => 'Kokonut Order Agent';
 }
 
 // Path: common
@@ -986,6 +1008,7 @@ class _StringsSettingsEn extends _StringsSettingsKo {
 	@override String get save => 'Save';
 	@override String get save_success => 'Settings saved.';
 	@override String save_error({required Object error}) => 'Error saving settings: ${error}';
+	@override late final _StringsSettingsModeSwitchEn mode_switch = _StringsSettingsModeSwitchEn._(_root);
 	@override late final _StringsSettingsAutoStartEn auto_start = _StringsSettingsAutoStartEn._(_root);
 	@override late final _StringsSettingsAutoReceiptEn auto_receipt = _StringsSettingsAutoReceiptEn._(_root);
 	@override late final _StringsSettingsPrintOrderEn print_order = _StringsSettingsPrintOrderEn._(_root);
@@ -1165,7 +1188,6 @@ class _StringsOrderDetailEn extends _StringsOrderDetailKo {
 	@override String dialog_repickup_confirm_content({required Object n}) => 'Do you want to re-request pickup for order #${n}?';
 	@override String get dialog_not_picked_up_confirm_title => 'Not Picked Up';
 	@override String dialog_not_picked_up_confirm_content({required Object n}) => 'Process order #${n} as not picked up?';
-	@override String dialog_complete_confirm_content({required Object n}) => 'Do you want to complete order #${n}?';
 	@override String print_receipt_fail({required Object error}) => 'Receipt printing failed: ${error}';
 	@override String get btn_receipt_reprint => 'Reprint Receipt';
 	@override String get btn_label_reprint => 'Reprint Label';
@@ -1229,6 +1251,8 @@ class _StringsKdsEn extends _StringsKdsKo {
 
 	// Translations
 	@override late final _StringsKdsTabsEn tabs = _StringsKdsTabsEn._(_root);
+	@override String get btn_batch_complete => 'Batch Complete';
+	@override String get btn_order_complete => 'Complete';
 	@override late final _StringsKdsSortEn sort = _StringsKdsSortEn._(_root);
 	@override String order_time({required Object time}) => 'Ordered At ${time}';
 	@override String total_items({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
@@ -1245,6 +1269,11 @@ class _StringsKdsEn extends _StringsKdsKo {
 	@override String get btn_pickup_request => 'Pickup';
 	@override String msg_pickup_confirm({required Object n}) => 'Would you like to request a pickup for Order #${n}?';
 	@override String get loading_orders => 'Loading orders...';
+	@override String get msg_no_pickup_to_complete => 'No pickup orders to complete.';
+	@override String get empty_progress => 'No orders in progress.';
+	@override String get empty_pickup => 'No orders awaiting pickup.';
+	@override String get empty_completed => 'No completed orders.';
+	@override String get empty_cancelled => 'No cancelled orders.';
 }
 
 // Path: login.tabs
@@ -1269,6 +1298,22 @@ class _StringsLoginOverlayPermissionEn extends _StringsLoginOverlayPermissionKo 
 	@override String get content => '"Display over other apps" permission is required for minimize feature.\nSettings now?';
 	@override String get set => 'Settings';
 	@override String get later => 'Later';
+}
+
+// Path: settings.mode_switch
+class _StringsSettingsModeSwitchEn extends _StringsSettingsModeSwitchKo {
+	_StringsSettingsModeSwitchEn._(_StringsEn root) : this._root = root, super._(root);
+
+	@override final _StringsEn _root; // ignore: unused_field
+
+	// Translations
+	@override String get to_main => 'Switch to Main';
+	@override String get to_kds => 'Switch to KDS Mode';
+	@override String get confirm_to_main => 'Switch to main (order reception) mode?';
+	@override String get confirm_to_kds => 'Switch to KDS (kitchen display) mode?';
+	@override String get btn_switch => 'Switch';
+	@override String get desc_to_main => 'Changes to order reception screen.';
+	@override String get desc_to_kds => 'Changes to kitchen display screen.';
 }
 
 // Path: settings.auto_start
@@ -1614,6 +1659,7 @@ class _StringsKdsTabsEn extends _StringsKdsTabsKo {
 	// Translations
 	@override String all({required Object n}) => 'All ${n}';
 	@override String progress({required Object n}) => 'Progress ${n}';
+	@override String pickup({required Object n}) => 'Pickup ${n}';
 	@override String completed({required Object n}) => 'Done ${n}';
 	@override String cancelled({required Object n}) => 'Cancelled ${n}';
 }
@@ -1748,6 +1794,7 @@ class _StringsSettingsJa extends _StringsSettingsKo {
 	@override String get save => '保存';
 	@override String get save_success => '設定が保存されました。';
 	@override String save_error({required Object error}) => '設定の保存中にエラーが発生しました: ${error}';
+	@override late final _StringsSettingsModeSwitchJa mode_switch = _StringsSettingsModeSwitchJa._(_root);
 	@override late final _StringsSettingsAutoStartJa auto_start = _StringsSettingsAutoStartJa._(_root);
 	@override late final _StringsSettingsAutoReceiptJa auto_receipt = _StringsSettingsAutoReceiptJa._(_root);
 	@override late final _StringsSettingsPrintOrderJa print_order = _StringsSettingsPrintOrderJa._(_root);
@@ -1984,6 +2031,8 @@ class _StringsKdsJa extends _StringsKdsKo {
 
 	// Translations
 	@override late final _StringsKdsTabsJa tabs = _StringsKdsTabsJa._(_root);
+	@override String get btn_batch_complete => '一括完了';
+	@override String get btn_order_complete => '注文完了';
 	@override late final _StringsKdsSortJa sort = _StringsKdsSortJa._(_root);
 	@override String order_time({required Object time}) => '注文時間 ${time}';
 	@override String total_items({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ja'))(n,
@@ -1997,7 +2046,12 @@ class _StringsKdsJa extends _StringsKdsKo {
 	@override String get btn_detail => '詳細';
 	@override String get btn_pickup_request => '呼出';
 	@override String msg_pickup_confirm({required Object n}) => '${n}番の注文のピックアップを要請しますか？';
-	@override String get loading_orders => '注文 정보를 読み込んでいます...';
+	@override String get loading_orders => '注文情報を読み込んでいます...';
+	@override String get msg_no_pickup_to_complete => '完了するピックアップ注文がありません。';
+	@override String get empty_progress => '進行中の注文がありません。';
+	@override String get empty_pickup => 'ピックアップ待ちの注文がありません。';
+	@override String get empty_completed => '完了した注文がありません。';
+	@override String get empty_cancelled => '取消した注文がありません。';
 }
 
 // Path: login.tabs
@@ -2022,6 +2076,22 @@ class _StringsLoginOverlayPermissionJa extends _StringsLoginOverlayPermissionKo 
 	@override String get content => '最小化機能を使用するには「다른 앱 위에 표시」権限が必要です。\n今すぐ設定しますか？';
 	@override String get set => '設定する';
 	@override String get later => '後で';
+}
+
+// Path: settings.mode_switch
+class _StringsSettingsModeSwitchJa extends _StringsSettingsModeSwitchKo {
+	_StringsSettingsModeSwitchJa._(_StringsJa root) : this._root = root, super._(root);
+
+	@override final _StringsJa _root; // ignore: unused_field
+
+	// Translations
+	@override String get to_main => 'メインに切替';
+	@override String get to_kds => 'KDSモードに切替';
+	@override String get confirm_to_main => 'メイン（注文受付）に切り替えますか？';
+	@override String get confirm_to_kds => 'KDS（キッチンモニター）に切り替えますか？';
+	@override String get btn_switch => '切替';
+	@override String get desc_to_main => '注文受付画面に変更します。';
+	@override String get desc_to_kds => 'キッチン専用モニターに変更します。';
 }
 
 // Path: settings.auto_start
@@ -2367,6 +2437,7 @@ class _StringsKdsTabsJa extends _StringsKdsTabsKo {
 	// Translations
 	@override String all({required Object n}) => '全体 ${n}';
 	@override String progress({required Object n}) => '進行 ${n}';
+	@override String pickup({required Object n}) => 'ピックアップ ${n}';
 	@override String completed({required Object n}) => '完了 ${n}';
 	@override String cancelled({required Object n}) => '取消 ${n}';
 }

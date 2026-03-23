@@ -924,7 +924,7 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
                 CommonDialog.showErrorDialog(
                   context: context,
                   title: t.common.error,
-                  content: "완료할 픽업 주문이 없습니다.",
+                  content: t.kds.msg_no_pickup_to_complete,
                 );
                 return;
               }
@@ -932,7 +932,8 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
               final confirmed = await CommonDialog.showConfirmDialog(
                 context: context,
                 title: t.kds.btn_batch_complete,
-                content: "${pickupOrders.length}건의 주문을 모두 완료 처리하시겠습니까?",
+                content: t.order_status.batch_complete_confirm_content(
+                    n: pickupOrders.length),
                 confirmText: t.common.confirm,
                 cancelText: t.common.cancel,
               );
@@ -1339,16 +1340,16 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
       String emptyText = '';
       switch (cardType) {
         case CardType.progress:
-          emptyText = '진행 중인 주문이 없습니다.';
+          emptyText = t.kds.empty_progress;
           break;
         case CardType.pickup:
-          emptyText = '픽업 대기 중인 주문이 없습니다.';
+          emptyText = t.kds.empty_pickup;
           break;
         case CardType.completed:
-          emptyText = '완료된 주문이 없습니다.';
+          emptyText = t.kds.empty_completed;
           break;
         case CardType.cancelled:
-          emptyText = '취소된 주문이 없습니다.';
+          emptyText = t.kds.empty_cancelled;
           break;
       }
       return Center(

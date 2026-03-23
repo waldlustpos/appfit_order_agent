@@ -50,6 +50,15 @@
         "save": "保存",
         "save_success": "設定が保存されました。",
         "save_error": "設定の保存中にエラーが発生しました: {error}",
+        "mode_switch": {
+            "to_main": "メインに切替",
+            "to_kds": "KDSモードに切替",
+            "confirm_to_main": "メイン（注文受付）に切り替えますか？",
+            "confirm_to_kds": "KDS（キッチンモニター）に切り替えますか？",
+            "btn_switch": "切替",
+            "desc_to_main": "注文受付画面に変更します。",
+            "desc_to_kds": "キッチン専用モニターに変更します。"
+        },
         "auto_start": {
             "title": "PC起動時に自動実行",
             "desc": "PC起動時にエージェントを自動的に実行します。",
@@ -357,9 +366,12 @@
         "tabs": {
             "all": "全体 {n}",
             "progress": "進行 {n}",
+            "pickup": "ピックアップ {n}",
             "completed": "完了 {n}",
             "cancelled": "取消 {n}"
         },
+        "btn_batch_complete": "一括完了",
+        "btn_order_complete": "注文完了",
         "sort": {
             "oldest": "古い順",
             "newest": "新しい順"
@@ -376,6 +388,11 @@
         "btn_detail": "詳細",
         "btn_pickup_request": "呼出",
         "msg_pickup_confirm": "{n}番の注文のピックアップを要請しますか？",
-        "loading_orders": "注文 정보를 読み込んでいます..."
+        "loading_orders": "注文情報を読み込んでいます...",
+        "msg_no_pickup_to_complete": "完了するピックアップ注文がありません。",
+        "empty_progress": "進行中の注文がありません。",
+        "empty_pickup": "ピックアップ待ちの注文がありません。",
+        "empty_completed": "完了した注文がありません。",
+        "empty_cancelled": "取消した注文がありません。"
     }
 }

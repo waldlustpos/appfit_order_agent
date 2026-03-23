@@ -423,9 +423,9 @@ class _HomeAppBarWidgetState extends ConsumerState<HomeAppBarWidget> {
                                             : const Icon(Icons.refresh,
                                                 size: 18, color: Colors.white),
                                         const SizedBox(width: 8),
-                                        const Text(
-                                          '새로고침',
-                                          style: TextStyle(
+                                        Text(
+                                          t.common.refresh,
+                                          style: const TextStyle(
                                             color: Colors.white,
                                             fontWeight: FontWeight.bold,
                                             fontSize: 14,

@@ -141,17 +141,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _handleModeSwitch(bool currentIsKdsMode) async {
-    final title = currentIsKdsMode ? '메인 시스템으로 전환' : 'KDS 모드로 전환';
+    final title = currentIsKdsMode
+        ? t.settings.mode_switch.to_main
+        : t.settings.mode_switch.to_kds;
     final content = currentIsKdsMode
-        ? '메인 시스템(일반 접수)으로 전환하시겠습니까?'
-        : '주방모니터(KDS) 전용 시스템으로 전환하시겠습니까?';
+        ? t.settings.mode_switch.confirm_to_main
+        : t.settings.mode_switch.confirm_to_kds;
 
     final bool? confirm = await CommonDialog.showConfirmDialog(
       context: context,
       title: title,
       content: content,
-      confirmText: '전환하기',
-      cancelText: '취소',
+      confirmText: t.settings.mode_switch.btn_switch,
+      cancelText: t.common.cancel,
     );
 
     if (confirm == true) {
@@ -209,7 +211,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    isKdsMode ? '메인 시스템으로 전환' : 'KDS 모드로 전환',
+                    isKdsMode
+                        ? t.settings.mode_switch.to_main
+                        : t.settings.mode_switch.to_kds,
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -219,7 +223,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    isKdsMode ? '일반 접수 화면으로 변경합니다.' : '주방 전용 모니터로 변경합니다.',
+                    isKdsMode
+                        ? t.settings.mode_switch.desc_to_main
+                        : t.settings.mode_switch.desc_to_kds,
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.grey[700],
@@ -236,8 +242,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 isKdsMode ? AppStyles.kMainColor : Colors.blue,
               ),
             ),
-            child: const Text('전환하기',
-                style: TextStyle(fontWeight: FontWeight.bold)),
+            child: Text(t.settings.mode_switch.btn_switch,
+                style: const TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),

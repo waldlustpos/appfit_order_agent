@@ -50,6 +50,15 @@
         "save": "Save",
         "save_success": "Settings saved.",
         "save_error": "Error saving settings: {error}",
+        "mode_switch": {
+            "to_main": "Switch to Main",
+            "to_kds": "Switch to KDS Mode",
+            "confirm_to_main": "Switch to main (order reception) mode?",
+            "confirm_to_kds": "Switch to KDS (kitchen display) mode?",
+            "btn_switch": "Switch",
+            "desc_to_main": "Changes to order reception screen.",
+            "desc_to_kds": "Changes to kitchen display screen."
+        },
         "auto_start": {
             "title": "Auto Start on Boot",
             "desc": "Automatically launch agent on PC startup.",
@@ -363,9 +372,12 @@
         "tabs": {
             "all": "All {n}",
             "progress": "Progress {n}",
+            "pickup": "Pickup {n}",
             "completed": "Done {n}",
             "cancelled": "Cancelled {n}"
         },
+        "btn_batch_complete": "Batch Complete",
+        "btn_order_complete": "Complete",
         "sort": {
             "oldest": "Oldest",
             "newest": "Newest"
@@ -384,6 +396,11 @@
         "btn_detail": "Details",
         "btn_pickup_request": "Pickup",
         "msg_pickup_confirm": "Would you like to request a pickup for Order #{n}?",
-        "loading_orders": "Loading orders..."
+        "loading_orders": "Loading orders...",
+        "msg_no_pickup_to_complete": "No pickup orders to complete.",
+        "empty_progress": "No orders in progress.",
+        "empty_pickup": "No orders awaiting pickup.",
+        "empty_completed": "No completed orders.",
+        "empty_cancelled": "No cancelled orders."
     }
 }

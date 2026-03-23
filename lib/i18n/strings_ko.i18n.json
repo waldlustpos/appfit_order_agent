@@ -50,6 +50,15 @@
         "save": "저장",
         "save_success": "설정이 저장되었습니다.",
         "save_error": "설정 저장 중 오류가 발생했습니다: {error}",
+        "mode_switch": {
+            "to_main": "메인 시스템으로 전환",
+            "to_kds": "KDS 모드로 전환",
+            "confirm_to_main": "메인 시스템(일반 접수)으로 전환하시겠습니까?",
+            "confirm_to_kds": "주방모니터(KDS) 전용 시스템으로 전환하시겠습니까?",
+            "btn_switch": "전환하기",
+            "desc_to_main": "일반 접수 화면으로 변경합니다.",
+            "desc_to_kds": "주방 전용 모니터로 변경합니다."
+        },
         "auto_start": {
             "title": "PC시작 시 자동 실행",
             "desc": "PC시작시 자동으로 에이전트를 실행합니다.",
@@ -380,6 +389,11 @@
         "btn_detail": "주문 상세",
         "btn_pickup_request": "픽업 요청",
         "msg_pickup_confirm": "{n}번 주문 픽업 요청 하시겠습니까?",
-        "loading_orders": "주문 정보를 불러오는 중..."
+        "loading_orders": "주문 정보를 불러오는 중...",
+        "msg_no_pickup_to_complete": "완료할 픽업 주문이 없습니다.",
+        "empty_progress": "진행 중인 주문이 없습니다.",
+        "empty_pickup": "픽업 대기 중인 주문이 없습니다.",
+        "empty_completed": "완료된 주문이 없습니다.",
+        "empty_cancelled": "취소된 주문이 없습니다."
     }
 }
