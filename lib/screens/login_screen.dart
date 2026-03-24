@@ -469,40 +469,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     }
   }
 
-  Future<void> _handleTestPrint() async {
-    try {
-      // 1. Generate Label Image
-      final imageBytes = await LabelPainter.generateLabelImage(
-        menuName: '아이스 아메리카노',
-        options: ['샷추가', '얼음많이'], // Sample options
-        shopOrderNo: '123',
-        orderTime: '12:34',
-        beanType: 'Standard',
-        temperature: 'Ice',
-        sizeOption: 'Tall',
-        qrData: '123', // QR 데이터 추가
-        orderIndex: 1,
-        orderTotal: 3,
-      );
-
-      // 2. Send to Printer
-      await ref.read(printServiceProvider).printLabel(imageBytes);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Test label print sent')),
-        );
-      }
-    } catch (e) {
-      logger.e('Test print failed', error: e);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Test print failed: $e')),
-        );
-      }
-    }
-  }
-
   Future<void> _setWindowSoftInputMode(String mode) async {
     try {
       await platform
@@ -792,11 +758,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       resizeToAvoidBottomInset: true,
-      floatingActionButton: FloatingActionButton(
-        onPressed: _handleTestPrint,
-        tooltip: 'Test Print',
-        child: const Icon(Icons.print),
-      ),
       body: Stack(
         children: [
           // 배경 이미지
