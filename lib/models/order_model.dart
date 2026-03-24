@@ -9,7 +9,7 @@ export 'enums/order_status.dart';
 class OrderModel {
   final String orderNo; // ordrId -> orderNo
   final String shopOrderNo; // ordrSimpleId -> shopOrderNo
-  // displayNum removed, use shopOrderNo
+  final String displayOrderNo; // displayOrderNo from API (user-facing)
   final String orderStatus; // orderStusCd -> orderStatus
   final DateTime orderedAt; // orderTime -> orderedAt
   final double totalAmount; // ordrPrc (keep)
@@ -42,6 +42,7 @@ class OrderModel {
   OrderModel({
     required this.orderNo,
     required this.shopOrderNo,
+    String displayOrderNo = '',
     required this.orderStatus,
     required this.orderedAt,
     required this.totalAmount,
@@ -66,14 +67,17 @@ class OrderModel {
     DateTime? updateTime,
     required this.kioskId,
     bool? isDetailLoaded,
-  })  : updateTime = updateTime ?? DateTime.now(),
+  })  : displayOrderNo = displayOrderNo,
+        updateTime = updateTime ?? DateTime.now(),
         // 메뉴가 있으면 기본적으로 로딩된 것으로 간주, 명시적 값 있으면 그것 사용
         isDetailLoaded = isDetailLoaded ?? (menus.isNotEmpty),
         exceptTaxPrice = _calculateExceptTaxPrice(paymentAmount),
         taxPrice = _calculateTaxPrice(paymentAmount);
 
   // Getter for displayNum compatibility/logic
-  String get displayNum => shopOrderNo.padLeft(3, '0');
+  String get displayNum => displayOrderNo.isNotEmpty
+      ? displayOrderNo
+      : shopOrderNo.padLeft(3, '0');
   String get orderId => orderNo;
   List<OrderMenuModel> get orderMenuList => menus;
   // Getter for backward compatibility alias if needed, though we should change all usages
@@ -142,6 +146,7 @@ class OrderModel {
     String _shopOrderNo = (json['shopOrderNo'])?.toString() ?? '';
     String _displayOrderNum =
         (json['displayOrderNum'])?.toString() ?? _shopOrderNo;
+    String _displayOrderNo = (json['displayOrderNo'])?.toString() ?? '';
     String _orderStatus = (json['orderStatus'])?.toString() ?? '';
     DateTime _orderedAt =
         DateTime.tryParse(json['orderedAt'] ?? '') ?? DateTime.now();
@@ -163,6 +168,7 @@ class OrderModel {
       shopOrderNo: _shopOrderNo.isNotEmpty
           ? _shopOrderNo
           : _displayOrderNum, // Use display num if shopOrderNo is empty
+      displayOrderNo: _displayOrderNo,
       orderStatus: _orderStatus,
       orderedAt: _orderedAt,
       totalAmount: _totalAmount,
@@ -214,6 +220,7 @@ class OrderModel {
     return {
       'orderNo': orderNo,
       'shopOrderNo': shopOrderNo,
+      'displayOrderNo': displayOrderNo,
       'displayOrderNum': displayNum, // Keep for legacy systems if needed
       'ordrSimpleId': shopOrderNo, // Sunmi 호환용 추가
       'orderedAt': DateFormat('yyyy-MM-dd HH:mm:ss').format(orderedAt),
@@ -257,13 +264,14 @@ class OrderModel {
   }
 
   String toString() {
-    return 'orderNo: $orderNo\nshopOrderNo: $shopOrderNo\ndisplayNum: $displayNum\norderStatus: $orderStatus\norderedAt: $orderedAt\ntotalAmount: $totalAmount\nstatus: $status\norderStatus: $orderStatus\nstoreId: $storeId\nuserName: $userName\nnote: $note\nuserId: $userId\norderCount: $orderCount\npaymentAmount: $paymentAmount\ndiscountAmount: $discountAmount\npaymentType: $paymentType\nkioskId: $kioskId\nisDetailLoaded: $isDetailLoaded\nmenus: $menus';
+    return 'orderNo: $orderNo\nshopOrderNo: $shopOrderNo\ndisplayOrderNo: $displayOrderNo\ndisplayNum: $displayNum\norderStatus: $orderStatus\norderedAt: $orderedAt\ntotalAmount: $totalAmount\nstatus: $status\norderStatus: $orderStatus\nstoreId: $storeId\nuserName: $userName\nnote: $note\nuserId: $userId\norderCount: $orderCount\npaymentAmount: $paymentAmount\ndiscountAmount: $discountAmount\npaymentType: $paymentType\nkioskId: $kioskId\nisDetailLoaded: $isDetailLoaded\nmenus: $menus';
   }
 
   // 상태 업데이트된 새 OrderModel 반환
   OrderModel copyWith({
     String? orderNo,
     String? shopOrderNo,
+    String? displayOrderNo,
     String? orderStatus,
     DateTime? orderedAt,
     double? totalAmount,
@@ -297,6 +305,7 @@ class OrderModel {
     return OrderModel(
         orderNo: orderNo ?? this.orderNo,
         shopOrderNo: shopOrderNo ?? this.shopOrderNo,
+        displayOrderNo: displayOrderNo ?? this.displayOrderNo,
         orderStatus: orderStatus ?? this.orderStatus,
         orderedAt: orderedAt ?? this.orderedAt,
         totalAmount: totalAmount ?? this.totalAmount,

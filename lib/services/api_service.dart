@@ -207,6 +207,7 @@ class ApiService {
 
         final orderNo = data['orderNo'].toString(); // 고유 식별자 (Long)
         final shopOrderNo = data['shopOrderNo'].toString(); // 매장 표시 번호 (Short)
+        final displayOrderNo = data['displayOrderNo']?.toString() ?? ''; // 고객 표시 번호
 
         // 2. 메뉴 목록 (orderLines) 매핑
         List<OrderMenuModel> menuList = [];
@@ -245,6 +246,7 @@ class ApiService {
         final order = OrderModel(
           orderNo: orderNo, // orderNo (Long ID)
           shopOrderNo: shopOrderNo, // shopOrderNo (Short ID)
+          displayOrderNo: displayOrderNo,
           orderStatus: data['orderStatus'] as String,
           orderedAt: data['createdAt'] != null
               ? DateTime.parse(data['createdAt'])
@@ -349,11 +351,13 @@ class ApiService {
           final totalAmount = (item['totalAmount'] as num).toDouble();
           final totalDiscount = (item['totalDiscount'] as num).toDouble();
           final String orderId = item['orderNo'].toString(); // 내부 식별용
-          final String displayNum = item['shopOrderNo'].toString(); // 표시용
+          final String shopOrderNo = item['shopOrderNo'].toString(); // 표시용
+          final String displayOrderNo = item['displayOrderNo']?.toString() ?? ''; // 고객 표시 번호
 
           return OrderModel(
             orderNo: orderId,
-            shopOrderNo: displayNum,
+            shopOrderNo: shopOrderNo,
+            displayOrderNo: displayOrderNo,
             orderStatus: item['status'] as String,
             orderedAt: item['createdAt'] != null
                 ? DateTime.parse(item['createdAt'])

@@ -165,7 +165,7 @@ class OutputService {
           final imageBytes = await LabelPainter.generateLabelImage(
             menuName: menu.itemName,
             options: filteredOptions,
-            shopOrderNo: orderToPrint.shopOrderNo,
+            shopOrderNo: orderToPrint.displayNum,
             orderTime:
                 DateFormat('MM/dd\nHH:mm:ss').format(orderToPrint.orderedAt),
             beanType: beanType,
