@@ -48,7 +48,7 @@ class LabelPainter extends CustomPainter {
   static const double fsHeaderTime = 16;
   static const double fsSubInfo = 22;
   static const double fsMenuName = 28;
-  static const double fsOrderNo = 85;
+  static const double fsOrderNo = 85; //주문번호사이즈
   static const double fsSectionTitle = 22;
   static const double fsOptionItem = 21;
   static const double fsDetailContent = 22;

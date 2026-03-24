@@ -75,9 +75,11 @@ class OrderModel {
         taxPrice = _calculateTaxPrice(paymentAmount);
 
   // Getter for displayNum compatibility/logic
-  String get displayNum => displayOrderNo.isNotEmpty
-      ? displayOrderNo
-      : shopOrderNo.padLeft(3, '0');
+  String get displayNum {
+    final raw = displayOrderNo.isNotEmpty ? displayOrderNo : shopOrderNo;
+    final num = int.tryParse(raw);
+    return num != null ? num.toString().padLeft(4, '0') : raw;
+  }
   String get orderId => orderNo;
   List<OrderMenuModel> get orderMenuList => menus;
   // Getter for backward compatibility alias if needed, though we should change all usages
