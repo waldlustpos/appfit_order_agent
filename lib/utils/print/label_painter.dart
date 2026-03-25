@@ -38,10 +38,10 @@ class LabelPainter extends CustomPainter {
   static bool _logoLoadAttempted = false;
 
   // --- Constants (Layout & Sizes) ---
-  static const double width = 480;
+  static const double width = 490;
   static const double height = 600;
   static const double defaultMargin = 60;
-  static const double offsetX = 10; // 우측 쏠림 보정 (음수: 좌측 이동)
+  static const double offsetX = -0; // 우측 쏠림 보정 (음수: 좌측 이동)
   static const double offsetY = -30;
 
   // Font Sizes
@@ -319,26 +319,60 @@ class LabelPainter extends CustomPainter {
   void _drawDetail(Canvas canvas, Size size, double startY) {
     final paint = Paint()..color = Colors.black;
 
-    // Divider
+    final bool hasQr = qrData != null && qrData!.isNotEmpty;
+    const double detailQrSize = 75;
+
+    // QR 영역 왼쪽 경계
+    final double qrAreaLeft =
+        hasQr ? size.width - defaultMargin - detailQrSize - 10 : double.infinity;
+
+    // 상단 수평 구분선
     canvas.drawLine(
       Offset(defaultMargin, startY),
       Offset(size.width - defaultMargin, startY),
       paint..strokeWidth = 1,
     );
 
-    // Title (구분선 아래 정렬 보정)
-    _drawText(
-        canvas, "detail", Offset(size.width / 2, startY + spacingSectionSmall),
-        fontSize: fsSectionTitle, isBold: true, align: TextAlign.center);
+    if (hasQr) {
+      // "detail" 타이틀: 왼쪽 영역 중앙
+      final double leftCenterX = defaultMargin + (qrAreaLeft - defaultMargin) / 2;
+      _drawText(
+        canvas, "detail",
+        Offset(leftCenterX, startY + spacingSectionSmall),
+        fontSize: fsSectionTitle, isBold: true, align: TextAlign.center,
+      );
 
-    String detailText = memo ?? "";
+      // QR 코드: 타이틀과 같은 Y, 오른쪽 배치
+      final qrPainter = QrPainter(
+        data: qrData!,
+        version: QrVersions.auto,
+        errorCorrectionLevel: QrErrorCorrectLevel.L,
+      );
+      canvas.save();
+      canvas.translate(qrAreaLeft + 10, startY + spacingSectionSmall);
+      qrPainter.paint(canvas, const Size(detailQrSize, detailQrSize));
+      canvas.restore();
+    } else {
+      // QR 없을 때: 기존 레이아웃
+      _drawText(
+        canvas, "detail",
+        Offset(size.width / 2, startY + spacingSectionSmall),
+        fontSize: fsSectionTitle, isBold: true, align: TextAlign.center,
+      );
+    }
+
+    // 메모 텍스트 (왼쪽)
+    final double contentY =
+        startY + spacingSectionSmall + fsSectionTitle + spacingSectionSmall;
+    final double memoMaxWidth =
+        hasQr ? qrAreaLeft - defaultMargin - 5 : size.width - (defaultMargin * 2);
+
     _drawText(
       canvas,
-      detailText,
-      Offset(defaultMargin,
-          startY + spacingSectionSmall + fsSectionTitle + spacingSectionSmall),
+      memo ?? "",
+      Offset(defaultMargin, contentY),
       fontSize: fsDetailContent,
-      maxWidth: size.width - (defaultMargin * 2),
+      maxWidth: memoMaxWidth,
       maxLines: 2,
       height: 1.3,
     );

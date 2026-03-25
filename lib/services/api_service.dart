@@ -303,22 +303,37 @@ class ApiService {
     String? endDate,
     OrderStatus? orderStatus,
   }) async {
-    return getOrdersPaged(storeId,
-        startDate: startDate,
-        endDate: endDate,
-        orderStatus: orderStatus,
-        page: 0,
-        size: 100);
+    const int pageSize = 500; // TEST: 페이지네이션 검증용 소형 사이즈
+    int currentPage = 0;
+    final List<OrderModel> allOrders = [];
+
+    while (true) {
+      final (orders, isLast) = await _getOrdersPage(storeId,
+          startDate: startDate,
+          endDate: endDate,
+          orderStatus: orderStatus,
+          page: currentPage,
+          size: pageSize);
+
+      allOrders.addAll(orders);
+      logger.i('[getOrders] 페이지 $currentPage 조회완료: ${orders.length}건 수신 (누적: ${allOrders.length}건)');
+
+      if (isLast) break;
+      currentPage++;
+    }
+
+    logger.i('[getOrders] 전체 주문 로딩 완료: 총 ${allOrders.length}건, ${currentPage + 1}페이지');
+    return allOrders;
   }
 
-  /// AppFit 전용: 페이징 지원 주문 목록 조회
-  Future<List<OrderModel>> getOrdersPaged(
+  /// 내부 전용: 단일 페이지 조회 + slice.last 반환
+  Future<(List<OrderModel>, bool)> _getOrdersPage(
     String storeId, {
     String? startDate,
     String? endDate,
     OrderStatus? orderStatus,
     int page = 0,
-    int size = 100,
+    int size = 5,
   }) async {
     try {
       final dio = _ref.read(appFitDioProvider);
@@ -381,13 +396,35 @@ class ApiService {
           );
         }).toList();
 
-        return orders;
+        final slice = data['slice'] as Map<String, dynamic>?;
+        final isLast = slice?['last'] as bool? ?? true;
+        logger.i('[getOrders] 페이지 $page 응답: ${orders.length}건, isLast=$isLast, isEmpty=${slice?['empty']}');
+
+        return (orders, isLast);
       } else {
         throw Exception('주문 목록 조회 실패: ${response.statusCode}');
       }
     } catch (e) {
       rethrow;
     }
+  }
+
+  /// AppFit 전용: 페이징 지원 주문 목록 조회 (단일 페이지)
+  Future<List<OrderModel>> getOrdersPaged(
+    String storeId, {
+    String? startDate,
+    String? endDate,
+    OrderStatus? orderStatus,
+    int page = 0,
+    int size = 500,
+  }) async {
+    final (orders, _) = await _getOrdersPage(storeId,
+        startDate: startDate,
+        endDate: endDate,
+        orderStatus: orderStatus,
+        page: page,
+        size: size);
+    return orders;
   }
 
   OrderStatus _mapAppFitOrderStatus(String status) {

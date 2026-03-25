@@ -67,7 +67,7 @@ class OrderInfoPanelWidget extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            if (order.userName != null) ...[
+            if (order.userName != null && order.userName!.isNotEmpty) ...[
               Center(
                 child: Text(
                   t.order.customer_honorific(name: order.userName!),
