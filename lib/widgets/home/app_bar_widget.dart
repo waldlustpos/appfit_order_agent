@@ -535,8 +535,6 @@ class _HomeAppBarWidgetState extends ConsumerState<HomeAppBarWidget> {
                                     );
 
                                     if (shouldChange != true) {
-                                      throw StateError('This is test exception');
-
                                       logToFile(
                                           tag: LogTag.UI_ACTION,
                                           message: '오더 상태변경 팝업 취소로 닫기');

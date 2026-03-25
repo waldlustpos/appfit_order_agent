@@ -162,7 +162,7 @@
         "order_start_confirm_content": "Change status to Open?",
         "order_stop_confirm_content": "Change status to Preparing (Closed)?",
         "exit_app": "Exit App",
-        "exit_app_desc": "Are you sure you want to exit? \nOperating status will be set to OFF automatically.",
+        "exit_app_desc": "Are you sure you want to exit?",
         "exit_app_kds_desc": "Are you sure you want to exit?",
         "burst_test_start": "⚡️ Starting simulation (10 orders)"
     },

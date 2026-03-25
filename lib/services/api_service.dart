@@ -333,7 +333,7 @@ class ApiService {
     String? endDate,
     OrderStatus? orderStatus,
     int page = 0,
-    int size = 5,
+    int size = 500,
   }) async {
     try {
       final dio = _ref.read(appFitDioProvider);

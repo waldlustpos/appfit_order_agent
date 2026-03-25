@@ -161,7 +161,7 @@
         "order_start_confirm_content": "営業中に変更しますか？",
         "order_stop_confirm_content": "準備中に変更しますか？",
         "exit_app": "アプリ終了",
-        "exit_app_desc": "アプリを終了しますか？ \n終了時に営業状態가自動的にOFFになります。",
+        "exit_app_desc": "アプリを終了しますか？",
         "exit_app_kds_desc": "アプリを終了しますか？",
         "burst_test_start": "⚡️ 注文ラッシュシミュレーション開始 (10件)"
     },

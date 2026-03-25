@@ -161,7 +161,7 @@
         "order_start_confirm_content": "오더 영업중으로 변경하시겠습니까?",
         "order_stop_confirm_content": "오더 준비중으로 변경하시겠습니까?",
         "exit_app": "앱 종료",
-        "exit_app_desc": "앱을 종료하시겠습니까? \n종료 시 자동으로 영업 상태가 OFF처리 됩니다.",
+        "exit_app_desc": "앱을 종료하시겠습니까?",
         "exit_app_kds_desc": "앱을 종료하시겠습니까?",
         "burst_test_start": "⚡️ 주문 폭주 시뮬레이션 시작 (10건)"
     },

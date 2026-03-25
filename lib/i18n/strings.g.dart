@@ -6,7 +6,7 @@
 /// Locales: 3
 /// Strings: 879 (293 per locale)
 ///
-/// Built on 2026-03-23 at 01:33 UTC
+/// Built on 2026-03-25 at 01:50 UTC
 
 // coverage:ignore-file
 // ignore_for_file: type=lint
@@ -280,7 +280,7 @@ class _StringsAppBarKo {
 	String get order_start_confirm_content => '오더 영업중으로 변경하시겠습니까?';
 	String get order_stop_confirm_content => '오더 준비중으로 변경하시겠습니까?';
 	String get exit_app => '앱 종료';
-	String get exit_app_desc => '앱을 종료하시겠습니까? \n종료 시 자동으로 영업 상태가 OFF처리 됩니다.';
+	String get exit_app_desc => '앱을 종료하시겠습니까?';
 	String get exit_app_kds_desc => '앱을 종료하시겠습니까?';
 	String get burst_test_start => '⚡️ 주문 폭주 시뮬레이션 시작 (10건)';
 }
@@ -1060,7 +1060,7 @@ class _StringsAppBarEn extends _StringsAppBarKo {
 	@override String get order_start_confirm_content => 'Change status to Open?';
 	@override String get order_stop_confirm_content => 'Change status to Preparing (Closed)?';
 	@override String get exit_app => 'Exit App';
-	@override String get exit_app_desc => 'Are you sure you want to exit? \nOperating status will be set to OFF automatically.';
+	@override String get exit_app_desc => 'Are you sure you want to exit?';
 	@override String get exit_app_kds_desc => 'Are you sure you want to exit?';
 	@override String get burst_test_start => '⚡️ Starting simulation (10 orders)';
 }
@@ -1845,7 +1845,7 @@ class _StringsAppBarJa extends _StringsAppBarKo {
 	@override String get order_start_confirm_content => '営業中に変更しますか？';
 	@override String get order_stop_confirm_content => '準備中に変更しますか？';
 	@override String get exit_app => 'アプリ終了';
-	@override String get exit_app_desc => 'アプリを終了しますか？ \n終了時に営業状態가自動的にOFFになります。';
+	@override String get exit_app_desc => 'アプリを終了しますか？';
 	@override String get exit_app_kds_desc => 'アプリを終了しますか？';
 	@override String get burst_test_start => '⚡️ 注文ラッシュシミュレーション開始 (10件)';
 }
