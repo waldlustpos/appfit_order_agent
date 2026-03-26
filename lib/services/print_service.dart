@@ -218,6 +218,11 @@ class PrintService {
 
       await platform.invokeMethod('printLabel', {
         'imageBytes': imageBytes,
+        'autoReplyMode': _preferenceService.getLabelAutoReplyMode(),
+        'useFeedToTear': _preferenceService.getLabelUseFeedToTear(),
+        'useBackToPrint': _preferenceService.getLabelUseBackToPrint(),
+        'useStatusPolling': _preferenceService.getLabelUseStatusPolling(),
+        'useCalibrate': _preferenceService.getLabelUseCalibrate(),
       });
     } on PlatformException catch (e, s) {
       logger.e('Failed to print label', error: e, stackTrace: s);

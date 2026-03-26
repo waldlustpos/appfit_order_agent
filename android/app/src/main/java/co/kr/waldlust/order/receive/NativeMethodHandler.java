@@ -71,11 +71,27 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
 
             case "printLabel":
                 byte[] imageBytes = call.argument("imageBytes");
+                Integer autoReplyMode = call.argument("autoReplyMode");
+                Boolean useFeedToTear = call.argument("useFeedToTear");
+                Boolean useBackToPrint = call.argument("useBackToPrint");
+                Boolean useStatusPolling = call.argument("useStatusPolling");
+                Boolean useCalibrate = call.argument("useCalibrate");
 
                 if (imageBytes != null && imageBytes.length > 0) {
-                    Log.d(TAG, "Received printLabel request. Bytes: " + imageBytes.length);
+                    Log.d(TAG, "Received printLabel request. Bytes: " + imageBytes.length
+                            + " autoReplyMode=" + autoReplyMode
+                            + " feedToTear=" + useFeedToTear
+                            + " backToPrint=" + useBackToPrint
+                            + " polling=" + useStatusPolling
+                            + " calibrate=" + useCalibrate);
                     Bitmap bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length);
-                    co.kr.waldlust.order.receive.util.print.LabelPrinter.printBitmap(bitmap);
+                    co.kr.waldlust.order.receive.util.print.LabelPrinter.printBitmap(
+                            bitmap,
+                            autoReplyMode != null ? autoReplyMode : 0,
+                            useFeedToTear != null ? useFeedToTear : true,
+                            useBackToPrint != null ? useBackToPrint : true,
+                            useStatusPolling != null ? useStatusPolling : false,
+                            useCalibrate != null ? useCalibrate : false);
                     result.success(true);
                 } else {
                     result.error("INVALID_ARGUMENT", "Image bytes are null or empty", null);

@@ -44,6 +44,21 @@ class PreferenceService {
   static const String KEY_PRINT_COUNT = "KEY_PRINT_COUNT";
   static const String KEY_LOCAL_SERVER_ENABLED = "KEY_LOCAL_SERVER_ENABLED";
   static const String KEY_USE_LABEL_PRINTER = "KOKONUT_USE_LABEL_PRINTER";
+
+  // 라벨프린터 테스트 모드 설정 키
+  static const String KEY_LABEL_AUTO_REPLY_MODE =
+      "KOKONUT_LABEL_AUTO_REPLY_MODE"; // int: 0 or 1
+  static const String KEY_LABEL_USE_FEED_TO_TEAR =
+      "KOKONUT_LABEL_USE_FEED_TO_TEAR"; // bool (기본 true)
+  static const String KEY_LABEL_USE_BACK_TO_PRINT =
+      "KOKONUT_LABEL_USE_BACK_TO_PRINT"; // bool (기본 true)
+  static const String KEY_LABEL_USE_STATUS_POLLING =
+      "KOKONUT_LABEL_USE_STATUS_POLLING"; // bool (기본 false)
+  static const String KEY_LABEL_USE_CALIBRATE =
+      "KOKONUT_LABEL_USE_CALIBRATE"; // bool (기본 false)
+  static const String KEY_LABEL_PRINT_DELAY =
+      "KOKONUT_LABEL_PRINT_DELAY"; // int (ms, 기본 300)
+
   static const String KEY_IS_SOCKET_ENABLED =
       "KEY_IS_SOCKET_ENABLED"; // 소켓 사용 여부
   static const String KEY_IGNORE_OTHER_DEVICE_TASKS_KDS =
@@ -379,6 +394,20 @@ class PreferenceService {
   bool getUseLabelPrinter() =>
       _prefs.getBool(KEY_USE_LABEL_PRINTER) ?? false; // Default false
 
+  // 라벨프린터 테스트 모드 getters
+  int getLabelAutoReplyMode() =>
+      _prefs.getInt(KEY_LABEL_AUTO_REPLY_MODE) ?? 0;
+  bool getLabelUseFeedToTear() =>
+      _prefs.getBool(KEY_LABEL_USE_FEED_TO_TEAR) ?? true;
+  bool getLabelUseBackToPrint() =>
+      _prefs.getBool(KEY_LABEL_USE_BACK_TO_PRINT) ?? true;
+  bool getLabelUseStatusPolling() =>
+      _prefs.getBool(KEY_LABEL_USE_STATUS_POLLING) ?? false;
+  bool getLabelUseCalibrate() =>
+      _prefs.getBool(KEY_LABEL_USE_CALIBRATE) ?? false;
+  int getLabelPrintDelay() =>
+      _prefs.getInt(KEY_LABEL_PRINT_DELAY) ?? 300;
+
   // 영업 상태 저장
   Future<void> setOrderOn(bool value) async {
     await _prefs.setBool(KEY_ORDER_ON, value);
@@ -438,6 +467,31 @@ class PreferenceService {
 
   Future<void> setUseLabelPrinter(bool value) async {
     await _prefs.setBool(KEY_USE_LABEL_PRINTER, value);
+  }
+
+  // 라벨프린터 테스트 모드 setters
+  Future<void> setLabelAutoReplyMode(int value) async {
+    await _prefs.setInt(KEY_LABEL_AUTO_REPLY_MODE, value);
+  }
+
+  Future<void> setLabelUseFeedToTear(bool value) async {
+    await _prefs.setBool(KEY_LABEL_USE_FEED_TO_TEAR, value);
+  }
+
+  Future<void> setLabelUseBackToPrint(bool value) async {
+    await _prefs.setBool(KEY_LABEL_USE_BACK_TO_PRINT, value);
+  }
+
+  Future<void> setLabelUseStatusPolling(bool value) async {
+    await _prefs.setBool(KEY_LABEL_USE_STATUS_POLLING, value);
+  }
+
+  Future<void> setLabelUseCalibrate(bool value) async {
+    await _prefs.setBool(KEY_LABEL_USE_CALIBRATE, value);
+  }
+
+  Future<void> setLabelPrintDelay(int value) async {
+    await _prefs.setInt(KEY_LABEL_PRINT_DELAY, value);
   }
 
   // 키오스크 주문 노출 설정

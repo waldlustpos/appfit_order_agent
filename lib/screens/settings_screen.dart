@@ -11,6 +11,7 @@ import '../widgets/custom_switch.dart';
 import '../services/preference_service.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../services/print_service.dart';
+import '../utils/print/label_painter.dart';
 import 'package:appfit_order_agent/i18n/strings.g.dart';
 import 'package:appfit_order_agent/providers/locale_provider.dart';
 import '../widgets/common/common_dialog.dart';
@@ -43,6 +44,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _isUseExternalPrinter = false;
   bool _isUseLabelPrinter = false;
   bool _isUseBuiltinPrinter = true;
+
+  // 라벨프린터 테스트 모드 설정
+  int _labelAutoReplyMode = 0;
+  bool _labelUseFeedToTear = true;
+  bool _labelUseBackToPrint = true;
+  bool _labelUseStatusPolling = false;
+  bool _labelUseCalibrate = false;
+  int _labelPrintDelay = 300;
+  bool _isLabelTestExpanded = false;
   bool _isKioskOrderVisible = false;
   bool _isKioskOrderSoundEnabled = false;
   bool _isOrderHistoryScroll = true; // 주문내역 보기설정 추가
@@ -77,6 +87,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _isUseExternalPrinter = _preferenceService.getUseExternalPrinter();
       _isUseLabelPrinter = _preferenceService.getUseLabelPrinter();
 
+      // 라벨프린터 테스트 모드 설정
+      _labelAutoReplyMode = _preferenceService.getLabelAutoReplyMode();
+      _labelUseFeedToTear = _preferenceService.getLabelUseFeedToTear();
+      _labelUseBackToPrint = _preferenceService.getLabelUseBackToPrint();
+      _labelUseStatusPolling = _preferenceService.getLabelUseStatusPolling();
+      _labelUseCalibrate = _preferenceService.getLabelUseCalibrate();
+      _labelPrintDelay = _preferenceService.getLabelPrintDelay();
+
       // 일반 모드에서는 저장된 설정을 사용
       _isKioskOrderVisible = _preferenceService.getShowKioskOrder();
       _isKioskOrderSoundEnabled = _preferenceService.getKioskPrintAndSound();
@@ -101,6 +119,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await _preferenceService.setUseBuiltinPrinter(_isUseBuiltinPrinter);
       await _preferenceService.setUseExternalPrinter(_isUseExternalPrinter);
       await _preferenceService.setUseLabelPrinter(_isUseLabelPrinter);
+      await _preferenceService.setLabelAutoReplyMode(_labelAutoReplyMode);
+      await _preferenceService.setLabelUseFeedToTear(_labelUseFeedToTear);
+      await _preferenceService.setLabelUseBackToPrint(_labelUseBackToPrint);
+      await _preferenceService.setLabelUseStatusPolling(_labelUseStatusPolling);
+      await _preferenceService.setLabelUseCalibrate(_labelUseCalibrate);
+      await _preferenceService.setLabelPrintDelay(_labelPrintDelay);
       await _preferenceService.setShowKioskOrder(_isKioskOrderVisible);
       await _preferenceService.setKioskPrintAndSound(_isKioskOrderSoundEnabled);
       await _preferenceService.setOrderHistoryScroll(_isOrderHistoryScroll);
@@ -744,10 +768,299 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 },
               ),
             ),
+            // 라벨프린터 고급 설정 (테스트 모드)
+            if (_isUseLabelPrinter) _buildLabelTestModeSection(),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildLabelTestModeSection() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          initiallyExpanded: _isLabelTestExpanded,
+          onExpansionChanged: (expanded) {
+            setState(() => _isLabelTestExpanded = expanded);
+          },
+          tilePadding: const EdgeInsets.symmetric(horizontal: 8.0),
+          title: const Text(
+            '라벨프린터 고급 설정 (테스트)',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Colors.deepOrange,
+            ),
+          ),
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // AutoReply 모드
+                  _buildTestToggleRow(
+                    label: 'AutoReply 모드',
+                    description: '양방향 통신 (0=비활성, 1=활성)',
+                    child: DropdownButton<int>(
+                      value: _labelAutoReplyMode,
+                      items: const [
+                        DropdownMenuItem(value: 0, child: Text('0 (비활성)')),
+                        DropdownMenuItem(value: 1, child: Text('1 (활성)')),
+                      ],
+                      onChanged: (value) {
+                        if (value == null) return;
+                        setState(() => _labelAutoReplyMode = value);
+                        _saveSettings();
+                      },
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  // 뜯기 위치 이동
+                  _buildTestToggleRow(
+                    label: '뜯기 위치 이동',
+                    description: 'FeedPaperToTearPosition',
+                    child: CustomSwitch(
+                      value: _labelUseFeedToTear,
+                      activeColor: AppStyles.kMainColor,
+                      inactiveColor: Colors.grey,
+                      activeText: 'ON',
+                      inactiveText: 'OFF',
+                      onChanged: (value) {
+                        setState(() => _labelUseFeedToTear = value);
+                        _saveSettings();
+                      },
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  // 인쇄 위치 복귀
+                  _buildTestToggleRow(
+                    label: '인쇄 위치 복귀',
+                    description: 'BackPaperToPrintPosition',
+                    child: CustomSwitch(
+                      value: _labelUseBackToPrint,
+                      activeColor: AppStyles.kMainColor,
+                      inactiveColor: Colors.grey,
+                      activeText: 'ON',
+                      inactiveText: 'OFF',
+                      onChanged: (value) {
+                        setState(() => _labelUseBackToPrint = value);
+                        _saveSettings();
+                      },
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  // 상태 폴링
+                  _buildTestToggleRow(
+                    label: '상태 폴링',
+                    description: '인쇄 완료 확인 후 다음 장',
+                    child: CustomSwitch(
+                      value: _labelUseStatusPolling,
+                      activeColor: AppStyles.kMainColor,
+                      inactiveColor: Colors.grey,
+                      activeText: 'ON',
+                      inactiveText: 'OFF',
+                      onChanged: (value) {
+                        setState(() => _labelUseStatusPolling = value);
+                        _saveSettings();
+                      },
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  // 캘리브레이션
+                  _buildTestToggleRow(
+                    label: '캘리브레이션',
+                    description: '연결 시 갭 센서 보정',
+                    child: CustomSwitch(
+                      value: _labelUseCalibrate,
+                      activeColor: AppStyles.kMainColor,
+                      inactiveColor: Colors.grey,
+                      activeText: 'ON',
+                      inactiveText: 'OFF',
+                      onChanged: (value) {
+                        setState(() => _labelUseCalibrate = value);
+                        _saveSettings();
+                      },
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  // 출력 간 딜레이
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('출력 간 딜레이',
+                                      style: TextStyle(
+                                          fontSize: 14, fontWeight: FontWeight.w600)),
+                                  Text('라벨 간 대기 시간 (ms)',
+                                      style: TextStyle(
+                                          fontSize: 11, color: Colors.grey)),
+                                ],
+                              ),
+                            ),
+                            Text('${_labelPrintDelay}ms',
+                                style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.deepOrange)),
+                          ],
+                        ),
+                        Slider(
+                          value: _labelPrintDelay.toDouble(),
+                          min: 300,
+                          max: 10000,
+                          divisions: 97,
+                          activeColor: Colors.deepOrange,
+                          label: '${_labelPrintDelay}ms',
+                          onChanged: (value) {
+                            setState(() => _labelPrintDelay = value.round());
+                          },
+                          onChangeEnd: (value) {
+                            _saveSettings();
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // 테스트 출력 버튼
+                  Center(
+                    child: ElevatedButton.icon(
+                      onPressed: _printLabelTest,
+                      icon: const Icon(Icons.print, size: 18),
+                      label: const Text('테스트 출력 (3장)'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.deepOrange,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTestToggleRow({
+    required String label,
+    required String description,
+    required Widget child,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label,
+                    style: const TextStyle(
+                        fontSize: 14, fontWeight: FontWeight.w600)),
+                Text(description,
+                    style: TextStyle(
+                        fontSize: 11, color: Colors.grey.shade600)),
+              ],
+            ),
+          ),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Future<void> _printLabelTest() async {
+    final printService = ref.read(printServiceProvider);
+    final status = ref.read(printerStatusProvider);
+
+    if (!status.isLabelConnected) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('라벨 프린터가 연결되어 있지 않습니다.')),
+        );
+      }
+      return;
+    }
+
+    final config = 'autoReply=$_labelAutoReplyMode'
+        ' feedToTear=$_labelUseFeedToTear'
+        ' backToPrint=$_labelUseBackToPrint'
+        ' polling=$_labelUseStatusPolling'
+        ' calibrate=$_labelUseCalibrate'
+        ' delay=${_labelPrintDelay}ms';
+
+    logToFile(
+        tag: LogTag.PLATFORM,
+        message: '[LabelTest] ====== 테스트 출력 시작 (3장) ======');
+    logToFile(
+        tag: LogTag.PLATFORM,
+        message: '[LabelTest] [CONFIG] $config');
+
+    try {
+      final sw = Stopwatch()..start();
+      for (int i = 1; i <= 3; i++) {
+        final labelSw = Stopwatch()..start();
+        final imageBytes = await LabelPainter.generateLabelImage(
+          menuName: '테스트 상품 $i',
+          options: ['옵션A', '옵션B'],
+          shopOrderNo: '0000',
+          orderTime: '03/26\n12:00:00',
+          orderIndex: i,
+          orderTotal: 3,
+        );
+        logToFile(
+            tag: LogTag.PLATFORM,
+            message: '[LabelTest] [$i/3] printLabel 호출 (${imageBytes.length} bytes)...');
+        await printService.printLabel(imageBytes);
+        logToFile(
+            tag: LogTag.PLATFORM,
+            message: '[LabelTest] [$i/3] printLabel 완료 (${labelSw.elapsedMilliseconds}ms)');
+        if (i < 3) {
+          logToFile(
+              tag: LogTag.PLATFORM,
+              message: '[LabelTest] [$i/3] 다음 장 대기 ${_labelPrintDelay}ms...');
+          await Future.delayed(Duration(milliseconds: _labelPrintDelay));
+        }
+      }
+      sw.stop();
+      logToFile(
+          tag: LogTag.PLATFORM,
+          message: '[LabelTest] ====== 테스트 출력 완료 (총 ${sw.elapsedMilliseconds}ms) ======');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('테스트 라벨 3장 출력 완료 (${sw.elapsedMilliseconds}ms)')),
+        );
+      }
+    } catch (e) {
+      logToFile(
+          tag: LogTag.ERROR,
+          message: '[LabelTest] 테스트 라벨 출력 실패: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('테스트 출력 실패: $e')),
+        );
+      }
+    }
   }
 
   Widget _buildRightPanel(bool isKdsMode) {

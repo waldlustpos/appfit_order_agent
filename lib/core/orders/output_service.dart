@@ -115,6 +115,7 @@ class OutputService {
 
       logger.i('[OutputService] 라벨 출력 시작: ${orderToPrint.orderNo}');
       final printService = ref.read(printServiceProvider);
+      final printDelay = ref.read(preferenceServiceProvider).getLabelPrintDelay();
 
       // 전체 상품 목록 로드 (완성된 모델 대기)
       final allProducts = await ref.read(productProvider.future);
@@ -139,13 +140,16 @@ class OutputService {
           );
 
           final categoryCode = product?.categoryCode;
-          if (categoryCode == OrderCategoryCodes.beanType) {
+          if (categoryCode != null &&
+              OrderCategoryCodes.beanTypeCodes.contains(categoryCode)) {
             beanType = opt.optionName;
           }
-          if (categoryCode == OrderCategoryCodes.temperature) {
+          if (categoryCode != null &&
+              OrderCategoryCodes.temperatureCodes.contains(categoryCode)) {
             temperature = opt.optionName;
           }
-          if (categoryCode == OrderCategoryCodes.sizeOption) {
+          if (categoryCode != null &&
+              OrderCategoryCodes.sizeOptionCodes.contains(categoryCode)) {
             sizeOption = opt.optionName;
           }
         }
@@ -181,11 +185,11 @@ class OutputService {
               '[OutputService] 라벨 출력(${menu.itemName}): $labelIndex/$totalLabels');
           // 연속 출력 시 프린터 버퍼 안정화를 위한 딜레이
           if (i < menu.qty - 1) {
-            await Future.delayed(const Duration(milliseconds: 300));
+            await Future.delayed(Duration(milliseconds: printDelay));
           }
         }
         // 다음 메뉴 출력 전 딜레이
-        await Future.delayed(const Duration(milliseconds: 300));
+        await Future.delayed(Duration(milliseconds: printDelay));
       }
     } catch (e, s) {
       logger.e('[OutputService] 라벨 출력 중 오류 발생: ${order.orderNo}',
