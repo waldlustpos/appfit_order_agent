@@ -94,7 +94,8 @@ class OutputService {
   }
 
   /// 주문에 포함된 메뉴들의 라벨을 출력합니다.
-  Future<void> printOrderLabels(OrderModel order) async {
+  /// [isReprint] true이면 재출력 (필터링 없이 전체 출력)
+  Future<void> printOrderLabels(OrderModel order, {bool isReprint = false}) async {
     try {
       final useLabel = ref.read(preferenceServiceProvider).getUseLabelPrinter();
       if (!useLabel) return;
@@ -120,12 +121,33 @@ class OutputService {
       // 전체 상품 목록 로드 (완성된 모델 대기)
       final allProducts = await ref.read(productProvider.future);
 
-      // 전체 라벨 수 계산 (모든 메뉴 수량 합산)
+      // 카테고리 필터링 (재출력이 아닌 자동 출력 시에만 적용)
+      final menusToprint = (!isReprint)
+          ? orderToPrint.menus.where((menu) {
+              final product = allProducts.firstWhereOrNull(
+                (p) =>
+                    p.productId == menu.shopItemId ||
+                    p.internalId == menu.shopItemId,
+              );
+              final isWaffle = OrderCategoryCodes.waffleCategoryCodes.contains(product?.categoryCode);
+              final labelWaffleOnly =
+                  ref.read(preferenceServiceProvider).getLabelWaffleOnly();
+              return labelWaffleOnly ? isWaffle : !isWaffle;
+            }).toList()
+          : orderToPrint.menus;
+
+      if (menusToprint.isEmpty) {
+        logger.d(
+            '[OutputService] 라벨 출력 건너뜀: 필터 조건에 맞는 메뉴 없음 (${order.orderNo})');
+        return;
+      }
+
+      // 전체 라벨 수 계산 (필터링된 메뉴 수량 합산)
       final int totalLabels =
-          orderToPrint.menus.fold(0, (sum, m) => sum + m.qty);
+          menusToprint.fold(0, (sum, m) => sum + m.qty);
       int labelIndex = 0;
 
-      for (final menu in orderToPrint.menus) {
+      for (final menu in menusToprint) {
         // 서브 정보 추출 (원두, 온도, 사이즈)
         String? beanType;
         String? temperature;

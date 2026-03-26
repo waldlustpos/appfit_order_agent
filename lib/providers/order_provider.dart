@@ -1682,8 +1682,8 @@ class Order extends _$Order {
   }
 
   /// 외부에서 라벨 출력을 직접 요청할 때 호출 (영수증 재출력 등)
-  Future<void> printOrderLabels(OrderModel order) async {
-    await _outputService.printOrderLabels(order);
+  Future<void> printOrderLabels(OrderModel order, {bool isReprint = false}) async {
+    await _outputService.printOrderLabels(order, isReprint: isReprint);
   }
 
   // 영수증 출력 로직을 중복 코드 제거를 위해 분리

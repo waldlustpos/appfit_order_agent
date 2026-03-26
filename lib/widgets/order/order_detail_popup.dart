@@ -426,7 +426,7 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
             logToFile(
                 tag: LogTag.UI_ACTION,
                 message: '라벨 재출력 버튼 클릭: ${order.orderNo}');
-            await ref.read(outputAppServiceProvider).printOrderLabels(order);
+            await ref.read(outputAppServiceProvider).printOrderLabels(order, isReprint: true);
           }, actionId: 'reprintLabel'),
         ],
         spacer,
@@ -633,7 +633,7 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
         );
 
         // 라벨 프린터 사용 설정 확인 후 라벨 출력 (printOrderLabels 내부에서 재확인함)
-        await ref.read(orderProvider.notifier).printOrderLabels(order);
+        await ref.read(orderProvider.notifier).printOrderLabels(order, isReprint: true);
 
         // 성공 후에도 일정 시간 동안 버튼 비활성화 유지 (연타 방지)
         if (mounted) {
@@ -679,7 +679,7 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
               logToFile(
                   tag: LogTag.UI_ACTION,
                   message: '라벨 재출력 버튼 클릭: ${order.orderNo}');
-              await ref.read(outputAppServiceProvider).printOrderLabels(order);
+              await ref.read(outputAppServiceProvider).printOrderLabels(order, isReprint: true);
             }, actionId: 'reprintLabel'),
           ],
           spacer,
@@ -704,7 +704,7 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
               logToFile(
                   tag: LogTag.UI_ACTION,
                   message: '라벨 재출력 버튼 클릭: ${order.orderNo}');
-              await ref.read(outputAppServiceProvider).printOrderLabels(order);
+              await ref.read(outputAppServiceProvider).printOrderLabels(order, isReprint: true);
             }, actionId: 'reprintLabel'),
           ],
           spacer,
@@ -742,7 +742,7 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
               logToFile(
                   tag: LogTag.UI_ACTION,
                   message: '라벨 재출력 버튼 클릭: ${order.orderNo}');
-              await ref.read(outputAppServiceProvider).printOrderLabels(order);
+              await ref.read(outputAppServiceProvider).printOrderLabels(order, isReprint: true);
             }, actionId: 'reprintLabel'),
           ],
           spacer,
@@ -794,7 +794,7 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
                     message: '라벨 재출력 버튼 클릭: ${order.orderNo}');
                 await ref
                     .read(outputAppServiceProvider)
-                    .printOrderLabels(order);
+                    .printOrderLabels(order, isReprint: true);
               }, actionId: 'reprintLabel'),
             ],
             spacer,
@@ -826,7 +826,7 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
               logToFile(
                   tag: LogTag.UI_ACTION,
                   message: '라벨 재출력 버튼 클릭: ${order.orderNo}');
-              await ref.read(outputAppServiceProvider).printOrderLabels(order);
+              await ref.read(outputAppServiceProvider).printOrderLabels(order, isReprint: true);
             }, actionId: 'reprintLabel'),
           ],
 
@@ -861,7 +861,7 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
               logToFile(
                   tag: LogTag.UI_ACTION,
                   message: '라벨 재출력 버튼 클릭: ${order.orderNo}');
-              await ref.read(outputAppServiceProvider).printOrderLabels(order);
+              await ref.read(outputAppServiceProvider).printOrderLabels(order, isReprint: true);
             }, actionId: 'reprintLabel'),
           ],
           spacer,

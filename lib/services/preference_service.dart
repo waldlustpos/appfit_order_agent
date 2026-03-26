@@ -58,6 +58,8 @@ class PreferenceService {
       "KOKONUT_LABEL_USE_CALIBRATE"; // bool (기본 false)
   static const String KEY_LABEL_PRINT_DELAY =
       "KOKONUT_LABEL_PRINT_DELAY"; // int (ms, 기본 300)
+  static const String KEY_LABEL_WAFFLE_ONLY =
+      "KOKONUT_LABEL_WAFFLE_ONLY"; // bool (기본 false) - 와플 상품만 출력
 
   static const String KEY_IS_SOCKET_ENABLED =
       "KEY_IS_SOCKET_ENABLED"; // 소켓 사용 여부
@@ -407,6 +409,8 @@ class PreferenceService {
       _prefs.getBool(KEY_LABEL_USE_CALIBRATE) ?? false;
   int getLabelPrintDelay() =>
       _prefs.getInt(KEY_LABEL_PRINT_DELAY) ?? 300;
+  bool getLabelWaffleOnly() =>
+      _prefs.getBool(KEY_LABEL_WAFFLE_ONLY) ?? false;
 
   // 영업 상태 저장
   Future<void> setOrderOn(bool value) async {
@@ -492,6 +496,10 @@ class PreferenceService {
 
   Future<void> setLabelPrintDelay(int value) async {
     await _prefs.setInt(KEY_LABEL_PRINT_DELAY, value);
+  }
+
+  Future<void> setLabelWaffleOnly(bool value) async {
+    await _prefs.setBool(KEY_LABEL_WAFFLE_ONLY, value);
   }
 
   // 키오스크 주문 노출 설정
