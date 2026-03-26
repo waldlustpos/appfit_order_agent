@@ -122,17 +122,18 @@ class OutputService {
       final allProducts = await ref.read(productProvider.future);
 
       // 카테고리 필터링 (재출력이 아닌 자동 출력 시에만 적용)
-      final menusToprint = (!isReprint)
+      // filterMode: 0=전체, 1=와플만, 2=와플제외
+      final filterMode = ref.read(preferenceServiceProvider).getLabelFilterMode();
+      final menusToprint = (!isReprint && filterMode != 0)
           ? orderToPrint.menus.where((menu) {
               final product = allProducts.firstWhereOrNull(
                 (p) =>
                     p.productId == menu.shopItemId ||
                     p.internalId == menu.shopItemId,
               );
-              final isWaffle = OrderCategoryCodes.waffleCategoryCodes.contains(product?.categoryCode);
-              final labelWaffleOnly =
-                  ref.read(preferenceServiceProvider).getLabelWaffleOnly();
-              return labelWaffleOnly ? isWaffle : !isWaffle;
+              final isWaffle = OrderCategoryCodes.waffleCategoryCodes
+                  .contains(product?.categoryCode);
+              return filterMode == 1 ? isWaffle : !isWaffle;
             }).toList()
           : orderToPrint.menus;
 

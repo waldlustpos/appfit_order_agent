@@ -52,7 +52,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _labelUseStatusPolling = false;
   bool _labelUseCalibrate = false;
   int _labelPrintDelay = 300;
-  bool _isLabelWaffleOnly = false;
+  int _labelFilterMode = 0; // 0: 전체, 1: 와플만, 2: 와플제외
   bool _isLabelTestExpanded = false;
   bool _isKioskOrderVisible = false;
   bool _isKioskOrderSoundEnabled = false;
@@ -95,7 +95,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _labelUseStatusPolling = _preferenceService.getLabelUseStatusPolling();
       _labelUseCalibrate = _preferenceService.getLabelUseCalibrate();
       _labelPrintDelay = _preferenceService.getLabelPrintDelay();
-      _isLabelWaffleOnly = _preferenceService.getLabelWaffleOnly();
+      _labelFilterMode = _preferenceService.getLabelFilterMode();
 
       // 일반 모드에서는 저장된 설정을 사용
       _isKioskOrderVisible = _preferenceService.getShowKioskOrder();
@@ -127,7 +127,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await _preferenceService.setLabelUseStatusPolling(_labelUseStatusPolling);
       await _preferenceService.setLabelUseCalibrate(_labelUseCalibrate);
       await _preferenceService.setLabelPrintDelay(_labelPrintDelay);
-      await _preferenceService.setLabelWaffleOnly(_isLabelWaffleOnly);
+      await _preferenceService.setLabelFilterMode(_labelFilterMode);
       await _preferenceService.setShowKioskOrder(_isKioskOrderVisible);
       await _preferenceService.setKioskPrintAndSound(_isKioskOrderSoundEnabled);
       await _preferenceService.setOrderHistoryScroll(_isOrderHistoryScroll);
@@ -771,33 +771,62 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 },
               ),
             ),
-            // 와플 상품만 출력 설정
+            // 라벨 출력 필터 모드 설정
             if (_isUseLabelPrinter)
               _buildSettingItem(
-                title: '와플 상품만 출력',
-                description: _isLabelWaffleOnly
-                    ? 'ON: 디저트(와플) 상품만 라벨 출력'
-                    : 'OFF: 디저트(와플) 외 상품만 라벨 출력',
-                trailing: CustomSwitch(
-                  value: _isLabelWaffleOnly,
-                  activeColor: AppStyles.kMainColor,
-                  inactiveColor: Colors.grey,
-                  activeText: t.settings.auto_start.on,
-                  inactiveText: t.settings.auto_start.off,
-                  onChanged: (value) {
-                    setState(() {
-                      _isLabelWaffleOnly = value;
-                      logToFile(
-                          tag: LogTag.UI_ACTION,
-                          message: '와플 상품만 출력 변경 -> $_isLabelWaffleOnly');
-                    });
-                    _saveSettings();
-                  },
+                title: '라벨 출력 필터',
+                description: _labelFilterMode == 0
+                    ? '모든 주문 상품을 라벨 출력합니다.'
+                    : _labelFilterMode == 1
+                        ? '디저트(와플) 상품만 라벨 출력합니다.'
+                        : '디저트(와플) 상품을 제외하고 라벨 출력합니다.',
+                isVertical: true,
+                trailing: Row(
+                  children: [
+                    _buildFilterModeButton('모든 주문 출력', 0),
+                    const SizedBox(width: 8),
+                    _buildFilterModeButton('와플상품만 출력', 1),
+                    const SizedBox(width: 8),
+                    _buildFilterModeButton('와플상품 제외', 2),
+                  ],
                 ),
               ),
             // 라벨프린터 고급 설정 (테스트 모드)
             if (_isUseLabelPrinter) _buildLabelTestModeSection(),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterModeButton(String label, int mode) {
+    final isSelected = _labelFilterMode == mode;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          setState(() {
+            _labelFilterMode = mode;
+            logToFile(
+                tag: LogTag.UI_ACTION,
+                message: '라벨 출력 필터 모드 변경 -> $_labelFilterMode');
+          });
+          _saveSettings();
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: isSelected ? AppStyles.kMainColor : Colors.grey[200],
+            borderRadius: BorderRadius.circular(8),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: TextStyle(
+              color: isSelected ? Colors.white : Colors.black87,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              fontSize: 13,
+            ),
+          ),
         ),
       ),
     );
