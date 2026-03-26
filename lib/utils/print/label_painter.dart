@@ -119,7 +119,7 @@ class LabelPainter extends CustomPainter {
       );
 
       // Order index (right side)
-      if (orderIndex != null && orderTotal != null) {
+      if (orderIndex != null && orderTotal != null && orderTotal! > 1) {
         _drawText(
           canvas,
           '$orderIndex/$orderTotal',

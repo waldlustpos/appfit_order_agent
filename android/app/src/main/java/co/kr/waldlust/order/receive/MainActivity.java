@@ -389,6 +389,8 @@ public class MainActivity extends FlutterActivity {
         if (isSunmiDevice()) {
             SunmiPrintHelper.getInstance().initSunmiPrinterService(this);
         }
+        // 라벨 프린터 파일 로깅 초기화
+        co.kr.waldlust.order.receive.util.print.LabelPrinter.init(this);
         // printrUtil is initialized in onCreate or elsewhere
     }
 
