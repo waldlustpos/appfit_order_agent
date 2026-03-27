@@ -84,15 +84,23 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
                             + " backToPrint=" + useBackToPrint
                             + " polling=" + useStatusPolling
                             + " calibrate=" + useCalibrate);
-                    Bitmap bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length);
-                    co.kr.waldlust.order.receive.util.print.LabelPrinter.printBitmap(
-                            bitmap,
-                            autoReplyMode != null ? autoReplyMode : 0,
-                            useFeedToTear != null ? useFeedToTear : true,
-                            useBackToPrint != null ? useBackToPrint : true,
-                            useStatusPolling != null ? useStatusPolling : false,
-                            useCalibrate != null ? useCalibrate : false);
-                    result.success(true);
+                    final Bitmap bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length);
+                    final int finalAutoReplyMode = autoReplyMode != null ? autoReplyMode : 0;
+                    final boolean finalUseFeedToTear = useFeedToTear != null ? useFeedToTear : true;
+                    final boolean finalUseBackToPrint = useBackToPrint != null ? useBackToPrint : true;
+                    final boolean finalUseStatusPolling = useStatusPolling != null ? useStatusPolling : false;
+                    final boolean finalUseCalibrate = useCalibrate != null ? useCalibrate : false;
+
+                    new Thread(() -> {
+                        boolean printResult = co.kr.waldlust.order.receive.util.print.LabelPrinter.printBitmap(
+                                bitmap,
+                                finalAutoReplyMode,
+                                finalUseFeedToTear,
+                                finalUseBackToPrint,
+                                finalUseStatusPolling,
+                                finalUseCalibrate);
+                        new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> result.success(printResult));
+                    }).start();
                 } else {
                     result.error("INVALID_ARGUMENT", "Image bytes are null or empty", null);
                 }
