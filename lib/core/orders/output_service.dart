@@ -126,6 +126,8 @@ class OutputService {
       final filterMode = ref.read(preferenceServiceProvider).getLabelFilterMode();
       final menusToprint = (!isReprint && filterMode != 0)
           ? orderToPrint.menus.where((menu) {
+              // TKP0051은 필터 모드에 상관없이 항상 출력
+              if (OrderCategoryCodes.setItemCodes.contains(menu.shopItemId)) return true;
               final product = allProducts.firstWhereOrNull(
                 (p) =>
                     p.productId == menu.shopItemId ||

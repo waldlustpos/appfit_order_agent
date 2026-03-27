@@ -18,5 +18,8 @@ class OrderCategoryCodes {
   /// 상품 카테고리 - 디저트  (현재 와플만)
   static const Set<String> waffleCategoryCodes = {'TKP1006'};
 
+  //세트상품 상품코드
+  static const Set<String> setItemCodes = {'TKP0051'};
+
   OrderCategoryCodes._();
 }
