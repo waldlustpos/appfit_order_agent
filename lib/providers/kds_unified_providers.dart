@@ -168,10 +168,7 @@ class KdsScrollButtonStates extends _$KdsScrollButtonStates {
     if (currentState == null || currentState != newState) {
       state = {...state, orderId: newState};
 
-      // 스크롤 불가능한 상태로 변경된 경우 로그
-      if (!canScrollUp && !canScrollDown) {
-        logger.d('KDS: 스크롤 버튼 비활성화 - $orderId (스크롤 불가능한 내용)');
-      }
+
     }
   }
 

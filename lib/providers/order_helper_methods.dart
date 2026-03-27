@@ -35,21 +35,16 @@ class OrderHelperMethods {
     final isKdsMode = ref.read(kdsModeProvider);
     if (isKdsMode) {
       final show = order.status != OrderStatus.NEW;
-      logger.d(
-          '[Filter][KDS] show=$show status=${order.status} (orderId=${order.orderNo})');
       return show;
     }
 
     // 일반 모드: 모든 주문을 동일하게 처리
     if (order.status != OrderStatus.NEW) {
-      logger.d(
-          '[Filter] shouldShowOrder status=${order.status} -> show (orderId=${order.orderNo})');
       return true; // 상태가 변경된 주문은 항상 표시
     }
 
     // NEW 상태 주문은 항상 표시
-    logger.d(
-        '[Filter] shouldShowOrder status=NEW -> show (orderId=${order.orderNo})');
+
     return true;
   }
 

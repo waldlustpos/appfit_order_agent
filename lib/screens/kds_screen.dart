@@ -1360,10 +1360,6 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
       );
     }
 
-    logger
-        .d('KDS: ${cardType.name} 탭 그리드 빌드 - ${orders.length}개 주문 (개별 카드 사용)');
-
-    logger.d('KDS: ${cardType.name} 탭 - 개별 카드로 구성');
 
     final sortedOrders = List<OrderModel>.from(orders);
 
