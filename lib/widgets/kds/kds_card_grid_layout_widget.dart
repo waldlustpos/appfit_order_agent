@@ -39,13 +39,21 @@ class _KdsCardGridLayoutWidgetState
   List<List<OrderModel>> _groupedOrderColumns = []; // 그룹핑된 주문 열 저장
   // bool _isLoadingMore = false; // 선택적: 더 많은 아이템을 비동기로 그룹핑할 경우
 
+  bool _canScrollLeft = false;
+  bool _canScrollRight = false;
+
   @override
   void initState() {
     super.initState();
     // 외부에서 전달받은 스크롤 컨트롤러가 있으면 사용, 없으면 새로 생성
     _scrollController = widget.scrollController ?? ScrollController();
+    _scrollController.addListener(_updateScrollArrowState);
     // 초기 아이템 그룹핑
     _prepareGroupedData();
+    // 초기 화살표 상태 체크
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _updateScrollArrowState();
+    });
   }
 
   @override
@@ -56,15 +64,40 @@ class _KdsCardGridLayoutWidgetState
     if (!listEquals(widget.items, oldWidget.items)) {
       _prepareGroupedData();
     }
+    // 외부 스크롤 컨트롤러가 변경된 경우 리스너 재등록
+    if (widget.scrollController != oldWidget.scrollController) {
+      _scrollController.removeListener(_updateScrollArrowState);
+      _scrollController = widget.scrollController ?? _scrollController;
+      _scrollController.addListener(_updateScrollArrowState);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _updateScrollArrowState();
+      });
+    }
   }
 
   @override
   void dispose() {
+    _scrollController.removeListener(_updateScrollArrowState);
     // 외부에서 전달받은 스크롤 컨트롤러가 아닌 경우에만 dispose
     if (widget.scrollController == null) {
       _scrollController.dispose();
     }
     super.dispose();
+  }
+
+  void _updateScrollArrowState() {
+    if (!_scrollController.hasClients) return;
+    final offset = _scrollController.offset;
+    final maxExtent = _scrollController.position.maxScrollExtent;
+    final newCanScrollLeft = offset > 5.0;
+    final newCanScrollRight = offset < maxExtent - 5.0;
+    if (newCanScrollLeft != _canScrollLeft ||
+        newCanScrollRight != _canScrollRight) {
+      setState(() {
+        _canScrollLeft = newCanScrollLeft;
+        _canScrollRight = newCanScrollRight;
+      });
+    }
   }
 
   void _prepareGroupedData() {
@@ -97,51 +130,120 @@ class _KdsCardGridLayoutWidgetState
               ? constraints.maxHeight - 17 // 최소한의 패딩만 고려
               : screenHeight; // 화면 전체 높이 사용
 
-      return Padding(
-        padding: const EdgeInsets.all(0.0),
-        child: NotificationListener<ScrollNotification>(
-          onNotification: (ScrollNotification scrollInfo) {
-            // 스크롤이 끝에 도달했는지 확인 (여유분 200px)
-            if (scrollInfo.metrics.pixels >=
-                scrollInfo.metrics.maxScrollExtent - 200) {
-              // 추가 로딩 요청 (Debounce 처리는 Provider 내부 로직이나 여기서 수행 가능)
-              // 여기서는 간단히 호출 (Provider에서 isLoading 체크함)
-              ref.read(orderProvider.notifier).loadMoreOrders();
-            }
-            return false;
-          },
-          child: ListView.builder(
-            controller: _scrollController,
-            scrollDirection: Axis.horizontal,
-            itemCount: _groupedOrderColumns.length,
-            itemBuilder: (BuildContext context, int index) {
-              final columnGroup = _groupedOrderColumns[index];
-              // 각 열의 너비를 여기서 지정. 모든 열이 동일한 너비를 가질 수도 있고,
-              // columnGroup의 내용에 따라 다른 너비를 가질 수도 있습니다.
-              // 여기서는 _OptimizedCardColumn 내부의 카드 너비(250)를 기준으로 설정한다고 가정합니다.
-              const double columnWidth = 260; // 카드 너비 + 간격 등 고려
-
-              return SizedBox(
-                width: columnWidth,
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 4.0), // 열 간 간격
-                  child: _OptimizedCardColumn(
-                    // key: ValueKey('column_${index}'), // index 기반 키도 가능, 또는 그룹의 고유 ID 사용
-                    key: ValueKey(
-                        'column_${columnGroup.isNotEmpty ? columnGroup.first.orderId : index}'), // 그룹 내 첫 아이템 ID 사용 (고유성 확보)
-                    // context는 이제 itemBuilder의 context 사용
-                    group: columnGroup,
-                    availableHeight: availableHeight,
-                    cardType: widget.cardType,
-                  ),
-                ),
-              );
+      return Stack(
+        children: [
+          NotificationListener<ScrollNotification>(
+            onNotification: (ScrollNotification scrollInfo) {
+              // 스크롤이 끝에 도달했는지 확인 (여유분 200px)
+              if (scrollInfo.metrics.pixels >=
+                  scrollInfo.metrics.maxScrollExtent - 200) {
+                // 추가 로딩 요청 (Debounce 처리는 Provider 내부 로직이나 여기서 수행 가능)
+                // 여기서는 간단히 호출 (Provider에서 isLoading 체크함)
+                ref.read(orderProvider.notifier).loadMoreOrders();
+              }
+              return false;
             },
+            child: ListView.builder(
+              controller: _scrollController,
+              scrollDirection: Axis.horizontal,
+              itemCount: _groupedOrderColumns.length,
+              itemBuilder: (BuildContext context, int index) {
+                final columnGroup = _groupedOrderColumns[index];
+                // 각 열의 너비를 여기서 지정. 모든 열이 동일한 너비를 가질 수도 있고,
+                // columnGroup의 내용에 따라 다른 너비를 가질 수도 있습니다.
+                // 여기서는 _OptimizedCardColumn 내부의 카드 너비(250)를 기준으로 설정한다고 가정합니다.
+                const double columnWidth = 260; // 카드 너비 + 간격 등 고려
+
+                return SizedBox(
+                  width: columnWidth,
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 4.0), // 열 간 간격
+                    child: _OptimizedCardColumn(
+                      // key: ValueKey('column_${index}'), // index 기반 키도 가능, 또는 그룹의 고유 ID 사용
+                      key: ValueKey(
+                          'column_${columnGroup.isNotEmpty ? columnGroup.first.orderId : index}'), // 그룹 내 첫 아이템 ID 사용 (고유성 확보)
+                      // context는 이제 itemBuilder의 context 사용
+                      group: columnGroup,
+                      availableHeight: availableHeight,
+                      cardType: widget.cardType,
+                    ),
+                  ),
+                );
+              },
+            ),
           ),
-        ),
+          if (_canScrollLeft)
+            Positioned(
+              left: 0,
+              top: 0,
+              bottom: 0,
+              child: _buildHorizontalScrollArrow(isLeft: true),
+            ),
+          if (_canScrollRight)
+            Positioned(
+              right: 0,
+              top: 0,
+              bottom: 0,
+              child: _buildHorizontalScrollArrow(isLeft: false),
+            ),
+        ],
       );
     });
+  }
+
+  Widget _buildHorizontalScrollArrow({required bool isLeft}) {
+    return Container(
+      width: 48,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: isLeft ? Alignment.centerLeft : Alignment.centerRight,
+          end: isLeft ? Alignment.centerRight : Alignment.centerLeft,
+          colors: [
+            Colors.white,
+            Colors.white.withValues(alpha: 0.0),
+          ],
+        ),
+      ),
+      child: Center(
+        child: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            border: Border.all(color: AppStyles.gray4),
+            shape: BoxShape.circle,
+            color: Colors.white,
+          ),
+          child: Material(
+            color: Colors.transparent,
+            shape: const CircleBorder(),
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: () {
+                if (!_scrollController.hasClients) return;
+                final target = isLeft
+                    ? 0.0
+                    : _scrollController.position.maxScrollExtent;
+                _scrollController.animateTo(
+                  target,
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                );
+              },
+              child: Center(
+                child: Icon(
+                  isLeft
+                      ? Icons.arrow_back_ios_rounded
+                      : Icons.arrow_forward_ios_rounded,
+                  size: 22,
+                  color: AppStyles.gray9,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   /// items → column 단위로 그룹핑 (이 함수는 유지)
@@ -536,12 +638,6 @@ class _OptimizedOrderCardState extends ConsumerState<_OptimizedOrderCard> {
         .watch(kdsCardAnimationsProvider.select((map) => map[order.orderId]));
     final borderColor = animationState?.borderColor ?? AppStyles.gray3;
     final opacity = animationState?.opacity ?? 1.0;
-
-    // 디버깅을 위한 로그 (필요시 제거)
-    if (scrollButtonState != null) {
-      logger.d(
-          'KDS: 스크롤 버튼 상태 - ${order.orderId}: up=$canScrollUp, down=$canScrollDown');
-    }
 
     return AnimatedOpacity(
       opacity: opacity,
