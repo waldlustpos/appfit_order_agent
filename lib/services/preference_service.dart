@@ -63,6 +63,8 @@ class PreferenceService {
 
   static const String KEY_IS_SOCKET_ENABLED =
       "KEY_IS_SOCKET_ENABLED"; // 소켓 사용 여부
+  static const String KEY_FORCE_SOCKET_RECONNECT =
+      "KEY_FORCE_SOCKET_RECONNECT"; // 소켓 강제 재접속 (1분마다)
   static const String KEY_IGNORE_OTHER_DEVICE_TASKS_KDS =
       "KEY_IGNORE_OTHER_DEVICE_TASKS_KDS"; // KDS 타 기기 이벤트 무시 설정
   static const String KEY_LOCALE = "KEY_LOCALE"; // 언어 설정
@@ -631,6 +633,16 @@ class PreferenceService {
   // 소켓 활성화 설정 조회
   bool getIsSocketEnabled() {
     return _prefs.getBool(KEY_IS_SOCKET_ENABLED) ?? true; // 기본값: 활성화
+  }
+
+  // 소켓 강제 재접속 설정 저장 (1분마다 재연결)
+  Future<void> setForceSocketReconnect(bool value) async {
+    await _prefs.setBool(KEY_FORCE_SOCKET_RECONNECT, value);
+  }
+
+  // 소켓 강제 재접속 설정 조회
+  bool getForceSocketReconnect() {
+    return _prefs.getBool(KEY_FORCE_SOCKET_RECONNECT) ?? false; // 기본값: 비활성화
   }
 
   // KDS 타 기기 이벤트 무시 설정 저장

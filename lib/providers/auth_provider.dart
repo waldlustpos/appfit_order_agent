@@ -227,6 +227,8 @@ class Auth extends _$Auth {
       logger.e('[Auth] 재연결 오류', error: e);
     }
   }
+
 }
+
 
 // 기존 Provider 정의 삭제 (Generator가 자동으로 생성)

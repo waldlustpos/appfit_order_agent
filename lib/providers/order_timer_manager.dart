@@ -70,15 +70,15 @@ class OrderTimerManager {
     });
   }
 
-  /// 소켓 상태에 따른 폴링 간격 재설정
+  /// 소켓 상태에 따른 폴링 간격 재설정 (항상 전체 새로고침)
   void restartPolling(int intervalSeconds) {
     _pollingStartupTimer?.cancel();
     _pollingStartupTimer = null;
     _currentPollingIntervalSeconds = intervalSeconds;
     _pollingTimer?.cancel();
     _pollingTimer = Timer.periodic(Duration(seconds: intervalSeconds), (_) {
-      logger.d('폴링 실행 (간격: ${intervalSeconds}s)');
-      onPollNewOrders?.call();
+      logger.d('폴링 실행 (간격: ${intervalSeconds}s) → 전체 새로고침');
+      onRefreshOrders?.call();
     });
     logger.d('폴링 간격 변경 → ${intervalSeconds}s');
   }

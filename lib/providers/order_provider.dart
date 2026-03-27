@@ -164,11 +164,15 @@ class Order extends _$Order {
     // 소켓 연결 상태에 따른 adaptive polling 간격 조정
     ref.listen(appFitNotifierServiceProvider, (previous, isConnected) {
       if (previous == isConnected) return;
+      final isEmergency = _preferenceService.getForceSocketReconnect();
       if (isConnected.isConnected) {
-        logger.d(
-            '[OrderProvider] 소켓 연결됨 → 폴링 간격 ${OrderTimerManager.socketConnectedIntervalSeconds}s');
-        _timerManager
-            .restartPolling(OrderTimerManager.socketConnectedIntervalSeconds);
+        // 긴급 모드가 ON이면 연결돼도 10s 유지
+        if (!isEmergency) {
+          logger.d(
+              '[OrderProvider] 소켓 연결됨 → 폴링 간격 ${OrderTimerManager.socketConnectedIntervalSeconds}s');
+          _timerManager
+              .restartPolling(OrderTimerManager.socketConnectedIntervalSeconds);
+        }
       } else {
         logger.d(
             '[OrderProvider] 소켓 단절됨 → 폴링 간격 ${OrderTimerManager.socketDisconnectedIntervalSeconds}s');
@@ -1095,9 +1099,14 @@ class Order extends _$Order {
     _settingsManager.applyAudioPlayerSettings(_audioPlayer);
   }
 
-  //주기적으로 주문 폴링 - TimerManager로 위임
+  //주기적으로 주문 폴링 - TimerManager로 위임 (긴급모드 ON이면 즉시 10s 적용)
   void _setupPollingTimer() {
-    _timerManager.setupPollingTimer(_isLoggedOut);
+    if (_preferenceService.getForceSocketReconnect()) {
+      _timerManager.restartPolling(OrderTimerManager.socketDisconnectedIntervalSeconds);
+      logToFile(tag: LogTag.WEBSOCKET, message: '[긴급모드] 폴링 ${OrderTimerManager.socketDisconnectedIntervalSeconds}s 복원');
+    } else {
+      _timerManager.setupPollingTimer(_isLoggedOut);
+    }
   }
 
   //주문상세, 프린트내역 캐시 정리 타이머 - TimerManager로 위임
@@ -1883,7 +1892,7 @@ class Order extends _$Order {
 
     // 4. 필수 서비스 재시작
     _settingsManager.reloadAfterLogin();
-    _timerManager.setupPollingTimer(_isLoggedOut);
+    _setupPollingTimer();
     _orderQueueService.start();
 
     // 5. Firestore 리스너 재시작 (Removed)
@@ -2032,6 +2041,23 @@ class Order extends _$Order {
     }
   }
   */
+
+  /// 긴급 모드 ON/OFF — 설정 화면에서 호출 (폴링 주기만 변경)
+  void updateEmergencyPoll(bool enabled) {
+    if (enabled) {
+      _timerManager.restartPolling(OrderTimerManager.socketDisconnectedIntervalSeconds);
+      logToFile(
+        tag: LogTag.WEBSOCKET,
+        message: '[긴급모드] ON - 폴링 ${OrderTimerManager.socketDisconnectedIntervalSeconds}s',
+      );
+    } else {
+      _timerManager.restartPolling(OrderTimerManager.socketConnectedIntervalSeconds);
+      logToFile(
+        tag: LogTag.WEBSOCKET,
+        message: '[긴급모드] OFF - 폴링 복원 ${OrderTimerManager.socketConnectedIntervalSeconds}s',
+      );
+    }
+  }
 }
 
 // (removed) Legacy adapters and internal service contracts are moved to core/orders/*

@@ -58,6 +58,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _isKioskOrderSoundEnabled = false;
   bool _isOrderHistoryScroll = true; // 주문내역 보기설정 추가
   bool _isIgnoreOtherDeviceKds = false; // KDS 타 기기 이벤트 무시 설정 추가
+  bool _forceSocketReconnect = false; // 소켓 강제 재접속 (1분마다)
   int _notificationVolume = 5;
   String _selectedSound = 'alert10.mp3';
   int _alertCount = 3;
@@ -104,6 +105,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _isOrderHistoryScroll = _preferenceService.getOrderHistoryScroll();
       _isIgnoreOtherDeviceKds =
           _preferenceService.getIgnoreOtherDeviceTasksKds();
+      _forceSocketReconnect = _preferenceService.getForceSocketReconnect();
       _notificationVolume = _preferenceService.getVolume();
       _selectedSound = _preferenceService.getSound();
       _alertCount = _preferenceService.getSoundNum();
@@ -1421,6 +1423,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   fontWeight: FontWeight.bold,
                   color: Colors.grey,
                 ),
+              ),
+            ),
+            _buildSettingItem(
+              title: '긴급 모드',
+              description: '서버 이상 대비: 주문 폴링 주기를 10초로 단축합니다.',
+              trailing: CustomSwitch(
+                value: _forceSocketReconnect,
+                activeColor: AppStyles.kMainColor,
+                inactiveColor: Colors.grey,
+                activeText: t.settings.auto_start.on,
+                inactiveText: t.settings.auto_start.off,
+                onChanged: (value) {
+                  setState(() {
+                    _forceSocketReconnect = value;
+                    logToFile(
+                        tag: LogTag.UI_ACTION,
+                        message: '긴급모드 변경 -> $value');
+                  });
+                  _preferenceService.setForceSocketReconnect(value);
+                  ref.read(orderProvider.notifier).updateEmergencyPoll(value);
+                },
               ),
             ),
             _buildSettingItem(
