@@ -506,8 +506,7 @@ public class MainActivity extends FlutterActivity {
             File logFile = new File(logDir, fileName);
             try (FileOutputStream fos = new FileOutputStream(logFile, true);
                     OutputStreamWriter writer = new OutputStreamWriter(fos, StandardCharsets.UTF_8)) {
-                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault());
-                writer.append(sdf.format(new Date())).append(" ").append(text).append("\n");
+                writer.append(text);
                 writer.flush();
             }
             return true;
@@ -565,8 +564,7 @@ public class MainActivity extends FlutterActivity {
             File logFile = new File(logDir, fileName);
             try (FileOutputStream fos = new FileOutputStream(logFile, true);
                     OutputStreamWriter writer = new OutputStreamWriter(fos, StandardCharsets.UTF_8)) {
-                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault());
-                writer.append(sdf.format(new Date())).append(" ").append(text).append("\n");
+                writer.append(text);
                 writer.flush();
             }
         } catch (Exception e) {
@@ -857,6 +855,8 @@ public class MainActivity extends FlutterActivity {
     }
 
     public void appendLogToFile(String text) {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault());
+        String timestampedText = sdf.format(new Date()) + " " + text + "\n";
         String date = getDate(System.currentTimeMillis());
         String fileName = "appfit_" + date + ".txt";
 
@@ -864,9 +864,9 @@ public class MainActivity extends FlutterActivity {
         // (Android 7~9: WRITE_EXTERNAL_STORAGE, Android 10:
         // requestLegacyExternalStorage,
         // Android 11+: MANAGE_EXTERNAL_STORAGE)
-        if (!appendLogToFileDirectIO(text, fileName)) {
+        if (!appendLogToFileDirectIO(timestampedText, fileName)) {
             // 2순위: 앱 전용 외부 폴더 (권한 불필요, 앱 삭제 시 함께 삭제됨)
-            writeLogToAppFolder(text, fileName);
+            writeLogToAppFolder(timestampedText, fileName);
         }
     }
 

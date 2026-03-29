@@ -17,6 +17,8 @@ import android.view.WindowManager;
 import androidx.annotation.NonNull;
 
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import co.kr.waldlust.order.receive.overlay.OverlayHelper;
 import co.kr.waldlust.order.receive.util.print.PrintUtil;
@@ -27,6 +29,7 @@ import io.flutter.plugin.common.MethodChannel;
 public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
     private static final String TAG = "NativeMethodHandler";
     private final MainActivity activity;
+    private final ExecutorService fileIoExecutor = Executors.newSingleThreadExecutor();
 
     public NativeMethodHandler(MainActivity activity) {
         this.activity = activity;
@@ -196,7 +199,8 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
             case "logToFile":
                 String message = call.argument("message");
                 if (message != null) {
-                    activity.appendLogToFile(message);
+                    final String msgCopy = message;
+                    fileIoExecutor.execute(() -> activity.appendLogToFile(msgCopy));
                     result.success(true);
                 } else {
                     result.error("INVALID_ARGUMENT", "Log message is null", null);
@@ -206,7 +210,8 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
             case "logBatchToFile":
                 java.util.List<String> messages = call.argument("messages");
                 if (messages != null) {
-                    activity.appendLogsToFile(messages);
+                    final java.util.List<String> msgsCopy = new java.util.ArrayList<>(messages);
+                    fileIoExecutor.execute(() -> activity.appendLogsToFile(msgsCopy));
                     result.success(true);
                 } else {
                     result.error("INVALID_ARGUMENT", "Log messages list is null", null);
