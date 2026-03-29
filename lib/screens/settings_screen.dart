@@ -14,6 +14,8 @@ import '../services/print_service.dart';
 import '../utils/print/label_painter.dart';
 import 'package:appfit_order_agent/i18n/strings.g.dart';
 import 'package:appfit_order_agent/providers/locale_provider.dart';
+import 'package:appfit_order_agent/providers/currency_provider.dart';
+import 'package:appfit_order_agent/utils/currency_unit.dart';
 import '../widgets/common/common_dialog.dart';
 import 'appfit_test_screen.dart';
 import '../utils/mock_order_generator.dart' as __MockOrderGenerator;
@@ -482,6 +484,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     required bool isConnected,
     required VoidCallback onReconnect,
   }) {
+    final t = Translations.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
@@ -499,7 +502,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           const SizedBox(width: 8),
           Text(
-            isConnected ? '연결됨' : '연결 안 됨',
+            isConnected ? t.settings.connection.connected : t.settings.connection.disconnected,
             style: TextStyle(
               color: isConnected ? Colors.green[700] : Colors.red[700],
               fontWeight: FontWeight.bold,
@@ -520,7 +523,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   TextStyle(fontSize: 12),
                 ),
               ),
-              child: const Text('재연결'),
+              child: Text(t.settings.connection.reconnect),
             ),
           ),
         ],
@@ -560,6 +563,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               isVertical: true,
             ),
             _buildSettingItem(
+              title: t.settings.currency.title,
+              description: t.settings.currency.desc,
+              trailing: _buildCurrencySwitcher(),
+              isVertical: true,
+            ),
+            _buildSettingItem(
               title: t.settings.auto_start.title,
               description: isKdsMode
                   ? t.settings.auto_start.desc
@@ -584,9 +593,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
             if (isKdsMode)
               _buildSettingItem(
-                title: '타 기기 진행상태 알림 무시',
-                description:
-                    '다른 KDS에서 픽업 요청 등 진행상태를 변경해도 내 화면의 주문이 새로고침되지 않습니다. (진행상태 최신화를 수동으로 통제하고 싶을 때 사용)',
+                title: t.settings.kds_ignore_status.title,
+                description: t.settings.kds_ignore_status.desc,
                 trailing: CustomSwitch(
                   value: _isIgnoreOtherDeviceKds,
                   activeColor: AppStyles.kMainColor,
@@ -776,20 +784,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             // 라벨 출력 필터 모드 설정
             if (_isUseLabelPrinter)
               _buildSettingItem(
-                title: '라벨 출력 필터',
+                title: t.settings.label_filter.title,
                 description: _labelFilterMode == 0
-                    ? '모든 주문 상품을 라벨 출력합니다.'
+                    ? t.settings.label_filter.desc_all
                     : _labelFilterMode == 1
-                        ? '디저트(와플) 상품만 라벨 출력합니다.'
-                        : '디저트(와플) 상품을 제외하고 라벨 출력합니다.',
+                        ? t.settings.label_filter.desc_waffle_only
+                        : t.settings.label_filter.desc_waffle_exclude,
                 isVertical: true,
                 trailing: Row(
                   children: [
-                    _buildFilterModeButton('모든 주문 출력', 0),
+                    _buildFilterModeButton(t.settings.label_filter.btn_all, 0),
                     const SizedBox(width: 8),
-                    _buildFilterModeButton('와플상품만 출력', 1),
+                    _buildFilterModeButton(t.settings.label_filter.btn_waffle_only, 1),
                     const SizedBox(width: 8),
-                    _buildFilterModeButton('와플상품 제외', 2),
+                    _buildFilterModeButton(t.settings.label_filter.btn_waffle_exclude, 2),
                   ],
                 ),
               ),
@@ -1531,6 +1539,44 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
+  Widget _buildCurrencySwitcher() {
+    final currentCurrency = ref.watch(currencyNotifierProvider);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: CurrencyUnit.values.map((unit) {
+        final isSelected = currentCurrency == unit;
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4.0),
+          child: ElevatedButton(
+            onPressed: () {
+              ref.read(currencyNotifierProvider.notifier).changeCurrency(unit);
+              logToFile(
+                  tag: LogTag.UI_ACTION,
+                  message: '화폐단위 변경 -> ${unit.name}');
+            },
+            style: AppStyles.settingsToggleButton(isSelected),
+            child: Text(
+              _getCurrencyDisplay(unit),
+              style: TextStyle(
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  String _getCurrencyDisplay(CurrencyUnit unit) {
+    final t = Translations.of(context);
+    switch (unit) {
+      case CurrencyUnit.krw:
+        return t.settings.currency.krw;
+      case CurrencyUnit.jpy:
+        return t.settings.currency.jpy;
+    }
+  }
+
   String _getLocaleDisplay(AppLocale locale) {
     switch (locale) {
       case AppLocale.ko:
@@ -1613,7 +1659,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 Navigator.pushNamedAndRemoveUntil(
                     context, '/login', (route) => false);
               },
-              child: const Text('확인'),
+              child: Text(Translations.of(context).common.confirm),
             ),
           ],
         ),

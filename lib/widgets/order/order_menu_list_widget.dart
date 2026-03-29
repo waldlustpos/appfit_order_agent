@@ -6,11 +6,13 @@ import 'package:appfit_order_agent/i18n/strings.g.dart';
 class OrderMenuListWidget extends StatelessWidget {
   final List<OrderMenuModel> menus;
   final ScrollController scrollController;
+  final String currencySymbol;
 
   const OrderMenuListWidget({
     super.key,
     required this.menus,
     required this.scrollController,
+    required this.currencySymbol,
   });
 
   @override
@@ -55,7 +57,7 @@ class OrderMenuListWidget extends StatelessWidget {
                     Expanded(
                       flex: 3,
                       child: Text(
-                        CommonUtil.formatPrice(menu.itemPrice / menu.qty),
+                        CommonUtil.formatPrice(menu.itemPrice / menu.qty, currencyUnit: currencySymbol),
                         textAlign: TextAlign.right,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -86,7 +88,7 @@ class OrderMenuListWidget extends StatelessWidget {
                           flex: 3,
                           child: Text(
                             option.optionPrice != 0
-                                ? CommonUtil.formatPrice(option.optionPrice * option.qty)
+                                ? CommonUtil.formatPrice(option.optionPrice * option.qty, currencyUnit: currencySymbol)
                                 : '-',
                             style: TextStyle(fontSize: 13, color: Colors.grey[700]),
                             textAlign: TextAlign.right,

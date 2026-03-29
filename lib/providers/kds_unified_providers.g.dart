@@ -116,7 +116,7 @@ final kdsScrollControllerMapProvider = NotifierProvider<KdsScrollControllerMap,
 
 typedef _$KdsScrollControllerMap = Notifier<Map<String, ScrollController>>;
 String _$kdsScrollButtonStatesHash() =>
-    r'96379aead54cd56c877b6bbb25a14226314377e4';
+    r'07b8e47ee4de54943a2fc8bbb5048e5343d0983e';
 
 /// 스크롤 버튼 상태 관리
 ///

@@ -1,0 +1,1 @@
+enum CurrencyUnit { krw, jpy }

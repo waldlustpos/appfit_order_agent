@@ -7,12 +7,14 @@ class OrderPaymentInfoWidget extends StatelessWidget {
   final double totalAmount;
   final double discountAmount;
   final double paymentAmount;
+  final String currencySymbol;
 
   const OrderPaymentInfoWidget({
     super.key,
     required this.totalAmount,
     required this.discountAmount,
     required this.paymentAmount,
+    required this.currencySymbol,
   });
 
   @override
@@ -68,8 +70,8 @@ class OrderPaymentInfoWidget extends StatelessWidget {
         ),
         Text(
           isDiscount
-              ? '-${CommonUtil.formatPrice(amount)}'
-              : CommonUtil.formatPrice(amount),
+              ? '-${CommonUtil.formatPrice(amount, currencyUnit: currencySymbol)}'
+              : CommonUtil.formatPrice(amount, currencyUnit: currencySymbol),
           style: TextStyle(
             color: color,
             fontWeight: isBold ? FontWeight.bold : FontWeight.normal,

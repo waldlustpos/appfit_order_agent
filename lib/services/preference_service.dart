@@ -1,5 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
+import 'package:appfit_order_agent/utils/currency_unit.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import 'dart:io';
 import 'package:flutter/services.dart';
@@ -68,6 +69,7 @@ class PreferenceService {
   static const String KEY_IGNORE_OTHER_DEVICE_TASKS_KDS =
       "KEY_IGNORE_OTHER_DEVICE_TASKS_KDS"; // KDS 타 기기 이벤트 무시 설정
   static const String KEY_LOCALE = "KEY_LOCALE"; // 언어 설정
+  static const String KEY_CURRENCY = "KEY_CURRENCY"; // 화폐단위 설정
   static const String KEY_PRINTER_DEFAULT_SET =
       "KEY_PRINTER_DEFAULT_SET"; // 기본 프린터 설정 완료 여부
 
@@ -664,5 +666,17 @@ class PreferenceService {
   // 언어 설정 조회
   String? getLocale() {
     return _prefs.getString(KEY_LOCALE);
+  }
+
+  // 화폐단위 설정 저장
+  Future<void> setCurrency(CurrencyUnit value) async {
+    await _prefs.setString(KEY_CURRENCY, value.name);
+  }
+
+  // 화폐단위 설정 조회 (기본값: jpy — 일본 서비스)
+  CurrencyUnit getCurrency() {
+    final saved = _prefs.getString(KEY_CURRENCY);
+    if (saved == 'krw') return CurrencyUnit.krw;
+    return CurrencyUnit.jpy;
   }
 }

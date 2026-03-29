@@ -111,6 +111,25 @@
             "title": "언어 설정",
             "desc": "앱의 언어를 설정합니다."
         },
+        "currency": {
+            "title": "화폐단위 설정",
+            "desc": "금액 표시에 사용할 화폐단위를 선택합니다.",
+            "krw": "원 (₩)",
+            "jpy": "엔 (¥)"
+        },
+        "kds_ignore_status": {
+            "title": "타 기기 진행상태 알림 무시",
+            "desc": "다른 KDS에서 픽업 요청 등 진행상태를 변경해도 내 화면의 주문이 새로고침되지 않습니다. (진행상태 최신화를 수동으로 통제하고 싶을 때 사용)"
+        },
+        "label_filter": {
+            "title": "라벨 출력 필터",
+            "desc_all": "모든 주문 상품을 라벨 출력합니다.",
+            "desc_waffle_only": "디저트(와플) 상품만 라벨 출력합니다.",
+            "desc_waffle_exclude": "디저트(와플) 상품을 제외하고 라벨 출력합니다.",
+            "btn_all": "모든 주문 출력",
+            "btn_waffle_only": "와플상품만 출력",
+            "btn_waffle_exclude": "와플상품 제외"
+        },
         "developer_options": {
             "title": "개발자 옵션",
             "appfit_test": {

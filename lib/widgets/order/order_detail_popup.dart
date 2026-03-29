@@ -7,6 +7,7 @@ import 'package:appfit_order_agent/exceptions/api_exceptions.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import '../../models/order_model.dart';
 import '../../providers/providers.dart';
+import '../../providers/currency_provider.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:appfit_order_agent/core/orders/output_service.dart';
 import 'package:appfit_order_agent/i18n/strings.g.dart';
@@ -229,6 +230,7 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
   Widget build(BuildContext context) {
     // OrderDetailProvider의 상태 변경은 감시하되, 주문 상태는 초기값 사용
     final orderDetailState = ref.watch(orderDetailProvider);
+    final String currencyUnit = ref.watch(currencySymbolProvider);
     final order = orderDetailState.order?.copyWith(
       status: _originalOrder.status,
       orderStatus: _originalOrder.orderStatus,
@@ -255,7 +257,7 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
             ? _buildLoadingState()
             : orderDetailState.errorMessage != null
                 ? _buildErrorState(orderDetailState.errorMessage!)
-                : _buildContent(order, orderDetailState.loadingActionId),
+                : _buildContent(order, orderDetailState.loadingActionId, currencyUnit),
       ),
     );
   }
@@ -299,7 +301,7 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
     );
   }
 
-  Widget _buildContent(OrderModel order, String? loadingActionId) {
+  Widget _buildContent(OrderModel order, String? loadingActionId, String currencyUnit) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -315,6 +317,7 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
                 child: OrderMenuListWidget(
                   menus: order.orderMenuList,
                   scrollController: _menuScrollController,
+                  currencySymbol: currencyUnit,
                 ),
               ),
               const SizedBox(width: 20),
@@ -324,6 +327,7 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
                   totalAmount: order.totalAmount,
                   discountAmount: order.discountAmount,
                   paymentAmount: order.paymentAmount,
+                  currencySymbol: currencyUnit,
                 ),
               ),
               const SizedBox(width: 20),

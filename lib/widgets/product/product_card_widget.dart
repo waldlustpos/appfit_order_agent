@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:appfit_order_agent/constants/app_styles.dart';
+import 'package:appfit_order_agent/providers/currency_provider.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/utils/common_util.dart';
 import '../../models/product_model.dart';
@@ -60,6 +61,7 @@ class ProductCardWidget extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final currencySymbol = ref.watch(currencySymbolProvider);
     return GestureDetector(
       onTap: () => _showStatusChangeDialog(context, ref),
       child: Card(
@@ -97,7 +99,7 @@ class ProductCardWidget extends ConsumerWidget {
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      CommonUtil.formatPrice(product.menuPrice),
+                      CommonUtil.formatPrice(product.menuPrice, currencyUnit: currencySymbol),
                       style: const TextStyle(
                         fontSize: 15,
                       ),

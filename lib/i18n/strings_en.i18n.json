@@ -111,6 +111,25 @@
             "title": "Language",
             "desc": "Set the application language."
         },
+        "currency": {
+            "title": "Currency Unit",
+            "desc": "Select the currency unit for displaying amounts.",
+            "krw": "Won (₩)",
+            "jpy": "Yen (¥)"
+        },
+        "kds_ignore_status": {
+            "title": "Ignore Other Device Status Updates",
+            "desc": "Orders on this screen will not refresh when other KDS devices update pickup or progress status. (Use when you want to control status updates manually)"
+        },
+        "label_filter": {
+            "title": "Label Print Filter",
+            "desc_all": "Print labels for all order items.",
+            "desc_waffle_only": "Print labels for dessert (waffle) items only.",
+            "desc_waffle_exclude": "Print labels for all items except dessert (waffle).",
+            "btn_all": "All Orders",
+            "btn_waffle_only": "Waffle Only",
+            "btn_waffle_exclude": "Exclude Waffle"
+        },
         "developer_options": {
             "title": "Developer Options",
             "appfit_test": {

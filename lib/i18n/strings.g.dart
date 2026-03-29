@@ -4,9 +4,9 @@
 /// To regenerate, run: `dart run slang`
 ///
 /// Locales: 3
-/// Strings: 879 (293 per locale)
+/// Strings: 918 (306 per locale)
 ///
-/// Built on 2026-03-25 at 01:50 UTC
+/// Built on 2026-03-29 at 23:49 UTC
 
 // coverage:ignore-file
 // ignore_for_file: type=lint
@@ -241,6 +241,9 @@ class _StringsSettingsKo {
 	late final _StringsSettingsAlertCountKo alert_count = _StringsSettingsAlertCountKo._(_root);
 	late final _StringsSettingsPrintCountKo print_count = _StringsSettingsPrintCountKo._(_root);
 	late final _StringsSettingsLanguageKo language = _StringsSettingsLanguageKo._(_root);
+	late final _StringsSettingsCurrencyKo currency = _StringsSettingsCurrencyKo._(_root);
+	late final _StringsSettingsKdsIgnoreStatusKo kds_ignore_status = _StringsSettingsKdsIgnoreStatusKo._(_root);
+	late final _StringsSettingsLabelFilterKo label_filter = _StringsSettingsLabelFilterKo._(_root);
 	late final _StringsSettingsDeveloperOptionsKo developer_options = _StringsSettingsDeveloperOptionsKo._(_root);
 	late final _StringsSettingsLocalServerKo local_server = _StringsSettingsLocalServerKo._(_root);
 	late final _StringsSettingsConnectionKo connection = _StringsSettingsConnectionKo._(_root);
@@ -659,6 +662,46 @@ class _StringsSettingsLanguageKo {
 	String get desc => '앱의 언어를 설정합니다.';
 }
 
+// Path: settings.currency
+class _StringsSettingsCurrencyKo {
+	_StringsSettingsCurrencyKo._(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+	String get title => '화폐단위 설정';
+	String get desc => '금액 표시에 사용할 화폐단위를 선택합니다.';
+	String get krw => '원 (₩)';
+	String get jpy => '엔 (¥)';
+}
+
+// Path: settings.kds_ignore_status
+class _StringsSettingsKdsIgnoreStatusKo {
+	_StringsSettingsKdsIgnoreStatusKo._(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+	String get title => '타 기기 진행상태 알림 무시';
+	String get desc => '다른 KDS에서 픽업 요청 등 진행상태를 변경해도 내 화면의 주문이 새로고침되지 않습니다. (진행상태 최신화를 수동으로 통제하고 싶을 때 사용)';
+}
+
+// Path: settings.label_filter
+class _StringsSettingsLabelFilterKo {
+	_StringsSettingsLabelFilterKo._(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+	String get title => '라벨 출력 필터';
+	String get desc_all => '모든 주문 상품을 라벨 출력합니다.';
+	String get desc_waffle_only => '디저트(와플) 상품만 라벨 출력합니다.';
+	String get desc_waffle_exclude => '디저트(와플) 상품을 제외하고 라벨 출력합니다.';
+	String get btn_all => '모든 주문 출력';
+	String get btn_waffle_only => '와플상품만 출력';
+	String get btn_waffle_exclude => '와플상품 제외';
+}
+
 // Path: settings.developer_options
 class _StringsSettingsDeveloperOptionsKo {
 	_StringsSettingsDeveloperOptionsKo._(this._root);
@@ -1020,6 +1063,9 @@ class _StringsSettingsEn extends _StringsSettingsKo {
 	@override late final _StringsSettingsAlertCountEn alert_count = _StringsSettingsAlertCountEn._(_root);
 	@override late final _StringsSettingsPrintCountEn print_count = _StringsSettingsPrintCountEn._(_root);
 	@override late final _StringsSettingsLanguageEn language = _StringsSettingsLanguageEn._(_root);
+	@override late final _StringsSettingsCurrencyEn currency = _StringsSettingsCurrencyEn._(_root);
+	@override late final _StringsSettingsKdsIgnoreStatusEn kds_ignore_status = _StringsSettingsKdsIgnoreStatusEn._(_root);
+	@override late final _StringsSettingsLabelFilterEn label_filter = _StringsSettingsLabelFilterEn._(_root);
 	@override late final _StringsSettingsDeveloperOptionsEn developer_options = _StringsSettingsDeveloperOptionsEn._(_root);
 	@override late final _StringsSettingsLocalServerEn local_server = _StringsSettingsLocalServerEn._(_root);
 	@override late final _StringsSettingsConnectionEn connection = _StringsSettingsConnectionEn._(_root);
@@ -1445,6 +1491,46 @@ class _StringsSettingsLanguageEn extends _StringsSettingsLanguageKo {
 	@override String get desc => 'Set the application language.';
 }
 
+// Path: settings.currency
+class _StringsSettingsCurrencyEn extends _StringsSettingsCurrencyKo {
+	_StringsSettingsCurrencyEn._(_StringsEn root) : this._root = root, super._(root);
+
+	@override final _StringsEn _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'Currency Unit';
+	@override String get desc => 'Select the currency unit for displaying amounts.';
+	@override String get krw => 'Won (₩)';
+	@override String get jpy => 'Yen (¥)';
+}
+
+// Path: settings.kds_ignore_status
+class _StringsSettingsKdsIgnoreStatusEn extends _StringsSettingsKdsIgnoreStatusKo {
+	_StringsSettingsKdsIgnoreStatusEn._(_StringsEn root) : this._root = root, super._(root);
+
+	@override final _StringsEn _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'Ignore Other Device Status Updates';
+	@override String get desc => 'Orders on this screen will not refresh when other KDS devices update pickup or progress status. (Use when you want to control status updates manually)';
+}
+
+// Path: settings.label_filter
+class _StringsSettingsLabelFilterEn extends _StringsSettingsLabelFilterKo {
+	_StringsSettingsLabelFilterEn._(_StringsEn root) : this._root = root, super._(root);
+
+	@override final _StringsEn _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'Label Print Filter';
+	@override String get desc_all => 'Print labels for all order items.';
+	@override String get desc_waffle_only => 'Print labels for dessert (waffle) items only.';
+	@override String get desc_waffle_exclude => 'Print labels for all items except dessert (waffle).';
+	@override String get btn_all => 'All Orders';
+	@override String get btn_waffle_only => 'Waffle Only';
+	@override String get btn_waffle_exclude => 'Exclude Waffle';
+}
+
 // Path: settings.developer_options
 class _StringsSettingsDeveloperOptionsEn extends _StringsSettingsDeveloperOptionsKo {
 	_StringsSettingsDeveloperOptionsEn._(_StringsEn root) : this._root = root, super._(root);
@@ -1806,6 +1892,9 @@ class _StringsSettingsJa extends _StringsSettingsKo {
 	@override late final _StringsSettingsAlertCountJa alert_count = _StringsSettingsAlertCountJa._(_root);
 	@override late final _StringsSettingsPrintCountJa print_count = _StringsSettingsPrintCountJa._(_root);
 	@override late final _StringsSettingsLanguageJa language = _StringsSettingsLanguageJa._(_root);
+	@override late final _StringsSettingsCurrencyJa currency = _StringsSettingsCurrencyJa._(_root);
+	@override late final _StringsSettingsKdsIgnoreStatusJa kds_ignore_status = _StringsSettingsKdsIgnoreStatusJa._(_root);
+	@override late final _StringsSettingsLabelFilterJa label_filter = _StringsSettingsLabelFilterJa._(_root);
 	@override late final _StringsSettingsDeveloperOptionsJa developer_options = _StringsSettingsDeveloperOptionsJa._(_root);
 	@override late final _StringsSettingsLocalServerJa local_server = _StringsSettingsLocalServerJa._(_root);
 	@override late final _StringsSettingsConnectionJa connection = _StringsSettingsConnectionJa._(_root);
@@ -1870,7 +1959,7 @@ class _StringsOrderStatusJa extends _StringsOrderStatusKo {
 	@override String batch_result_success({required Object n}) => '処理完了: ${n}件すべて正常に処理されました。';
 	@override String batch_result_partial({required Object success, required Object fail}) => '処理完了: 成功 ${success}件, 失敗 ${fail}件';
 	@override String batch_result_fail({required Object error}) => '処理失敗: ${error}';
-	@override String get batch_result_error => 'エラー: 処理中に例外が発生했습니다。';
+	@override String get batch_result_error => 'エラー: 処理中に例外が発生しました。';
 	@override String get scroll_to_start => '先頭へ';
 }
 
@@ -1960,14 +2049,14 @@ class _StringsOrderDetailJa extends _StringsOrderDetailKo {
 	// Translations
 	@override String get loading => '注文詳細情報を読み込んでいます...';
 	@override String error_prefix({required Object error}) => 'エラーが発生しました: ${error}';
-	@override String get status_update_fail => '注文状態の変更에 失敗했습니다。';
+	@override String get status_update_fail => '注文状態の変更に失敗しました。';
 	@override String get dialog_kiosk_cancel_title => '注文取消';
 	@override String get dialog_kiosk_cancel_content => 'キオスク注文はキオスク端末で取り消してください。';
-	@override String dialog_cancel_confirm_content({required Object n}) => '${n}番의 注文を取り消しますか？';
+	@override String dialog_cancel_confirm_content({required Object n}) => '${n}番の注文を取り消しますか？';
 	@override String get dialog_repickup_confirm_title => 'ピックアップ再要請';
-	@override String dialog_repickup_confirm_content({required Object n}) => '${n}番의 注文의 ピックアップを再要請しますか？';
+	@override String dialog_repickup_confirm_content({required Object n}) => '${n}番の注文のピックアップを再要請しますか？';
 	@override String get dialog_not_picked_up_confirm_title => '未ピックアップ';
-	@override String dialog_not_picked_up_confirm_content({required Object n}) => '${n}番의 注文を未ピックアップ処理しますか？';
+	@override String dialog_not_picked_up_confirm_content({required Object n}) => '${n}番の注文を未ピックアップ処理しますか？';
 	@override String print_receipt_fail({required Object error}) => '領収書印刷失敗: ${error}';
 	@override String get btn_receipt_reprint => '領収書再印刷';
 	@override String get btn_label_reprint => 'ラベル再印刷';
@@ -2073,7 +2162,7 @@ class _StringsLoginOverlayPermissionJa extends _StringsLoginOverlayPermissionKo 
 
 	// Translations
 	@override String get title => '権限が必要';
-	@override String get content => '最小化機能を使用するには「다른 앱 위에 표시」権限が必要です。\n今すぐ設定しますか？';
+	@override String get content => '最小化機能を使用するには「他のアプリの上に表示」権限が必要です。\n今すぐ設定しますか？';
 	@override String get set => '設定する';
 	@override String get later => '後で';
 }
@@ -2103,7 +2192,7 @@ class _StringsSettingsAutoStartJa extends _StringsSettingsAutoStartKo {
 	// Translations
 	@override String get title => 'PC起動時に自動実行';
 	@override String get desc => 'PC起動時にエージェントを自動的に実行します。';
-	@override String get desc_general => 'PC起動時にエージェントを自動的に実行합니다.\n注文を受け付けるには営業中に設定する必要があります。';
+	@override String get desc_general => 'PC起動時にエージェントを自動的に実行します。\n注文を受け付けるには営業中に設定する必要があります。';
 	@override String get on => 'ON';
 	@override String get off => 'OFF';
 }
@@ -2223,6 +2312,46 @@ class _StringsSettingsLanguageJa extends _StringsSettingsLanguageKo {
 	@override String get desc => 'アプリの言語を設定します。';
 }
 
+// Path: settings.currency
+class _StringsSettingsCurrencyJa extends _StringsSettingsCurrencyKo {
+	_StringsSettingsCurrencyJa._(_StringsJa root) : this._root = root, super._(root);
+
+	@override final _StringsJa _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => '通貨単位設定';
+	@override String get desc => '金額表示に使用する通貨単位を選択します。';
+	@override String get krw => 'ウォン (₩)';
+	@override String get jpy => '円 (¥)';
+}
+
+// Path: settings.kds_ignore_status
+class _StringsSettingsKdsIgnoreStatusJa extends _StringsSettingsKdsIgnoreStatusKo {
+	_StringsSettingsKdsIgnoreStatusJa._(_StringsJa root) : this._root = root, super._(root);
+
+	@override final _StringsJa _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => '他端末の進行状態通知を無視';
+	@override String get desc => '他のKDSでピックアップ要請などの進行状態を変更しても、この画面の注文は更新されません。(進行状態の更新を手動で管理したい場合に使用)';
+}
+
+// Path: settings.label_filter
+class _StringsSettingsLabelFilterJa extends _StringsSettingsLabelFilterKo {
+	_StringsSettingsLabelFilterJa._(_StringsJa root) : this._root = root, super._(root);
+
+	@override final _StringsJa _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'ラベル印刷フィルター';
+	@override String get desc_all => '全注文商品のラベルを印刷します。';
+	@override String get desc_waffle_only => 'デザート(ワッフル)商品のみラベルを印刷します。';
+	@override String get desc_waffle_exclude => 'デザート(ワッフル)商品を除いてラベルを印刷します。';
+	@override String get btn_all => '全注文印刷';
+	@override String get btn_waffle_only => 'ワッフルのみ';
+	@override String get btn_waffle_exclude => 'ワッフル除外';
+}
+
 // Path: settings.developer_options
 class _StringsSettingsDeveloperOptionsJa extends _StringsSettingsDeveloperOptionsKo {
 	_StringsSettingsDeveloperOptionsJa._(_StringsJa root) : this._root = root, super._(root);
@@ -2242,7 +2371,7 @@ class _StringsSettingsLocalServerJa extends _StringsSettingsLocalServerKo {
 
 	// Translations
 	@override String get title => 'ローカルサーバー有効化';
-	@override String get desc => 'キ오스크で商品状態を照会できる\nローカルサーバーを有効にします。';
+	@override String get desc => 'キオスクで商品状態を照会できる\nローカルサーバーを有効にします。';
 	@override String get info => 'サーバー情報';
 	@override String ip({required Object ip}) => 'IPアドレス: ${ip}';
 	@override String port({required Object port}) => 'ポート: ${port}';
@@ -2315,8 +2444,8 @@ class _StringsDialogUpdateJa extends _StringsDialogUpdateKo {
 	@override String get new_update => '新しいアップデートがあります。';
 	@override String get ask_download => 'アップデートをダウンロードしますか？';
 	@override String get downloading => 'アップデートをダウンロード中...';
-	@override String get download_complete => 'ダウンロードが完了했습니다！';
-	@override String get installing => 'アップデート가自動的이インストールされます。';
+	@override String get download_complete => 'ダウンロードが完了しました！';
+	@override String get installing => 'アップデートが自動的にインストールされます。';
 	@override String get fail => 'ダウンロード失敗';
 	@override String get download => 'ダウンロード';
 }
@@ -2399,15 +2528,15 @@ class _StringsMembershipDialogJa extends _StringsMembershipDialogKo {
 	@override String get invalid_barcode => 'サポートされていないバーコード形式です。';
 	@override String get enter_phone => '電話番号を入力してください。';
 	@override String get cancel_stamp_title => 'スタンプ積立取消';
-	@override String cancel_stamp_content({required Object date, required Object count}) => '${date} に積立された ${count}個의 スタンプ積立を取り消しますか？';
+	@override String cancel_stamp_content({required Object date, required Object count}) => '${date} に積立された ${count}個のスタンプ積立を取り消しますか？';
 	@override String get cancel_coupon_title => 'クーポン使用取消';
 	@override String cancel_coupon_content({required Object title}) => '[${title}] クーポンの使用を取り消しますか？';
 	@override String get use_coupon_title => 'クーポン使用';
 	@override String use_coupon_content({required Object title}) => '${title} クーポンを使用しますか？';
 	@override String use_coupon_code_content({required Object code}) => 'クーポンコード [${code}] を使用しますか？';
-	@override String get scanner_not_supported => 'QR버코드를 サポートしていない端末입니다.';
+	@override String get scanner_not_supported => 'QRバーコードをサポートしていない端末です。';
 	@override String get enter_coupon_code => 'クーポンコードを入力してください。';
-	@override String get store_info_missing => '店舗情報가ありません。再度ログインしてください。';
+	@override String get store_info_missing => '店舗情報がありません。再度ログインしてください。';
 	@override String get input_error_title => '入力エラー';
 	@override String get stamp_input_error => 'スタンプ個数は1以上の数字で入力してください。';
 	@override String get stamp_limit_error => 'スタンプ個数は20個以下で入力してください。';
@@ -2460,7 +2589,7 @@ class _StringsSettingsDeveloperOptionsAppfitTestJa extends _StringsSettingsDevel
 	@override final _StringsJa _root; // ignore: unused_field
 
 	// Translations
-	@override String get title => 'AppFit API テ스트';
+	@override String get title => 'AppFit API テスト';
 	@override String get desc => 'Waldlust Platform AppFit API 設定確認とテスト';
 	@override String get btn => 'テスト';
 }
