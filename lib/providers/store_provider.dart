@@ -27,6 +27,16 @@ class Store extends _$Store {
       final apiService = ref.read(apiServiceProvider);
       final storeModel = await apiService.getStoreInfo(storeId);
       state = AsyncData(storeModel); // 데이터 로드 성공
+
+      // 매장 정보 로그
+      const sep = '[SYSTEM] ─────────────────────────────────────────────';
+      logger.i(sep);
+      logger.i('[SYSTEM]  매장 정보 로드 완료');
+      logger.i('[SYSTEM]  매장 ID  : ${storeModel.storeId}');
+      logger.i('[SYSTEM]  매장 이름: ${storeModel.name}');
+      logger.i('[SYSTEM]  영업 상태: ${storeModel.isOpen ? "영업 중" : "영업 종료"}');
+      logger.i(sep);
+
       return storeModel;
     } catch (e, stackTrace) {
       logger.e('매장 정보 조회 오류',

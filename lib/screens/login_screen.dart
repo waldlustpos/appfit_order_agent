@@ -58,9 +58,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           return;
         }
 
-        logToFile(
-            tag: LogTag.PLATFORM,
-            message: '연결된 USB 디바이스 목록 (${devices.length}개):');
 
         for (var device in devices) {
           final vendorId = device['vendorId'];
@@ -74,11 +71,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             identification = ' [라벨 프린터 식별됨: Posbank]';
           }
 
-          logToFile(
+          if(identification.isNotEmpty) {
+            logToFile(
             tag: LogTag.PLATFORM,
             message:
                 ' - $productName ($manufacturer): VID=$vendorId, PID=$productId$identification',
           );
+          }
         }
       } catch (e, s) {
         logger.e('USB 디바이스 확인 중 오류 발생', error: e, stackTrace: s);

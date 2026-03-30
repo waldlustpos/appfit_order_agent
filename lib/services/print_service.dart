@@ -58,9 +58,7 @@ class PrintService {
       bool isLabelConnected = false;
 
       if (devices.isNotEmpty) {
-        logToFile(
-            tag: LogTag.PLATFORM,
-            message: '연결된 USB 디바이스 목록 (${devices.length}개):');
+
 
         for (var device in devices) {
           final vendorId = device['vendorId'];
@@ -97,11 +95,13 @@ class PrintService {
             identification = ' [외부 영수증 프린터 식별됨]';
           }
 
-          logToFile(
+          if(identification.isNotEmpty) {
+            logToFile(
             tag: LogTag.PLATFORM,
             message:
                 ' - ${device['productName'] ?? 'Unknown'} ($manufacturer): VID=$vendorId, PID=$productId$identification',
           );
+          }
         }
       } else {
         logToFile(tag: LogTag.PLATFORM, message: '연결된 USB 디바이스가 없습니다.');
