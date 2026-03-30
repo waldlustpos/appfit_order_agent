@@ -205,7 +205,7 @@ class OutputService {
             orderIndex: labelIndex,
             orderTotal: totalLabels,
           );
-          await printService.printLabel(imageBytes);
+          await printService.printLabel(imageBytes, orderNo: orderToPrint.displayNum);
           logger.d(
               '[OutputService] 라벨 출력(${menu.itemName}): $labelIndex/$totalLabels');
           // 연속 출력 시 프린터 버퍼 안정화를 위한 딜레이

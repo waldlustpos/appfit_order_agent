@@ -82,20 +82,16 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
                 Boolean useBackToPrint = call.argument("useBackToPrint");
                 Boolean useStatusPolling = call.argument("useStatusPolling");
                 Boolean useCalibrate = call.argument("useCalibrate");
+                String orderNo = call.argument("orderNo");
 
                 if (imageBytes != null && imageBytes.length > 0) {
-                    Log.d(TAG, "Received printLabel request. Bytes: " + imageBytes.length
-                            + " autoReplyMode=" + autoReplyMode
-                            + " feedToTear=" + useFeedToTear
-                            + " backToPrint=" + useBackToPrint
-                            + " polling=" + useStatusPolling
-                            + " calibrate=" + useCalibrate);
                     final Bitmap bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length);
                     final int finalAutoReplyMode = autoReplyMode != null ? autoReplyMode : 0;
                     final boolean finalUseFeedToTear = useFeedToTear != null ? useFeedToTear : true;
                     final boolean finalUseBackToPrint = useBackToPrint != null ? useBackToPrint : true;
                     final boolean finalUseStatusPolling = useStatusPolling != null ? useStatusPolling : false;
                     final boolean finalUseCalibrate = useCalibrate != null ? useCalibrate : false;
+                    final String finalOrderNo = orderNo != null ? orderNo : "-";
 
                     new Thread(() -> {
                         boolean printResult = co.kr.waldlust.order.receive.util.print.LabelPrinter.printBitmap(
@@ -104,7 +100,8 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
                                 finalUseFeedToTear,
                                 finalUseBackToPrint,
                                 finalUseStatusPolling,
-                                finalUseCalibrate);
+                                finalUseCalibrate,
+                                finalOrderNo);
                         new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> result.success(printResult));
                     }).start();
                 } else {

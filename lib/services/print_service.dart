@@ -197,19 +197,13 @@ class PrintService {
     }
   }
 
-  Future<void> printLabel(Uint8List imageBytes) async {
+  Future<void> printLabel(Uint8List imageBytes, {String orderNo = '-'}) async {
     try {
       if (_cachedExternalPrinter == null) {
         _loadPrinterSettings();
       }
 
-      // Default to external printer for labels if enabled, otherwise check settings?
-      // Assuming labels are solely for the external label printer logic.
-      // But we pass flags like useExternalPrint.
-
       bool useLabel = _cachedLabelPrinter ?? false;
-
-      logToFile(tag: LogTag.PLATFORM, message: '라벨 출력 요청 (사용설정: $useLabel)');
 
       if (!useLabel) {
         logger.w('Label printer is disabled in settings.');
@@ -223,6 +217,7 @@ class PrintService {
         'useBackToPrint': _preferenceService.getLabelUseBackToPrint(),
         'useStatusPolling': _preferenceService.getLabelUseStatusPolling(),
         'useCalibrate': _preferenceService.getLabelUseCalibrate(),
+        'orderNo': orderNo,
       });
     } on PlatformException catch (e, s) {
       logger.e('Failed to print label', error: e, stackTrace: s);

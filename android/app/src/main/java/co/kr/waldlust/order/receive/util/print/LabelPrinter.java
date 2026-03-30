@@ -34,31 +34,21 @@ public class LabelPrinter {
                                        boolean useFeedToTear,
                                        boolean useBackToPrint,
                                        boolean useStatusPolling,
-                                       boolean useCalibrate) {
+                                       boolean useCalibrate,
+                                       String orderNo) {
         boolean result = false;
         printCount++;
         long startTime = System.currentTimeMillis();
 
-        String config = "autoReply=" + autoReplyMode
-                + " feedToTear=" + useFeedToTear
-                + " backToPrint=" + useBackToPrint
-                + " polling=" + useStatusPolling
-                + " calibrate=" + useCalibrate;
-
-        log("========== LABEL PRINT #" + printCount + " START ==========");
-        log("[CONFIG] " + config);
+        log("#" + printCount + " 출력시작 (주문: " + orderNo + ")");
 
         try {
             // autoReplyMode가 변경된 경우 재연결 필요
             boolean needReconnect = (autoReplyMode != currentAutoReplyMode);
-            if (needReconnect) {
-                log("[CONNECT] autoReplyMode changed: " + currentAutoReplyMode + " -> " + autoReplyMode + ", reconnecting...");
-            }
 
             // Check connection
             if (needReconnect || !AutoReplyPrint.INSTANCE.CP_Port_IsConnectionValid(hPrinter)) {
                 if (hPrinter != Pointer.NULL) {
-                    log("[CONNECT] Closing existing connection...");
                     AutoReplyPrint.INSTANCE.CP_Port_Close(hPrinter);
                     hPrinter = Pointer.NULL;
                 }
@@ -73,100 +63,67 @@ public class LabelPrinter {
 
                 for (String port : ports) {
                     if (!AutoReplyPrint.INSTANCE.CP_Port_IsOpened(hPrinter)) {
-                        log("[CONNECT] Trying port: " + port + " (autoReplyMode=" + autoReplyMode + ")");
                         hPrinter = AutoReplyPrint.INSTANCE.CP_Port_OpenUsb(port, autoReplyMode);
                         if (AutoReplyPrint.INSTANCE.CP_Port_IsOpened(hPrinter)) {
                             currentAutoReplyMode = autoReplyMode;
-                            log("[CONNECT] SUCCESS - port: " + port);
                             break;
                         }
                     }
                 }
 
                 if (!AutoReplyPrint.INSTANCE.CP_Port_IsOpened(hPrinter)) {
-                    log("[CONNECT] FAILED - no label printer found");
-                    log("========== LABEL PRINT #" + printCount + " END (CONNECT FAIL) ==========");
+                    long elapsed = System.currentTimeMillis() - startTime;
+                    log("#" + printCount + " 출력결과 -> 실패 [연결오류] (" + elapsed + "ms)");
                     return false;
                 }
-            } else {
-                log("[CONNECT] Reusing existing connection (autoReplyMode=" + currentAutoReplyMode + ")");
             }
 
             int bitmapWidth = bitmap.getWidth();
             int bitmapHeight = bitmap.getHeight();
-            log("[BITMAP] size=" + bitmapWidth + "x" + bitmapHeight);
 
             // 캘리브레이션 (옵션)
             if (useCalibrate) {
-                long t = System.currentTimeMillis();
-                log("[STEP] CP_Label_CalibrateLabel -> calling...");
                 AutoReplyPrint.INSTANCE.CP_Label_CalibrateLabel(hPrinter);
-                log("[STEP] CP_Label_CalibrateLabel -> done (" + (System.currentTimeMillis() - t) + "ms)");
             }
 
             // 프린터 초기화
-            {
-                long t = System.currentTimeMillis();
-                AutoReplyPrint.INSTANCE.CP_Pos_ResetPrinter(hPrinter);
-                log("[STEP] CP_Pos_ResetPrinter -> done (" + (System.currentTimeMillis() - t) + "ms)");
-            }
+            AutoReplyPrint.INSTANCE.CP_Pos_ResetPrinter(hPrinter);
 
             // Back paper to print position (옵션)
             if (useBackToPrint) {
-                long t = System.currentTimeMillis();
                 AutoReplyPrint.INSTANCE.CP_Label_BackPaperToPrintPosition(hPrinter);
-                log("[STEP] CP_Label_BackPaperToPrintPosition -> done (" + (System.currentTimeMillis() - t) + "ms)");
-            } else {
-                log("[STEP] CP_Label_BackPaperToPrintPosition -> SKIPPED");
             }
 
             // 페이지 시작 + 이미지 그리기
-            {
-                long t = System.currentTimeMillis();
-                AutoReplyPrint.INSTANCE.CP_Label_PageBegin(
-                        hPrinter, 0, 0, bitmapWidth, bitmapHeight,
-                        AutoReplyPrint.CP_Label_Rotation_0);
-                AutoReplyPrint.CP_Label_DrawImageFromData_Helper.DrawImageFromBitmap(
-                        hPrinter, 0, 0, bitmapWidth, bitmapHeight, bitmap,
-                        AutoReplyPrint.CP_ImageBinarizationMethod_Thresholding,
-                        AutoReplyPrint.CP_Label_Rotation_0);
-                log("[STEP] PageBegin+DrawImage -> done (" + (System.currentTimeMillis() - t) + "ms)");
-            }
+            AutoReplyPrint.INSTANCE.CP_Label_PageBegin(
+                    hPrinter, 0, 0, bitmapWidth, bitmapHeight,
+                    AutoReplyPrint.CP_Label_Rotation_0);
+            AutoReplyPrint.CP_Label_DrawImageFromData_Helper.DrawImageFromBitmap(
+                    hPrinter, 0, 0, bitmapWidth, bitmapHeight, bitmap,
+                    AutoReplyPrint.CP_ImageBinarizationMethod_Thresholding,
+                    AutoReplyPrint.CP_Label_Rotation_0);
 
             // 인쇄
-            {
-                long t = System.currentTimeMillis();
-                AutoReplyPrint.INSTANCE.CP_Label_PagePrint(hPrinter, 1);
-                log("[STEP] CP_Label_PagePrint(1) -> done (" + (System.currentTimeMillis() - t) + "ms)");
-            }
+            AutoReplyPrint.INSTANCE.CP_Label_PagePrint(hPrinter, 1);
 
             // Feed paper to tear position (옵션)
             if (useFeedToTear) {
-                long t = System.currentTimeMillis();
                 AutoReplyPrint.INSTANCE.CP_Label_FeedPaperToTearPosition(hPrinter);
-                log("[STEP] CP_Label_FeedPaperToTearPosition -> done (" + (System.currentTimeMillis() - t) + "ms)");
-            } else {
-                log("[STEP] CP_Label_FeedPaperToTearPosition -> SKIPPED");
             }
 
             // 상태 폴링 (옵션)
             if (useStatusPolling) {
-                log("[POLLING] Starting status polling...");
                 waitForPrintIdle(hPrinter);
-            } else {
-                log("[POLLING] SKIPPED");
             }
 
             result = AutoReplyPrint.INSTANCE.CP_Port_IsOpened(hPrinter);
             long elapsed = System.currentTimeMillis() - startTime;
-            log("[RESULT] success=" + result + " totalTime=" + elapsed + "ms");
-            log("========== LABEL PRINT #" + printCount + " END ==========");
+            log("#" + printCount + " 출력결과 -> " + (result ? "성공" : "실패") + " (" + elapsed + "ms)");
 
         } catch (Exception e) {
             long elapsed = System.currentTimeMillis() - startTime;
-            log("[ERROR] " + e.getMessage() + " (after " + elapsed + "ms)");
+            log("#" + printCount + " 출력결과 -> 실패 [예외: " + e.getMessage() + "] (" + elapsed + "ms)");
             Log.e(TAG, "[ERROR] " + e.getMessage(), e);
-            log("========== LABEL PRINT #" + printCount + " END (ERROR) ==========");
         }
 
         return result;
@@ -180,54 +137,25 @@ public class LabelPrinter {
         LongByReference errorStatus = new LongByReference();
         LongByReference infoStatus = new LongByReference();
         LongByReference timestamp = new LongByReference();
-        long pollStart = System.currentTimeMillis();
 
         for (int i = 0; i < 50; i++) {
             try {
                 AutoReplyPrint.INSTANCE.CP_Printer_GetPrinterStatusInfo(
                         handle, errorStatus, infoStatus, timestamp);
                 long info = infoStatus.getValue();
-                long error = errorStatus.getValue();
-
-                String flags = decodeInfoFlags(info);
-                log("[POLLING] [" + i + "] info=0x" + Long.toHexString(info)
-                        + " (" + flags + ")"
-                        + " error=0x" + Long.toHexString(error));
 
                 // INFO_PRINTIDLE 비트 확인 (bit 5)
                 if ((info & 0x20) != 0) {
-                    long elapsed = System.currentTimeMillis() - pollStart;
-                    log("[POLLING] Printer IDLE detected after " + elapsed + "ms (polls=" + (i + 1) + ")");
                     return;
                 }
 
                 Thread.sleep(100);
             } catch (InterruptedException e) {
-                log("[POLLING] Interrupted");
                 return;
             } catch (Exception e) {
-                log("[POLLING] Error: " + e.getMessage());
                 return;
             }
         }
-
-        long elapsed = System.currentTimeMillis() - pollStart;
-        log("[POLLING] TIMEOUT after " + elapsed + "ms - printer did not become idle");
-    }
-
-    /**
-     * info 상태 비트를 플래그 문자열로 디코딩.
-     */
-    private static String decodeInfoFlags(long info) {
-        StringBuilder sb = new StringBuilder();
-        if ((info & 0x01) != 0) sb.append("NOPAPER_CANCELED ");
-        if ((info & 0x02) != 0) sb.append("LABELPAPER ");
-        if ((info & 0x04) != 0) sb.append("LABELMODE ");
-        if ((info & 0x08) != 0) sb.append("HAVEDATA ");
-        if ((info & 0x10) != 0) sb.append("PAPERNOFETCH ");
-        if ((info & 0x20) != 0) sb.append("PRINTIDLE ");
-        if ((info & 0x40) != 0) sb.append("RECVIDLE ");
-        return sb.toString().trim();
     }
 
     /**
