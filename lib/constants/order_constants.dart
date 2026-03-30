@@ -19,7 +19,7 @@ class OrderCategoryCodes {
   static const Set<String> waffleCategoryCodes = {'TKP1006'};
 
   //세트상품 상품코드
-  static const Set<String> setItemCodes = {'TKP0051'};
+  static const Set<String> setItemCodes = {'TKP0051', 'TKP0052'};
 
   OrderCategoryCodes._();
 }

@@ -131,7 +131,7 @@ class OutputService {
                     p.productId == menu.shopItemId ||
                     p.internalId == menu.shopItemId,
               );
-              // TKP0051은 필터 모드에 상관없이 항상 출력 (product.productId 기준)
+              // TKP0051, TKP0052은 필터 모드에 상관없이 항상 출력 (product.productId 기준)
               if (product != null && OrderCategoryCodes.setItemCodes.contains(product.productId)) return true;
               final isWaffle = OrderCategoryCodes.waffleCategoryCodes
                   .contains(product?.categoryCode);
