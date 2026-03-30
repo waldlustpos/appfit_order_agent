@@ -57,7 +57,7 @@ class OrderMenuListWidget extends StatelessWidget {
                     Expanded(
                       flex: 3,
                       child: Text(
-                        CommonUtil.formatPrice(menu.itemPrice / menu.qty, currencyUnit: currencySymbol),
+                        CommonUtil.formatPrice(menu.itemPrice, currencyUnit: currencySymbol),
                         textAlign: TextAlign.right,
                         overflow: TextOverflow.ellipsis,
                       ),
