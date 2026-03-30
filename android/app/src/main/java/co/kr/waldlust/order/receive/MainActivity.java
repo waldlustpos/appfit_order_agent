@@ -3,7 +3,6 @@ package co.kr.waldlust.order.receive;
 import android.Manifest;
 import android.app.ActivityManager;
 import android.annotation.SuppressLint;
-import android.content.ActivityNotFoundException;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -496,11 +495,25 @@ public class MainActivity extends FlutterActivity {
      */
     private boolean appendLogToFileDirectIO(String text, String fileName) {
         try {
-            File documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
-            File logDir = new File(documentsDir, "appfit");
-            if (!logDir.exists() && !logDir.mkdirs()) {
-                Log.w("FileWriter", "DirectIO: Failed to create directory: " + logDir.getAbsolutePath());
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !Environment.isExternalStorageManager()) {
+                Log.w("FileWriter", "DirectIO: MANAGE_EXTERNAL_STORAGE permission not granted on Android 11+");
                 return false;
+            }
+
+            File documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
+            if (documentsDir == null) {
+                Log.w("FileWriter", "DirectIO: DIRECTORY_DOCUMENTS is null");
+                return false;
+            }
+
+            File logDir = new File(documentsDir, "appfit");
+            if (!logDir.exists()) {
+                Log.d("FileWriter", "DirectIO: Attempting to create directory: " + logDir.getAbsolutePath());
+                if (!logDir.mkdirs()) {
+                    Log.w("FileWriter", "DirectIO: Failed to create directory (mkdirs returned false): " + logDir.getAbsolutePath());
+                    return false;
+                }
+                Log.d("FileWriter", "DirectIO: Successfully created directory: " + logDir.getAbsolutePath());
             }
 
             File logFile = new File(logDir, fileName);
@@ -511,7 +524,7 @@ public class MainActivity extends FlutterActivity {
             }
             return true;
         } catch (Exception e) {
-            Log.w("FileWriter", "DirectIO failed: " + e.getMessage());
+            Log.w("FileWriter", "DirectIO failed with exception: " + e.getMessage(), e);
             return false;
         }
     }

@@ -2,13 +2,15 @@ import 'dart:async';
 import 'dart:convert'; // JsonEncoder 사용 위해 추가
 import 'dart:developer' as developer;
 import 'package:logger/logger.dart';
-import 'package:flutter/foundation.dart'; // kReleaseMode 사용 위해 추가
 import 'package:appfit_order_agent/services/platform_service.dart'; // PlatformService import
 
 /// 전역으로 사용할 Logger 인스턴스
 final logger = Logger(
-  // 로그 레벨 필터 설정 (릴리즈 모드에서는 info 이상만 출력)
-  level: kReleaseMode ? Level.info : Level.debug,
+  // 로그 레벨 필터 설정 (릴리즈 모드에서도 로그 파일 기록을 위해 debug 사용)
+  level: Level.debug,
+  // ★ 핵심: 기본 DevelopmentFilter는 릴리즈에서 assert()가 제거되어 모든 로그를 차단함.
+  //   ProductionFilter를 사용해야 릴리즈에서도 output()이 호출되어 파일 기록이 가능함.
+  filter: ProductionFilter(),
   // PrettyPrinter 대신 CustomLogPrinter와 CustomLogOutput 사용
   printer: CustomLogPrinter(), // 프린터는 포맷팅 담당
   output: CustomLogOutput(), // 출력은 콘솔 및 파일 로깅 담당

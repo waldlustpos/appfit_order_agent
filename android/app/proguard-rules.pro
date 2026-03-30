@@ -62,6 +62,21 @@
     public static ** valueOf(java.lang.String);
 }
 
+# co.kr.waldlust.order.receive 패키지의 주요 클래스 및 메서드 보존
+-keep class co.kr.waldlust.order.receive.NativeMethodHandler { *; }
+-keep class co.kr.waldlust.order.receive.MainActivity {
+    public void appendLogToFile(java.lang.String);
+    public void appendLogsToFile(java.util.List);
+    public boolean checkPermissions();
+    public boolean checkAndRequestPermissions();
+    public boolean hasAllFilesAccess();
+    public void requestAllFilesAccess();
+}
+-keep class co.kr.waldlust.order.receive.overlay.OverlayHelper { *; }
+-keep class co.kr.waldlust.order.receive.util.print.LabelPrinter { *; }
+-keep class co.kr.waldlust.order.receive.util.print.SunmiPrintHelper { *; }
+-keep class co.kr.waldlust.order.receive.OrderAgentService { *; }
+
 # flutter_secure_storage (R8 호환성)
 -keep class com.it_nomads.fluttersecurestorage.** { *; }
 -dontwarn com.it_nomads.fluttersecurestorage.**
