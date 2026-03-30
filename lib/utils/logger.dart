@@ -107,6 +107,11 @@ class CustomLogOutput extends LogOutput {
         shouldLogToFile = true;
       }
 
+      // Notifier(WebSocket) 메시지 수신 로그
+      else if (line.contains('[Notifier]')) {
+        shouldLogToFile = true;
+      }
+
       // API 관련: 에러만 기록 (정상 요청/응답은 파일 기록에서 제외)
       else if (line.contains('[API]') &&
           (line.contains('ERROR') ||

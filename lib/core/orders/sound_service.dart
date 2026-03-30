@@ -40,6 +40,7 @@ class SoundService {
       _playCount = _preferenceService.getSoundNum();
       _volume = _preferenceService.getVolume() / 10.0;
       _soundSource = AssetSource('sounds/' + _soundFileName);
+      _cachedDuration = null;
 
       if (!_isDisposed) {
         _player.setVolume(_volume);

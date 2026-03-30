@@ -1278,9 +1278,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _buildSoundButton('sound1.mp3', t.settings.sound.sound1),
+                  _buildSoundButton('alert10.mp3', t.settings.sound.sound1),
                   const SizedBox(width: 8),
-                  _buildSoundButton('sound2.mp3', t.settings.sound.sound2),
+                  _buildSoundButton('alert_speech.mp3', t.settings.sound.sound2),
                 ],
               ),
             ),
