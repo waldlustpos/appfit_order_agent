@@ -1,4 +1,5 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:appfit_order_agent/config/app_env.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/utils/currency_unit.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
@@ -70,6 +71,7 @@ class PreferenceService {
       "KEY_IGNORE_OTHER_DEVICE_TASKS_KDS"; // KDS 타 기기 이벤트 무시 설정
   static const String KEY_LOCALE = "KEY_LOCALE"; // 언어 설정
   static const String KEY_CURRENCY = "KEY_CURRENCY"; // 화폐단위 설정
+  static const String KEY_IS_ROTATED_180 = "KEY_IS_ROTATED_180"; // 화면 상하 반전
   static const String KEY_PRINTER_DEFAULT_SET =
       "KEY_PRINTER_DEFAULT_SET"; // 기본 프린터 설정 완료 여부
 
@@ -678,5 +680,15 @@ class PreferenceService {
     final saved = _prefs.getString(KEY_CURRENCY);
     if (saved == 'krw') return CurrencyUnit.krw;
     return CurrencyUnit.jpy;
+  }
+
+  // 화면 상하 반전 저장
+  Future<void> setIsRotated180(bool value) async {
+    await _prefs.setBool(KEY_IS_ROTATED_180, value);
+  }
+
+  // 화면 상하 반전 조회 (저장값 없으면 빌드 플래그 기본값)
+  bool getIsRotated180() {
+    return _prefs.getBool(KEY_IS_ROTATED_180) ?? AppEnv.isRotated180;
   }
 }

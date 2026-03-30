@@ -4,9 +4,9 @@
 /// To regenerate, run: `dart run slang`
 ///
 /// Locales: 3
-/// Strings: 918 (306 per locale)
+/// Strings: 924 (308 per locale)
 ///
-/// Built on 2026-03-29 at 23:49 UTC
+/// Built on 2026-03-30 at 00:13 UTC
 
 // coverage:ignore-file
 // ignore_for_file: type=lint
@@ -242,6 +242,7 @@ class _StringsSettingsKo {
 	late final _StringsSettingsPrintCountKo print_count = _StringsSettingsPrintCountKo._(_root);
 	late final _StringsSettingsLanguageKo language = _StringsSettingsLanguageKo._(_root);
 	late final _StringsSettingsCurrencyKo currency = _StringsSettingsCurrencyKo._(_root);
+	late final _StringsSettingsDisplayRotateKo display_rotate = _StringsSettingsDisplayRotateKo._(_root);
 	late final _StringsSettingsKdsIgnoreStatusKo kds_ignore_status = _StringsSettingsKdsIgnoreStatusKo._(_root);
 	late final _StringsSettingsLabelFilterKo label_filter = _StringsSettingsLabelFilterKo._(_root);
 	late final _StringsSettingsDeveloperOptionsKo developer_options = _StringsSettingsDeveloperOptionsKo._(_root);
@@ -675,6 +676,17 @@ class _StringsSettingsCurrencyKo {
 	String get jpy => '엔 (¥)';
 }
 
+// Path: settings.display_rotate
+class _StringsSettingsDisplayRotateKo {
+	_StringsSettingsDisplayRotateKo._(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+	String get title => '화면 상하 반전';
+	String get desc => '화면을 180도 회전합니다. OS 회전 설정이 없는 환경에서 사용합니다.';
+}
+
 // Path: settings.kds_ignore_status
 class _StringsSettingsKdsIgnoreStatusKo {
 	_StringsSettingsKdsIgnoreStatusKo._(this._root);
@@ -1064,6 +1076,7 @@ class _StringsSettingsEn extends _StringsSettingsKo {
 	@override late final _StringsSettingsPrintCountEn print_count = _StringsSettingsPrintCountEn._(_root);
 	@override late final _StringsSettingsLanguageEn language = _StringsSettingsLanguageEn._(_root);
 	@override late final _StringsSettingsCurrencyEn currency = _StringsSettingsCurrencyEn._(_root);
+	@override late final _StringsSettingsDisplayRotateEn display_rotate = _StringsSettingsDisplayRotateEn._(_root);
 	@override late final _StringsSettingsKdsIgnoreStatusEn kds_ignore_status = _StringsSettingsKdsIgnoreStatusEn._(_root);
 	@override late final _StringsSettingsLabelFilterEn label_filter = _StringsSettingsLabelFilterEn._(_root);
 	@override late final _StringsSettingsDeveloperOptionsEn developer_options = _StringsSettingsDeveloperOptionsEn._(_root);
@@ -1504,6 +1517,17 @@ class _StringsSettingsCurrencyEn extends _StringsSettingsCurrencyKo {
 	@override String get jpy => 'Yen (¥)';
 }
 
+// Path: settings.display_rotate
+class _StringsSettingsDisplayRotateEn extends _StringsSettingsDisplayRotateKo {
+	_StringsSettingsDisplayRotateEn._(_StringsEn root) : this._root = root, super._(root);
+
+	@override final _StringsEn _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'Flip Display';
+	@override String get desc => 'Rotate the screen 180°. Use this when OS rotation settings are unavailable.';
+}
+
 // Path: settings.kds_ignore_status
 class _StringsSettingsKdsIgnoreStatusEn extends _StringsSettingsKdsIgnoreStatusKo {
 	_StringsSettingsKdsIgnoreStatusEn._(_StringsEn root) : this._root = root, super._(root);
@@ -1893,6 +1917,7 @@ class _StringsSettingsJa extends _StringsSettingsKo {
 	@override late final _StringsSettingsPrintCountJa print_count = _StringsSettingsPrintCountJa._(_root);
 	@override late final _StringsSettingsLanguageJa language = _StringsSettingsLanguageJa._(_root);
 	@override late final _StringsSettingsCurrencyJa currency = _StringsSettingsCurrencyJa._(_root);
+	@override late final _StringsSettingsDisplayRotateJa display_rotate = _StringsSettingsDisplayRotateJa._(_root);
 	@override late final _StringsSettingsKdsIgnoreStatusJa kds_ignore_status = _StringsSettingsKdsIgnoreStatusJa._(_root);
 	@override late final _StringsSettingsLabelFilterJa label_filter = _StringsSettingsLabelFilterJa._(_root);
 	@override late final _StringsSettingsDeveloperOptionsJa developer_options = _StringsSettingsDeveloperOptionsJa._(_root);
@@ -2323,6 +2348,17 @@ class _StringsSettingsCurrencyJa extends _StringsSettingsCurrencyKo {
 	@override String get desc => '金額表示に使用する通貨単位を選択します。';
 	@override String get krw => 'ウォン (₩)';
 	@override String get jpy => '円 (¥)';
+}
+
+// Path: settings.display_rotate
+class _StringsSettingsDisplayRotateJa extends _StringsSettingsDisplayRotateKo {
+	_StringsSettingsDisplayRotateJa._(_StringsJa root) : this._root = root, super._(root);
+
+	@override final _StringsJa _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => '画面上下反転';
+	@override String get desc => '画面を180度回転します。OS側に回転設定がない環境で使用します。';
 }
 
 // Path: settings.kds_ignore_status

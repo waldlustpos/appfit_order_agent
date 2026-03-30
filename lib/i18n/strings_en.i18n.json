@@ -117,6 +117,10 @@
             "krw": "Won (₩)",
             "jpy": "Yen (¥)"
         },
+        "display_rotate": {
+            "title": "Flip Display",
+            "desc": "Rotate the screen 180°. Use this when OS rotation settings are unavailable."
+        },
         "kds_ignore_status": {
             "title": "Ignore Other Device Status Updates",
             "desc": "Orders on this screen will not refresh when other KDS devices update pickup or progress status. (Use when you want to control status updates manually)"

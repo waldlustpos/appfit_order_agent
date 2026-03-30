@@ -142,6 +142,38 @@ class PlatformService {
     }
   }
 
+  /// WRITE_SETTINGS 권한 보유 여부 확인
+  static Future<bool> checkWriteSettingsPermission() async {
+    try {
+      final bool? result = await platform.invokeMethod('checkWriteSettings');
+      return result ?? false;
+    } catch (e, s) {
+      logger.e('WRITE_SETTINGS 권한 확인 중 오류 발생', error: e, stackTrace: s);
+      return false;
+    }
+  }
+
+  /// WRITE_SETTINGS 권한 요청 (설정 화면으로 이동)
+  static Future<void> requestWriteSettingsPermission() async {
+    try {
+      await platform.invokeMethod('requestWriteSettings');
+    } catch (e, s) {
+      logger.e('WRITE_SETTINGS 권한 요청 중 오류 발생', error: e, stackTrace: s);
+    }
+  }
+
+  /// 시스템 디스플레이 회전 설정 (reversed=true: 180도, false: 정상)
+  static Future<bool> setSystemRotation(bool reversed) async {
+    try {
+      final bool? result =
+          await platform.invokeMethod('setSystemRotation', {'reversed': reversed});
+      return result ?? false;
+    } catch (e, s) {
+      logger.e('시스템 회전 설정 중 오류 발생', error: e, stackTrace: s);
+      return false;
+    }
+  }
+
   // 플로팅 버블 표시
   static Future<bool> showBubble() async {
     try {

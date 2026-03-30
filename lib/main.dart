@@ -23,6 +23,7 @@ import 'config/app_env.dart'; // AppEnv 추가
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:appfit_order_agent/i18n/strings.g.dart';
 import 'package:appfit_order_agent/providers/locale_provider.dart';
+import 'package:appfit_order_agent/providers/rotation_provider.dart';
 import 'services/monitoring/order_agent_monitoring_context.dart';
 
 void main() async {
@@ -115,6 +116,11 @@ void main() async {
     final preferenceService = PreferenceService();
     await preferenceService.init();
     logger.i('PreferenceService 초기화 완료');
+
+    // 저장된 시스템 회전 설정 복원
+    final savedRotation = preferenceService.getIsRotated180();
+    await PlatformService.setSystemRotation(savedRotation);
+    logger.i('시스템 회전 설정 복원: ${savedRotation ? "180도" : "정상"}');
 
     // 앱 실행
     runApp(const ProviderScope(child: MyApp()));
@@ -215,6 +221,8 @@ class MyApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // 로캘 상태 감지
     final locale = ref.watch(localeNotifierProvider);
+    // 화면 반전 상태 감지 (설정 화면 토글 UI 동기화용)
+    ref.watch(rotationNotifierProvider);
 
     return TranslationProvider(
       child: MaterialApp(
@@ -237,15 +245,6 @@ class MyApp extends ConsumerWidget {
           ),
         ),
         builder: (context, child) {
-          // 빌드 옵션에 따른 화면 180도 회전 처리
-          Widget content = child!;
-          if (AppEnv.isRotated180) {
-            content = RotatedBox(
-              quarterTurns: 2, // 180도 회전
-              child: content,
-            );
-          }
-
           // WillPopScope로 뒤로가기 버튼 동작 제어
           return PopScope(
             canPop: false,
@@ -260,7 +259,7 @@ class MyApp extends ConsumerWidget {
               },
               // 제스처가 하위 위젯의 동작을 방해하지 않도록 설정
               behavior: HitTestBehavior.translucent,
-              child: EdgeSwipeDetector(child: content),
+              child: EdgeSwipeDetector(child: child!),
             ),
           );
         },

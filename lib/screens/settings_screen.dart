@@ -15,6 +15,7 @@ import '../utils/print/label_painter.dart';
 import 'package:appfit_order_agent/i18n/strings.g.dart';
 import 'package:appfit_order_agent/providers/locale_provider.dart';
 import 'package:appfit_order_agent/providers/currency_provider.dart';
+import 'package:appfit_order_agent/providers/rotation_provider.dart';
 import 'package:appfit_order_agent/utils/currency_unit.dart';
 import '../widgets/common/common_dialog.dart';
 import 'appfit_test_screen.dart';
@@ -66,6 +67,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   int _alertCount = 3;
   int _printCount = 1; // 주문서 출력 개수
   bool _isLocalServerEnabled = false; // 로컬 서버 활성화 상태
+  bool _isRotated180 = false; // 화면 상하 반전
   String _selectedEnv = PreferenceService().getEnvironment();
 
   // AudioPlayer 상태 관리를 위한 플래그 추가
@@ -113,6 +115,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _alertCount = _preferenceService.getSoundNum();
       _printCount = _preferenceService.getPrintCount();
       _isLocalServerEnabled = _preferenceService.getLocalServerEnabled();
+      _isRotated180 = _preferenceService.getIsRotated180();
     });
   }
 
@@ -567,6 +570,49 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               description: t.settings.currency.desc,
               trailing: _buildCurrencySwitcher(),
               isVertical: true,
+            ),
+            _buildSettingItem(
+              title: t.settings.display_rotate.title,
+              description: t.settings.display_rotate.desc,
+              trailing: CustomSwitch(
+                value: _isRotated180,
+                activeColor: AppStyles.kMainColor,
+                inactiveColor: Colors.grey,
+                onChanged: (value) async {
+                  final hasPermission =
+                      await PlatformService.checkWriteSettingsPermission();
+                  if (!hasPermission) {
+                    if (mounted) {
+                      showDialog(
+                        context: context,
+                        builder: (_) => AlertDialog(
+                          title: const Text('권한 필요'),
+                          content: const Text(
+                              '시스템 설정을 변경하려면 "시스템 설정 수정" 권한이 필요합니다.\n설정 화면으로 이동하시겠습니까?'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('취소'),
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                Navigator.pop(context);
+                                PlatformService.requestWriteSettingsPermission();
+                              },
+                              child: const Text('설정으로 이동'),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+                    return;
+                  }
+                  setState(() => _isRotated180 = value);
+                  await ref
+                      .read(rotationNotifierProvider.notifier)
+                      .setRotated180(value);
+                },
+              ),
             ),
             _buildSettingItem(
               title: t.settings.auto_start.title,

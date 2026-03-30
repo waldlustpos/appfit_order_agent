@@ -12,6 +12,9 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Build;
 import android.util.Log;
+import android.net.Uri;
+import android.provider.Settings;
+import android.view.Surface;
 import android.view.WindowManager;
 
 import androidx.annotation.NonNull;
@@ -315,6 +318,42 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
                 alarmManager.set(AlarmManager.RTC, System.currentTimeMillis() + 100, pendingIntent);
                 result.success(null);
                 android.os.Process.killProcess(android.os.Process.myPid());
+                break;
+            }
+
+            case "checkWriteSettings":
+                result.success(Settings.System.canWrite(activity));
+                break;
+
+            case "requestWriteSettings": {
+                Intent writeSettingsIntent = new Intent(
+                        Settings.ACTION_MANAGE_WRITE_SETTINGS,
+                        Uri.parse("package:" + activity.getPackageName()));
+                writeSettingsIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                try {
+                    activity.startActivity(writeSettingsIntent);
+                } catch (ActivityNotFoundException e) {
+                    Log.e(TAG, "WRITE_SETTINGS 설정 화면을 열 수 없습니다: " + e.getMessage());
+                }
+                result.success(null);
+                break;
+            }
+
+            case "setSystemRotation": {
+                Boolean reversed = call.argument("reversed");
+                boolean isReversed = reversed != null && reversed;
+                try {
+                    Settings.System.putInt(activity.getContentResolver(),
+                            Settings.System.ACCELEROMETER_ROTATION, 0);
+                    Settings.System.putInt(activity.getContentResolver(),
+                            Settings.System.USER_ROTATION,
+                            isReversed ? Surface.ROTATION_180 : Surface.ROTATION_0);
+                    Log.d(TAG, "시스템 회전 설정 완료: " + (isReversed ? "180도" : "정상"));
+                    result.success(true);
+                } catch (Exception e) {
+                    Log.e(TAG, "시스템 회전 설정 실패: " + e.getMessage());
+                    result.error("ROTATION_ERROR", e.getMessage(), null);
+                }
                 break;
             }
 
