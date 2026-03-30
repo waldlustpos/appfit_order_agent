@@ -197,7 +197,7 @@ class PrintService {
     }
   }
 
-  Future<void> printLabel(Uint8List imageBytes, {String orderNo = '-'}) async {
+  Future<void> printLabel(Uint8List imageBytes, {String orderNo = '-', int labelIndex = 1, int totalLabels = 1}) async {
     try {
       if (_cachedExternalPrinter == null) {
         _loadPrinterSettings();
@@ -218,6 +218,8 @@ class PrintService {
         'useStatusPolling': _preferenceService.getLabelUseStatusPolling(),
         'useCalibrate': _preferenceService.getLabelUseCalibrate(),
         'orderNo': orderNo,
+        'labelIndex': labelIndex,
+        'totalLabels': totalLabels,
       });
     } on PlatformException catch (e, s) {
       logger.e('Failed to print label', error: e, stackTrace: s);

@@ -35,12 +35,15 @@ public class LabelPrinter {
                                        boolean useBackToPrint,
                                        boolean useStatusPolling,
                                        boolean useCalibrate,
-                                       String orderNo) {
+                                       String orderNo,
+                                       int labelIndex,
+                                       int totalLabels) {
         boolean result = false;
         printCount++;
         long startTime = System.currentTimeMillis();
 
-        log("#" + printCount + " 출력시작 (주문: " + orderNo + ")");
+        String indexSuffix = (totalLabels > 1) ? " " + labelIndex + "/" + totalLabels : "";
+        log("#" + printCount + " 출력시작 (주문: " + orderNo + ")" + indexSuffix);
 
         try {
             // autoReplyMode가 변경된 경우 재연결 필요
@@ -73,7 +76,7 @@ public class LabelPrinter {
 
                 if (!AutoReplyPrint.INSTANCE.CP_Port_IsOpened(hPrinter)) {
                     long elapsed = System.currentTimeMillis() - startTime;
-                    log("#" + printCount + " 출력결과 -> 실패 [연결오류] (" + elapsed + "ms)");
+                    log("#" + printCount + " 출력결과 -> 실패 [연결오류] (" + elapsed + "ms)" + indexSuffix);
                     return false;
                 }
             }
@@ -118,11 +121,11 @@ public class LabelPrinter {
 
             result = AutoReplyPrint.INSTANCE.CP_Port_IsOpened(hPrinter);
             long elapsed = System.currentTimeMillis() - startTime;
-            log("#" + printCount + " 출력결과 -> " + (result ? "성공" : "실패") + " (" + elapsed + "ms)");
+            log("#" + printCount + " 출력결과 -> " + (result ? "성공" : "실패") + " (" + elapsed + "ms)" + indexSuffix);
 
         } catch (Exception e) {
             long elapsed = System.currentTimeMillis() - startTime;
-            log("#" + printCount + " 출력결과 -> 실패 [예외: " + e.getMessage() + "] (" + elapsed + "ms)");
+            log("#" + printCount + " 출력결과 -> 실패 [예외: " + e.getMessage() + "] (" + elapsed + "ms)" + indexSuffix);
             Log.e(TAG, "[ERROR] " + e.getMessage(), e);
         }
 

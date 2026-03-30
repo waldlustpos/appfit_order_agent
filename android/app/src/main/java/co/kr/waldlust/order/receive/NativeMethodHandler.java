@@ -83,6 +83,8 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
                 Boolean useStatusPolling = call.argument("useStatusPolling");
                 Boolean useCalibrate = call.argument("useCalibrate");
                 String orderNo = call.argument("orderNo");
+                Integer labelIndex = call.argument("labelIndex");
+                Integer totalLabels = call.argument("totalLabels");
 
                 if (imageBytes != null && imageBytes.length > 0) {
                     final Bitmap bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length);
@@ -92,6 +94,8 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
                     final boolean finalUseStatusPolling = useStatusPolling != null ? useStatusPolling : false;
                     final boolean finalUseCalibrate = useCalibrate != null ? useCalibrate : false;
                     final String finalOrderNo = orderNo != null ? orderNo : "-";
+                    final int finalLabelIndex = labelIndex != null ? labelIndex : 1;
+                    final int finalTotalLabels = totalLabels != null ? totalLabels : 1;
 
                     new Thread(() -> {
                         boolean printResult = co.kr.waldlust.order.receive.util.print.LabelPrinter.printBitmap(
@@ -101,7 +105,9 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
                                 finalUseBackToPrint,
                                 finalUseStatusPolling,
                                 finalUseCalibrate,
-                                finalOrderNo);
+                                finalOrderNo,
+                                finalLabelIndex,
+                                finalTotalLabels);
                         new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> result.success(printResult));
                     }).start();
                 } else {
