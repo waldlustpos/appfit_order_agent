@@ -831,18 +831,19 @@ public class MainActivity extends FlutterActivity {
             if (file.isFile() && file.getName().endsWith(".txt")) {
                 String fileName = file.getName();
                 try {
-                    // Extract date string from filename (e.g., "2023-10-27" from "2023-10-27.txt")
-                    String dateString = fileName.substring(0, fileName.length() - 4);
+                    // Extract date string from filename (e.g., "2024-03-31" from "appfit_2024-03-31.txt")
+                    if (!fileName.startsWith("appfit_") || fileName.length() < 18) continue;
+                    String dateString = fileName.substring(7, 17);
                     Date fileDate = dateFormat.parse(dateString);
 
                     if (fileDate != null && fileDate.getTime() < cutoffMillis) {
                         Log.i("MainActivity", "Deleting old log file: " + fileName);
                         if (file.delete()) {
                             Log.d("MainActivity", "Successfully deleted: " + fileName);
-                            appendLogToFile("Successfully deleted: " + fileName);
+                            appendLogToFile("[SYSTEM] 오래된 로그 파일 삭제 완료: " + fileName);
                         } else {
                             Log.w("MainActivity", "Failed to delete: " + fileName);
-                            appendLogToFile("Failed to delete: " + fileName);
+                            appendLogToFile("[SYSTEM] 오래된 로그 파일 삭제 실패: " + fileName);
                         }
                     } else {
                         // Log.d("MainActivity", "Keeping log file (not older than 6 months): " +
