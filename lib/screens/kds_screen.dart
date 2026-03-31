@@ -586,7 +586,8 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
 
               // Pagination 적용 (상세 데이터 로딩 최적화 + Progressive Loading)
               final visibleCount = orderState.visibleOrderCount;
-              final visibleAllOrders = allOrders.take(visibleCount).toList();
+              // 전체 탭은 GridView.builder를 사용하므로 Pagination(가시 개수 제한) 없이 전체 항목 전달
+              final visibleAllOrders = allOrders.toList();
               final visiblePendingOrders =
                   pendingOrders.take(visibleCount).toList();
               final visiblePickupOrders =
