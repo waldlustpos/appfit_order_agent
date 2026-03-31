@@ -272,6 +272,7 @@
         "dialog_repickup_confirm_content": "{n}番の注文のピックアップを再要請しますか？",
         "dialog_not_picked_up_confirm_title": "未ピックアップ",
         "dialog_not_picked_up_confirm_content": "{n}番の注文を未ピックアップ処理しますか？",
+        "dialog_complete_confirm_content": "{n}番の注文を完了処理しますか？",
         "print_receipt_fail": "領収書印刷失敗: {error}",
         "btn_receipt_reprint": "領収書再印刷",
         "btn_label_reprint": "ラベル再印刷",

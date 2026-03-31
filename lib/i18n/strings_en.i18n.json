@@ -278,6 +278,7 @@
         "dialog_repickup_confirm_content": "Do you want to re-request pickup for order #{n}?",
         "dialog_not_picked_up_confirm_title": "Not Picked Up",
         "dialog_not_picked_up_confirm_content": "Process order #{n} as not picked up?",
+        "dialog_complete_confirm_content": "Do you want to complete order #{n}?",
         "print_receipt_fail": "Receipt printing failed: {error}",
         "btn_receipt_reprint": "Reprint Receipt",
         "btn_label_reprint": "Reprint Label",
