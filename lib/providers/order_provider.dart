@@ -1340,11 +1340,6 @@ class Order extends _$Order {
       logger.d('API 호출 결과 - 성공: $success, orderId: $orderId');
 
       if (success) {
-        logToFile(
-            tag: LogTag.API,
-            message:
-                '주문 상태 업데이트 성공: displayNum=$displayNum, orderId=$orderId, statusCd=${newStatus.name}');
-
         // Find the order in the *current state* to update it
         final index = state.orders.indexWhere((o) => o.orderId == orderId);
         final statusCode = '';
@@ -1381,7 +1376,10 @@ class Order extends _$Order {
 
         return true;
       } else {
-        // 이미 ApiService/Dio에서 에러 로그가 남았으므로, 여기서는 경고 수준으로 기록
+        logToFile(
+            tag: LogTag.SYSTEM,
+            message:
+                '주문 상태 업데이트 실패: displayNum=$displayNum, orderId=$orderId, statusCd=${newStatus.name}');
         logger.w('Server failed to update order status for $orderId');
         state = state.copyWith(error: '서버에서 주문 상태 업데이트 실패 (orderId: $orderId)');
         return false;

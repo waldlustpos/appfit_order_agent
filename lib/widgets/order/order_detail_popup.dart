@@ -188,9 +188,16 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
     orderDetailNotifier.setLoadingAction(actionId);
 
     String? errorMessage;
+    final currentOrder = ref.read(orderDetailProvider).order;
+    final orderInfo = currentOrder != null
+        ? 'displayNum=${currentOrder.displayNum}, simpleNum=${currentOrder.shopOrderNo}, orderId=${currentOrder.orderId}'
+        : 'order=null';
     try {
       final success = await updateFunction();
       if (success) {
+        logToFile(
+            tag: LogTag.UI_ACTION,
+            message: '상태 변경 성공: action=$actionId, $orderInfo');
         if (mounted) {
           // 팝업 닫기 전에 로딩 상태 초기화
           orderDetailNotifier.setLoadingAction(null);
@@ -202,9 +209,15 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
           await Future.delayed(const Duration(milliseconds: 300));
         }
       } else {
+        logToFile(
+            tag: LogTag.UI_ACTION,
+            message: '상태 변경 실패: action=$actionId, $orderInfo');
         errorMessage = t.order_detail.status_update_fail;
       }
     } catch (e, s) {
+      logToFile(
+          tag: LogTag.UI_ACTION,
+          message: '상태 변경 오류: action=$actionId, $orderInfo, error=$e');
       errorMessage = e is ApiException ? e.message : '오류 발생: $e';
       logger.e('상태 업데이트 처리 중 오류', error: e, stackTrace: s);
     } finally {
@@ -446,7 +459,10 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
     Future<void> acceptOrder() async {
       final orderDetailState = ref.read(orderDetailProvider);
       if (orderDetailState.loadingActionId != null) return;
-      logToFile(tag: LogTag.UI_ACTION, message: '주문 접수 버튼: $order');
+      logToFile(
+          tag: LogTag.UI_ACTION,
+          message:
+              '주문 접수 버튼: displayNum=${order.displayNum}, simpleNum=${order.shopOrderNo}, orderId=${order.orderId}');
       // 준비 시간 선택 다이얼로그 표시
       showDialog(
         context: context,

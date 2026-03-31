@@ -4,6 +4,7 @@ import '../../constants/card_types.dart';
 import '../../models/order_model.dart';
 import '../../providers/kds_unified_providers.dart';
 import '../../utils/logger.dart';
+import '../../services/platform_service.dart';
 import '../../widgets/common/common_dialog.dart';
 import '../../providers/providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -78,6 +79,10 @@ class KdsProgressBottomButtonsWidget extends ConsumerWidget {
                   cancelText: t.common.cancel,
                 );
                 if (isPickup == true) {
+                  logToFile(
+                      tag: LogTag.UI_ACTION,
+                      message:
+                          'KDS 카드 픽업 요청: displayNum=${order.displayNum}, simpleNum=${order.shopOrderNo}, orderId=${order.orderId}');
                   try {
                     // 1단계: 애니메이션 먼저 시작
                     animationsNotifier.startStatusChangeAnimation(order.orderId);
@@ -86,14 +91,36 @@ class KdsProgressBottomButtonsWidget extends ConsumerWidget {
                     await Future.delayed(const Duration(milliseconds: 300));
 
                     // 3단계: 실제 상태 변경
-                    await orderNotifier.updateOrderStatus(order, OrderStatus.READY);
+                    final success = await orderNotifier.updateOrderStatus(order, OrderStatus.READY);
+                    if (success) {
+                      logToFile(
+                          tag: LogTag.UI_ACTION,
+                          message:
+                              'KDS 픽업 요청 성공: displayNum=${order.displayNum}, simpleNum=${order.shopOrderNo}, orderId=${order.orderId}');
+                    } else {
+                      logToFile(
+                          tag: LogTag.UI_ACTION,
+                          message:
+                              'KDS 픽업 요청 실패: displayNum=${order.displayNum}, simpleNum=${order.shopOrderNo}, orderId=${order.orderId}');
+                      if (navigator.mounted) {
+                        CommonDialog.showInfoDialog(
+                          context: navigator.context,
+                          title: t.common.error_title,
+                          content: t.order_detail.status_update_fail,
+                        );
+                      }
+                    }
                   } catch (e, s) {
+                    logToFile(
+                        tag: LogTag.UI_ACTION,
+                        message:
+                            'KDS 픽업 요청 오류: displayNum=${order.displayNum}, simpleNum=${order.shopOrderNo}, orderId=${order.orderId}, error=$e');
                     logger.e('KDS: 픽업 처리 오류 - ${e.runtimeType}: $e', error: e, stackTrace: s);
-                    if (e is ApiException && navigator.mounted) {
+                    if (navigator.mounted) {
                       CommonDialog.showInfoDialog(
                         context: navigator.context,
                         title: t.common.error_title,
-                        content: e.message,
+                        content: e is ApiException ? e.message : t.order_detail.status_update_fail,
                       );
                     }
                   }
@@ -158,19 +185,57 @@ class KdsPickupBottomButtonsWidget extends ConsumerWidget {
                   cancelText: t.common.cancel,
                 );
                 if (isDone == true) {
-                  // 애니메이션 시작
-                  ref
-                      .read(kdsCardAnimationsProvider.notifier)
-                      .startStatusChangeAnimation(order.orderId);
+                  final navigator = Navigator.of(context);
+                  logToFile(
+                      tag: LogTag.UI_ACTION,
+                      message:
+                          'KDS 카드 완료 처리: displayNum=${order.displayNum}, simpleNum=${order.shopOrderNo}, orderId=${order.orderId}');
+                  try {
+                    // 애니메이션 시작
+                    ref
+                        .read(kdsCardAnimationsProvider.notifier)
+                        .startStatusChangeAnimation(order.orderId);
 
-                  // 지연 후 상태 변경
-                  await Future.delayed(const Duration(milliseconds: 300));
+                    // 지연 후 상태 변경
+                    await Future.delayed(const Duration(milliseconds: 300));
 
-                  // 실제 상태 변경 (READY -> DONE)
-                  ref.read(orderProvider.notifier).updateOrderStatus(
-                        order,
-                        OrderStatus.DONE,
+                    // 실제 상태 변경 (READY -> DONE)
+                    final success = await ref.read(orderProvider.notifier).updateOrderStatus(
+                          order,
+                          OrderStatus.DONE,
+                        );
+                    if (success) {
+                      logToFile(
+                          tag: LogTag.UI_ACTION,
+                          message:
+                              'KDS 완료 처리 성공: displayNum=${order.displayNum}, simpleNum=${order.shopOrderNo}, orderId=${order.orderId}');
+                    } else {
+                      logToFile(
+                          tag: LogTag.UI_ACTION,
+                          message:
+                              'KDS 완료 처리 실패: displayNum=${order.displayNum}, simpleNum=${order.shopOrderNo}, orderId=${order.orderId}');
+                      if (navigator.mounted) {
+                        CommonDialog.showInfoDialog(
+                          context: navigator.context,
+                          title: t.common.error_title,
+                          content: t.order_detail.status_update_fail,
+                        );
+                      }
+                    }
+                  } catch (e, s) {
+                    logToFile(
+                        tag: LogTag.UI_ACTION,
+                        message:
+                            'KDS 완료 처리 오류: displayNum=${order.displayNum}, simpleNum=${order.shopOrderNo}, orderId=${order.orderId}, error=$e');
+                    logger.e('KDS: 완료 처리 오류 - ${e.runtimeType}: $e', error: e, stackTrace: s);
+                    if (navigator.mounted) {
+                      CommonDialog.showInfoDialog(
+                        context: navigator.context,
+                        title: t.common.error_title,
+                        content: e is ApiException ? e.message : t.order_detail.status_update_fail,
                       );
+                    }
+                  }
                 }
               },
               style: KdsButtonStyle.primary,
