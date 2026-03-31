@@ -88,6 +88,8 @@ class Auth extends _$Auth {
         // AppFit Token Manager를 통해 토큰 발급 (로그인)
         final tokenManager = ref.read(appFitTokenManagerProvider);
         final t = await tokenManager.getValidToken(storeId, password: password);
+        // 추가: 장시간 세션 토큰 갱신용 - SecureStorage에 비밀번호 보안 저장
+        await tokenManager.savePassword(password);
 
         logToFile(
             tag: LogTag.API, message: '[Auth] V2 Login (Token Issue) Success');
