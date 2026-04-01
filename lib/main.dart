@@ -118,10 +118,12 @@ void main() async {
     await preferenceService.init();
     logger.i('PreferenceService 초기화 완료');
 
-    // 저장된 시스템 회전 설정 복원
+    // 저장된 시스템 회전 설정 복원 (ON 상태일 때만 — 권한 필요 없는 기본값은 호출 불필요)
     final savedRotation = preferenceService.getIsRotated180();
-    await PlatformService.setSystemRotation(savedRotation);
-    logger.i('시스템 회전 설정 복원: ${savedRotation ? "180도" : "정상"}');
+    if (savedRotation) {
+      await PlatformService.setSystemRotation(true);
+      logger.i('시스템 회전 설정 복원: 180도');
+    }
 
     // 앱 실행
     runApp(const ProviderScope(child: MyApp()));
