@@ -199,7 +199,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
     // 디버그 모드인 경우 테스트 계정 정보 자동 입력
     if (kDebugMode) {
-      _idController.text = 'TPCP00001';
+      _idController.text = 'TPCP00002';
       _passwordController.text = '1234';
       logger.i('[LoginScreen] 디버그 모드: 테스트 계정 정보가 설정되었습니다.');
     }
@@ -742,6 +742,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     );
   }
 
+  Widget _buildEnvBadge() {
+    final env = AppFitConfig.environment.name;
+    final label = switch (env) {
+      'live' => 'Live',
+      'japanLive' => 'JP Live',
+      'dev' => 'Dev',
+      'staging' => 'Stage',
+      _ => env,
+    };
+    return Text(
+      label,
+      style: TextStyle(
+        fontSize: 11,
+        color: Colors.white.withOpacity(0.6),
+      ),
+    );
+  }
+
   String _getLocaleDisplay(AppLocale locale) {
     switch (locale) {
       case AppLocale.ko:
@@ -803,12 +821,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             ),
           ),
 
-          // 언어 선택 위젯 (우측 상단)
+          // 언어 선택 위젯 + 서버 환경 표시 (우측 상단)
           Positioned(
             top: 20,
             right: 20,
             child: SafeArea(
-              child: _buildLanguageSwitcher(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  _buildLanguageSwitcher(),
+                  const SizedBox(height: 4),
+                  _buildEnvBadge(),
+                ],
+              ),
             ),
           ),
         ],

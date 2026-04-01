@@ -174,7 +174,7 @@ ${success ? '✅ AES 키가 올바르게 설정되었습니다!' : '❌ AES 키 
 
     try {
       final pref = ref.read(preferenceServiceProvider);
-      final testShopCode = pref.getId() ?? 'TPCP00001';
+      final testShopCode = pref.getId() ?? 'TPCP00002';
 
       // 1. API 호출
       final apiService = ref.read(appFitApiServiceProvider);
@@ -203,7 +203,7 @@ ${success ? '✅ AES 키가 올바르게 설정되었습니다!' : '❌ AES 키 
 
 해결 방법:
 1. 토큰 발급이 먼저 성공했는지 확인
-2. 해당 매장코드(${"TPCP00001"})가 존재하는지 확인
+2. 해당 매장코드(${"TPCP00002"})가 존재하는지 확인
 3. 서버 URL 및 네트워크 확인
 ''';
       });
@@ -228,7 +228,7 @@ ${success ? '✅ AES 키가 올바르게 설정되었습니다!' : '❌ AES 키 
 
     try {
       final pref = ref.read(preferenceServiceProvider);
-      final testShopCode = pref.getId() ?? 'TPCP00001';
+      final testShopCode = pref.getId() ?? 'TPCP00002';
 
       // 1. API 호출
       final apiService = ref.read(appFitApiServiceProvider);
@@ -259,7 +259,7 @@ ${products.length > 5 ? '...외 ${products.length - 5}개 더 있음' : ''}
 
 해결 방법:
 1. 토큰 발급이 먼저 성공했는지 확인
-2. 매장코드(${"TPCP00001"})에 카테고리와 상품이 등록되어 있는지 확인
+2. 매장코드(${"TPCP00002"})에 카테고리와 상품이 등록되어 있는지 확인
 3. 서버 URL 및 네트워크 확인
 ''';
       });
@@ -284,7 +284,7 @@ ${products.length > 5 ? '...외 ${products.length - 5}개 더 있음' : ''}
 
     try {
       final pref = ref.read(preferenceServiceProvider);
-      final testShopCode = pref.getId() ?? 'TPCP00001';
+      final testShopCode = pref.getId() ?? 'TPCP00002';
 
       // 1. API 호출
       final apiService = ref.read(appFitApiServiceProvider);
@@ -323,7 +323,7 @@ ${orders.length > 5 ? '...외 ${orders.length - 5}개 더 있음' : ''}
 
 해결 방법:
 1. 토큰 발급 여부 확인
-2. 매장코드(${"TPCP00001"}) 확인
+2. 매장코드(${"TPCP00002"}) 확인
 3. 서버 URL 및 네트워크 확인
 ''';
       });
@@ -348,7 +348,7 @@ ${orders.length > 5 ? '...외 ${orders.length - 5}개 더 있음' : ''}
 
     try {
       final pref = ref.read(preferenceServiceProvider);
-      final testShopCode = pref.getId() ?? 'TPCP00001';
+      final testShopCode = pref.getId() ?? 'TPCP00002';
 
       // 1. 오늘 첫 번째 주문 조회
       final apiService = ref.read(appFitApiServiceProvider);
@@ -416,7 +416,7 @@ ${orders.length > 5 ? '...외 ${orders.length - 5}개 더 있음' : ''}
 
     try {
       final pref = ref.read(preferenceServiceProvider);
-      final testShopCode = pref.getId() ?? 'TPCP00001';
+      final testShopCode = pref.getId() ?? 'TPCP00002';
 
       // 1. 상품 목록 조회 및 TKP0005 상품 찾기
       final apiService = ref.read(appFitApiServiceProvider);
@@ -496,7 +496,7 @@ ${orders.length > 5 ? '...외 ${orders.length - 5}개 더 있음' : ''}
 
     try {
       final pref = ref.read(preferenceServiceProvider);
-      final testShopCode = pref.getId() ?? 'TPCP00001';
+      final testShopCode = pref.getId() ?? 'TPCP00002';
 
       // 1. 상품 목록 조회 및 TKP0005 상품 찾기
       final apiService = ref.read(appFitApiServiceProvider);
@@ -573,7 +573,7 @@ ${orders.length > 5 ? '...외 ${orders.length - 5}개 더 있음' : ''}
 
     try {
       final pref = ref.read(preferenceServiceProvider);
-      final testShopCode = pref.getId() ?? 'TPCP00001';
+      final testShopCode = pref.getId() ?? 'TPCP00002';
 
       // 1. 테스트 데이터 구성
       const testCouponNo = '5001868426241491';
@@ -627,7 +627,7 @@ ${orders.length > 5 ? '...외 ${orders.length - 5}개 더 있음' : ''}
 
     try {
       final pref = ref.read(preferenceServiceProvider);
-      final testShopCode = pref.getId() ?? 'TPCP00001';
+      final testShopCode = pref.getId() ?? 'TPCP00002';
 
       // 1. 테스트 데이터 구성
       const testUserSearchNo = '1621725316154595'; // 테스트용 번호
@@ -688,7 +688,7 @@ ${orders.length > 5 ? '...외 ${orders.length - 5}개 더 있음' : ''}
 
     try {
       final pref = ref.read(preferenceServiceProvider);
-      final testShopCode = pref.getId() ?? 'TPCP00001';
+      final testShopCode = pref.getId() ?? 'TPCP00002';
       var testUserSearchNo =
           CryptoUtils.encryptAesGcm('01062947151', AppEnv.aesKey); // 테스트용 번호
 
@@ -765,7 +765,7 @@ ${orders.length > 5 ? '...외 ${orders.length - 5}개 더 있음' : ''}
 
     try {
       final pref = ref.read(preferenceServiceProvider);
-      final testShopCode = pref.getId() ?? 'TPCP00001';
+      final testShopCode = pref.getId() ?? 'TPCP00002';
       final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
 
       // 1. API 호출
@@ -813,7 +813,7 @@ ${orders.length > 5 ? '...외 ${orders.length - 5}개 더 있음' : ''}
 
     try {
       final pref = ref.read(preferenceServiceProvider);
-      final testShopCode = pref.getId() ?? 'TPCP00001';
+      final testShopCode = pref.getId() ?? 'TPCP00002';
       final testUserSearchNo = '1621725316154595';
 
       final apiService = ref.read(appFitApiServiceProvider);
@@ -855,7 +855,7 @@ ${orders.length > 5 ? '...외 ${orders.length - 5}개 더 있음' : ''}
 
     try {
       final pref = ref.read(preferenceServiceProvider);
-      final testShopCode = pref.getId() ?? 'TPCP00001';
+      final testShopCode = pref.getId() ?? 'TPCP00002';
       final testUserPhone = '01062947151';
 
       final apiService = ref.read(appFitApiServiceProvider);
@@ -906,7 +906,7 @@ ${orders.length > 5 ? '...외 ${orders.length - 5}개 더 있음' : ''}
 
     try {
       final pref = ref.read(preferenceServiceProvider);
-      final testShopCode = pref.getId() ?? 'TPCP00001';
+      final testShopCode = pref.getId() ?? 'TPCP00002';
       final testUserPhone = '01062947151';
 
       final apiService = ref.read(appFitApiServiceProvider);
@@ -1034,7 +1034,7 @@ ${orders.length > 5 ? '...외 ${orders.length - 5}개 더 있음' : ''}
 
     try {
       final pref = ref.read(preferenceServiceProvider);
-      final testShopCode = pref.getId() ?? 'TPCP00001';
+      final testShopCode = pref.getId() ?? 'TPCP00002';
       final apiService = ref.read(appFitApiServiceProvider);
 
       final data = await apiService.getMigrationOptions(
@@ -1071,7 +1071,7 @@ ${orders.length > 5 ? '...외 ${orders.length - 5}개 더 있음' : ''}
 
 해결 방법:
 1. 토큰 발급 여부 확인
-2. 매장코드(${"TPCP00001"}) 확인
+2. 매장코드(${"TPCP00002"}) 확인
 3. 서버 URL 및 네트워크 확인
 ''';
       });

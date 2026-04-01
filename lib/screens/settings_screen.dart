@@ -1688,6 +1688,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     ref.invalidate(appfit_providers.appFitTokenManagerProvider);
     ref.invalidate(appfit_providers.appFitDioProvider);
 
+    // 저장된 로그인 정보(비밀번호, 자동로그인) 초기화
+    await _preferenceService.clearLoginInfo();
+
     setState(() => _selectedEnv = env);
     if (mounted) {
       showDialog(

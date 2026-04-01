@@ -59,7 +59,7 @@ class SocketBurstTest {
         orderedAt: now,
         totalAmount: 454.0,
         status: OrderStatus.NEW,
-        storeId: 'TPCP00001',
+        storeId: 'TPCP00002',
         userId: '0p55f21bazrcc',
         userName: '', // userNickname was empty in example
         tel: '01062947151',
