@@ -35,6 +35,7 @@ class OrderModel {
   final double exceptTaxPrice; // 세금 제외 금액
   final double taxPrice; // 세금 금액
   final String kioskId; // 키오스크 ID
+  final String source; // 주문 소스 (WALD_KIOSK 등)
   final String orderType; // 키오스크 주문 타입 (T, H, C)
   final int kdsOrderType; // KDS에서 사용하는 주문 타입 (1: 간단, 2: 복잡)
   final bool isDetailLoaded; // 상세 정보 로딩 여부
@@ -66,8 +67,10 @@ class OrderModel {
     required this.kdsOrderType,
     DateTime? updateTime,
     required this.kioskId,
+    String source = '',
     bool? isDetailLoaded,
-  })  : displayOrderNo = displayOrderNo,
+  })  : source = source,
+        displayOrderNo = displayOrderNo,
         updateTime = updateTime ?? DateTime.now(),
         // 메뉴가 있으면 기본적으로 로딩된 것으로 간주, 명시적 값 있으면 그것 사용
         isDetailLoaded = isDetailLoaded ?? (menus.isNotEmpty),
@@ -196,6 +199,7 @@ class OrderModel {
       kdsOrderType: 0, // 임시값
       updateTime: DateTime.tryParse(json['updateTime'] ?? '') ?? DateTime.now(),
       kioskId: (json['kioskId'])?.toString() ?? '',
+      source: (json['orderSource'] ?? json['source'])?.toString() ?? '',
       isDetailLoaded:
           json['isDetailLoaded'] ?? (menus.isNotEmpty), // JSON에 없으면 메뉴 유무로 판단
     );
@@ -253,6 +257,7 @@ class OrderModel {
       'exceptTaxPrice': NumberFormat('#,###').format(exceptTaxPrice),
       'taxPrice': NumberFormat('#,###').format(taxPrice),
       'kioskId': kioskId,
+      'source': source,
 
       'orderType': orderType,
       'kdsOrderType': kdsOrderType,
@@ -295,6 +300,7 @@ class OrderModel {
     List<OrderMenuModel>? menus,
     DateTime? updateTime,
     String? kioskId,
+    String? source,
     String? orderType,
     int? kdsOrderType,
     bool? isDetailLoaded,
@@ -329,6 +335,7 @@ class OrderModel {
         menus: menus ?? this.menus,
         updateTime: updateTime ?? DateTime.now(),
         kioskId: kioskId ?? this.kioskId,
+        source: source ?? this.source,
         orderType: orderType ?? this.orderType,
         kdsOrderType: kdsOrderType ?? this.kdsOrderType,
         isDetailLoaded: isDetailLoaded ?? this.isDetailLoaded);
@@ -361,6 +368,7 @@ class OrderModel {
         paymentCode: '',
         menus: [],
         kioskId: '',
+        source: '',
         orderType: 'T',
         kdsOrderType: 0,
         isDetailLoaded:

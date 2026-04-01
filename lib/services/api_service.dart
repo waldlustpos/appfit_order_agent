@@ -268,6 +268,7 @@ class ApiService {
           orderType: data['orderType'] as String? ?? 'IN_SHOP',
           kdsOrderType: 0,
           kioskId: '',
+          source: data['orderSource'] as String? ?? '',
         );
 
         return order;
@@ -391,6 +392,7 @@ class ApiService {
             orderType: item['orderType'] as String? ?? 'IN_SHOP',
             kdsOrderType: 0,
             kioskId: '',
+            source: item['orderSource'] as String? ?? '',
             userName: item['userName'] as String?,
             tel: item['userContact'] as String?,
           );

@@ -558,8 +558,7 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
               '주문 취소버튼: displayNum=${order.displayNum}, simpleNum=${order.shopOrderNo}, orderId=${order.orderId}');
 
       bool isKioskOrder(OrderModel order) {
-        return order.userId == '3740002700000000' ||
-            (order.paymentType.contains('KIOSK'));
+        return order.source == 'WALD_KIOSK';
       }
 
       if (isKioskOrder(order)) {
