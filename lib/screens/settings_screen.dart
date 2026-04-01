@@ -62,6 +62,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _isOrderHistoryScroll = true; // 주문내역 보기설정 추가
   bool _isIgnoreOtherDeviceKds = false; // KDS 타 기기 이벤트 무시 설정 추가
   bool _forceSocketReconnect = false; // 소켓 강제 재접속 (1분마다)
+  int _devOptionsTapCount = 0; // 개발자 옵션 비밀 탭 카운터
+  bool _isDevOptionsVisible = false; // 개발자 옵션 표시 여부
   int _notificationVolume = 5;
   String _selectedSound = 'alert10.mp3';
   int _alertCount = 3;
@@ -847,8 +849,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ],
                 ),
               ),
-            // 라벨프린터 고급 설정 (테스트 모드)
-            if (_isUseLabelPrinter) _buildLabelTestModeSection(),
           ],
         ),
       ),
@@ -1466,91 +1466,123 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                 ],*/
 
-            const SizedBox(height: 16),
-            Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-              child: Text(
-                t.settings.developer_options.title,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey,
+            // 앱 버전 텍스트 (5번 탭하면 개발자 옵션 활성화)
+            GestureDetector(
+              onTap: () {
+                setState(() {
+                  _devOptionsTapCount++;
+                  if (_devOptionsTapCount >= 5) {
+                    _isDevOptionsVisible = true;
+                    _devOptionsTapCount = 0;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('개발자 옵션이 활성화되었습니다.'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  }
+                });
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
+                child: ref.watch(appInfoProvider).whenOrNull(
+                      data: (info) => Text(
+                        'v${info.version} (${info.buildNumber})',
+                        style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                      ),
+                    ) ?? const SizedBox.shrink(),
+              ),
+            ),
+
+            // 개발자 옵션 (숨김 - 버전 텍스트 5번 탭으로 활성화)
+            if (_isDevOptionsVisible) ...[
+              const SizedBox(height: 16),
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                child: Text(
+                  t.settings.developer_options.title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey,
+                  ),
                 ),
               ),
-            ),
-            _buildSettingItem(
-              title: '긴급 모드',
-              description: '서버 이상 대비: 주문 폴링 주기를 10초로 단축합니다.',
-              trailing: CustomSwitch(
-                value: _forceSocketReconnect,
-                activeColor: AppStyles.kMainColor,
-                inactiveColor: Colors.grey,
-                activeText: t.settings.auto_start.on,
-                inactiveText: t.settings.auto_start.off,
-                onChanged: (value) {
-                  setState(() {
-                    _forceSocketReconnect = value;
-                    logToFile(
-                        tag: LogTag.UI_ACTION,
-                        message: '긴급모드 변경 -> $value');
-                  });
-                  _preferenceService.setForceSocketReconnect(value);
-                  ref.read(orderProvider.notifier).updateEmergencyPoll(value);
-                },
-              ),
-            ),
-            _buildSettingItem(
-              title: '서버 환경',
-              description:
-                  '현재 실행 중: ${AppFitConfig.environment.name} | 재시작 후 반영됩니다.',
-              isVertical: true,
-              trailing: SegmentedButton<String>(
-                segments: const [
-                  ButtonSegment(value: 'dev', label: Text('Dev')),
-                  ButtonSegment(value: 'staging', label: Text('Stage')),
-                  ButtonSegment(value: 'live', label: Text('Live')),
-                  ButtonSegment(value: 'japanLive', label: Text('JP Live')),
-                ],
-                selected: {_selectedEnv},
-                onSelectionChanged: (s) => _onEnvChanged(s.first),
-              ),
-            ),
-            _buildSettingItem(
-              title: t.settings.developer_options.appfit_test.title,
-              description: t.settings.developer_options.appfit_test.desc,
-              isVertical: true,
-              trailing: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const AppFitTestScreen(),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.science, size: 18),
-                label: Text(t.settings.developer_options.appfit_test.btn),
-                style: AppStyles.primaryButton().copyWith(
-                  backgroundColor: const WidgetStatePropertyAll(Colors.blue),
+              _buildSettingItem(
+                title: '긴급 모드',
+                description: '서버 이상 대비: 주문 폴링 주기를 10초로 단축합니다.',
+                trailing: CustomSwitch(
+                  value: _forceSocketReconnect,
+                  activeColor: AppStyles.kMainColor,
+                  inactiveColor: Colors.grey,
+                  activeText: t.settings.auto_start.on,
+                  inactiveText: t.settings.auto_start.off,
+                  onChanged: (value) {
+                    setState(() {
+                      _forceSocketReconnect = value;
+                      logToFile(
+                          tag: LogTag.UI_ACTION,
+                          message: '긴급모드 변경 -> $value');
+                    });
+                    _preferenceService.setForceSocketReconnect(value);
+                    ref.read(orderProvider.notifier).updateEmergencyPoll(value);
+                  },
                 ),
               ),
-            ),
-            _buildSettingItem(
-              title: '대량 주문 처리 테스트 (로컬)',
-              description:
-                  '가상 주문을 대량으로 생성하여 내부 큐 파이프라인(순서 정렬, UI출력, 라벨/영수증 인쇄 등)을 테스트합니다.',
-              isVertical: true,
-              trailing: Wrap(
-                spacing: 8.0,
-                runSpacing: 8.0,
-                children: [
-                  _buildBulkTestButton(10),
-                  _buildBulkTestButton(50),
-                  _buildBulkTestButton(100),
-                ],
+              _buildSettingItem(
+                title: '서버 환경',
+                description:
+                    '현재 실행 중: ${AppFitConfig.environment.name} | 재시작 후 반영됩니다.',
+                isVertical: true,
+                trailing: SegmentedButton<String>(
+                  segments: const [
+                    ButtonSegment(value: 'dev', label: Text('Dev')),
+                    ButtonSegment(value: 'staging', label: Text('Stage')),
+                    ButtonSegment(value: 'live', label: Text('Live')),
+                    ButtonSegment(value: 'japanLive', label: Text('JP Live')),
+                  ],
+                  selected: {_selectedEnv},
+                  onSelectionChanged: (s) => _onEnvChanged(s.first),
+                ),
               ),
-            ),
+              _buildSettingItem(
+                title: t.settings.developer_options.appfit_test.title,
+                description: t.settings.developer_options.appfit_test.desc,
+                isVertical: true,
+                trailing: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AppFitTestScreen(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.science, size: 18),
+                  label: Text(t.settings.developer_options.appfit_test.btn),
+                  style: AppStyles.primaryButton().copyWith(
+                    backgroundColor: const WidgetStatePropertyAll(Colors.blue),
+                  ),
+                ),
+              ),
+              _buildSettingItem(
+                title: '대량 주문 처리 테스트 (로컬)',
+                description:
+                    '가상 주문을 대량으로 생성하여 내부 큐 파이프라인(순서 정렬, UI출력, 라벨/영수증 인쇄 등)을 테스트합니다.',
+                isVertical: true,
+                trailing: Wrap(
+                  spacing: 8.0,
+                  runSpacing: 8.0,
+                  children: [
+                    _buildBulkTestButton(10),
+                    _buildBulkTestButton(50),
+                    _buildBulkTestButton(100),
+                  ],
+                ),
+              ),
+              _buildLabelTestModeSection(),
+            ],
           ],
         ),
       ),
