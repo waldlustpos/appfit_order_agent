@@ -277,14 +277,22 @@ class Order extends _$Order {
 
   // 소켓/폴링 관련 메서드들은 OrderSocketPolling 클래스로 이동됨
 
-  // 주문을 UI에 표시할지 여부 확인 (모든 주문 통일 처리)
+  // 주문을 UI에 표시할지 여부 확인 (키오스크 노출 설정 반영)
   bool _shouldShowOrder(OrderModel order) {
-    return _helper.shouldShowOrder(order, true); // 모든 주문 표시
+    final showKiosk = PreferenceService().getShowKioskOrder();
+    return _helper.shouldShowOrder(order, showKiosk);
   }
 
-  // 주문에 대해 소리/알림/인쇄를 할지 여부 확인 (모든 주문 통일 처리)
+  // 주문에 대해 소리/알림/인쇄를 할지 여부 확인 (키오스크 출력/알람 설정 반영)
   bool _shouldNotifyForOrder(OrderModel order) {
-    return _helper.shouldNotifyForOrder(order, true); // 모든 주문에 대해 알림/출력
+    final kioskPrintAndSound = PreferenceService().getKioskPrintAndSound();
+    return _helper.shouldNotifyForOrder(order, kioskPrintAndSound);
+  }
+
+  /// 키오스크 설정 변경 시 호출 — 현재 주문 목록을 재필터링하여 UI 갱신
+  Future<void> updateKioskSettings() async {
+    logger.i('[OrderProvider] 키오스크 설정 변경으로 주문 목록 갱신');
+    await refreshOrders();
   }
 
   // 수신된 주문 처리 전 건너뛰어야 하는지 확인하는 메서드
@@ -497,12 +505,14 @@ class Order extends _$Order {
     // AlertManager를 통해 소리, 깜빡임, 오버레이 통합 실행
     // playSound: true (소리 재생), triggerOverlay: true (오버레이), triggerAppBar: true (앱바)
     if (!isKdsMode) {
+      final shouldNotify = _shouldNotifyForOrder(order);
       ref.read(alertManagerProvider).triggerNewOrderAlert(
-            playSound: true,
+            playSound: shouldNotify,
             triggerOverlay: true,
             triggerAppBar: true,
           );
-      logger.d('  NEW 주문 알림 발생 완료 (Sound/Overlay/AppBar)');
+      logger.d(
+          '  NEW 주문 알림 발생 완료 (Sound=${shouldNotify}/Overlay/AppBar) [kiosk=${_helper.isKioskOrder(order)}]');
     }
 
     if (shouldAutoAccept) {
@@ -517,11 +527,16 @@ class Order extends _$Order {
             '$modeText: updateOrderStatus 결과 - 성공: $success, 주문: ${order.orderId}');
         if (success) {
           logger.d('$modeText: 자동 접수 성공: ${order.orderId}');
-          // 접수 성공 시: 프린트만 실행
-          logger
-              .d('$modeText: processOrderOutput 호출 시작 - 주문: ${order.orderId}');
-          await _outputService.notifyNewOrder(order, playSound: false);
-          logger.d('$modeText: processOrderOutput 완료 - 주문: ${order.orderId}');
+          // 접수 성공 시: 프린트 실행 (키오스크 출력/알람 설정 반영)
+          if (_shouldNotifyForOrder(order)) {
+            logger
+                .d('$modeText: processOrderOutput 호출 시작 - 주문: ${order.orderId}');
+            await _outputService.notifyNewOrder(order, playSound: false);
+            logger.d('$modeText: processOrderOutput 완료 - 주문: ${order.orderId}');
+          } else {
+            logger.d(
+                '$modeText: 키오스크 출력/알람 OFF로 주문서 출력 스킵 - 주문: ${order.orderId}');
+          }
 
           // 첫 주문 자동접수 성공 시 초기 알람 플래그 비활성화
           if (_shouldPlayInitialAlarm) {

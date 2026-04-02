@@ -30,6 +30,12 @@ class OrderHelperMethods {
       return false;
     }
 
+    // 키오스크 주문 노출 설정에 따라 필터링
+    if (isKioskOrder(order) && !isKioskOrderVisible) {
+      logger.d('[Filter] 키오스크 주문 노출 OFF로 제외: ${order.orderNo}');
+      return false;
+    }
+
     // KDS 모드일 때는 NEW는 숨기고, 나머지 상태는 표시
     final isKdsMode = ref.read(kdsModeProvider);
     if (isKdsMode) {
@@ -55,6 +61,15 @@ class OrderHelperMethods {
       logger.d(
           '[Notify] shouldNotifyForOrder isKdsMode=true -> notify (orderId=${order.orderNo})');
       return true; // KDS 모드에서는 모든 주문에 대해 항상 알림/출력
+    }
+
+    // 키오스크 주문 출력/알람 설정에 따라 필터링 (NEW 주문에 한함)
+    if (order.status == OrderStatus.NEW &&
+        isKioskOrder(order) &&
+        !isKioskOrderSoundEnabled) {
+      logger.d(
+          '[Notify] 키오스크 주문 출력/알람 OFF로 스킵: ${order.orderNo}');
+      return false;
     }
 
     // 일반 모드에서도 상태 변경 알림은 항상 받음
