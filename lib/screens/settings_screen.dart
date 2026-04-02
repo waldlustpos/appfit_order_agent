@@ -849,57 +849,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ],
                 ),
               ),
-            // 키오스크 주문 노출 설정
-            if (!isKdsMode)
-              _buildSettingItem(
-                title: '키오스크 주문 노출',
-                description: '키오스크 주문을 화면에 표시합니다. OFF 시 내부 접수는 정상 처리됩니다.',
-                trailing: CustomSwitch(
-                  value: _isKioskOrderVisible,
-                  activeColor: AppStyles.kMainColor,
-                  inactiveColor: Colors.grey,
-                  activeText: t.settings.auto_start.on,
-                  inactiveText: t.settings.auto_start.off,
-                  onChanged: (value) {
-                    setState(() {
-                      _isKioskOrderVisible = value;
-                      if (!value) {
-                        // 노출 OFF 시 출력/알람도 자동 OFF
-                        _isKioskOrderSoundEnabled = false;
-                      }
-                      logToFile(
-                          tag: LogTag.UI_ACTION,
-                          message: '키오스크 주문 노출 변경 -> $value');
-                    });
-                    _saveSettings();
-                    ref.read(orderProvider.notifier).updateKioskSettings();
-                  },
-                ),
-              ),
-            // 키오스크 주문 출력 및 알람 설정
-            if (!isKdsMode)
-              _buildSettingItem(
-                title: '키오스크 주문 주문서 및 알림소리',
-                description: '키오스크 주문 수신 시 주문서 출력과 알림음을 재생합니다.',
-                enabled: _isKioskOrderVisible,
-                trailing: CustomSwitch(
-                  value: _isKioskOrderSoundEnabled,
-                  activeColor: AppStyles.kMainColor,
-                  inactiveColor: Colors.grey,
-                  activeText: t.settings.auto_start.on,
-                  inactiveText: t.settings.auto_start.off,
-                  onChanged: (value) {
-                    if (!_isKioskOrderVisible) return;
-                    setState(() {
-                      _isKioskOrderSoundEnabled = value;
-                      logToFile(
-                          tag: LogTag.UI_ACTION,
-                          message: '키오스크 주문 출력/알람 변경 -> $value');
-                    });
-                    _saveSettings();
-                  },
-                ),
-              ),
           ],
         ),
       ),
@@ -1356,6 +1305,56 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     _buildAlertCountButton(0, t.settings.alert_count.unlimited),
                   ],
                 ),
+              ),
+            ),
+
+            // 키오스크 주문 노출 설정
+            _buildSettingItem(
+              title: '키오스크 주문 노출',
+              description: '키오스크 주문을 화면에 표시합니다. OFF 시 내부 접수는 정상 처리됩니다.',
+              trailing: CustomSwitch(
+                value: _isKioskOrderVisible,
+                activeColor: AppStyles.kMainColor,
+                inactiveColor: Colors.grey,
+                activeText: t.settings.auto_start.on,
+                inactiveText: t.settings.auto_start.off,
+                onChanged: (value) {
+                  setState(() {
+                    _isKioskOrderVisible = value;
+                    if (!value) {
+                      // 노출 OFF 시 출력/알람도 자동 OFF
+                      _isKioskOrderSoundEnabled = false;
+                    }
+                    logToFile(
+                        tag: LogTag.UI_ACTION,
+                        message: '키오스크 주문 노출 변경 -> $value');
+                  });
+                  _saveSettings();
+                  ref.read(orderProvider.notifier).updateKioskSettings();
+                },
+              ),
+            ),
+            // 키오스크 주문 출력 및 알람 설정
+            _buildSettingItem(
+              title: '키오스크 주문 주문서 및 알림소리',
+              description: '키오스크 주문 수신 시 주문서 출력과 알림음을 재생합니다.',
+              enabled: _isKioskOrderVisible,
+              trailing: CustomSwitch(
+                value: _isKioskOrderSoundEnabled,
+                activeColor: AppStyles.kMainColor,
+                inactiveColor: Colors.grey,
+                activeText: t.settings.auto_start.on,
+                inactiveText: t.settings.auto_start.off,
+                onChanged: (value) {
+                  if (!_isKioskOrderVisible) return;
+                  setState(() {
+                    _isKioskOrderSoundEnabled = value;
+                    logToFile(
+                        tag: LogTag.UI_ACTION,
+                        message: '키오스크 주문 출력/알람 변경 -> $value');
+                  });
+                  _saveSettings();
+                },
               ),
             ),
 
