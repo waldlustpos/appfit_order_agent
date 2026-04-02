@@ -190,7 +190,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     _preferenceService = PreferenceService();
     _notificationSound = _preferenceService.getSound();
     final volumeValue = _preferenceService.getVolume();
-    _volume = volumeValue / 10.0;
+    _volume = volumeValue / 15.0;
     await _audioPlayer.setVolume(_volume);
     logger.d('알림음 설정 로드: 파일=$_notificationSound, 볼륨=$_volume');
   }

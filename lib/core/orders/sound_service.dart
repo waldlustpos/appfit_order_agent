@@ -38,7 +38,7 @@ class SoundService {
     try {
       _soundFileName = _preferenceService.getSound();
       _playCount = _preferenceService.getSoundNum();
-      _volume = _preferenceService.getVolume() / 10.0;
+      _volume = _preferenceService.getVolume() / 15.0;
       _soundSource = AssetSource('sounds/' + _soundFileName);
       _cachedDuration = null;
 

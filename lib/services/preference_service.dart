@@ -10,6 +10,8 @@ import 'package:device_info_plus/device_info_plus.dart';
 
 import 'dart:convert';
 
+import 'package:appfit_order_agent/services/migration/v2_migration_service.dart';
+
 class PreferenceService {
   static const String PREFERENCES_NAME = "KOKONUT_AGENT";
   static const methodChannel =
@@ -74,6 +76,8 @@ class PreferenceService {
   static const String KEY_IS_ROTATED_180 = "KEY_IS_ROTATED_180"; // 화면 상하 반전
   static const String KEY_PRINTER_DEFAULT_SET =
       "KEY_PRINTER_DEFAULT_SET"; // 기본 프린터 설정 완료 여부
+  static const String KEY_ENVIRONMENT_MANUAL_OVERRIDE =
+      "appfit_environment_manual_override"; // 개발자 수동 서버 환경 오버라이드 플래그
 
   // New Printer Setting Keys
 
@@ -106,7 +110,11 @@ class PreferenceService {
     try {
       _prefs = await SharedPreferences.getInstance();
 
-      // 마이그레이션 상태 확인 (레거시 NDK 제거로 인해 마이그레이션 불필요)
+      // V2 → AppFit 마이그레이션 실행 (최초 1회)
+      final migrationService = V2MigrationService();
+      if (!migrationService.isCompleted(_prefs)) {
+        await migrationService.runSettingsMigration(_prefs);
+      }
       await _prefs.setBool('migration_completed', true);
 
       // 프린터 기본 설정 및 기기 제조사 확인
@@ -340,11 +348,19 @@ class PreferenceService {
 
   // 서버 환경 조회 (dev / staging / live / japanLive)
   String getEnvironment() =>
-      _prefs.getString(KEY_ENVIRONMENT) ?? 'japanLive';
+      _prefs.getString(KEY_ENVIRONMENT) ?? 'live';
 
   // 서버 환경 저장
   Future<void> setEnvironment(String env) =>
       _prefs.setString(KEY_ENVIRONMENT, env);
+
+  // 개발자 수동 서버 환경 오버라이드 플래그 조회
+  bool getEnvironmentManualOverride() =>
+      _prefs.getBool(KEY_ENVIRONMENT_MANUAL_OVERRIDE) ?? false;
+
+  // 개발자 수동 서버 환경 오버라이드 플래그 저장
+  Future<void> setEnvironmentManualOverride(bool value) =>
+      _prefs.setBool(KEY_ENVIRONMENT_MANUAL_OVERRIDE, value);
 
   // 모든 로그인 정보 삭제
   Future<void> clearLoginInfo() async {

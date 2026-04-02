@@ -1,14 +1,16 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:appfit_core/appfit_core.dart'; // AppFitConfig (패키지)
 import 'package:appfit_order_agent/models/store_model.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import '../utils/logger.dart';
-import 'package:appfit_core/appfit_core.dart';
 import '../services/platform_service.dart';
 import '../services/preference_service.dart';
+import '../services/migration/v2_migration_service.dart';
+import '../services/appfit/appfit_providers.dart' as appfit_providers;
 import '../providers/auth_provider.dart';
 import '../providers/store_provider.dart';
 
@@ -176,6 +178,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   Future<void> _loadSavedLoginInfo() async {
     final preferenceService = PreferenceService();
 
+    // V2 마이그레이션: 구앱 ID 매핑 처리
+    await _handleV2IdMapping(preferenceService);
+
     // 저장된 ID와 비밀번호 불러오기
     final savedId = preferenceService.getId();
     final savedPassword = await preferenceService.getPassword(savedId ?? '');
@@ -205,7 +210,67 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     }
   }
 
-  // ... (중략)
+  /// V2 마이그레이션: 구앱 ID → 신규 AppFit ID 매핑
+  Future<void> _handleV2IdMapping(PreferenceService preferenceService) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final migrationOldId =
+          prefs.getString(V2MigrationService.KEY_MIGRATED_OLD_ID);
+
+      if (migrationOldId == null || migrationOldId.isEmpty) return;
+
+      logger.i('[LoginScreen] V2 마이그레이션 ID 매핑 시작: $migrationOldId');
+
+      final migrationService = V2MigrationService();
+      final newId = await migrationService.fetchMappedId(migrationOldId);
+
+      if (newId != null) {
+        await preferenceService.saveId(newId);
+        logger.i('[LoginScreen] V2 ID 매핑 완료: $migrationOldId → $newId');
+      } else {
+        logger.w('[LoginScreen] V2 ID 매핑 실패. 구앱 ID 유지: $migrationOldId');
+      }
+
+      // 매핑 시도 완료 — 키 제거하여 재실행 방지
+      await prefs.remove(V2MigrationService.KEY_MIGRATED_OLD_ID);
+    } catch (e, s) {
+      logger.e('[LoginScreen] V2 ID 매핑 중 오류', error: e, stackTrace: s);
+    }
+  }
+
+  /// 로그인 ID 접두사 기반 서버 환경 자동 결정
+  /// 개발자 옵션에서 수동으로 서버를 변경한 경우에는 자동 결정을 스킵
+  Future<void> _autoDetectEnvironment(String storeId) async {
+    final preferenceService = PreferenceService();
+    final isManualOverride = preferenceService.getEnvironmentManualOverride();
+
+    if (isManualOverride) {
+      logger.i(
+          '[LoginScreen] 서버 환경 수동 오버라이드 활성화 상태. 자동 결정 스킵. (현재: ${preferenceService.getEnvironment()})');
+      return;
+    }
+
+    final env = storeId.toUpperCase().startsWith('TPCP') ? 'japanLive' : 'live';
+    final currentEnv = preferenceService.getEnvironment();
+
+    if (env != currentEnv) {
+      await preferenceService.setEnvironment(env);
+
+      final newEnvironment = env == 'japanLive'
+          ? AppFitEnvironment.japanLive
+          : AppFitEnvironment.live;
+      AppFitConfig.configure(
+        environment: newEnvironment,
+        requestSource: 'ORDER_AGENT',
+      );
+
+      // 토큰/Dio 프로바이더 갱신
+      ref.invalidate(appfit_providers.appFitTokenManagerProvider);
+      ref.invalidate(appfit_providers.appFitDioProvider);
+
+      logger.i('[LoginScreen] 서버 환경 자동 변경: $currentEnv → $env (ID: $storeId)');
+    }
+  }
 
   Future<void> _saveLoginInfo() async {
     final preferenceService = PreferenceService();
@@ -349,9 +414,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       // [FIX] 로그인 ID 대문자 강제 변환 (AppFit 소켓 채널 일치 보장)
       String storeId = _idController.text.trim().toUpperCase();
 
-      // ServerConfig usages removed
-      // ServerConfig.setMainUrl(storeId, isDev: isDev); removed
-      // ref.read(serverUrlProvider.notifier).state = ServerConfig.checkURL; removed
+      // 서버 환경 자동 결정 (개발자 수동 오버라이드가 아닌 경우)
+      await _autoDetectEnvironment(storeId);
 
       final (success, rewardType, errorMessage) = await ref
           .read(authProvider.notifier)

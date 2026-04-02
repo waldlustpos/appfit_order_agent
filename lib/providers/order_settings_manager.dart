@@ -31,7 +31,7 @@ class OrderSettingsManager {
     _soundFileName = _preferenceService.getSound();
     _playCount = _preferenceService.getSoundNum();
     final volumeValue = _preferenceService.getVolume();
-    _volume = volumeValue / 10.0;
+    _volume = volumeValue / 15.0;
 
     logger.d(
         '알람소리 설정 로드 - 파일: $_soundFileName, 횟수: $_playCount, 볼륨: $_volume (원본값: $volumeValue)');

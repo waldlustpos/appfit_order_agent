@@ -1201,7 +1201,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           child: Slider(
                             value: _notificationVolume.toDouble(),
                             min: 0,
-                            max: 10,
+                            max: 15,
                             label: _notificationVolume.round().toString(),
                             onChanged: (value) {
                               setState(() {
@@ -1224,7 +1224,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                 await Future.delayed(
                                     const Duration(milliseconds: 100));
 
-                                await _audioPlayer.setVolume(value / 10.0);
+                                await _audioPlayer.setVolume(value / 15.0);
 
                                 var audioContext = AudioContext(
                                   android: const AudioContextAndroid(
@@ -1698,6 +1698,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Future<void> _onEnvChanged(String env) async {
     await _preferenceService.setEnvironment(env);
+    // 개발자가 수동으로 서버를 변경했으므로 오버라이드 플래그 설정
+    await _preferenceService.setEnvironmentManualOverride(true);
 
     // AppFitConfig 정적 상태를 새 환경으로 즉시 업데이트
     final newEnvironment = switch (env) {
@@ -1705,7 +1707,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       'japanLive' => AppFitEnvironment.japanLive,
       'dev' => AppFitEnvironment.dev,
       'staging' => AppFitEnvironment.staging,
-      _ => AppFitEnvironment.japanLive,
+      _ => AppFitEnvironment.live,
     };
     AppFitConfig.configure(
         environment: newEnvironment, requestSource: 'ORDER_AGENT');

@@ -16,7 +16,6 @@ import 'firebase_options.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/settings_screen.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
 
 import 'config/app_env.dart'; // AppEnv 추가
@@ -53,7 +52,7 @@ void main() async {
     'japanLive' => AppFitEnvironment.japanLive,
     'dev' => AppFitEnvironment.dev,
     'staging' => AppFitEnvironment.staging,
-    _ => AppFitEnvironment.japanLive,
+    _ => AppFitEnvironment.live,
   };
 
   // AppFit 공통 패키지 설정
@@ -110,10 +109,7 @@ void main() async {
     );
     logger.i('Firebase 초기화 완료');
 
-    // 레거시 데이터 권한 확인
-    await _checkLegacyDataPermissions();
-
-    // PreferenceService 초기화
+    // PreferenceService 초기화 (V2 마이그레이션 포함)
     final preferenceService = PreferenceService();
     await preferenceService.init();
     logger.i('PreferenceService 초기화 완료');
@@ -183,49 +179,7 @@ Future<OrderAgentMonitoringContext> _buildMonitoringContext() async {
   );
 }
 
-/// 레거시 데이터 접근 권한 확인 및 요청
-Future<void> _checkLegacyDataPermissions() async {
-  try {
-    // 이미 마이그레이션이 완료되었는지 확인
-    final prefs = await SharedPreferences.getInstance();
-    final bool migrationCompleted =
-        prefs.getBool('migration_completed') ?? false;
-
-    if (migrationCompleted) {
-      logger.i('마이그레이션이 이미 완료되었습니다. 권한 확인 건너뜀');
-      return;
-    }
-
-    logger.i('레거시 데이터 접근 권한 확인 중...');
-    final bool hasAccess = await PlatformService.checkLegacyDataAccess();
-
-    if (!hasAccess) {
-      logger.w('레거시 데이터 접근 권한이 없습니다. 권한 요청 시도...');
-      // 권한 요청 후 다시 확인
-      final bool accessAfterRequest =
-          await PlatformService.checkLegacyDataAccess();
-      logger.i('권한 요청 후 접근 가능 여부: $accessAfterRequest');
-
-      if (!accessAfterRequest) {
-        // 대체 방법 시도 (여러 패키지명)
-        logger.w('기본 접근 권한을 얻지 못했습니다. 대체 방법 시도...');
-        final alternativeResult =
-            await PlatformService.tryAlternativeLegacyAccess();
-
-        if (alternativeResult != null &&
-            alternativeResult.containsKey('migration_success')) {
-          final bool alternativeSuccess =
-              alternativeResult['migration_success'] as bool? ?? false;
-          logger.i('대체 접근 방법 결과: $alternativeSuccess');
-        }
-      }
-    } else {
-      logger.i('레거시 데이터 접근 권한이 있습니다.');
-    }
-  } catch (e, s) {
-    logger.e('레거시 데이터 접근 권한 확인 중 오류 발생', error: e, stackTrace: s);
-  }
-}
+// _checkLegacyDataPermissions 제거됨: V2 마이그레이션은 PreferenceService.init()에서 처리
 
 class MyApp extends ConsumerWidget {
   const MyApp({Key? key}) : super(key: key);
