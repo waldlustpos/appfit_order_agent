@@ -93,11 +93,11 @@ class _OrderSectionWidgetState extends ConsumerState<OrderSectionWidget> {
 
     return Container(
       decoration: BoxDecoration(
-        border: Border(
+        border: widget.status != OrderStatus.NEW  ? Border(
           top: BorderSide(
             color: Colors.grey[400]!,
           ),
-        ),
+        ) : null,
       ),
       child: Row(
         children: [
