@@ -24,6 +24,8 @@ import 'package:flutter/foundation.dart'; // For kDebugMode if needed
 import 'package:appfit_order_agent/i18n/strings.g.dart';
 import 'package:appfit_order_agent/providers/locale_provider.dart';
 import 'package:appfit_order_agent/utils/print/label_painter.dart';
+import 'package:appfit_order_agent/config/ota_config.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -42,6 +44,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   bool _isSaveId = false;
   bool _isAutoLogin = false;
   bool _isSubDisplay = false;
+  String _selectedEnv = 'live';
+  int _devTapCount = 0;
+  DateTime? _lastDevTap;
 
   var tag = '로그인';
 
@@ -88,6 +93,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
     _checkUsbDevices();
 
+    // 저장된 서버 환경 로드
+    _selectedEnv = PreferenceService().getEnvironment();
+
     // 텍스트 필드 리스너 추가
     _idController.addListener(() {
       setState(() {}); // 버튼 색상 업데이트를 위해 setState 호출
@@ -107,9 +115,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         await _requestAllPermissions();
       }
 
-      // 업데이트 체크 (권한 요청 후)
+      // 업데이트 체크 (권한 요청 후) - 자동 업데이트 설정에 따라 게이팅
       if (mounted) {
-        await _checkForUpdate();
+        final preferenceService = PreferenceService();
+        if (preferenceService.getAutoCheckUpdate()) {
+          await _checkForUpdate(); // 내부에서 _performAutoLogin() 호출
+        } else {
+          await _performAutoLogin();
+        }
       }
     });
   }
@@ -238,40 +251,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     }
   }
 
-  /// 로그인 ID 접두사 기반 서버 환경 자동 결정
-  /// 개발자 옵션에서 수동으로 서버를 변경한 경우에는 자동 결정을 스킵
-  Future<void> _autoDetectEnvironment(String storeId) async {
-    final preferenceService = PreferenceService();
-    final isManualOverride = preferenceService.getEnvironmentManualOverride();
-
-    if (isManualOverride) {
-      logger.i(
-          '[LoginScreen] 서버 환경 수동 오버라이드 활성화 상태. 자동 결정 스킵. (현재: ${preferenceService.getEnvironment()})');
-      return;
-    }
-
-    final env = storeId.toUpperCase().startsWith('TPCP') ? 'japanLive' : 'live';
-    final currentEnv = preferenceService.getEnvironment();
-
-    if (env != currentEnv) {
-      await preferenceService.setEnvironment(env);
-
-      final newEnvironment = env == 'japanLive'
-          ? AppFitEnvironment.japanLive
-          : AppFitEnvironment.live;
-      AppFitConfig.configure(
-        environment: newEnvironment,
-        requestSource: 'ORDER_AGENT',
-      );
-
-      // 토큰/Dio 프로바이더 갱신
-      ref.invalidate(appfit_providers.appFitTokenManagerProvider);
-      ref.invalidate(appfit_providers.appFitDioProvider);
-
-      logger.i('[LoginScreen] 서버 환경 자동 변경: $currentEnv → $env (ID: $storeId)');
-    }
-  }
-
   Future<void> _saveLoginInfo() async {
     final preferenceService = PreferenceService();
 
@@ -299,23 +278,45 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   /// 업데이트 체크
   Future<void> _checkForUpdate() async {
     try {
+      // 기기 정보 로깅
+      String manufacturer = 'unknown';
+      String model = 'unknown';
+      String androidVersion = 'unknown';
+      if (Platform.isAndroid) {
+        final deviceInfo = await DeviceInfoPlugin().androidInfo;
+        manufacturer = deviceInfo.manufacturer;
+        model = deviceInfo.model;
+        androidVersion = deviceInfo.version.release;
+      }
+      logger.i('[OTA] 업데이트 체크 시작 - 기기: $manufacturer $model (Android $androidVersion)');
+      logger.i('[OTA] versionUrl: ${OtaConfig.versionUrl}');
+
       final otaManager = OtaUpdateManager();
 
       final updateInfo = await otaManager.checkForUpdate(
-        versionUrl: 'http://waldpay.kokonutstamp2.com/appfit_order_agent_version.json',
-        downloadUrl: 'http://waldpay.kokonutstamp2.com/appfit_order_agent.apk',
+        versionUrl: OtaConfig.versionUrl,
+        downloadUrl: OtaConfig.downloadUrl,
       );
 
+      if (updateInfo == null) {
+        logger.w('[OTA] 버전 정보 없음 (updateInfo == null) - 업데이트 체크 생략');
+      } else {
+        logger.i('[OTA] 버전 확인 완료 - 현재: v${updateInfo.currentVersion}, 최신: v${updateInfo.latestVersion}, 업데이트필요: ${updateInfo.hasUpdate}');
+      }
+
       if (updateInfo != null && updateInfo.hasUpdate && mounted) {
+        logger.i('[OTA] 업데이트 다이얼로그 표시 - downloadUrl: ${updateInfo.downloadUrl}');
         final shouldDownload = await CommonDialog.showUpdateProgressDialog(
           context: context,
           updateInfo: updateInfo,
           onStartUpdate:
               (downloadUrl, destinationFilename, onEvent, onDone, onError) {
+            logger.i('[OTA] 다운로드 시작 - url: $downloadUrl, dest: $destinationFilename');
             otaManager.executeUpdate(
               downloadUrl: downloadUrl,
               destinationFilename: destinationFilename,
               onStatus: (status, progress) {
+                logger.d('[OTA] 다운로드 진행 - status: $status, progress: ${(progress * 100).toStringAsFixed(1)}%');
                 onEvent(OtaDownloadEvent(status: status, progress: progress));
               },
               onDone: onDone,
@@ -325,14 +326,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         );
 
         if (shouldDownload == true) {
-          logger.i('업데이트 다운로드 완료 - 설치 진행');
+          logger.i('[OTA] 업데이트 다운로드 완료 - 설치 진행');
+        } else {
+          logger.i('[OTA] 업데이트 다이얼로그 닫힘 (shouldDownload: $shouldDownload)');
         }
       }
 
       // 업데이트 체크 완료 후 자동 로그인 수행
       await _performAutoLogin();
     } catch (e, s) {
-      logger.e('업데이트 체크 중 오류 발생', error: e, stackTrace: s);
+      logger.e('[OTA] 업데이트 체크 중 오류 발생', error: e, stackTrace: s);
       await _performAutoLogin();
     }
   }
@@ -414,14 +417,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       // [FIX] 로그인 ID 대문자 강제 변환 (AppFit 소켓 채널 일치 보장)
       String storeId = _idController.text.trim().toUpperCase();
 
-      // 서버 환경 자동 결정 (개발자 수동 오버라이드가 아닌 경우)
-      await _autoDetectEnvironment(storeId);
-
       final (success, rewardType, errorMessage) = await ref
           .read(authProvider.notifier)
           .login(storeId, _passwordController.text);
 
       if (success) {
+        // TPCP 오버라이드: SUNMI + TPCP 매장은 자동 업데이트 체크 ON 유지
+        final prefService = PreferenceService();
+        if (!prefService.getUpdateTpcpOverrideDone()) {
+          if (storeId.startsWith('TPCP') && Platform.isAndroid) {
+            final deviceInfo = await DeviceInfoPlugin().androidInfo;
+            if (deviceInfo.manufacturer.toLowerCase() == 'sunmi') {
+              await prefService.setAutoCheckUpdate(true);
+              logger.i('[LoginScreen] TPCP+SUNMI 감지: 자동 업데이트 체크 ON으로 오버라이드');
+            }
+          }
+          await prefService.setUpdateTpcpOverrideDone(true);
+        }
+
         await _setWindowSoftInputMode('pan');
 
         StoreModel? storeModel =
@@ -806,20 +819,142 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     );
   }
 
+  String _envLabel(String env) => switch (env) {
+        'live' => 'Live',
+        'japanLive' => 'JP Live',
+        'dev' => 'Dev',
+        'staging' => 'Stage',
+        _ => env,
+      };
+
   Widget _buildEnvBadge() {
-    final env = AppFitConfig.environment.name;
-    final label = switch (env) {
-      'live' => 'Live',
-      'japanLive' => 'JP Live',
-      'dev' => 'Dev',
-      'staging' => 'Stage',
-      _ => env,
+    return GestureDetector(
+      onTap: _showEnvSelectDialog,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            _envLabel(_selectedEnv),
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.white.withOpacity(0.6),
+            ),
+          ),
+          const SizedBox(width: 2),
+          Icon(
+            Icons.arrow_drop_down,
+            size: 14,
+            color: Colors.white.withOpacity(0.6),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showEnvSelectDialog() async {
+    final envOptions = ['dev', 'staging', 'live', 'japanLive'];
+
+    final selected = await showDialog<String>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('서버 환경 선택'),
+        children: envOptions.map((env) {
+          final isSelected = env == _selectedEnv;
+          return SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, env),
+            child: Row(
+              children: [
+                Icon(
+                  isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
+                  size: 20,
+                  color: isSelected ? Theme.of(context).primaryColor : Colors.grey,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  _envLabel(env),
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
+    );
+
+    if (selected == null || selected == _selectedEnv) return;
+
+    final preferenceService = PreferenceService();
+    await preferenceService.setEnvironment(selected);
+
+    final newEnvironment = switch (selected) {
+      'live' => AppFitEnvironment.live,
+      'japanLive' => AppFitEnvironment.japanLive,
+      'dev' => AppFitEnvironment.dev,
+      'staging' => AppFitEnvironment.staging,
+      _ => AppFitEnvironment.live,
     };
-    return Text(
-      label,
-      style: TextStyle(
-        fontSize: 11,
-        color: Colors.white.withOpacity(0.6),
+    AppFitConfig.configure(
+      environment: newEnvironment,
+      requestSource: 'ORDER_AGENT',
+    );
+
+    ref.invalidate(appfit_providers.appFitTokenManagerProvider);
+    ref.invalidate(appfit_providers.appFitDioProvider);
+
+    setState(() => _selectedEnv = selected);
+    logger.i('[LoginScreen] 서버 환경 수동 변경: → $selected');
+  }
+
+  void _onDevAreaTap() {
+    final now = DateTime.now();
+    if (_lastDevTap != null && now.difference(_lastDevTap!).inMilliseconds > 1000) {
+      _devTapCount = 0;
+    }
+    _lastDevTap = now;
+    _devTapCount++;
+
+    if (_devTapCount >= 5) {
+      _devTapCount = 0;
+      _showDevAccountDialog();
+    }
+  }
+
+  void _showDevAccountDialog() {
+    const accounts = [
+      ('매머드커피 테스트매장', 'MHST00001'),
+      ('도쿄플라트 테스트매장', 'TPCP00002'),
+    ];
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => SimpleDialog(
+        title: const Text('개발 계정 선택'),
+        children: [
+          ...accounts.map((account) {
+            final (name, id) = account;
+            return SimpleDialogOption(
+              onPressed: () {
+                Navigator.pop(context);
+                setState(() {
+                  _idController.text = id;
+                  _passwordController.text = '1234';
+                });
+              },
+              child: Text('$name ($id)', style: const TextStyle(fontSize: 14)),
+            );
+          }),
+          const Divider(),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context),
+            child: const Center(
+              child: Text('닫기', style: TextStyle(fontSize: 14, color: Colors.grey)),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -882,6 +1017,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                   ),
                 ),
               ),
+            ),
+          ),
+
+          // 개발 계정 선택 (좌측 하단 연타)
+          Positioned(
+            bottom: 0,
+            left: 0,
+            child: GestureDetector(
+              onTap: _onDevAreaTap,
+              behavior: HitTestBehavior.opaque,
+              child: const SizedBox(width: 80, height: 80),
             ),
           ),
 

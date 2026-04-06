@@ -156,6 +156,17 @@
             "connected": "Connected",
             "disconnected": "Disconnected",
             "reconnect": "Reconnect"
+        },
+        "app_update": {
+            "auto_check_title": "Check for updates on startup",
+            "auto_check_desc": "Automatically check for the latest version on app launch.",
+            "manual_title": "App Update",
+            "version_info": "Current: v{currentVersion} / Latest: v{latestVersion}",
+            "up_to_date": "You are up to date.",
+            "checking": "Checking version...",
+            "check_failed": "Version check failed",
+            "update_btn": "Update",
+            "check_btn": "Check Version"
         }
     },
     "home": {

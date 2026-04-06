@@ -156,6 +156,17 @@
             "connected": "接続済み",
             "disconnected": "未接続",
             "reconnect": "再接続"
+        },
+        "app_update": {
+            "auto_check_title": "起動時にアプリ更新を確認",
+            "auto_check_desc": "アプリ起動時に自動的に最新バージョンを確認します。",
+            "manual_title": "アプリ更新",
+            "version_info": "現在: v{currentVersion} / 最新: v{latestVersion}",
+            "up_to_date": "最新バージョンです。",
+            "checking": "バージョン確認中...",
+            "check_failed": "バージョン確認に失敗しました",
+            "update_btn": "更新",
+            "check_btn": "バージョン確認"
         }
     },
     "home": {

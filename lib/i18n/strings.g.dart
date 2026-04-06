@@ -4,9 +4,9 @@
 /// To regenerate, run: `dart run slang`
 ///
 /// Locales: 3
-/// Strings: 924 (308 per locale)
+/// Strings: 953 (317 per locale)
 ///
-/// Built on 2026-03-30 at 00:13 UTC
+/// Built on 2026-04-06 at 01:15 UTC
 
 // coverage:ignore-file
 // ignore_for_file: type=lint
@@ -248,6 +248,7 @@ class _StringsSettingsKo {
 	late final _StringsSettingsDeveloperOptionsKo developer_options = _StringsSettingsDeveloperOptionsKo._(_root);
 	late final _StringsSettingsLocalServerKo local_server = _StringsSettingsLocalServerKo._(_root);
 	late final _StringsSettingsConnectionKo connection = _StringsSettingsConnectionKo._(_root);
+	late final _StringsSettingsAppUpdateKo app_update = _StringsSettingsAppUpdateKo._(_root);
 }
 
 // Path: home
@@ -754,6 +755,24 @@ class _StringsSettingsConnectionKo {
 	String get reconnect => '재연결';
 }
 
+// Path: settings.app_update
+class _StringsSettingsAppUpdateKo {
+	_StringsSettingsAppUpdateKo._(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+	String get auto_check_title => '시작 시 앱 업데이트 확인';
+	String get auto_check_desc => '앱 시작 시 자동으로 최신 버전을 확인합니다.';
+	String get manual_title => '앱 업데이트';
+	String version_info({required Object currentVersion, required Object latestVersion}) => '현재 버전: v${currentVersion} / 최신 버전: v${latestVersion}';
+	String get up_to_date => '최신 버전입니다.';
+	String get checking => '버전 확인 중...';
+	String get check_failed => '버전 확인 실패';
+	String get update_btn => '업데이트';
+	String get check_btn => '버전 확인';
+}
+
 // Path: home.tabs
 class _StringsHomeTabsKo {
 	_StringsHomeTabsKo._(this._root);
@@ -1082,6 +1101,7 @@ class _StringsSettingsEn extends _StringsSettingsKo {
 	@override late final _StringsSettingsDeveloperOptionsEn developer_options = _StringsSettingsDeveloperOptionsEn._(_root);
 	@override late final _StringsSettingsLocalServerEn local_server = _StringsSettingsLocalServerEn._(_root);
 	@override late final _StringsSettingsConnectionEn connection = _StringsSettingsConnectionEn._(_root);
+	@override late final _StringsSettingsAppUpdateEn app_update = _StringsSettingsAppUpdateEn._(_root);
 }
 
 // Path: home
@@ -1247,6 +1267,7 @@ class _StringsOrderDetailEn extends _StringsOrderDetailKo {
 	@override String dialog_repickup_confirm_content({required Object n}) => 'Do you want to re-request pickup for order #${n}?';
 	@override String get dialog_not_picked_up_confirm_title => 'Not Picked Up';
 	@override String dialog_not_picked_up_confirm_content({required Object n}) => 'Process order #${n} as not picked up?';
+	@override String dialog_complete_confirm_content({required Object n}) => 'Do you want to complete order #${n}?';
 	@override String print_receipt_fail({required Object error}) => 'Receipt printing failed: ${error}';
 	@override String get btn_receipt_reprint => 'Reprint Receipt';
 	@override String get btn_label_reprint => 'Reprint Label';
@@ -1595,6 +1616,24 @@ class _StringsSettingsConnectionEn extends _StringsSettingsConnectionKo {
 	@override String get reconnect => 'Reconnect';
 }
 
+// Path: settings.app_update
+class _StringsSettingsAppUpdateEn extends _StringsSettingsAppUpdateKo {
+	_StringsSettingsAppUpdateEn._(_StringsEn root) : this._root = root, super._(root);
+
+	@override final _StringsEn _root; // ignore: unused_field
+
+	// Translations
+	@override String get auto_check_title => 'Check for updates on startup';
+	@override String get auto_check_desc => 'Automatically check for the latest version on app launch.';
+	@override String get manual_title => 'App Update';
+	@override String version_info({required Object currentVersion, required Object latestVersion}) => 'Current: v${currentVersion} / Latest: v${latestVersion}';
+	@override String get up_to_date => 'You are up to date.';
+	@override String get checking => 'Checking version...';
+	@override String get check_failed => 'Version check failed';
+	@override String get update_btn => 'Update';
+	@override String get check_btn => 'Check Version';
+}
+
 // Path: home.tabs
 class _StringsHomeTabsEn extends _StringsHomeTabsKo {
 	_StringsHomeTabsEn._(_StringsEn root) : this._root = root, super._(root);
@@ -1923,6 +1962,7 @@ class _StringsSettingsJa extends _StringsSettingsKo {
 	@override late final _StringsSettingsDeveloperOptionsJa developer_options = _StringsSettingsDeveloperOptionsJa._(_root);
 	@override late final _StringsSettingsLocalServerJa local_server = _StringsSettingsLocalServerJa._(_root);
 	@override late final _StringsSettingsConnectionJa connection = _StringsSettingsConnectionJa._(_root);
+	@override late final _StringsSettingsAppUpdateJa app_update = _StringsSettingsAppUpdateJa._(_root);
 }
 
 // Path: home
@@ -2082,6 +2122,7 @@ class _StringsOrderDetailJa extends _StringsOrderDetailKo {
 	@override String dialog_repickup_confirm_content({required Object n}) => '${n}番の注文のピックアップを再要請しますか？';
 	@override String get dialog_not_picked_up_confirm_title => '未ピックアップ';
 	@override String dialog_not_picked_up_confirm_content({required Object n}) => '${n}番の注文を未ピックアップ処理しますか？';
+	@override String dialog_complete_confirm_content({required Object n}) => '${n}番の注文を完了処理しますか？';
 	@override String print_receipt_fail({required Object error}) => '領収書印刷失敗: ${error}';
 	@override String get btn_receipt_reprint => '領収書再印刷';
 	@override String get btn_label_reprint => 'ラベル再印刷';
@@ -2426,6 +2467,24 @@ class _StringsSettingsConnectionJa extends _StringsSettingsConnectionKo {
 	@override String get connected => '接続済み';
 	@override String get disconnected => '未接続';
 	@override String get reconnect => '再接続';
+}
+
+// Path: settings.app_update
+class _StringsSettingsAppUpdateJa extends _StringsSettingsAppUpdateKo {
+	_StringsSettingsAppUpdateJa._(_StringsJa root) : this._root = root, super._(root);
+
+	@override final _StringsJa _root; // ignore: unused_field
+
+	// Translations
+	@override String get auto_check_title => '起動時にアプリ更新を確認';
+	@override String get auto_check_desc => 'アプリ起動時に自動的に最新バージョンを確認します。';
+	@override String get manual_title => 'アプリ更新';
+	@override String version_info({required Object currentVersion, required Object latestVersion}) => '現在: v${currentVersion} / 最新: v${latestVersion}';
+	@override String get up_to_date => '最新バージョンです。';
+	@override String get checking => 'バージョン確認中...';
+	@override String get check_failed => 'バージョン確認に失敗しました';
+	@override String get update_btn => '更新';
+	@override String get check_btn => 'バージョン確認';
 }
 
 // Path: home.tabs

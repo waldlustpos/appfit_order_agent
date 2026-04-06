@@ -64,8 +64,8 @@ class OrderTimerManager {
       _pollingTimer?.cancel();
       _pollingTimer = Timer.periodic(
           Duration(seconds: _currentPollingIntervalSeconds), (_) {
-        logger.d('폴링 실행 -> _pollNewOrders');
-        onPollNewOrders?.call();
+        logger.d('폴링 실행 -> 전체 새로고침 (refreshOrders)');
+        onRefreshOrders?.call();
       });
     });
   }

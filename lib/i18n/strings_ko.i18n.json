@@ -156,6 +156,17 @@
             "connected": "연결됨",
             "disconnected": "연결 안 됨",
             "reconnect": "재연결"
+        },
+        "app_update": {
+            "auto_check_title": "시작 시 앱 업데이트 확인",
+            "auto_check_desc": "앱 시작 시 자동으로 최신 버전을 확인합니다.",
+            "manual_title": "앱 업데이트",
+            "version_info": "현재 버전: v{currentVersion} / 최신 버전: v{latestVersion}",
+            "up_to_date": "최신 버전입니다.",
+            "checking": "버전 확인 중...",
+            "check_failed": "버전 확인 실패",
+            "update_btn": "업데이트",
+            "check_btn": "버전 확인"
         }
     },
     "home": {

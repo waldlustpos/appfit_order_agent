@@ -735,12 +735,15 @@ class Order extends _$Order {
     date = DateTime.now().toString().substring(0, 10);
     logger.d('[refreshOrders] 시작 (날짜: $date)');
     _isRefreshing = true;
-    // 새로고침 시 가시 개수 초기화 (12개) - 스크롤 위치 초기화와 함께 동작 예상
-    state = state.copyWith(
-      isLoading: true,
-      error: null,
-      visibleOrderCount: 12,
-    );
+    // 폴링에 의한 새로고침 시 이미 주문이 표시된 상태라면 isLoading을 설정하지 않음 (불필요한 rebuild 방지)
+    final isInitialLoad = state.orders.isEmpty;
+    if (isInitialLoad) {
+      state = state.copyWith(
+        isLoading: true,
+        error: null,
+        visibleOrderCount: 12,
+      );
+    }
 
     try {
       final storeId = ref.read(storeProvider).value?.storeId ?? '';
@@ -756,6 +759,11 @@ class Order extends _$Order {
       logger.d('[refreshOrders] API 목록 조회 완료: ${basicOrders.length}건');
 
       // 2. 기존 캐시나 상태에서 상세 정보 복원 및 병합
+      // 빠른 검색을 위해 현재 state.orders를 Map으로 인덱싱
+      final existingOrderMap = <String, OrderModel>{
+        for (final o in state.orders) o.orderId: o,
+      };
+
       final mergedOrders = <OrderModel>[];
       for (final basicOrder in basicOrders) {
         // 캐시 확인
@@ -768,16 +776,25 @@ class Order extends _$Order {
             orderStatus: basicOrder.orderStatus,
             updateTime: basicOrder.orderedAt.isAfter(cached.updateTime)
                 ? basicOrder.orderedAt
-                : cached
-                    .updateTime, // orderedAt or updateTime? basicOrder has updateTime logic inside getOrders? No, it parses createdAt usually.
-            // getOrders result maps createdAt to orderedAt.
-            // Let's trust basicOrder's status but keep cached menus.
+                : cached.updateTime,
             shopOrderNo: basicOrder.shopOrderNo,
             isDetailLoaded: true,
           ));
         } else {
-          // 상세 정보 없음. 그냥 추가 (isDetailLoaded=false 상태)
-          mergedOrders.add(basicOrder);
+          // 캐시 미스: 현재 state.orders에서 상세 정보 복원 시도 (소켓으로 받은 주문 등)
+          final existing = existingOrderMap[basicOrder.orderId];
+          if (existing != null && existing.isDetailLoaded && existing.menus.isNotEmpty) {
+            mergedOrders.add(existing.copyWith(
+              status: basicOrder.status,
+              orderStatus: basicOrder.orderStatus,
+              shopOrderNo: basicOrder.shopOrderNo,
+            ));
+            // 캐시에도 저장하여 다음 폴링에서 바로 사용 가능
+            _orderDetailCache.put(basicOrder.orderId, mergedOrders.last);
+          } else {
+            // 상세 정보 없음. 그냥 추가 (isDetailLoaded=false 상태)
+            mergedOrders.add(basicOrder);
+          }
         }
       }
 

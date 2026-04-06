@@ -22,6 +22,7 @@ import 'appfit_test_screen.dart';
 import '../utils/mock_order_generator.dart' as __MockOrderGenerator;
 import '../core/orders/order_queue_service.dart';
 import 'package:appfit_core/appfit_core.dart';
+import '../config/ota_config.dart';
 import '../services/secure_storage_service.dart';
 import '../services/appfit/appfit_providers.dart' as appfit_providers;
 
@@ -70,6 +71,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   int _printCount = 1; // 주문서 출력 개수
   bool _isLocalServerEnabled = false; // 로컬 서버 활성화 상태
   bool _isRotated180 = false; // 화면 상하 반전
+  bool _isAutoCheckUpdate = true; // 자동 업데이트 체크 설정
+  bool _isCheckingUpdate = false; // 업데이트 버전 확인 중 여부
+  UpdateInfo? _updateInfo; // 최신 버전 정보
   String _selectedEnv = PreferenceService().getEnvironment();
 
   // AudioPlayer 상태 관리를 위한 플래그 추가
@@ -80,6 +84,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     super.initState();
     _setWindowSoftInputMode('resize');
     _loadSettings();
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _checkUpdateFromSettings());
   }
 
   void _loadSettings() {
@@ -118,7 +124,45 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _printCount = _preferenceService.getPrintCount();
       _isLocalServerEnabled = _preferenceService.getLocalServerEnabled();
       _isRotated180 = _preferenceService.getIsRotated180();
+      _isAutoCheckUpdate = _preferenceService.getAutoCheckUpdate();
     });
+  }
+
+  Future<void> _checkUpdateFromSettings() async {
+    if (!mounted) return;
+    setState(() => _isCheckingUpdate = true);
+    try {
+      final otaManager = OtaUpdateManager();
+      final info = await otaManager.checkForUpdate(
+        versionUrl: OtaConfig.versionUrl,
+        downloadUrl: OtaConfig.downloadUrl,
+      );
+      if (mounted) setState(() => _updateInfo = info);
+    } catch (e) {
+      // 버전 확인 실패 - 무시
+    } finally {
+      if (mounted) setState(() => _isCheckingUpdate = false);
+    }
+  }
+
+  Future<void> _performUpdateFromSettings() async {
+    if (_updateInfo == null || !mounted) return;
+    final otaManager = OtaUpdateManager();
+    await CommonDialog.showUpdateProgressDialog(
+      context: context,
+      updateInfo: _updateInfo!,
+      onStartUpdate:
+          (downloadUrl, destinationFilename, onEvent, onDone, onError) {
+        otaManager.executeUpdate(
+          downloadUrl: downloadUrl,
+          destinationFilename: destinationFilename,
+          onStatus: (status, progress) =>
+              onEvent(OtaDownloadEvent(status: status, progress: progress)),
+          onDone: onDone,
+          onError: onError,
+        );
+      },
+    );
   }
 
   Future<void> _saveSettings() async {
@@ -1501,6 +1545,58 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
               ),
             ),
+            // 자동 업데이트 체크 설정
+            _buildSettingItem(
+              title: t.settings.app_update.auto_check_title,
+              description: t.settings.app_update.auto_check_desc,
+              trailing: CustomSwitch(
+                value: _isAutoCheckUpdate,
+                activeColor: AppStyles.kMainColor,
+                inactiveColor: Colors.grey,
+                activeText: 'ON',
+                inactiveText: 'OFF',
+                onChanged: (value) {
+                  setState(() => _isAutoCheckUpdate = value);
+                  _preferenceService.setAutoCheckUpdate(value);
+                },
+              ),
+            ),
+
+            // 수동 업데이트 섹션
+            _buildSettingItem(
+              title: t.settings.app_update.manual_title,
+              description: _isCheckingUpdate
+                  ? t.settings.app_update.checking
+                  : (_updateInfo == null
+                      ? t.settings.app_update.check_failed
+                      : (_updateInfo!.hasUpdate
+                          ? t.settings.app_update.version_info(
+                              currentVersion: _updateInfo!.currentVersion,
+                              latestVersion: _updateInfo!.latestVersion,
+                            )
+                          : t.settings.app_update.up_to_date)),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  OutlinedButton(
+                    onPressed:
+                        _isCheckingUpdate ? null : _checkUpdateFromSettings,
+                    child: Text(t.settings.app_update.check_btn),
+                  ),
+                  if (_updateInfo != null && _updateInfo!.hasUpdate) ...[
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      onPressed: _performUpdateFromSettings,
+                      style: ElevatedButton.styleFrom(
+                          backgroundColor: AppStyles.kMainColor),
+                      child: Text(t.settings.app_update.update_btn,
+                          style: const TextStyle(color: Colors.white)),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+
             // KDS 모드일 때만 표시할 설정 (현재 미사용)
             /*if (isKdsMode) ...[
                   _buildSettingItem(

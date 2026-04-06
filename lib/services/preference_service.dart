@@ -79,6 +79,12 @@ class PreferenceService {
   static const String KEY_ENVIRONMENT_MANUAL_OVERRIDE =
       "appfit_environment_manual_override"; // 개발자 수동 서버 환경 오버라이드 플래그
 
+  // 업데이트 설정 키
+  static const String KEY_AUTO_CHECK_UPDATE = "KEY_AUTO_CHECK_UPDATE";
+  static const String KEY_UPDATE_DEFAULT_SET = "KEY_UPDATE_DEFAULT_SET";
+  static const String KEY_UPDATE_TPCP_OVERRIDE_DONE =
+      "KEY_UPDATE_TPCP_OVERRIDE_DONE";
+
   // New Printer Setting Keys
 
   static final PreferenceService _instance = PreferenceService._internal();
@@ -119,6 +125,8 @@ class PreferenceService {
 
       // 프린터 기본 설정 및 기기 제조사 확인
       await _initializePrinterDefaults();
+      // 업데이트 설정 기본값 초기화
+      await _initializeUpdateDefaults();
 
       // ACCEPTED 주문 초기화 로직은 OrderProvider로 이동
 
@@ -175,6 +183,32 @@ class PreferenceService {
       await _prefs.setBool(KEY_PRINTER_DEFAULT_SET, true); // 설정 완료 마커 저장
     } catch (e, s) {
       logger.e('[PreferenceService] 기본 프린터 설정 중 오류 발생',
+          error: e, stackTrace: s);
+    }
+  }
+
+  /// 업데이트 설정 기본값 초기화 (최초 1회 실행)
+  Future<void> _initializeUpdateDefaults() async {
+    final isAlreadySet = _prefs.getBool(KEY_UPDATE_DEFAULT_SET) ?? false;
+    if (isAlreadySet) return;
+
+    try {
+      if (Platform.isAndroid) {
+        final deviceInfo = await DeviceInfoPlugin().androidInfo;
+        final manufacturer = deviceInfo.manufacturer.toLowerCase();
+        if (manufacturer == 'sunmi') {
+          await setAutoCheckUpdate(false);
+          logger.i('[PreferenceService] Sunmi 디바이스 감지: 자동 업데이트 체크 OFF 설정');
+        } else {
+          await setAutoCheckUpdate(true);
+          logger.i('[PreferenceService] 일반 디바이스 감지($manufacturer): 자동 업데이트 체크 ON 설정');
+        }
+      } else {
+        await setAutoCheckUpdate(true);
+      }
+      await _prefs.setBool(KEY_UPDATE_DEFAULT_SET, true);
+    } catch (e, s) {
+      logger.e('[PreferenceService] 업데이트 기본 설정 중 오류 발생',
           error: e, stackTrace: s);
     }
   }
@@ -707,4 +741,20 @@ class PreferenceService {
   bool getIsRotated180() {
     return _prefs.getBool(KEY_IS_ROTATED_180) ?? AppEnv.isRotated180;
   }
+
+  // 자동 업데이트 체크 설정 조회 (기본값: true)
+  bool getAutoCheckUpdate() =>
+      _prefs.getBool(KEY_AUTO_CHECK_UPDATE) ?? true;
+
+  // 자동 업데이트 체크 설정 저장
+  Future<void> setAutoCheckUpdate(bool value) async =>
+      await _prefs.setBool(KEY_AUTO_CHECK_UPDATE, value);
+
+  // TPCP 오버라이드 완료 여부 조회
+  bool getUpdateTpcpOverrideDone() =>
+      _prefs.getBool(KEY_UPDATE_TPCP_OVERRIDE_DONE) ?? false;
+
+  // TPCP 오버라이드 완료 여부 저장
+  Future<void> setUpdateTpcpOverrideDone(bool value) async =>
+      await _prefs.setBool(KEY_UPDATE_TPCP_OVERRIDE_DONE, value);
 }
