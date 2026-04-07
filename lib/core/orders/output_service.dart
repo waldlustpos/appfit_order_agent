@@ -145,10 +145,17 @@ class OutputService {
         return;
       }
 
-      // 전체 라벨 수 계산 (필터링된 메뉴 수량 합산)
+      // 전체 라벨 수 계산 (필터 무관, 전체 메뉴 수량 합산)
       final int totalLabels =
-          menusToprint.fold(0, (sum, m) => sum + m.qty);
-      int labelIndex = 0;
+          orderToPrint.menus.fold(0, (sum, m) => sum + m.qty);
+
+      // 전체 메뉴 순서 기준으로 각 메뉴의 시작 인덱스 미리 계산
+      final menuStartIndex = <int, int>{};
+      int runningIndex = 0;
+      for (final menu in orderToPrint.menus) {
+        menuStartIndex[identityHashCode(menu)] = runningIndex;
+        runningIndex += menu.qty;
+      }
 
       for (final menu in menusToprint) {
         // 서브 정보 추출 (원두, 온도, 사이즈)
@@ -190,7 +197,7 @@ class OutputService {
 
         // 해당 메뉴 수량만큼 반복 출력 (순번별로 이미지 생성)
         for (int i = 0; i < menu.qty; i++) {
-          labelIndex++;
+          final labelIndex = menuStartIndex[identityHashCode(menu)]! + i + 1;
           final imageBytes = await LabelPainter.generateLabelImage(
             menuName: menu.itemName,
             options: filteredOptions,

@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 3.0.1+124
+version: 3.0.2+125
 environment:
   sdk: ^3.5.0
   flutter: ">=3.19.0"
@@ -72,7 +72,10 @@ dependencies:
 
   # AppFit 공통 패키지
   appfit_core:
-    path: ../packages/appfit_core
+    git:
+      url: https://github.com/ratm10/appifit_agent_core.git
+      path: appfit_core
+      ref: v1.0.2
 
   sentry_flutter: ^8.0.0
   

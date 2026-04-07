@@ -216,11 +216,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     });
 
     // 디버그 모드인 경우 테스트 계정 정보 자동 입력
-    if (kDebugMode) {
+   /* if (kDebugMode) {
       _idController.text = 'TPCP00002';
       _passwordController.text = '1234';
       logger.i('[LoginScreen] 디버그 모드: 테스트 계정 정보가 설정되었습니다.');
-    }
+    }*/
   }
 
   /// V2 마이그레이션: 구앱 ID → 신규 AppFit ID 매핑
