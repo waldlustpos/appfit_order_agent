@@ -263,7 +263,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     }
     if (_isAutoLogin) {
       await preferenceService.saveId(storeId);
-      await preferenceService.savePassword(storeId, _passwordController.text);
+      // 빈 비밀번호는 저장하지 않음 — 빈 문자열이 저장되면 다음 getPassword()에서
+      // null을 반환하여 자동로그인이 영구적으로 실패하는 문제 방지
+      if (_passwordController.text.isNotEmpty) {
+        await preferenceService.savePassword(storeId, _passwordController.text);
+      }
     } else {
       await preferenceService.clearLoginInfo();
     }

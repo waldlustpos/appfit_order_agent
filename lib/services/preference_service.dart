@@ -127,6 +127,8 @@ class PreferenceService {
       await _initializePrinterDefaults();
       // 업데이트 설정 기본값 초기화
       await _initializeUpdateDefaults();
+      // 서버 환경이 저장되지 않은 경우 매장 ID 기반으로 복원
+      await _ensureEnvironmentIsSet();
 
       // ACCEPTED 주문 초기화 로직은 OrderProvider로 이동
 
@@ -211,6 +213,19 @@ class PreferenceService {
       logger.e('[PreferenceService] 업데이트 기본 설정 중 오류 발생',
           error: e, stackTrace: s);
     }
+  }
+
+  /// 서버 환경이 저장되지 않은 경우 매장 ID 기반으로 자동 설정
+  ///
+  /// 마이그레이션이 스킵된 구버전 AppFit 사용자 또는 환경값이 유실된 경우를
+  /// 대응하기 위해 매번 init() 시 확인. KEY_ENVIRONMENT가 이미 있으면 즉시 리턴.
+  Future<void> _ensureEnvironmentIsSet() async {
+    if (_prefs.containsKey(KEY_ENVIRONMENT)) return;
+    final savedId = getId();
+    if (savedId == null || savedId.isEmpty) return;
+    final env = savedId.toUpperCase().startsWith('TPCP') ? 'japanLive' : 'live';
+    await _prefs.setString(KEY_ENVIRONMENT, env);
+    logger.i('[PreferenceService] 서버 환경 자동 복원: $env (ID: $savedId)');
   }
 
   /// 레거시 데이터 접근 권한 확인

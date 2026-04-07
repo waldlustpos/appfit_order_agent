@@ -110,10 +110,14 @@ class V2MigrationService {
 
   // --- Private 메서드 ---
 
-  /// 구앱 데이터 존재 여부 판별
+  /// 구앱(kokonut_order_agent_v2) 데이터 존재 여부 판별
+  ///
+  /// 구앱 ID 형식: 'K' + 숫자 (예: K0130002, k0130002)
+  /// AppFit ID 형식: 알파벳 4자 + 숫자 (예: TPCP00002, MHST00001)
   bool _isOldAppData(SharedPreferences prefs) {
     final savedId = prefs.getString(PreferenceService.KEY_MID);
-    return savedId != null && savedId.isNotEmpty;
+    if (savedId == null || savedId.isEmpty) return false;
+    return RegExp(r'^[kK]\d+$').hasMatch(savedId);
   }
 
   /// 볼륨 비례 변환 (0-10 → 0-15)
