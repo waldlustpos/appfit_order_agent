@@ -125,8 +125,8 @@ class PrintedOrderCache {
       data[newOrderId] = DateTime.now().millisecondsSinceEpoch;
 
       await prefs.setString(_keyPrintedOrders, jsonEncode(data));
-    } catch (e) {
-      logger.e('[PrintedOrderCache] 저장 오류: $newOrderId', error: e);
+    } catch (e, s) {
+      logger.e('[PrintedOrderCache] 저장 오류: $newOrderId', error: e, stackTrace: s);
     }
   }
 

@@ -311,7 +311,7 @@ class Membership extends _$Membership {
         isLoadingRewardHistory: false,
       );
       return false;
-    } catch (e) {
+    } catch (e, s) {
       logger.e('Unexpected error during membership search: $e');
       state = state.copyWith(
         errorMessage: '회원 조회 중 알 수 없는 오류가 발생했습니다.',
@@ -357,7 +357,7 @@ class Membership extends _$Membership {
       state =
           state.copyWith(errorMessage: e.message, clearLoadingActionId: true);
       return false;
-    } catch (e) {
+    } catch (e, s) {
       logger.e('Unexpected error during coupon use: $e');
       state = state.copyWith(
           errorMessage: '쿠폰 사용 중 오류가 발생했습니다.', clearLoadingActionId: true);
@@ -397,7 +397,7 @@ class Membership extends _$Membership {
       state =
           state.copyWith(errorMessage: e.message, clearLoadingActionId: true);
       return false;
-    } catch (e) {
+    } catch (e, s) {
       logger.e('Unexpected error during coupon cancel: $e');
       state = state.copyWith(
           errorMessage: '쿠폰 취소 중 오류가 발생했습니다.', clearLoadingActionId: true);
@@ -443,7 +443,7 @@ class Membership extends _$Membership {
       logger.e('API Exception during cancelStamp: ${e.message}');
       state = state.copyWith(errorMessage: e.message, isLoading: false);
       return false;
-    } catch (e) {
+    } catch (e, s) {
       logger.e('Unexpected error during cancelStamp: $e');
       state = state.copyWith(
           errorMessage: '스탬프 적립 취소 중 오류가 발생했습니다.', isLoading: false);
@@ -499,7 +499,7 @@ class Membership extends _$Membership {
         isLoading: false,
       );
       return false;
-    } catch (e) {
+    } catch (e, s) {
       logger.e('Unexpected error during saveStamp: $e');
       state = state.copyWith(
         errorMessage: '스탬프 적립 중 오류가 발생했습니다.',
@@ -536,7 +536,7 @@ class Membership extends _$Membership {
             errorMessage: '스탬프 취소에 실패했습니다.', clearLoadingActionId: true);
         return false;
       }
-    } catch (e) {
+    } catch (e, s) {
       state = state.copyWith(
           errorMessage: '스탬프 취소 중 오류가 발생했습니다.', clearLoadingActionId: true);
       return false;
@@ -575,8 +575,8 @@ class Membership extends _$Membership {
       );
       state = state.copyWith(isLoading: false);
       return couponData;
-    } catch (e) {
-      logger.e('쿠폰 검증 중 오류 발생', error: e);
+    } catch (e, s) {
+      logger.e('쿠폰 검증 중 오류 발생', error: e, stackTrace: s);
       state = state.copyWith(
         errorMessage: e.toString().replaceFirst('Exception: ', ''),
         isLoading: false,

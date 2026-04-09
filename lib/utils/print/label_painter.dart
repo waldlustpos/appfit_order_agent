@@ -461,7 +461,7 @@ class LabelPainter extends CustomPainter {
         final Completer<ui.Image> completer = Completer();
         ui.decodeImageFromList(bytes, (img) => completer.complete(img));
         _cachedLogo = await completer.future;
-      } catch (e) {
+      } catch (e, s) {
         debugPrint('Failed to load logo image: $e');
       }
     }

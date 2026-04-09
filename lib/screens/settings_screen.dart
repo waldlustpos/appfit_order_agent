@@ -70,6 +70,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   int _alertCount = 3;
   int _printCount = 1; // 주문서 출력 개수
   bool _isLocalServerEnabled = false; // 로컬 서버 활성화 상태
+  bool _isLocalServerRunning = false; // 로컬 서버 실행 중 여부 (info box 갱신용)
   bool _isRotated180 = false; // 화면 상하 반전
   bool _isAutoCheckUpdate = true; // 자동 업데이트 체크 설정
   bool _isCheckingUpdate = false; // 업데이트 버전 확인 중 여부
@@ -123,6 +124,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _alertCount = _preferenceService.getSoundNum();
       _printCount = _preferenceService.getPrintCount();
       _isLocalServerEnabled = _preferenceService.getLocalServerEnabled();
+      _isLocalServerRunning = LocalServerService.instance?.isRunning ?? false;
       _isRotated180 = _preferenceService.getIsRotated180();
       _isAutoCheckUpdate = _preferenceService.getAutoCheckUpdate();
     });
@@ -138,7 +140,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         downloadUrl: OtaConfig.downloadUrl,
       );
       if (mounted) setState(() => _updateInfo = info);
-    } catch (e) {
+    } catch (e, s) {
       // 버전 확인 실패 - 무시
     } finally {
       if (mounted) setState(() => _isCheckingUpdate = false);
@@ -206,8 +208,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         );*/
       }
-    } catch (e) {
-      logger.e('Error saving settings', error: e);
+    } catch (e, s) {
+      logger.e('Error saving settings', error: e, stackTrace: s);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -333,8 +335,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Future<void> _playSound(String soundFile) async {
     try {
       await _audioPlayer.play(AssetSource('sounds/$soundFile'));
-    } catch (e) {
-      logger.e('Error playing sound', error: e);
+    } catch (e, s) {
+      logger.e('Error playing sound', error: e, stackTrace: s);
       // 사용자에게 SnackBar로 에러 알림 추가
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -352,7 +354,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Future<void> _playSoundSafely(String soundFile) async {
     try {
       await _audioPlayer.play(AssetSource('sounds/$soundFile'));
-    } catch (e) {
+    } catch (e, s) {
       // AudioPlayer 재생 실패 시 재시도 (한 번만)
       logger.w('첫 번째 재생 시도 실패, 재시도: $e');
       try {
@@ -1207,7 +1209,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           SnackBar(content: Text('테스트 라벨 3장 출력 완료 (${sw.elapsedMilliseconds}ms)')),
         );
       }
-    } catch (e) {
+    } catch (e, s) {
       logToFile(
           tag: LogTag.ERROR,
           message: '[LabelTest] 테스트 라벨 출력 실패: $e');
@@ -1261,7 +1263,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
                                 try {
                                   await _audioPlayer.stop();
-                                } catch (e) {
+                                } catch (e, s) {
                                   logger.d('AudioPlayer stop 실패 (무시): $e');
                                 }
 
@@ -1432,7 +1434,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           } else {
                             await localServer.startServer();
                           }
-                        } catch (e) {
+                        } catch (e, s) {
                           logger.w('상품 데이터 로드 실패, 서버만 시작', error: e);
                           await localServer.startServer();
                         }
@@ -1447,7 +1449,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                               backgroundColor: Colors.green,
                             ),
                           );
-                          setState(() {}); // Refresh for info box
+                          setState(() {
+                            _isLocalServerRunning = localServer.isRunning;
+                          });
                         }
                       } else {
                         await localServer.stopServer();
@@ -1459,7 +1463,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                               backgroundColor: Colors.orange,
                             ),
                           );
-                          setState(() {}); // Refresh for info box
+                          setState(() {
+                            _isLocalServerRunning = localServer.isRunning;
+                          });
                         }
                       }
                     }
@@ -1479,10 +1485,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       return Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.green.withOpacity(0.1),
+                          color: _isLocalServerRunning
+                              ? Colors.green.withOpacity(0.1)
+                              : Colors.grey.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(8),
-                          border:
-                              Border.all(color: Colors.green.withOpacity(0.3)),
+                          border: Border.all(
+                            color: _isLocalServerRunning
+                                ? Colors.green.withOpacity(0.3)
+                                : Colors.grey.withOpacity(0.3),
+                          ),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,

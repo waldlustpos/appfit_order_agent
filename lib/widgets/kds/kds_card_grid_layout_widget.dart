@@ -413,7 +413,7 @@ class _OptimizedOrderCardState extends ConsumerState<_OptimizedOrderCard> {
               .read(kdsScrollPositionsProvider.notifier)
               .saveScrollPosition(_orderId, currentOffset);
         }
-      } catch (e) {
+      } catch (e, s) {
         logger.d('KDS: 스크롤 리스너 오류 - $_orderId: $e');
       }
     }
@@ -455,7 +455,7 @@ class _OptimizedOrderCardState extends ConsumerState<_OptimizedOrderCard> {
       ref
           .read(kdsScrollButtonStatesProvider.notifier)
           .updateScrollButtons(_orderId, canScrollUp, canScrollDown);
-    } catch (e) {
+    } catch (e, s) {
       // 오류 발생 시 버튼 숨김
       logger.d('KDS: 스크롤 버튼 상태 업데이트 오류 - $_orderId: $e');
       ref
@@ -503,7 +503,7 @@ class _OptimizedOrderCardState extends ConsumerState<_OptimizedOrderCard> {
 
         // 위치 복원 후 버튼 상태 즉시 업데이트
         _updateScrollButtonVisibilityBasedOnControllerState();
-      } catch (e) {
+      } catch (e, s) {
         logger.d('KDS: 스크롤 위치 복원 오류 - $_orderId: $e');
         // 오류 발생 시에도 버튼 상태는 업데이트
         _updateScrollButtonVisibilityBasedOnControllerState();

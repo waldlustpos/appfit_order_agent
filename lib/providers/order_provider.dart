@@ -26,6 +26,7 @@ import 'package:appfit_order_agent/core/orders/cache/order_detail_cache.dart';
 import 'package:appfit_order_agent/core/orders/cache/processed_order_cache.dart';
 import 'package:appfit_order_agent/services/appfit/appfit_providers.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/utils/model_parse_utils.dart';
 import 'order_state.dart';
 import 'package:appfit_order_agent/utils/socket_event_suppressor.dart';
 import 'package:appfit_core/appfit_core.dart' as appfit_core;
@@ -58,40 +59,20 @@ class Order extends _$Order {
   bool _isAudioPlayerDisposed = false; // AudioPlayer dispose 상태 추적
   String _lastKnownOrderSequence = "0";
   List<OrderModel> _unfilteredOrders = []; // 필터링되지 않은 전체 주문 목록
-  // 성능 최적화: 주문 ID 기반 빠른 검색을 위한 Map 인덱스
-  final Map<String, int> _orderIndexMap = <String, int>{};
   Timer? _batchProcessingTimer; // 일부는 QueueManager로 이동, 일부는 여전히 필요
 
   bool _isInitialLoadComplete = false; // 초기 로딩 완료 여부 플래그
 
-  // 타이머들은 OrderTimerManager로 이동됨
-  // Timer? _pollingTimer;  // -> _timerManager
-  // Timer? _cacheCleanupTimer;  // -> _timerManager
-  // Timer? _midnightRefreshTimer;  // -> _timerManager
   Timer? _queueProcessingTimer;
-  // 소켓 구독들은 OrderSocketManager로 이동됨
-  // StreamSubscription<OrderNotification>? _orderNotificationSubscription;  // -> _socketManager
-  // StreamSubscription<Map<String, dynamic>>? _messageStreamSubscription;  // -> _socketManager
-  // final int _currentPollingIntervalSeconds = 60; // -> OrderTimerManager로 이동됨
   var tag = '주문';
 
-  // FirestoreSyncService로 이전됨: 개별 구독 핸들 보관 불필요
-  // StreamSubscription? _serviceStatusSubscription; // 서비스 스트림 구독 변수
-
-  // 앱 초기화시 알람 재생 여부 플래그
   bool _shouldPlayInitialAlarm = true;
   bool _isLoggedOut = false; // 로그아웃 상태 추적
 
-  // 현재 설치 유형 저장 (향후 사용 예정)
-  // InstallType? _currentInstallType; // unused
-
-  // Step 2: Blink service (external)
   late final BlinkService _blinkService;
-  // Step 3: Queue/Sync services (external) – reserved for next step
   late final OutputService _outputService;
-  late final OutputQueueService _outputQueueService; // [NEW]
+  late final OutputQueueService _outputQueueService;
   late final OrderQueueService _orderQueueService;
-  // late final SocketOrderService _socketOrderService;  // -> OrderSocketManager로 이동됨
 
   @override
   OrderState build() {
@@ -221,6 +202,7 @@ class Order extends _$Order {
       // 각 관리자들의 dispose 호출
       _timerManager.dispose();
       _socketManager.dispose();
+      _queueManager.dispose();
       _queueProcessingTimer?.cancel();
 
       // 로그아웃 상태가 아닐 때만 서비스 정지
@@ -344,8 +326,7 @@ class Order extends _$Order {
       final existingIndex =
           state.orders.indexWhere((o) => o.orderId == order.orderId);
       final bool isNewOrder = existingIndex == -1;
-      final String todayDate =
-          DateTime.now().toString().substring(0, 10); // 오늘 날짜 문자열
+      final String todayDate = todayDateString(); // 오늘 날짜 문자열
 
       // 주문의 날짜 필드 확인 (orderTime 사용 및 포맷팅)
       final String orderDate = DateFormat('yyyy-MM-dd').format(order.orderedAt);
@@ -625,65 +606,6 @@ class Order extends _$Order {
 
   // 백그라운드 로딩 관련 함수들 제거됨 - 이제 refreshOrders에서 순차적으로 처리
 
-  /// 단일 주문 상세정보 로드 (사용 안함 - 배치 처리로 대체)
-  /*
-  Future<OrderModel?> _loadSingleOrderDetail(String orderId) async {
-    try {
-      // 이미 캐시에 있는지 확인
-      final cached = _orderDetailCache.get(orderId);
-      if (cached != null && cached.orderMenuList.isNotEmpty) {
-        return cached;
-      }
-
-      // API에서 상세정보 가져오기
-      final storeId = ref.read(storeProvider).value?.storeId ?? '';
-      if (storeId.isEmpty) return null;
-
-      final orderDetail =
-          await _apiService.getOrderDetail(orderId, storeId: storeId);
-
-      // 캐시에 저장 (상세정보가 있는 경우만)
-      if (orderDetail.orderMenuList.isNotEmpty) {
-        _orderDetailCache.put(orderId, orderDetail);
-        
-        // 개별 상태 업데이트는 배치 처리로 대체됨
-        // _updateOrderInStateWithDetails(orderDetail);
-
-        return orderDetail;
-      }
-
-      return null;
-    } catch (e) {
-      logger.d('[Detail Loading] 오류 - ${orderId}: $e');
-      return null;
-    }
-  }
-  */
-
-  /// 상태 목록에서 주문을 상세정보로 업데이트 (사용 안함 - 배치 처리로 대체)
-  /*
-  void _updateOrderInStateWithDetails(OrderModel detailedOrder) {
-    final updatedOrders = state.orders.map((order) {
-      if (order.orderId == detailedOrder.orderId) {
-        // 상세정보를 적용하되, 기존 상태 정보는 보존
-        return detailedOrder.copyWith(
-          status: order.status,
-          orderStusCd: order.orderStatus,
-          updateTime: order.updateTime.isAfter(detailedOrder.updateTime)
-              ? order.updateTime
-              : detailedOrder.updateTime,
-        );
-      }
-      return order;
-    }).toList();
-
-    state = state.copyWith(
-      orders: updatedOrders,
-      activeOrderCount: _calculateActiveOrderCount(updatedOrders),
-    );
-  }
-  */
-
   /// KDS 등에서 화면에 보이는 중요한 주문들의 상세 정보를 우선 로딩
   Future<void> _fetchDetailsForVisibleOrders() async {
     final isKdsMode = ref.read(kdsModeProvider);
@@ -713,8 +635,8 @@ class Order extends _$Order {
     try {
       await Future.wait(targetOrders.map((o) => fetchOrderDetail(o.orderId)));
       logger.d('[OrderProvider] 병렬 로딩 완료');
-    } catch (e) {
-      logger.e('[OrderProvider] 병렬 로딩 중 오류 발생', error: e);
+    } catch (e, s) {
+      logger.e('[OrderProvider] 병렬 로딩 중 오류 발생', error: e, stackTrace: s);
     }
   }
 
@@ -732,7 +654,7 @@ class Order extends _$Order {
           '[refreshOrders] 이미 로딩/새로고침 중이므로 건너뜀 (loading: ${state.isLoading}, refreshing: $_isRefreshing)');
       return;
     }
-    date = DateTime.now().toString().substring(0, 10);
+    date = todayDateString();
     logger.d('[refreshOrders] 시작 (날짜: $date)');
     _isRefreshing = true;
     // 폴링에 의한 새로고침 시 이미 주문이 표시된 상태라면 isLoading을 설정하지 않음 (불필요한 rebuild 방지)
@@ -854,19 +776,6 @@ class Order extends _$Order {
   // 기존 메서드들 (심플화된 refreshOrders에서 사용 안함)
   // ==========================================
 
-  // 앱 초기화시 알람 처리 (사용 안함)
-  /*
-  void _handleInitialAlarm(List<OrderModel> orders) {
-    final isKdsMode = ref.read(kdsModeProvider);
-    final modeText = isKdsMode ? 'KDS 모드' : '일반 모드';
-
-    // 앱 시작 시 출력/알람 처리는 _handleAppStartupPrintAndAlarm에서 처리하므로
-    // 여기서는 초기 알람 플래그만 비활성화
-    _shouldPlayInitialAlarm = false;
-    logger.d('[초기 알람] $modeText: 초기 알람 플래그 비활성화 완료');
-  }
-  */
-
   // Firestore 동기화는 OrderFirestoreManager로 이동됨
 
   // OrderStatus 변환은 OrderFirestoreManager로 이동됨
@@ -950,7 +859,7 @@ class Order extends _$Order {
             );
             logger.w(
                 "Order $orderId not in state, fetched details for cancellation queue.");
-          } catch (e) {
+          } catch (e, s) {
             logger.e(
                 "Failed to fetch details for cancelled order $orderId, cannot queue state update.");
           }
@@ -998,7 +907,7 @@ class Order extends _$Order {
     try {
       await ref.read(soundAppServiceProvider).stop();
       logger.d('Notification sound stopped manually.');
-    } catch (e) {
+    } catch (e, s) {
       logger.w('Error stopping sound service: $e');
     }
 
@@ -1170,14 +1079,7 @@ class Order extends _$Order {
     _queueManager.queueOrder(order);
   }
 
-  List<OrderModel> moveQueueToBatchExternal() =>
-      _queueManager.moveQueueToBatch();
-  void sortBatchQueueByOrderNumberExternal() =>
-      _queueManager.sortBatchQueueByOrderNumber();
-  bool get isBatchCollectingExternal => _queueManager.isBatchCollecting;
   bool get hasPendingExternal => _queueManager.hasPending;
-  void processNextOrdersInBatchExternal() =>
-      _queueManager.processNextOrdersInBatch();
 
   // 폴링으로 주기적 주문 처리
   Future<void> _pollNewOrders() async {
@@ -1189,7 +1091,7 @@ class Order extends _$Order {
     final storeId = ref.read(storeProvider).value?.storeId ?? '';
     if (storeId.isEmpty) return;
 
-    final today = DateTime.now().toString().substring(0, 10);
+    final today = todayDateString();
 
     try {
       final newOrders = await _apiService.getNewOrders(storeId,
@@ -1235,7 +1137,7 @@ class Order extends _$Order {
         final numA = int.parse(a.shopOrderNo);
         final numB = int.parse(b.shopOrderNo);
         return numB.compareTo(numA); // 내림차순 정렬
-      } catch (e) {
+      } catch (e, s) {
         // 파싱 오류 발생 시 처리 (예: 오류 로그, 기본값 반환 등)
         // 여기서는 오류 발생 시 순서 변경하지 않음 (0 반환)
         logger.w(
@@ -1257,7 +1159,7 @@ class Order extends _$Order {
         if (currentMaxNum > maxSimpleNum) {
           maxSimpleNum = currentMaxNum;
         }
-      } catch (e) {
+      } catch (e, s) {
         logger.w(
             'Invalid simpleNum in first element after sort: ${ordersBySequence.first.shopOrderNo}');
         // fallback to iterating if first element parse fails
@@ -1267,7 +1169,7 @@ class Order extends _$Order {
             if (currentSimpleNum > maxSimpleNum) {
               maxSimpleNum = currentSimpleNum;
             }
-          } catch (e) {
+          } catch (e, s) {
             logger.w(
                 'Invalid simpleNum found while updating sequence: ${order.shopOrderNo}');
           }
@@ -1425,36 +1327,6 @@ class Order extends _$Order {
     }
   }
 
-  // 성능 최적화: Map 인덱스 관리 메서드들
-  void _updateOrderIndexMap(List<OrderModel> orders) {
-    _orderIndexMap.clear();
-    for (int i = 0; i < orders.length; i++) {
-      _orderIndexMap[orders[i].orderId] = i;
-    }
-  }
-
-  // 상태 및 UI 업데이트 헬퍼 메서드
-  void _updateStateAndUI(List<OrderModel> updatedOrders, String mode) {
-    final filtered = updatedOrders.where(_shouldShowOrder).toList();
-    final newActive = _calculateActiveOrderCount(filtered);
-
-    state = state.copyWith(
-      orders: filtered,
-      activeOrderCount: newActive,
-    );
-
-    _updateOrderIndexMap(filtered);
-    _blinkService.updateActiveCount(newActive);
-    _blinkService.stopIfZero(newActive);
-
-    logger.d(
-        '[OrderProvider][$mode] Firestore updates applied. orders=${filtered.length}, activeCount=$newActive');
-  }
-
-  int _findOrderIndex(String orderId) {
-    return _orderIndexMap[orderId] ?? -1;
-  }
-
   // UI 즉시 업데이트를 위한 메서드 추출 (역할 분리)
   void _performImmediateUIUpdate(OrderModel updatedOrder, int existingIndex) {
     // 디버깅을 위한 로그 추가 - 업데이트 전
@@ -1471,9 +1343,8 @@ class Order extends _$Order {
         state.orders[existingIndex].status != updatedOrder.status;
 
     if (existingIndex != -1) {
-      // 기존 주문 업데이트 - 깊은 복사로 안전하게 처리
-      final updatedOrders =
-          state.orders.map((order) => order.copyWith()).toList();
+      // 기존 주문 업데이트 - 얕은 복사 후 해당 인덱스만 교체
+      final updatedOrders = List<OrderModel>.from(state.orders);
       updatedOrders[existingIndex] = updatedOrder;
 
       // 정렬 (오래된 주문이 앞으로/왼쪽으로 오도록 오름차순) - 작업 순서 보장
@@ -1857,7 +1728,7 @@ class Order extends _$Order {
         logger.d('[fetchOrderDetail] 목록에 없음, 캐시 저장 완료: $orderId');
         return detailedOrder;
       }
-    } catch (e) {
+    } catch (e, s) {
       // ApiService/AppFitCore에서 이미 상세한 [API] ERROR 로그를 남겼으므로,
       // Provider에서는 간단히 실패 사실만 기록 (중복 방지)
       logger.w('[fetchOrderDetail] 실패: $orderId ($e)');
@@ -1900,7 +1771,12 @@ class Order extends _$Order {
       _isAudioPlayerDisposed = true;
     }
 
-    // 5. UI 상태 초기화
+    // 5. 인메모리 캐시 초기화
+    _unfilteredOrders.clear();
+    _processedOrderCache.clear();
+    _lastKnownOrderSequence = "0";
+
+    // 6. UI 상태 초기화
     state = OrderState.initial();
 
     logger.d('[OrderProvider] 로그아웃 시 자원 정리 완료');
@@ -1959,7 +1835,7 @@ class Order extends _$Order {
         // 최근 로드된 볼륨/설정을 반영
         try {
           _settingsManager.applyAudioPlayerSettings(_audioPlayer);
-        } catch (e) {
+        } catch (e, s) {
           logger.w('AudioPlayer 초기화 설정 중 경고: $e');
         }
       }
@@ -1967,110 +1843,6 @@ class Order extends _$Order {
       logger.w('AudioPlayer 재초기화 실패 (무시 가능)', error: e, stackTrace: s);
     }
   }
-
-  // 기존 상세 정보를 보존하면서 새 주문 목록과 병합 (사용 안함)
-  /*
-  List<OrderModel> _mergeWithExistingDetails(List<OrderModel> newOrders) {
-    return _helper.mergeWithExistingDetails(
-        newOrders, state.orders, _orderDetailCache);
-  }
-  */
-
-  // 주문 상세 정보를 백그라운드에서 병렬로 로드 (사용 안함)
-  /*
-  Future<void> _loadOrderDetailsInBackground(List<OrderModel> orders) async {
-    try {
-      // 상세 정보가 없는 주문들만 필터링
-      final ordersNeedingDetails = orders
-          .where((order) =>
-              order.orderMenuList.isEmpty && order.orderId.isNotEmpty)
-          .toList();
-
-      if (ordersNeedingDetails.isEmpty) {
-        logger.d('[Detail Loading] 상세 정보가 필요한 주문이 없습니다.');
-        return;
-      }
-
-      logger.d(
-          '[Detail Loading] ${ordersNeedingDetails.length}개 주문의 상세 정보를 백그라운드에서 로드 시작');
-
-      // 로딩할 주문 ID 목록 출력
-      final orderIds = ordersNeedingDetails.map((o) => o.orderId).join(', ');
-      logger.d('[Detail Loading] 로딩 대상 주문 ID: $orderIds');
-
-      // 저사양 장비 고려한 상세 정보 로드
-      final isKdsMode = ref.read(kdsModeProvider);
-      final int batchSize = isKdsMode ? 3 : 5; // 배치 크기 조정
-      final int delayMs = isKdsMode ? 200 : 100; // 지연 시간 단축
-
-      int loadedCount = 0;
-      int errorCount = 0;
-
-      for (int i = 0; i < ordersNeedingDetails.length; i += batchSize) {
-        final batch = ordersNeedingDetails.skip(i).take(batchSize).toList();
-        logger.d(
-            '[Detail Loading] 배치 ${(i ~/ batchSize) + 1} 처리 중: ${batch.length}건');
-
-        // 이미 캐시에 있는 주문은 건너뛰기
-        final ordersToLoad = batch
-            .where((order) => !_orderDetailCache.contains(order.orderId))
-            .toList();
-
-        if (ordersToLoad.isNotEmpty) {
-          logger.d(
-              '[Detail Loading] 실제 로딩할 주문: ${ordersToLoad.map((o) => o.orderId).join(', ')}');
-
-          if (isKdsMode) {
-            // KDS 모드에서는 순차적으로 처리 (저사양 장비 고려)
-            for (final order in ordersToLoad) {
-              try {
-                final result = await fetchOrderDetail(order.orderId);
-                if (result != null) {
-                  loadedCount++;
-                  logger.d('[Detail Loading] 성공: ${order.orderId}');
-                } else {
-                  errorCount++;
-                  logger.d('[Detail Loading] 실패: ${order.orderId} (null 반환)');
-                }
-                // 각 주문 로드 후 짧은 휴식
-                await Future.delayed(const Duration(milliseconds: 50));
-              } catch (e) {
-                errorCount++;
-                logger.e('[Detail Loading] 오류: ${order.orderId}', error: e);
-              }
-            }
-          } else {
-            // 일반 모드에서는 병렬 처리 (에러 처리 개선)
-            final results = await Future.wait(
-              ordersToLoad.map(
-                  (order) => fetchOrderDetail(order.orderId).catchError((e) {
-                        logger.e('[Detail Loading] 병렬 로딩 오류: ${order.orderId}',
-                            error: e);
-                        errorCount++;
-                        return null;
-                      })),
-            );
-
-            loadedCount += results.where((result) => result != null).length;
-          }
-        } else {
-          logger.d('[Detail Loading] 배치 ${(i ~/ batchSize) + 1}: 모든 주문이 이미 캐시됨');
-        }
-
-        // 각 배치 완료 후 대기 시간
-        if (i + batchSize < ordersNeedingDetails.length) {
-          await Future.delayed(Duration(milliseconds: delayMs));
-        }
-      }
-
-      logger.d(
-          '[Detail Loading] 백그라운드 상세 정보 로드 완료: 성공 ${loadedCount}건, 실패 ${errorCount}건');
-    } catch (e, s) {
-      logger.e('[Detail Loading] 백그라운드 상세 정보 로드 중 전체 오류 발생',
-          error: e, stackTrace: s);
-    }
-  }
-  */
 
   /// 긴급 모드 ON/OFF — 설정 화면에서 호출 (폴링 주기만 변경)
   void updateEmergencyPoll(bool enabled) {

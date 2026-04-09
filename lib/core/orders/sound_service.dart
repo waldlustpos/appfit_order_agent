@@ -90,7 +90,7 @@ class SoundService {
           try {
             await _player.setSource(_soundSource!);
             _cachedDuration = await _player.getDuration();
-          } catch (e) {
+          } catch (e, s) {
             logger.w('[SoundService] 길이 조회 실패, 기본 지연 사용: $e');
           }
         }

@@ -47,26 +47,6 @@ Future<void> logBatchToFile({required List<String> messages}) async {
 }
 
 class PlatformService {
-  static Future<Map<String, dynamic>?> getLegacyPreferences() async {
-    // 레거시 NDK 제거로 인해 더 이상 지원하지 않음
-    return null;
-  }
-
-  /// 레거시 데이터 접근 가능 여부를 확인 (더 이상 사용되지 않음)
-  static Future<bool> checkLegacyDataAccess() async {
-    return false;
-  }
-
-  /// 레거시 데이터 접근 권한 요청 (더 이상 사용되지 않음)
-  static Future<void> requestLegacyDataAccess() async {
-    // 레거시 NDK 제거로 인해 아무 작업도 수행하지 않음
-  }
-
-  /// 대체 패키지명을 사용하여 레거시 데이터 가져오기 시도 (더 이상 사용되지 않음)
-  static Future<Map<String, dynamic>?> tryAlternativeLegacyAccess() async {
-    return null;
-  }
-
   Future<bool> playNotificationSound({
     required String soundFileName,
     required int playCount,

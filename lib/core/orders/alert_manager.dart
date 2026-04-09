@@ -70,8 +70,8 @@ class AlertManager {
     try {
       // SoundAppService 사용 (기존 코드 참고: ref.read(soundAppServiceProvider).playNotificationSound())
       ref.read(soundAppServiceProvider).playNotificationSound();
-    } catch (e) {
-      logger.e('[AlertManager] 소리 재생 실패', error: e);
+    } catch (e, s) {
+      logger.e('[AlertManager] 소리 재생 실패', error: e, stackTrace: s);
     }
   }
 
@@ -88,8 +88,8 @@ class AlertManager {
       } else {
         logger.d('[AlertManager] App is resumed, skipping overlay trigger.');
       }
-    } catch (e) {
-      logger.e('[AlertManager] 오버레이 알림 전송 실패', error: e);
+    } catch (e, s) {
+      logger.e('[AlertManager] 오버레이 알림 전송 실패', error: e, stackTrace: s);
     }
   }
 }

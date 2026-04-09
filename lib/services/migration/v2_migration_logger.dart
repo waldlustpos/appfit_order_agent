@@ -36,7 +36,7 @@ class V2MigrationLogger {
     if (_logs.isEmpty) return;
     try {
       await logBatchToFile(messages: List.from(_logs));
-    } catch (e) {
+    } catch (e, s) {
       logger.e('[MIGRATION] 로그 파일 기록 실패: $e');
     }
     _logs.clear();

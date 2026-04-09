@@ -139,7 +139,7 @@ class CustomLogInterceptor extends Interceptor {
     if (data is Map || data is List) {
       try {
         dataString = jsonEncode(data);
-      } catch (e) {
+      } catch (e, s) {
         dataString = data.toString();
       }
     } else {

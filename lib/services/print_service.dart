@@ -157,7 +157,7 @@ class PrintService {
 
       final store = ref.read(storeProvider);
       final orderWithStore = order.copyWith(storeName: store.value?.name);
-      final orderJson = jsonEncode(orderWithStore.toJson());
+      final orderJson = jsonEncode(orderWithStore.toSunmiJson());
 
       // 캐시된 설정값이 없는 경우에만 로드
       if (_cachedBuiltinPrinter == null || _cachedExternalPrinter == null) {

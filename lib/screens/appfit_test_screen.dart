@@ -42,7 +42,7 @@ class _AppFitTestScreenState extends ConsumerState<AppFitTestScreen> {
       setState(() {
         _result = summary;
       });
-    } catch (e) {
+    } catch (e, s) {
       setState(() {
         _result = '❌ 설정 오류: $e\n\n.env 파일을 확인하세요!';
       });
@@ -177,7 +177,7 @@ ${success ? '✅ AES 키가 올바르게 설정되었습니다!' : '❌ AES 키 
       final testShopCode = pref.getId() ?? 'TPCP00002';
 
       // 1. API 호출
-      final apiService = ref.read(appFitApiServiceProvider);
+      final apiService = ref.read(apiServiceProvider);
       final store = await apiService.getStoreInfo(testShopCode);
 
       setState(() {
@@ -231,7 +231,7 @@ ${success ? '✅ AES 키가 올바르게 설정되었습니다!' : '❌ AES 키 
       final testShopCode = pref.getId() ?? 'TPCP00002';
 
       // 1. API 호출
-      final apiService = ref.read(appFitApiServiceProvider);
+      final apiService = ref.read(apiServiceProvider);
       final products = await apiService.getShopCategories(testShopCode);
 
       setState(() {
@@ -287,7 +287,7 @@ ${products.length > 5 ? '...외 ${products.length - 5}개 더 있음' : ''}
       final testShopCode = pref.getId() ?? 'TPCP00002';
 
       // 1. API 호출
-      final apiService = ref.read(appFitApiServiceProvider);
+      final apiService = ref.read(apiServiceProvider);
       // 오늘 날짜 구하기 (yyyy-MM-dd)
       final today = DateTime.now().toString().split(' ')[0];
 
@@ -351,7 +351,7 @@ ${orders.length > 5 ? '...외 ${orders.length - 5}개 더 있음' : ''}
       final testShopCode = pref.getId() ?? 'TPCP00002';
 
       // 1. 오늘 첫 번째 주문 조회
-      final apiService = ref.read(appFitApiServiceProvider);
+      final apiService = ref.read(apiServiceProvider);
       final today = DateTime.now().toString().split(' ')[0];
       final orders = await apiService.getOrders(testShopCode,
           startDate: today, endDate: today);
@@ -419,7 +419,7 @@ ${orders.length > 5 ? '...외 ${orders.length - 5}개 더 있음' : ''}
       final testShopCode = pref.getId() ?? 'TPCP00002';
 
       // 1. 상품 목록 조회 및 TKP0005 상품 찾기
-      final apiService = ref.read(appFitApiServiceProvider);
+      final apiService = ref.read(apiServiceProvider);
       final products = await apiService.getShopCategories(testShopCode);
 
       final targetProduct = products.firstWhere(
@@ -499,7 +499,7 @@ ${orders.length > 5 ? '...외 ${orders.length - 5}개 더 있음' : ''}
       final testShopCode = pref.getId() ?? 'TPCP00002';
 
       // 1. 상품 목록 조회 및 TKP0005 상품 찾기
-      final apiService = ref.read(appFitApiServiceProvider);
+      final apiService = ref.read(apiServiceProvider);
       final products = await apiService.getShopCategories(testShopCode);
 
       final targetProduct = products.firstWhere(
@@ -579,7 +579,7 @@ ${orders.length > 5 ? '...외 ${orders.length - 5}개 더 있음' : ''}
       const testCouponNo = '5001868426241491';
 
       // 2. API 호출
-      final apiService = ref.read(appFitApiServiceProvider);
+      final apiService = ref.read(apiServiceProvider);
       await apiService.cancelCouponUse(testCouponNo, testShopCode);
 
       // 3. 결과 출력
@@ -633,7 +633,7 @@ ${orders.length > 5 ? '...외 ${orders.length - 5}개 더 있음' : ''}
       const testUserSearchNo = '1621725316154595'; // 테스트용 번호
 
       // 2. API 호출
-      final apiService = ref.read(appFitApiServiceProvider);
+      final apiService = ref.read(apiServiceProvider);
       final history =
           await apiService.getCouponHistory(testShopCode, testUserSearchNo);
 
@@ -693,7 +693,7 @@ ${orders.length > 5 ? '...외 ${orders.length - 5}개 더 있음' : ''}
           CryptoUtils.encryptAesGcm('01062947151', AppEnv.aesKey); // 테스트용 번호
 
       // 1. API 호출
-      final apiService = ref.read(appFitApiServiceProvider);
+      final apiService = ref.read(apiServiceProvider);
       final response =
           await apiService.getUserProfile(testShopCode, testUserSearchNo);
 
@@ -769,7 +769,7 @@ ${orders.length > 5 ? '...외 ${orders.length - 5}개 더 있음' : ''}
       final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
 
       // 1. API 호출
-      final apiService = ref.read(appFitApiServiceProvider);
+      final apiService = ref.read(apiServiceProvider);
       final response = await apiService.bulkCompleteOrders(
         testShopCode,
         from: today,
@@ -816,7 +816,7 @@ ${orders.length > 5 ? '...외 ${orders.length - 5}개 더 있음' : ''}
       final testShopCode = pref.getId() ?? 'TPCP00002';
       final testUserSearchNo = '1621725316154595';
 
-      final apiService = ref.read(appFitApiServiceProvider);
+      final apiService = ref.read(apiServiceProvider);
       final success = await apiService.earnStamp(
         testUserSearchNo,
         testShopCode,
@@ -858,7 +858,7 @@ ${orders.length > 5 ? '...외 ${orders.length - 5}개 더 있음' : ''}
       final testShopCode = pref.getId() ?? 'TPCP00002';
       final testUserPhone = '01062947151';
 
-      final apiService = ref.read(appFitApiServiceProvider);
+      final apiService = ref.read(apiServiceProvider);
       final history =
           await apiService.getStampHistory(testUserPhone, testShopCode);
       final List<dynamic> stamps = history['content'] ?? [];
@@ -909,7 +909,7 @@ ${orders.length > 5 ? '...외 ${orders.length - 5}개 더 있음' : ''}
       final testShopCode = pref.getId() ?? 'TPCP00002';
       final testUserPhone = '01062947151';
 
-      final apiService = ref.read(appFitApiServiceProvider);
+      final apiService = ref.read(apiServiceProvider);
 
       // 1. 먼저 내역조회해서 최근 적립건 찾기
       final history =
@@ -1035,7 +1035,7 @@ ${orders.length > 5 ? '...외 ${orders.length - 5}개 더 있음' : ''}
     try {
       final pref = ref.read(preferenceServiceProvider);
       final testShopCode = pref.getId() ?? 'TPCP00002';
-      final apiService = ref.read(appFitApiServiceProvider);
+      final apiService = ref.read(apiServiceProvider);
 
       final data = await apiService.getMigrationOptions(
         type: 'SHOP',

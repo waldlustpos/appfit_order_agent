@@ -24,7 +24,7 @@ class LocaleNotifier extends _$LocaleNotifier {
         LocaleSettings.setLocale(locale);
 
         return locale;
-      } catch (e) {
+      } catch (e, s) {
         logger.e('[LocaleNotifier] 저장된 언어 파싱 실패: $e');
       }
     }

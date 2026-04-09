@@ -158,7 +158,7 @@ Future<OrderAgentMonitoringContext> _buildMonitoringContext() async {
       deviceModel = info.model;
       deviceManufacturer = 'Apple';
     }
-  } catch (e) {
+  } catch (e, s) {
     logger.d('Failed to get device info: $e');
   }
 
@@ -166,7 +166,7 @@ Future<OrderAgentMonitoringContext> _buildMonitoringContext() async {
     final pkgInfo = await PackageInfo.fromPlatform();
     appVersion = pkgInfo.version;
     buildNumber = pkgInfo.buildNumber;
-  } catch (e) {
+  } catch (e, s) {
     logger.d('Failed to get package info: $e');
   }
 
@@ -255,7 +255,7 @@ class EdgeSwipeDetector extends StatelessWidget {
   Future<void> _showSystemUI(String a) async {
     try {
       await platform.invokeMethod('showSystemUI');
-    } catch (e) {
+    } catch (e, s) {
       logger.d('Error showing system UI: $e');
     }
   }

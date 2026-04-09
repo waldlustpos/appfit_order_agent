@@ -164,8 +164,8 @@ class _HomeAppBarWidgetState extends ConsumerState<HomeAppBarWidget> {
           _connectionTypes = result;
         });
       }
-    } catch (e) {
-      logger.e('네트워크 상태 확인 중 오류 발생', error: e);
+    } catch (e, s) {
+      logger.e('네트워크 상태 확인 중 오류 발생', error: e, stackTrace: s);
     }
   }
 
@@ -370,115 +370,94 @@ class _HomeAppBarWidgetState extends ConsumerState<HomeAppBarWidget> {
                         },
                       ),
                       const SizedBox(width: 8),
-                      // 새로고침 버튼 - 비활성화 상태 반영 및 시각 효과 추가
-                      Consumer(
-                        builder: (context, ref, _) {
-                          final isKdsMode = ref.watch(kdsModeProvider);
-
-                          if (isKdsMode) {
-                            return Container(
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [
-                                    AppStyles.kMainColor,
-                                    AppStyles.kMainColor.withValues(alpha: 0.8),
+                      // 새로고침 버튼 - isKdsMode는 부모 build()에서 파라미터로 전달됨
+                      if (isKdsMode)
+                        Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                AppStyles.kMainColor,
+                                AppStyles.kMainColor.withValues(alpha: 0.8),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(8),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppStyles.kMainColor
+                                    .withValues(alpha: 0.3),
+                                spreadRadius: 1,
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: _isRefreshing ? null : _handleRefresh,
+                              borderRadius: BorderRadius.circular(8),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 8),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    _isRefreshing
+                                        ? const SizedBox(
+                                            width: 18,
+                                            height: 18,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              valueColor:
+                                                  AlwaysStoppedAnimation<
+                                                      Color>(Colors.white),
+                                            ),
+                                          )
+                                        : const Icon(Icons.refresh,
+                                            size: 18, color: Colors.white),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      t.common.refresh,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                      ),
+                                    ),
                                   ],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                                borderRadius: BorderRadius.circular(8),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: AppStyles.kMainColor
-                                        .withValues(alpha: 0.3),
-                                    spreadRadius: 1,
-                                    blurRadius: 4,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: Material(
-                                color: Colors.transparent,
-                                child: InkWell(
-                                  onTap: _isRefreshing ? null : _handleRefresh,
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 12, vertical: 8),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        _isRefreshing
-                                            ? const SizedBox(
-                                                width: 18,
-                                                height: 18,
-                                                child:
-                                                    CircularProgressIndicator(
-                                                  strokeWidth: 2,
-                                                  valueColor:
-                                                      AlwaysStoppedAnimation<
-                                                          Color>(Colors.white),
-                                                ),
-                                              )
-                                            : const Icon(Icons.refresh,
-                                                size: 18, color: Colors.white),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          t.common.refresh,
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 14,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
                                 ),
                               ),
-                            );
-                          } else {
-                            return IconButton(
-                              icon: Icon(
-                                Icons.refresh,
-                                size: 30,
-                                color: _isRefreshing
-                                    ? Colors.grey.withValues(alpha: 0.5)
-                                    : null,
-                              ),
-                              onPressed: _isRefreshing ? null : _handleRefresh,
-                            );
-                          }
-                        },
-                      ),
+                            ),
+                          ),
+                        )
+                      else
+                        IconButton(
+                          icon: Icon(
+                            Icons.refresh,
+                            size: 30,
+                            color: _isRefreshing
+                                ? Colors.grey.withValues(alpha: 0.5)
+                                : null,
+                          ),
+                          onPressed: _isRefreshing ? null : _handleRefresh,
+                        ),
                       const SizedBox(width: 8),
-                      // 서브디스플레이 문구 추가
-                      Consumer(
-                        builder: (context, ref, _) {
-                          final isKdsMode = ref.watch(kdsModeProvider);
-                          return isKdsMode
-                              ? Container(
-                                  margin: const EdgeInsets.only(right: 8),
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 4),
-                                  /*decoration: BoxDecoration(
-                                    color:
-                                        AppStyles.kMainColor.withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(4),
-                                    border: Border.all(
-                                        color: AppStyles.kMainColor, width: 1),
-                                  ),*/
-                                  child: Text(
-                                    t.app_bar.kds_mode,
-                                    style: const TextStyle(
-                                      fontSize: AppStyles.kAppBarTitleSize,
-                                      fontWeight: FontWeight.normal,
-                                    ),
-                                  ),
-                                )
-                              : const SizedBox.shrink();
-                        },
-                      ),
+                      // 서브디스플레이 문구 추가 — isKdsMode는 파라미터로 전달됨
+                      if (isKdsMode)
+                        Container(
+                          margin: const EdgeInsets.only(right: 8),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          child: Text(
+                            t.app_bar.kds_mode,
+                            style: const TextStyle(
+                              fontSize: AppStyles.kAppBarTitleSize,
+                              fontWeight: FontWeight.normal,
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ],
@@ -735,7 +714,7 @@ class _HomeAppBarWidgetState extends ConsumerState<HomeAppBarWidget> {
                               logToFile(
                                   tag: LogTag.SYSTEM,
                                   message: '앱 종료 전 로그 업로드 성공');
-                            } catch (e) {
+                            } catch (e, s) {
                               logToFile(
                                   tag: LogTag.ERROR,
                                   message: '앱 종료 전 로그 업로드 실패: $e');

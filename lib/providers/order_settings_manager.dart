@@ -57,7 +57,7 @@ class OrderSettingsManager {
       );
       audioPlayer.setAudioContext(audioContext);
       logger.d('AudioPlayer 설정 완료 - 볼륨: $_volume, AudioContext 설정됨');
-    } catch (e) {
+    } catch (e, s) {
       logger.w('Error setting audio player settings: $e');
     }
   }

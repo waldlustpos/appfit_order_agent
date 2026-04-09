@@ -233,8 +233,8 @@ class OrderCacheManager {
                 await fetchOrderDetail(order.orderNo);
                 // 각 주문 로드 후 휴식
                 await Future.delayed(const Duration(milliseconds: 200));
-              } catch (e) {
-                logger.e('상세 정보 로드 오류: ${order.orderNo}', error: e);
+              } catch (e, s) {
+                logger.e('상세 정보 로드 오류: ${order.orderNo}', error: e, stackTrace: s);
               }
             }
           } else {

@@ -18,6 +18,7 @@ import '../services/api_service.dart';
 import '../services/print_service.dart';
 import 'package:flutter/material.dart'; // For TextEditingController and AppLifecycleState
 import '../utils/logger.dart'; // For logger
+import '../utils/model_parse_utils.dart';
 import 'package:intl/intl.dart'; // DateFormat 사용
 import 'package:appfit_order_agent/models/order_model.dart';
 import 'package:appfit_order_agent/providers/auth_provider.dart';
@@ -48,7 +49,7 @@ PrintService printService(Ref ref) {
 class SelectedDate extends _$SelectedDate {
   @override
   String build() {
-    return DateTime.now().toString().substring(0, 10);
+    return todayDateString();
   }
 
   void updateDate(String newDate) {

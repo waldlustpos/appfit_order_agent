@@ -106,7 +106,7 @@ class _OrderSectionWidgetState extends ConsumerState<OrderSectionWidget> {
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: SizedBox(
               width: 120,
-              height: MediaQuery.of(context).size.height,
+              height: MediaQuery.sizeOf(context).height,
               child: Padding(
                 padding: const EdgeInsets.all(8.0),
                 child: Column(

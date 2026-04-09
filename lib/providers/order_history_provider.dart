@@ -4,6 +4,7 @@ import '../models/order_model.dart';
 import 'providers.dart';
 // PrintService import 추가
 import 'package:appfit_order_agent/utils/logger.dart'; // logger import 추가
+import 'package:appfit_order_agent/utils/model_parse_utils.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 part 'order_history_provider.g.dart';
@@ -153,9 +154,7 @@ class OrderHistory extends _$OrderHistory {
         // 오늘 날짜가 아닐 때만 로컬 상태 업데이트
         // 오늘 날짜의 경우 OrderProvider를 통해 자동 갱신됨
         final selectedDate = ref.read(selectedDateProvider);
-        final todayDateString = DateTime.now().toString().substring(0, 10);
-
-        if (selectedDate != todayDateString && state.hasValue) {
+        if (selectedDate != todayDateString() && state.hasValue) {
           // --- 취소 성공 후 현재 목록 업데이트 로직 ---
           final currentOrders = state.value!;
           final orderIndex =
@@ -175,7 +174,7 @@ class OrderHistory extends _$OrderHistory {
             logger
                 .d('OrderHistory: 취소된 주문($orderId)이 현재 목록에 없어 로컬 상태 업데이트는 스킵.');
           }
-        } else if (selectedDate == todayDateString) {
+        } else if (selectedDate == todayDateString()) {
           logger.d('OrderHistory: 오늘 날짜 주문 취소, OrderProvider에서 처리된 상태 사용');
           // 필요한 경우 강제 리빌드 트리거 가능
           // ref.invalidateSelf();

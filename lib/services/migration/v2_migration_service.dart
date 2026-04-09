@@ -71,7 +71,7 @@ class V2MigrationService {
       await V2MigrationLogger.flush();
 
       return true;
-    } catch (e) {
+    } catch (e, s) {
       V2MigrationLogger.error('마이그레이션 중 오류 발생. 스킵 처리.', e);
       // 오류 시에도 completed 플래그를 설정하여 무한 재시도 방지
       await prefs.setBool(KEY_MIGRATION_V2_COMPLETED, true);
@@ -101,7 +101,7 @@ class V2MigrationService {
         V2MigrationLogger.log('ID 매핑 성공 (API): $oldId → $mappedId');
         return mappedId;
       }
-    } catch (e) {
+    } catch (e, s) {
       V2MigrationLogger.warn('ID 매핑 API 실패: $e. 수동 입력 필요.');
     }
 

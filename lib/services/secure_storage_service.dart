@@ -30,7 +30,7 @@ class SecureStorageService {
     try {
       await _storage.write(key: key, value: value);
       logger.d('[SecureStorage] Write success: $key');
-    } catch (e) {
+    } catch (e, s) {
       logger.e('[SecureStorage] Write error: $key, $e');
       rethrow;
     }
@@ -41,7 +41,7 @@ class SecureStorageService {
     try {
       final value = await _storage.read(key: key);
       return value;
-    } catch (e) {
+    } catch (e, s) {
       logger.e('[SecureStorage] Read error: $key, $e');
       return null;
     }
@@ -52,7 +52,7 @@ class SecureStorageService {
     try {
       await _storage.delete(key: key);
       logger.d('[SecureStorage] Delete success: $key');
-    } catch (e) {
+    } catch (e, s) {
       logger.e('[SecureStorage] Delete error: $key, $e');
     }
   }
@@ -62,7 +62,7 @@ class SecureStorageService {
     try {
       await _storage.deleteAll();
       logger.i('[SecureStorage] All data deleted');
-    } catch (e) {
+    } catch (e, s) {
       logger.e('[SecureStorage] DeleteAll error: $e');
     }
   }

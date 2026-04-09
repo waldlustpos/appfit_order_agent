@@ -3,6 +3,7 @@ import '../models/order_model.dart';
 import 'kds_unified_providers.dart';
 import 'order_state.dart';
 import '../utils/logger.dart';
+import '../utils/model_parse_utils.dart';
 import 'providers.dart';
 
 /// 주문 상태 관리 클래스
@@ -154,7 +155,7 @@ class OrderStateManager {
       final existingIndex =
           currentState.orders.indexWhere((o) => o.orderId == order.orderId);
       final bool isNewOrder = existingIndex == -1;
-      final String todayDate = DateTime.now().toString().substring(0, 10);
+      final String todayDate = todayDateString();
 
       // 주문의 날짜 필드 확인
       final String orderDate = order.orderedAt.toString().substring(0, 10);

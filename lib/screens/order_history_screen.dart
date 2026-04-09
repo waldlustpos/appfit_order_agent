@@ -7,6 +7,7 @@ import '../constants/app_styles.dart';
 import '../widgets/order/order_detail_popup.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/utils/model_parse_utils.dart';
 import '../models/order_model.dart';
 import '../providers/order_history_provider.dart';
 import '../i18n/strings.g.dart';
@@ -101,9 +102,7 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen> {
     ).then((_) {
       // 다이얼로그가 닫힌 후 오늘 날짜인 경우 상태를 다시 가져오기
       final selectedDate = ref.read(selectedDateProvider);
-      final todayDateString = DateTime.now().toString().substring(0, 10);
-
-      if (selectedDate == todayDateString) {
+      if (selectedDate == todayDateString()) {
         // 오늘 날짜이면 orderProvider의 상태를 반영
         setState(() {
           // 화면 갱신 트리거
@@ -130,8 +129,7 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen> {
   @override
   Widget build(BuildContext context) {
     final selectedDate = ref.watch(selectedDateProvider);
-    final todayDateString = DateTime.now().toString().substring(0, 10);
-    final isToday = selectedDate == todayDateString;
+    final isToday = selectedDate == todayDateString();
     final selectedFilter = ref.watch(orderFilterProvider);
     final sortDirection = ref.watch(orderSortDirectionProvider);
 
@@ -196,7 +194,7 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen> {
                     onPressed: () {
                       ref
                           .read(selectedDateProvider.notifier)
-                          .updateDate(todayDateString);
+                          .updateDate(todayDateString());
 
                       ref.read(orderFilterProvider.notifier).state =
                           OrderFilter.ALL;
@@ -212,7 +210,7 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen> {
 
                   const SizedBox(width: 8.0),
                   // 정렬 방향 버튼 추가
-                  _buildSortDirectionToggle(),
+                  _buildSortDirectionToggle(sortDirection),
 
                   const Spacer(),
 
@@ -280,7 +278,8 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen> {
             ),
             Expanded(
               // Content display logic
-              child: _buildOrderListWidget(isToday),
+              child: _buildOrderListWidget(
+                  isToday, selectedFilter, sortDirection),
             ),
           ],
         ),
@@ -421,9 +420,8 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen> {
     }
   }
 
-  // 정렬 방향 토글 버튼
-  Widget _buildSortDirectionToggle() {
-    final sortDirection = ref.watch(orderSortDirectionProvider);
+  // 정렬 방향 토글 버튼 — sortDirection은 build()에서 전달받음
+  Widget _buildSortDirectionToggle(OrderSortDirection sortDirection) {
 
     return Container(
       decoration: BoxDecoration(
@@ -469,11 +467,11 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen> {
   }
 
   // Helper widget to build the order list based on the selected date
-  Widget _buildOrderListWidget(bool isToday) {
+  // filter, sortDirection은 build()에서 전달받음
+  Widget _buildOrderListWidget(
+      bool isToday, OrderFilter filter, OrderSortDirection sortDirection) {
     if (isToday) {
       // 오늘 날짜인 경우 orderProvider + 필터 적용
-      final filter = ref.watch(orderFilterProvider);
-      final sortDirection = ref.watch(orderSortDirectionProvider);
       final orderState = ref.watch(orderProvider);
       final orders = orderState.orders;
 
@@ -502,7 +500,6 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen> {
     } else {
       // 다른 날짜인 경우 filteredOrderHistoryProvider 사용
       final filteredOrdersAsync = ref.watch(filteredOrderHistoryProvider);
-      final filter = ref.watch(orderFilterProvider);
 
       return filteredOrdersAsync.when(
         data: (orders) {

@@ -78,7 +78,7 @@ class Product extends _$Product {
         if (localServer != null) {
           localServer.updateProductCache(products);
         }
-      } catch (e) {
+      } catch (e, s) {
         logger.w('LocalServerService 캐시 업데이트 실패', error: e);
       }
 
@@ -147,7 +147,7 @@ class Product extends _$Product {
           if (localServer != null) {
             localServer.updateProductCache(updatedProducts);
           }
-        } catch (e) {
+        } catch (e, s) {
           logger.w('LocalServerService 캐시 업데이트 실패', error: e);
         }
 

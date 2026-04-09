@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/order_model.dart';
-import '../providers/order_provider.dart';
+import '../providers/order_computed_providers.dart';
 import '../widgets/home/order_section_widget.dart';
 import '../widgets/order/order_detail_popup.dart';
 import '../i18n/strings.g.dart';
@@ -11,60 +11,12 @@ class OrderStatusScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final orderState = ref.watch(orderProvider);
-
-    // 에러 상태 처리
-    /* if (orderState.error != null && !orderState.isLoading) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error_outline, color: Colors.red, size: 48),
-            const SizedBox(height: 16),
-            Text(
-              '주문 정보를 불러오는 중 오류가 발생했습니다.\n${orderState.error}',
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 16),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              icon: const Icon(Icons.refresh),
-              label: const Text('새로고침'),
-              onPressed: () {
-                ref.read(orderProvider.notifier).refreshOrders();
-              },
-              style: AppStyles.primaryButton(),
-            ),
-          ],
-        ),
-      );
-    }*/
-
-    // 로딩 상태 처리 (선택적)
-    // if (orderState.isLoading) {
-    //   return const Center(child: CircularProgressIndicator());
-    // }
-
-    // 정상 상태 처리 (기존 로직)
-    final orders = orderState.orders;
-    final newOrders = orders.where((o) => o.status == OrderStatus.NEW).toList();
-    final confirmedOrders =
-        orders.where((o) => o.status == OrderStatus.PREPARING).toList();
-    final pickupedOrders =
-        orders.where((o) => o.status == OrderStatus.READY).toList();
-    final completedOrders = orders
-        .where((o) =>
-            o.status == OrderStatus.DONE || o.status == OrderStatus.CANCELLED)
-        .toList();
-
-    // 각 섹션별 정렬 적용
-    // 신규/접수/대기 섹션: 오래된 주문이 앞(왼쪽)에 오도록 주문 시간 기준 오름차순 정렬 (FIFO)
-    newOrders.sort((a, b) => a.orderedAt.compareTo(b.orderedAt));
-    confirmedOrders.sort((a, b) => a.orderedAt.compareTo(b.orderedAt));
-    pickupedOrders.sort((a, b) => a.orderedAt.compareTo(b.orderedAt));
-
-    // 완료 섹션: 최신 주문이 앞(왼쪽)에 오도록 주문 시간 기준 내림차순 정렬 (최근 완료 순)
-    completedOrders.sort((a, b) => b.orderedAt.compareTo(a.orderedAt));
+    // 필터링+정렬은 orderStatusOrdersProvider에서 캐싱 처리
+    final computed = ref.watch(orderStatusOrdersProvider);
+    final newOrders = computed.newOrders;
+    final confirmedOrders = computed.confirmedOrders;
+    final pickupedOrders = computed.pickupedOrders;
+    final completedOrders = computed.completedOrders;
 
     return Column(
       children: [

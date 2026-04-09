@@ -22,7 +22,7 @@ class KdsMode extends _$KdsMode {
     try {
       state = isKdsMode;
       logger.d('[KdsMode] KDS 모드 변경: $isKdsMode');
-    } catch (e) {
+    } catch (e, s) {
       logger.d('[KdsMode] setKdsMode 오류: $e');
     }
   }
@@ -109,7 +109,7 @@ class KdsScrollControllerMap extends _$KdsScrollControllerMap {
       for (final controller in state.values) {
         try {
           controller.dispose();
-        } catch (e) {
+        } catch (e, s) {
           logger.d('KDS: 스크롤 컨트롤러 dispose 오류 무시됨: $e');
         }
       }
@@ -269,7 +269,7 @@ class KdsCardAnimations extends _$KdsCardAnimations {
       for (final timer in _animationTimers.values) {
         try {
           timer?.cancel();
-        } catch (e) {
+        } catch (e, s) {
           logger.d('KDS: Timer cancel 오류 무시됨: $e');
         }
       }

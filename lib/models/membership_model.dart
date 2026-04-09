@@ -1,6 +1,6 @@
 // lib/models/membership_model.dart
-import 'package:intl/intl.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/utils/model_parse_utils.dart';
 
 class CouponInfo {
   final String couponId;
@@ -18,42 +18,6 @@ class CouponInfo {
   });
 
   factory CouponInfo.fromJson(Map<String, dynamic> json) {
-    // 날짜 파싱 함수
-    DateTime parseTimestamp(dynamic timestamp) {
-      if (timestamp == null) {
-        logger.w('CouponInfo: Timestamp is null, returning current date.');
-        return DateTime.now();
-      }
-      try {
-        if (timestamp is int) {
-          // 초 단위 Unix 타임스탬프 처리
-          return DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
-        } else if (timestamp is String) {
-          // 숫자 형식의 문자열 처리
-          final intTimestamp = int.tryParse(timestamp);
-          if (intTimestamp != null) {
-            return DateTime.fromMillisecondsSinceEpoch(intTimestamp * 1000);
-          } else {
-            // 다른 날짜 형식 시도 (예: 'yyyy-MM-dd HH:mm:ss')
-            try {
-              return DateFormat('yyyy-MM-dd HH:mm:ss').parse(timestamp);
-            } catch (e) {
-              logger.e('CouponInfo: Failed to parse date string "$timestamp".',
-                  error: e);
-              return DateTime.now(); // 파싱 실패 시 현재 시간
-            }
-          }
-        } else {
-          logger.w(
-              'CouponInfo: Unexpected timestamp type: ${timestamp.runtimeType}');
-          return DateTime.now();
-        }
-      } catch (e) {
-        logger.e('CouponInfo: Error parsing timestamp "$timestamp".', error: e);
-        return DateTime.now(); // 예외 발생 시 현재 시간
-      }
-    }
-
     return CouponInfo(
       couponId: json['coupon_id']?.toString() ?? '',
       couponTitle: json['coupon_title']?.toString() ?? '제목 없음',
@@ -108,14 +72,6 @@ class MembershipInfo {
   });
 
   factory MembershipInfo.fromJson(Map<String, dynamic> json) {
-    // 숫자 파싱 함수 (안전하게)
-    int parseIntSafe(dynamic value) {
-      if (value == null) return 0;
-      if (value is int) return value;
-      if (value is String) return int.tryParse(value) ?? 0;
-      return 0;
-    }
-
     // 쿠폰 목록 파싱
     List<CouponInfo> parseCoupons(dynamic couponList) {
       if (couponList is List) {
@@ -124,8 +80,8 @@ class MembershipInfo {
               .map((couponJson) =>
                   CouponInfo.fromJson(couponJson as Map<String, dynamic>))
               .toList();
-        } catch (e) {
-          logger.e('Error parsing coupon list', error: e);
+        } catch (e, s) {
+          logger.e('Error parsing coupon list', error: e, stackTrace: s);
           return [];
         }
       }
@@ -189,48 +145,6 @@ class StampInfo {
   });
 
   factory StampInfo.fromJson(Map<String, dynamic> json) {
-    // 숫자 파싱 함수 (안전하게)
-    int parseIntSafe(dynamic value) {
-      if (value == null) return 0;
-      if (value is int) return value;
-      if (value is String) return int.tryParse(value) ?? 0;
-      return 0;
-    }
-
-    // 날짜 파싱 함수 (기존과 동일)
-    DateTime parseTimestamp(dynamic timestamp) {
-      if (timestamp == null) {
-        logger.w('StampInfo: Timestamp is null, returning current date.');
-        return DateTime.now();
-      }
-      try {
-        if (timestamp is int) {
-          return DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
-        } else if (timestamp is String) {
-          final intTimestamp = int.tryParse(timestamp);
-          if (intTimestamp != null) {
-            return DateTime.fromMillisecondsSinceEpoch(intTimestamp * 1000);
-          } else {
-            try {
-              // 다른 형식 시도 (예: yyyy-MM-dd HH:mm:ss)
-              return DateFormat('yyyy-MM-dd HH:mm:ss').parse(timestamp);
-            } catch (e) {
-              logger.e('StampInfo: Failed to parse date string "$timestamp".',
-                  error: e);
-              return DateTime.now();
-            }
-          }
-        } else {
-          logger.w(
-              'StampInfo: Unexpected timestamp type: ${timestamp.runtimeType}');
-          return DateTime.now();
-        }
-      } catch (e) {
-        logger.e('StampInfo: Error parsing timestamp "$timestamp".', error: e);
-        return DateTime.now();
-      }
-    }
-
     return StampInfo(
       logDate: parseTimestamp(
           json['issue_date']), // Try multiple potential date keys
@@ -276,42 +190,6 @@ class CouponHistoryInfo {
   });
 
   factory CouponHistoryInfo.fromJson(Map<String, dynamic> json) {
-    // 날짜 파싱 함수 (변경 없음)
-    DateTime parseTimestamp(dynamic timestamp) {
-      if (timestamp == null) {
-        logger
-            .w('CouponHistoryInfo: Timestamp is null, returning current date.');
-        return DateTime.now();
-      }
-      try {
-        if (timestamp is int) {
-          return DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
-        } else if (timestamp is String) {
-          final intTimestamp = int.tryParse(timestamp);
-          if (intTimestamp != null) {
-            return DateTime.fromMillisecondsSinceEpoch(intTimestamp * 1000);
-          } else {
-            try {
-              return DateFormat('yyyy-MM-dd HH:mm:ss').parse(timestamp);
-            } catch (e) {
-              logger.e(
-                  'CouponHistoryInfo: Failed to parse date string "$timestamp".',
-                  error: e);
-              return DateTime.now();
-            }
-          }
-        } else {
-          logger.w(
-              'CouponHistoryInfo: Unexpected timestamp type: ${timestamp.runtimeType}');
-          return DateTime.now();
-        }
-      } catch (e) {
-        logger.e('CouponHistoryInfo: Error parsing timestamp "$timestamp".',
-            error: e);
-        return DateTime.now();
-      }
-    }
-
     return CouponHistoryInfo(
       uid: json['uid']?.toString() ?? '제목 없음',
       title: json['title']?.toString() ?? '제목 없음',
@@ -368,46 +246,6 @@ class PointHistoryInfo {
   });
 
   factory PointHistoryInfo.fromJson(Map<String, dynamic> json) {
-    // 숫자 파싱 (기존과 동일)
-    int parseIntSafe(dynamic value) {
-      if (value == null) return 0;
-      if (value is int) return value;
-      if (value is String) return int.tryParse(value) ?? 0;
-      return 0;
-    }
-
-    // 날짜 파싱 (기존과 동일 - 초 단위 타임스탬프 처리)
-    DateTime parseTimestamp(dynamic timestamp) {
-      if (timestamp == null) {
-        logger
-            .w('PointHistoryInfo: Timestamp is null, returning current date.');
-        return DateTime.now();
-      }
-      try {
-        if (timestamp is int) {
-          return DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
-        } else if (timestamp is String) {
-          final intTimestamp = int.tryParse(timestamp);
-          if (intTimestamp != null) {
-            return DateTime.fromMillisecondsSinceEpoch(intTimestamp * 1000);
-          } else {
-            // 다른 형식 시도 - 필요 시 추가
-            logger.e(
-                'PointHistoryInfo: Failed to parse non-integer date string "$timestamp".');
-            return DateTime.now();
-          }
-        } else {
-          logger.w(
-              'PointHistoryInfo: Unexpected timestamp type: ${timestamp.runtimeType}');
-          return DateTime.now();
-        }
-      } catch (e) {
-        logger.e('PointHistoryInfo: Error parsing timestamp "$timestamp".',
-            error: e);
-        return DateTime.now();
-      }
-    }
-
     return PointHistoryInfo(
       uid: json['uid']?.toString() ?? '',
       phone: json['phone']?.toString() ?? '',

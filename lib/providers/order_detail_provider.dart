@@ -69,7 +69,7 @@ class OrderDetail extends _$OrderDetail {
       } else {
         setError('주문 상세 정보를 불러올 수 없습니다.');
       }
-    } catch (e) {
+    } catch (e, s) {
       setError(e.toString());
     } finally {
       setLoading(false);

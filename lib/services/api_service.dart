@@ -26,10 +26,6 @@ ApiService apiService(Ref ref) {
   return ApiService(ref);
 }
 
-// Legacy 호환성을 위한 별칭 (점진적 제거 예정)
-final appFitApiServiceProvider = Provider<ApiService>((ref) {
-  return ref.watch(apiServiceProvider);
-});
 
 class ApiService {
   // ignore: unused_field
@@ -42,7 +38,7 @@ class ApiService {
     try {
       final aesKey = AppEnv.aesKey;
       return CryptoUtils.encryptAesGcm(text, aesKey);
-    } catch (e) {
+    } catch (e, s) {
       logger.e('[AppFit API] Encryption failed: $e');
       return text;
     }
@@ -73,7 +69,7 @@ class ApiService {
             final decryptedKey = CryptoUtils.decryptAesGcm(apiKey, aesKey);
             finalApiKey = decryptedKey;
             logger.i('[AppFit API] API Key decrypted successfully.');
-          } catch (e) {
+          } catch (e, s) {
             logger.e('[AppFit API] Failed to decrypt API Key: $e');
             // 복호화 실패 시 원본 사용
           }
@@ -92,7 +88,7 @@ class ApiService {
       } else {
         throw Exception('프로젝트 정보 조회 실패: ${response.statusCode}');
       }
-    } catch (e) {
+    } catch (e, s) {
       rethrow;
     }
   }
@@ -116,7 +112,7 @@ class ApiService {
       } else {
         throw Exception('매장 정보 조회 실패: ${response.statusCode}');
       }
-    } catch (e) {
+    } catch (e, s) {
       rethrow;
     }
   }
@@ -275,7 +271,7 @@ class ApiService {
       } else {
         throw Exception('주문 상세 조회 실패: ${response.statusCode}');
       }
-    } catch (e) {
+    } catch (e, s) {
       // Dio/AppFitCore에서 이미 로그를 남겼으므로 리스로우만 수행
       rethrow;
     }
@@ -292,7 +288,7 @@ class ApiService {
       });
 
       return response.statusCode == 200;
-    } catch (e) {
+    } catch (e, s) {
       logger.i('[AppFit API] cancelOrder 실패: $e');
       return false;
     }
@@ -406,7 +402,7 @@ class ApiService {
       } else {
         throw Exception('주문 목록 조회 실패: ${response.statusCode}');
       }
-    } catch (e) {
+    } catch (e, s) {
       rethrow;
     }
   }
@@ -462,7 +458,7 @@ class ApiService {
       });
 
       return response.statusCode == 200;
-    } catch (e) {
+    } catch (e, s) {
       logger.e('[AppFit API] updateSaleStatus 오류: $e');
       _handleError(e, '매장 상태 업데이트에 실패했습니다.');
     }
@@ -526,7 +522,7 @@ class ApiService {
       } else {
         throw Exception('상품 목록 조회 실패: ${response.statusCode}');
       }
-    } catch (e) {
+    } catch (e, s) {
       rethrow;
     }
   }
@@ -602,7 +598,7 @@ class ApiService {
         logger.e('[AppFit API] updateProductStatus 실패: ${response.statusCode}');
         return false;
       }
-    } catch (e) {
+    } catch (e, s) {
       logger.e('[AppFit API] updateProductStatus 오류: $e');
       _handleError(e, '상품 상태 업데이트에 실패했습니다.');
     }
@@ -628,7 +624,7 @@ class ApiService {
     try {
       await cancelCouponUse(couponId, storeId);
       return true;
-    } catch (e) {
+    } catch (e, s) {
       logger.e('[AppFit API] cancelCoupon 오류: $e');
       return false;
     }
@@ -645,7 +641,7 @@ class ApiService {
       // 여기서는 회원 조회 화면에서의 개별 사용을 가정 (AppFit 정책에 따라 다를 수 있음)
       final result = await useCoupon(couponId, storeId, items: []);
       return result.isNotEmpty;
-    } catch (e) {
+    } catch (e, s) {
       logger.e('[AppFit API] useCouponWithUserID 오류: $e');
       _handleError(e, '쿠폰 사용에 실패했습니다.');
     }
@@ -683,7 +679,7 @@ class ApiService {
         'items': [], // 필요 시 주문 아이템 목록 전달 가능
       });
       return response.statusCode == 200;
-    } catch (e) {
+    } catch (e, s) {
       logger.e('[AppFit API] saveStamp 오류: $e');
       _handleError(e, '스탬프 적립에 실패했습니다.');
     }
@@ -713,7 +709,7 @@ class ApiService {
       } else {
         throw Exception('스탬프 내역 조회 실패: ${response.statusCode}');
       }
-    } catch (e) {
+    } catch (e, s) {
       logger.e('[AppFit API] getStampHistory 오류: $e');
       _handleError(e, '스탬프 내역 조회에 실패했습니다.');
     }
@@ -726,7 +722,7 @@ class ApiService {
         'rewardId': rewardId,
       });
       return response.statusCode == 200;
-    } catch (e) {
+    } catch (e, s) {
       logger.e('[AppFit API] cancelSavedStamp 오류: $e');
       _handleError(e, '스탬프 적립 취소에 실패했습니다.');
     }
@@ -756,7 +752,7 @@ class ApiService {
       } else {
         throw Exception('쿠폰 검증 실패: ${response.statusCode}');
       }
-    } catch (e) {
+    } catch (e, s) {
       logger.e('[AppFit API] validateCoupon 오류: $e');
       _handleError(e, '쿠폰 검증에 실패했습니다.');
     }
@@ -785,7 +781,7 @@ class ApiService {
       } else {
         throw Exception('쿠폰 사용 실패: ${response.statusCode}');
       }
-    } catch (e) {
+    } catch (e, s) {
       logger.e('[AppFit API] useCoupon 오류: $e');
       _handleError(e, '쿠폰 사용에 실패했습니다.');
     }
@@ -811,7 +807,7 @@ class ApiService {
       if (response.statusCode != 200) {
         throw Exception('쿠폰 사용 취소 실패: ${response.statusCode}');
       }
-    } catch (e) {
+    } catch (e, s) {
       logger.e('[AppFit API] cancelCouponUse 오류: $e');
       _handleError(e, '쿠폰 사용 취소에 실패했습니다.');
     }
@@ -839,7 +835,7 @@ class ApiService {
       } else {
         throw Exception('쿠폰 내역 조회 실패: ${response.statusCode}');
       }
-    } catch (e) {
+    } catch (e, s) {
       logger.e('[AppFit API] getCouponHistory 오류: $e');
       _handleError(e, '쿠폰 내역 조회에 실패했습니다.');
     }
@@ -862,7 +858,7 @@ class ApiService {
       } else {
         throw Exception('회원 프로필 조회 실패: ${response.statusCode}');
       }
-    } catch (e) {
+    } catch (e, s) {
       logger.e('[AppFit API] getUserProfile 오류: $e');
       _handleError(e, '회원 정보를 가져오는데 실패했습니다.');
     }
@@ -912,7 +908,7 @@ class ApiService {
       } else {
         throw Exception('옵션 마이그레이션 정보 조회 실패: ${response.statusCode}');
       }
-    } catch (e) {
+    } catch (e, s) {
       logger.e('[AppFit API] getMigrationOptions 오류: $e');
       rethrow;
     }

@@ -716,7 +716,7 @@ class _UpdateProgressDialogState extends State<_UpdateProgressDialog> {
           });
         },
       );
-    } catch (e) {
+    } catch (e, s) {
       setState(() {
         _downloadError = true;
         _errorMessage = e.toString();

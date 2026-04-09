@@ -106,8 +106,8 @@ class OrderQueueManager {
 
     try {
       await onProcessSingleOrder(order);
-    } catch (e) {
-      logger.e('[QueueManager] 주문 처리 실패', error: e);
+    } catch (e, s) {
+      logger.e('[QueueManager] 주문 처리 실패', error: e, stackTrace: s);
     }
 
     // 다음 처리를 위한 타이머 예약 (적응형 Throttling)
@@ -121,22 +121,7 @@ class OrderQueueManager {
     }
   }
 
-  // --- 기존 코드 호환성 유지를 위한 Dummy Methods ---
-  bool get isBatchCollecting => false;
   bool get hasPending => _bufferList.isNotEmpty || _emitQueue.isNotEmpty;
-
-  // 더 이상 외부에서 Tick을 돌릴 필요가 없으므로 빈 구현
-  void processNextOrdersInBatch() {}
-
-  void sortBatchQueueByOrderNumber() {
-    // 이미 내부적으로 flush 할 때 정렬함
-  }
-
-  List<OrderModel> moveQueueToBatch() {
-    // 사용처 제거 예정
-    return [];
-  }
-  // ---------------------------------------------
 
   void clearQueues() {
     _bufferList.clear();

@@ -1203,7 +1203,7 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
       // Sunmi QR 스캐너 앱 실행
       await platform.invokeMethod('startQRScan');
       // 스캔 결과는 _setupMethodChannel에서 처리됨
-    } catch (e) {
+    } catch (e, s) {
       // QR 스캐너를 지원하지 않는 경우 에러 메시지 표시
       if (mounted) {
         CommonDialog.showInfoDialog(

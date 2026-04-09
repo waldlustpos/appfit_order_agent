@@ -96,13 +96,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     // 저장된 서버 환경 로드
     _selectedEnv = PreferenceService().getEnvironment();
 
-    // 텍스트 필드 리스너 추가
-    _idController.addListener(() {
-      setState(() {}); // 버튼 색상 업데이트를 위해 setState 호출
-    });
-    _passwordController.addListener(() {
-      setState(() {}); // 버튼 색상 업데이트를 위해 setState 호출
-    });
+    // 텍스트 필드 리스너는 불필요 — 로그인 버튼에서 ListenableBuilder로 처리
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       // 로그인 정보 로드
@@ -678,39 +672,42 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           ),
           const SizedBox(height: 24),
 
-          // 로그인 버튼
-          ElevatedButton(
-            onPressed: (_idController.text.trim().isEmpty ||
-                    _passwordController.text.trim().isEmpty ||
-                    _isLoading)
-                ? null
-                : _login,
-            style: AppStyles.primaryButton(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-            ).copyWith(
-              backgroundColor: WidgetStateProperty.resolveWith((states) {
-                if (states.contains(WidgetState.disabled)) {
-                  return AppStyles.gray4;
-                }
-                return AppStyles.kMainColor;
-              }),
-            ),
-            child: _isLoading
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
+          // 로그인 버튼 — 텍스트 필드 변경 시 버튼만 리빌드되도록 ListenableBuilder 사용
+          ListenableBuilder(
+            listenable: Listenable.merge([_idController, _passwordController]),
+            builder: (context, _) => ElevatedButton(
+              onPressed: (_idController.text.trim().isEmpty ||
+                      _passwordController.text.trim().isEmpty ||
+                      _isLoading)
+                  ? null
+                  : _login,
+              style: AppStyles.primaryButton(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+              ).copyWith(
+                backgroundColor: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.disabled)) {
+                    return AppStyles.gray4;
+                  }
+                  return AppStyles.kMainColor;
+                }),
+              ),
+              child: _isLoading
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Text(
+                      t.login.button,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          color: Colors.white),
                     ),
-                  )
-                : Text(
-                    t.login.button,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                        color: Colors.white), // 글자 크기 증가
-                  ),
+            ),
           ),
           const SizedBox(height: 16),
 

@@ -180,7 +180,7 @@ class OrderSocketManager {
         if (shouldFetchDetail) {
           try {
             var orderModel = await ref
-                .read(appFitApiServiceProvider)
+                .read(apiServiceProvider)
                 .getOrder(orderId, storeId: targetShopCode);
 
             // [FIX] API 상태가 소켓 이벤트보다 늦게 갱신될 수 있으므로,
@@ -189,7 +189,7 @@ class OrderSocketManager {
 
             // 주문 처리 (큐 추가, 상태 업데이트, 알림/출력 등 공통 로직)
             _processNewOrder(orderModel);
-          } catch (e) {
+          } catch (e, s) {
             logger.e('[AppFit] 주문 상세 조회 실패 ($orderId): $e');
           }
         } else {
@@ -222,13 +222,13 @@ class OrderSocketManager {
                   '[AppFit] 로컬 오더 찾을 수 없음 (unexpected), API 호출 시도. ID: $orderId');
               try {
                 var orderModel = await ref
-                    .read(appFitApiServiceProvider)
+                    .read(apiServiceProvider)
                     .getOrder(orderId, storeId: targetShopCode);
 
                 orderModel = _enforceStatusFromEvent(orderModel, eventType);
 
                 _processNewOrder(orderModel);
-              } catch (e) {
+              } catch (e, s) {
                 logger.e('[AppFit] Fallback 주문 상세 조회 실패: $e');
               }
             }
@@ -237,8 +237,8 @@ class OrderSocketManager {
       } else {
         logger.d('[AppFit Event] 처리되지 않는 이벤트 타입: $eventType');
       }
-    } catch (e) {
-      logger.e('[AppFit] 이벤트 처리 오류', error: e);
+    } catch (e, s) {
+      logger.e('[AppFit] 이벤트 처리 오류', error: e, stackTrace: s);
     }
   }
 
@@ -309,8 +309,8 @@ class OrderSocketManager {
         if (isOrderSimpleNumNumeric) {
           onUpdateLastKnownOrderSequence?.call(orderData.shopOrderNo);
         }
-      } catch (e) {
-        logger.e('Error updating sequence', error: e);
+      } catch (e, s) {
+        logger.e('Error updating sequence', error: e, stackTrace: s);
       }
 
       // KDS 모드인 경우 추가 처리?

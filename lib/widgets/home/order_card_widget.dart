@@ -6,6 +6,7 @@ import '../../providers/kds_unified_providers.dart';
 import '../order/order_detail_popup.dart';
 import '../../providers/providers.dart';
 import '../../utils/logger.dart';
+import '../../utils/model_parse_utils.dart';
 import '../../i18n/strings.g.dart';
 
 class OrderCardWidget extends ConsumerWidget {
@@ -29,19 +30,20 @@ class OrderCardWidget extends ConsumerWidget {
     final isKdsMode = ref.watch(kdsModeProvider);
 
     // KDS 모드일 때는 이미 상세 정보를 가지고 있으므로 order를 그대로 사용
-    // 일반 모드일 때는 OrderProvider에서 상세 정보 찾기
+    // 일반 모드일 때는 해당 주문만 선택적으로 구독 (다른 주문 변경 시 리빌드 방지)
     final orderToCheck = isKdsMode
         ? order
-        : ref.watch(orderProvider).orders.firstWhere(
+        : ref.watch(orderProvider.select(
+            (state) => state.orders.firstWhere(
               (o) => o.orderId == order.orderId,
               orElse: () => order,
-            );
+            ),
+          ));
 
     // 상세 정보가 없는 경우 상세 정보 로드 시도 (중복 호출 방지)
     // 오늘 날짜이고 KDS 모드가 아닌 경우에만 상세정보 로드
     final selectedDate = ref.watch(selectedDateProvider);
-    final todayDateString = DateTime.now().toString().substring(0, 10);
-    final isToday = selectedDate == todayDateString;
+    final isToday = selectedDate == todayDateString();
 
     if (!isKdsMode &&
         isToday &&

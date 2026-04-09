@@ -48,7 +48,7 @@ class CustomLogPrinter extends LogPrinter {
         // 간단한 JSON 변환 시도
         var encoder = const JsonEncoder(); // 들여쓰기 없이 한 줄로
         return encoder.convert(message);
-      } catch (e) {
+      } catch (e, s) {
         return message.toString();
       }
     } else {

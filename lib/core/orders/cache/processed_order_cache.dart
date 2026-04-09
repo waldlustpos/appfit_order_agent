@@ -7,8 +7,10 @@ class ProcessedOrderCache {
   final Map<String, DateTime> _processedOrders = {};
 
   // 캐시 만료 시간 (기본 30분)
-  // 주문 처리 후 30분이 지나면 중복 체크에서 제외 (재처리 가능성 열어둠? 보통은 불필요하지만 메모리 관리를 위해)
   final Duration _cleanupThreshold = const Duration(minutes: 30);
+
+  // 최대 캐시 크기 (초과 시 가장 오래된 항목부터 제거)
+  static const int _maxSize = 500;
 
   /// 주문이 이미 처리되었는지 확인
   bool contains(String orderId) {
@@ -18,6 +20,14 @@ class ProcessedOrderCache {
 
   /// 주문을 처리된 목록에 추가
   void add(String orderId) {
+    _cleanupOldEntries();
+    if (_processedOrders.length >= _maxSize) {
+      // 가장 오래된 항목 제거
+      final oldest = _processedOrders.entries
+          .reduce((a, b) => a.value.isBefore(b.value) ? a : b)
+          .key;
+      _processedOrders.remove(oldest);
+    }
     _processedOrders[orderId] = DateTime.now();
   }
 

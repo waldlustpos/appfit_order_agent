@@ -20,7 +20,7 @@ class TabButtonWidget extends StatelessWidget {
     // 내부 아이콘 결정 로직 제거 (국제화 호환성)
 
     // Check if the keyboard is visible
-    final keyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
+    final keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
 
     // Adjust sizing based on keyboard visibility
     final containerSize = keyboardVisible ? 36.0 : 48.0;

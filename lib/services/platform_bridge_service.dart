@@ -64,8 +64,8 @@ class PlatformBridgeService {
       try {
         await _channel.invokeMethod('notifyNewOrder');
         logger.d('[PlatformBridge] Android: 오버레이에 새 주문 알림 전송');
-      } catch (e) {
-        logger.e('[PlatformBridge] 오버레이 메시지 전송 실패', error: e);
+      } catch (e, s) {
+        logger.e('[PlatformBridge] 오버레이 메시지 전송 실패', error: e, stackTrace: s);
       }
     }
   }
@@ -85,8 +85,8 @@ class PlatformBridgeService {
           return true;
         }
         return true;
-      } catch (e) {
-        logger.e('[PlatformBridge] 권한 확인 실패', error: e);
+      } catch (e, s) {
+        logger.e('[PlatformBridge] 권한 확인 실패', error: e, stackTrace: s);
         return false;
       }
     }

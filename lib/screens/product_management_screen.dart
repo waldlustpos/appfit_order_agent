@@ -136,7 +136,7 @@ class _ProductManagementScreenState
         children: [
           // 좌측 영역 (1:3 비율) - 고정된 너비 사용
           SizedBox(
-            width: MediaQuery.of(context).size.width * 0.25,
+            width: MediaQuery.sizeOf(context).width * 0.25,
             child: Container(
               decoration: BoxDecoration(
                 border: Border(

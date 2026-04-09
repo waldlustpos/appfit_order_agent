@@ -96,7 +96,7 @@ class Auth extends _$Auth {
 
         // 프로젝트 정보 및 매장 정보 조회 (API 연동 테스트)
         // Service alias used from api_service.dart
-        final appFitApiService = ref.read(appFitApiServiceProvider);
+        final appFitApiService = ref.read(apiServiceProvider);
 
         try {
           await appFitApiService.getProjectInfo();
@@ -116,8 +116,8 @@ class Auth extends _$Auth {
           logToFile(
               tag: LogTag.API,
               message: '[Auth] V2 Store Info Validation Success');
-        } catch (e) {
-          logger.e('[Auth] V2 Data Fetch Failed', error: e);
+        } catch (e, s) {
+          logger.e('[Auth] V2 Data Fetch Failed', error: e, stackTrace: s);
           // 데이터 조회 실패 시 로그만 남기고 일단 진행할지, 실패 처리할지 결정 필요
           // 현재는 테스트 단계이므로 실패로 처리하여 로그 확인 유도
           state = state.copyWith(
@@ -160,7 +160,7 @@ class Auth extends _$Auth {
         state = state.copyWith(connectionStatus: ConnectionStatus.connected);
 
         return (true, null, null);
-      } catch (e) {
+      } catch (e, s) {
         String errorMsg = e.toString().replaceAll('Exception: ', '');
 
         // 네트워크 관련 에러인 경우 추가 매핑
@@ -225,8 +225,8 @@ class Auth extends _$Auth {
       } else {
         logger.w('[Auth] 재연결 실패: 자격증명 불충분');
       }
-    } catch (e) {
-      logger.e('[Auth] 재연결 오류', error: e);
+    } catch (e, s) {
+      logger.e('[Auth] 재연결 오류', error: e, stackTrace: s);
     }
   }
 

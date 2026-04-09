@@ -11,6 +11,7 @@ import '../services/preference_service.dart';
 import '../constants/app_styles.dart';
 import '../constants/card_types.dart';
 import '../utils/logger.dart';
+import '../utils/model_parse_utils.dart';
 import '../widgets/order/order_detail_popup.dart';
 import '../widgets/common/common_dialog.dart';
 import '../utils/kds_utils.dart' as kds_utils;
@@ -100,7 +101,7 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
 
           logger.d(
               'KDS: 초기화 완료 - 탭: $initialTabIndex, 정렬: ${initialSortDirection.name}');
-        } catch (e) {
+        } catch (e, s) {
           logger.d('KDS initState: 초기화 중 오류: $e');
         }
       }
@@ -236,7 +237,7 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
       ref.read(kdsCardAnimationsProvider.notifier).clearAnimation(orderId);
 
       logger.d('KDS: 주문 관련 상태 정리 완료 - $orderId');
-    } catch (e) {
+    } catch (e, s) {
       logger.d('KDS: 주문 상태 정리 중 오류 - $orderId: $e');
     }
   }
@@ -266,7 +267,7 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
 
       // 새로고침 완료 후 탭 동기화 보장
       _ensureTabSyncAfterRefresh();
-    } catch (e) {
+    } catch (e, s) {
       logger.d('KDS: 안전한 새로고침 중 오류 발생: $e');
     }
   }
@@ -347,7 +348,7 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
         );
-      } catch (e) {
+      } catch (e, s) {
         logger.d('KDS: 스크롤 초기화 오류 무시됨: $e');
       }
     }
@@ -432,44 +433,41 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
     }
   }
 
+  // 탭 인덱스 변경 시 PageController/TabBar 동기화 (build 내 반복 postFrameCallback 대체)
+  void _syncTabOnIndexChange(int? prev, int next) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (_pageController.hasClients &&
+          _pageController.page?.round() != next) {
+        _pageController.jumpToPage(next);
+      }
+      if (_tabController.index != next) {
+        _tabController.animateTo(next);
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    // 탭 인덱스 변경 시에만 동기화 (매 build마다 postFrameCallback 등록하는 안티패턴 제거)
+    ref.listen<int>(kdsTabIndexProvider, _syncTabOnIndexChange);
+
+    // 신규 주문 도착 시에만 스크롤 리셋 (매 build마다 등록하는 안티패턴 제거)
+    ref.listen(orderProvider.select((s) => s.orders), (prev, next) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _detectNewOrdersAndResetScroll(next);
+      });
+    });
+
     return Consumer(
       builder: (context, ref, child) {
         final sortDirection = ref.watch(kdsSortDirectionProvider);
         final currentTabIndex = ref.watch(kdsTabIndexProvider);
         final selectedDate = ref.watch(selectedDateProvider);
-        final todayDateString = DateTime.now().toString().substring(0, 10);
-        final isToday = selectedDate == todayDateString;
+        final isToday = selectedDate == todayDateString();
 
         logger.d(
             'KDS: build 호출됨 (최적화됨) - 선택된 날짜: $selectedDate, 오늘 여부: $isToday');
-
-        // 설정 화면에서 돌아왔을 때 등, 탭/페이지 불일치가 생기면 강제 동기화
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          final savedTabIndex = ref.read(kdsTabIndexProvider);
-          final tabIndex = _tabController.index;
-
-          // PageController가 초기화되었는지 확인
-          if (_pageController.hasClients) {
-            final currentPage = _pageController.page?.round();
-
-            if (currentPage == null ||
-                currentPage != savedTabIndex ||
-                tabIndex != savedTabIndex) {
-              // PageView와 TabBar를 저장된 인덱스로 동기화
-              _pageController.jumpToPage(savedTabIndex);
-              if (_tabController.index != savedTabIndex) {
-                _tabController.animateTo(savedTabIndex);
-              }
-            }
-          } else {
-            // PageController가 아직 초기화되지 않은 경우 탭만 동기화
-            if (tabIndex != savedTabIndex) {
-              _tabController.animateTo(savedTabIndex);
-            }
-          }
-        });
 
         // 정렬 변경 감지 및 스크롤 위치 초기화
         _detectSortChangeAndResetScroll(sortDirection);
@@ -518,12 +516,7 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
                   .where((o) => o.status == OrderStatus.CANCELLED)
                   .length;
 
-              // 신규 주문 감지는 한 번만 실행 (깜빡임 방지)
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) {
-                  _detectNewOrdersAndResetScroll(orders);
-                }
-              });
+              // 신규 주문 감지: build() 내 ref.listen으로 이전됨 (반복 등록 방지)
 
               // 전체 탭용 주문 목록 (날짜에 따라 다름)
               List<OrderModel> allOrders;
@@ -966,7 +959,7 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
                     title: t.kds.btn_batch_complete,
                     content: resultMessage,
                   );
-                } catch (e) {
+                } catch (e, s) {
                   if (!context.mounted) return;
                   CommonDialog.showErrorDialog(
                     context: context,
@@ -1048,11 +1041,10 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
 
   /// 오늘 조회 버튼 (높이 40px로 통일)
   Widget _buildTodaySearchButton() {
-    final todayDateString = DateTime.now().toString().substring(0, 10);
     return InkWell(
       onTap: () async {
         logger.d('KDS: 오늘날짜조회 버튼 클릭');
-        ref.read(selectedDateProvider.notifier).updateDate(todayDateString);
+        ref.read(selectedDateProvider.notifier).updateDate(todayDateString());
         _ensureTabSyncAfterRefresh();
       },
       borderRadius: BorderRadius.circular(8),
@@ -1160,8 +1152,7 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
   void _onDaySelectedInCalendar(
       DateTime newSelectedDay, DateTime focusedDay) async {
     final dateString = newSelectedDay.toString().substring(0, 10);
-    final todayDateString = DateTime.now().toString().substring(0, 10);
-    final isToday = dateString == todayDateString;
+    final isToday = dateString == todayDateString();
 
     logger.d('KDS: 날짜 선택 - $dateString, 오늘 여부: $isToday');
 
@@ -1437,7 +1428,7 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
               .updateScrollButtons(orderId, canScrollUp, canScrollDown);
         }
       });
-    } catch (e) {
+    } catch (e, s) {
       logger.d('KDS: 스크롤 버튼 가시성 업데이트 오류 무시됨: $e');
     }
   }

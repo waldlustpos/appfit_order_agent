@@ -238,8 +238,8 @@ class PreferenceService {
               false;
       logger.i('Legacy data access check result: $canAccess');
       return canAccess;
-    } catch (e) {
-      logger.e('Error checking legacy data access', error: e);
+    } catch (e, s) {
+      logger.e('Error checking legacy data access', error: e, stackTrace: s);
       return false;
     }
   }
@@ -251,8 +251,8 @@ class PreferenceService {
     try {
       await methodChannel.invokeMethod('requestLegacyDataAccess');
       logger.i('Requested legacy data access');
-    } catch (e) {
-      logger.e('Error requesting legacy data access', error: e);
+    } catch (e, s) {
+      logger.e('Error requesting legacy data access', error: e, stackTrace: s);
     }
   }
 
@@ -343,7 +343,7 @@ class PreferenceService {
           await savePassword(trimmedId, decryptedPwd);
           return decryptedPwd;
         }
-      } catch (e) {
+      } catch (e, s) {
         logger.w('[$trimmedId] Legacy decryption failed: $e');
 
         // 암호문일 가능성이 높은 경우 (보통 20자 이상의 Base64 패턴)

@@ -227,41 +227,52 @@ class OrderModel {
       'orderNo': orderNo,
       'shopOrderNo': shopOrderNo,
       'displayOrderNo': displayOrderNo,
-      'displayOrderNum': displayNum, // Keep for legacy systems if needed
-      'ordrSimpleId': shopOrderNo, // Sunmi 호환용 추가
+      'displayOrderNum': displayNum,
       'orderedAt': DateFormat('yyyy-MM-dd HH:mm:ss').format(orderedAt),
-      'ordrDtm':
-          DateFormat('yyyy-MM-dd HH:mm:ss').format(orderedAt), // Sunmi 호환용 추가
-      'totalAmount': NumberFormat('#,###').format(totalAmount),
+      'totalAmount': totalAmount,
       'orderStatus': orderStatus,
       'storeId': storeId,
       'userId': userId,
       'customerName': customerName,
       'tel': tel,
       'note': note,
-      'ordrMemo': note, // Sunmi 호환용 추가
       'userName': userName,
       'storeName': storeName,
       'ordererName': ordererName,
       'orderCount': orderCount,
-      'paymentAmount': NumberFormat('#,###').format(paymentAmount),
-      'discountAmount': NumberFormat('#,###').format(discountAmount),
+      'paymentAmount': paymentAmount,
+      'discountAmount': discountAmount,
       'paymentType': paymentType,
       'paymentCode': paymentCode,
       'paidAt': paidAt != null
           ? DateFormat('yyyy-MM-dd HH:mm:ss').format(paidAt!)
           : null,
       'menus': menus.map((menu) => menu.toJson()).toList(),
-      'ordrPrdList':
-          menus.map((menu) => menu.toJson()).toList(), // Sunmi 호환용 추가
-      'exceptTaxPrice': NumberFormat('#,###').format(exceptTaxPrice),
-      'taxPrice': NumberFormat('#,###').format(taxPrice),
+      'exceptTaxPrice': exceptTaxPrice,
+      'taxPrice': taxPrice,
       'kioskId': kioskId,
       'source': source,
-
       'orderType': orderType,
       'kdsOrderType': kdsOrderType,
       'isDetailLoaded': isDetailLoaded,
+    };
+  }
+
+  /// Sunmi 프린터 전용 JSON. 숫자는 포맷된 문자열, Sunmi 호환 키 포함.
+  Map<String, dynamic> toSunmiJson() {
+    final fmt = NumberFormat('#,###');
+    final dtFmt = DateFormat('yyyy-MM-dd HH:mm:ss');
+    return {
+      ...toJson(),
+      'ordrSimpleId': shopOrderNo,
+      'ordrDtm': dtFmt.format(orderedAt),
+      'totalAmount': fmt.format(totalAmount),
+      'ordrMemo': note,
+      'paymentAmount': fmt.format(paymentAmount),
+      'discountAmount': fmt.format(discountAmount),
+      'ordrPrdList': menus.map((menu) => menu.toJson()).toList(),
+      'exceptTaxPrice': fmt.format(exceptTaxPrice),
+      'taxPrice': fmt.format(taxPrice),
     };
   }
 

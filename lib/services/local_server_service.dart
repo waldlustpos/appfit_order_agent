@@ -41,8 +41,8 @@ class LocalServerService {
         }
       }
       logger.w('LocalServerService - 사용 가능한 IPv4 주소를 찾을 수 없음');
-    } catch (e) {
-      logger.e('로컬 IP 주소 가져오기 실패', error: e);
+    } catch (e, s) {
+      logger.e('로컬 IP 주소 가져오기 실패', error: e, stackTrace: s);
     }
     return null;
   }
