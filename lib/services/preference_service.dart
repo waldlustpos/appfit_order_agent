@@ -223,7 +223,7 @@ class PreferenceService {
     if (_prefs.containsKey(KEY_ENVIRONMENT)) return;
     final savedId = getId();
     if (savedId == null || savedId.isEmpty) return;
-    final env = savedId.toUpperCase().startsWith('TPCP') ? 'japanLive' : 'live';
+    final env = isTPCPStoreId(savedId) ? 'japanLive' : 'live';
     await _prefs.setString(KEY_ENVIRONMENT, env);
     logger.i('[PreferenceService] 서버 환경 자동 복원: $env (ID: $savedId)');
   }
@@ -740,11 +740,12 @@ class PreferenceService {
     await _prefs.setString(KEY_CURRENCY, value.name);
   }
 
-  // 화폐단위 설정 조회 (기본값: jpy — 일본 서비스)
+  // 화폐단위 설정 조회 (기본값: TPCP 매장은 jpy, 일반 매장은 krw)
   CurrencyUnit getCurrency() {
     final saved = _prefs.getString(KEY_CURRENCY);
     if (saved == 'krw') return CurrencyUnit.krw;
-    return CurrencyUnit.jpy;
+    if (saved == 'jpy') return CurrencyUnit.jpy;
+    return isTpcpStore() ? CurrencyUnit.jpy : CurrencyUnit.krw;
   }
 
   // 화면 상하 반전 저장
@@ -772,4 +773,14 @@ class PreferenceService {
   // TPCP 오버라이드 완료 여부 저장
   Future<void> setUpdateTpcpOverrideDone(bool value) async =>
       await _prefs.setBool(KEY_UPDATE_TPCP_OVERRIDE_DONE, value);
+
+  /// TPCP 매장 여부를 ID 문자열로 판별하는 정적 유틸리티.
+  /// 마이그레이션/로그인처럼 아직 ID가 저장되기 전인 경우 사용.
+  static bool isTPCPStoreId(String? storeId) {
+    if (storeId == null || storeId.isEmpty) return false;
+    return storeId.toUpperCase().startsWith('TPCP');
+  }
+
+  /// 현재 저장된 매장 ID가 TPCP(일본 특화) 매장인지 반환.
+  bool isTpcpStore() => isTPCPStoreId(getId());
 }

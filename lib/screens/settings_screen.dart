@@ -48,6 +48,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _isUseExternalPrinter = false;
   bool _isUseLabelPrinter = false;
   bool _isUseBuiltinPrinter = true;
+  bool _isTpcpStore = false;
 
   // 라벨프린터 테스트 모드 설정
   int _labelAutoReplyMode = 0;
@@ -101,6 +102,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _isUseBuiltinPrinter = _preferenceService.getUseBuiltinPrinter();
       _isUseExternalPrinter = _preferenceService.getUseExternalPrinter();
       _isUseLabelPrinter = _preferenceService.getUseLabelPrinter();
+      _isTpcpStore = _preferenceService.isTpcpStore();
 
       // 라벨프린터 테스트 모드 설정
       _labelAutoReplyMode = _preferenceService.getLabelAutoReplyMode();
@@ -875,8 +877,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 },
               ),
             ),
-            // 라벨 출력 필터 모드 설정
-            if (_isUseLabelPrinter)
+            // 라벨 출력 필터 모드 설정 (TPCP 매장에서만 표시)
+            if (_isUseLabelPrinter && _isTpcpStore)
               _buildSettingItem(
                 title: t.settings.label_filter.title,
                 description: _labelFilterMode == 0

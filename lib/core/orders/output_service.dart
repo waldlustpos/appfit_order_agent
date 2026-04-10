@@ -121,10 +121,12 @@ class OutputService {
       // 전체 상품 목록 로드 (완성된 모델 대기)
       final allProducts = await ref.read(productProvider.future);
 
-      // 카테고리 필터링 (재출력이 아닌 자동 출력 시에만 적용)
+      // 카테고리 필터링 (재출력이 아닌 자동 출력 시에만 적용, TPCP 매장 전용)
       // filterMode: 0=전체, 1=와플만, 2=와플제외
-      final filterMode = ref.read(preferenceServiceProvider).getLabelFilterMode();
-      final menusToprint = (!isReprint && filterMode != 0)
+      final prefService = ref.read(preferenceServiceProvider);
+      final filterMode = prefService.getLabelFilterMode();
+      final isTpcp = prefService.isTpcpStore();
+      final menusToprint = (!isReprint && filterMode != 0 && isTpcp)
           ? orderToPrint.menus.where((menu) {
               final product = allProducts.firstWhereOrNull(
                 (p) =>

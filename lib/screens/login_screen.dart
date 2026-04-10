@@ -423,7 +423,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         // TPCP 오버라이드: SUNMI + TPCP 매장은 자동 업데이트 체크 ON 유지
         final prefService = PreferenceService();
         if (!prefService.getUpdateTpcpOverrideDone()) {
-          if (storeId.startsWith('TPCP') && Platform.isAndroid) {
+          if (PreferenceService.isTPCPStoreId(storeId) && Platform.isAndroid) {
             final deviceInfo = await DeviceInfoPlugin().androidInfo;
             if (deviceInfo.manufacturer.toLowerCase() == 'sunmi') {
               await prefService.setAutoCheckUpdate(true);

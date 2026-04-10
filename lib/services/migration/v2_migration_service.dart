@@ -192,7 +192,7 @@ class V2MigrationService {
 
   /// 서버 환경 설정 (ID 접두사 기반)
   Future<void> _setEnvironment(SharedPreferences prefs, String oldId) async {
-    final env = oldId.toUpperCase().startsWith('TPCP') ? 'japanLive' : 'live';
+    final env = PreferenceService.isTPCPStoreId(oldId) ? 'japanLive' : 'live';
     await prefs.setString(PreferenceService.KEY_ENVIRONMENT, env);
     V2MigrationLogger.log('서버 환경 설정: $env (ID: $oldId)');
   }
