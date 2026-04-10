@@ -114,6 +114,9 @@ lib/services/appfit/*.g.dart
 /.env
 lib/config/app_env.dart
 
+# Claude Code (Personal)
+.claude/settings.local.json
+
 # VS Code
 .vscode/
 

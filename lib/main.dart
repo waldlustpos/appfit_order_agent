@@ -134,7 +134,8 @@ void main() async {
 void _logStartupInfo(OrderAgentMonitoringContext ctx) {
   const sep = '[SYSTEM] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━';
   logger.i(sep);
-  logger.i('[SYSTEM]  앱 시작 — Appfit 주문 에이전트 v${ctx.appVersion} (${ctx.buildNumber})');
+  logger.i(
+      '[SYSTEM]  앱 시작 — Appfit 주문 에이전트 v${ctx.appVersion} (${ctx.buildNumber})');
   logger.i('[SYSTEM]  기기: ${ctx.deviceManufacturer} ${ctx.deviceModel}');
   logger.i('[SYSTEM]  환경: ${ctx.environment}');
   logger.i(sep);

@@ -1,0 +1,80 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(flutter analyze:*)",
+      "Bash(flutter pub:*)",
+      "Bash(flutter test:*)",
+      "Bash(flutter clean:*)",
+      "Bash(flutter config:*)",
+      "Bash(dart analyze:*)",
+      "Bash(dart format:*)",
+      "Bash(dart run:*)",
+      "Bash(dart fix:*)",
+      "Bash(slang generate:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git pull:*)",
+      "Bash(git status:*)",
+      "Bash(git show:*)",
+      "Bash(git checkout:*)",
+      "Bash(git log:*)",
+      "Bash(git diff:*)",
+      "Bash(git -C:*)",
+      "Bash(git fetch:*)",
+      "Bash(git branch:*)",
+      "Bash(gh pr:*)",
+      "Bash(gh issue:*)",
+      "Bash(gh run:*)",
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "Bash(ls:*)",
+      "Bash(wc:*)",
+      "Bash(tail:*)",
+      "Bash(unzip:*)",
+      "Bash(jar tf:*)",
+      "Bash(javap:*)",
+      "Bash(python3:*)",
+      "Bash(export:*)",
+      "Bash(xargs sed:*)",
+      "mcp__ide__getDiagnostics",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:pub.dev)",
+      "WebFetch(domain:api.github.com)"
+    ],
+    "deny": [
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(git clean -f:*)",
+      "Bash(git clean -fd:*)",
+      "Bash(rm -rf:*)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path // empty' | { read -r f; [ -n \"$f\" ] && echo \"$f\" | grep -q '\\.dart$' && dart format --line-length=80 \"$f\"; } 2>/dev/null || true",
+            "statusMessage": "dart format 적용 중..."
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "BRANCH=$(git branch --show-current 2>/dev/null || echo \"unknown\"); STATUS=$(git status --short 2>/dev/null | head -20 || echo \"(clean)\"); jq -n --arg b \"$BRANCH\" --arg s \"$STATUS\" '{\"hookSpecificOutput\": {\"hookEventName\": \"UserPromptSubmit\", \"additionalContext\": (\"[Git Context]\\nBranch: \" + $b + \"\\n\" + $s)}}'",
+            "statusMessage": "git 상태 주입 중..."
+          }
+        ]
+      }
+    ]
+  }
+}
