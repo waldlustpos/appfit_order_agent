@@ -1,5 +1,103 @@
 import 'package:flutter/material.dart';
 
+// ─── 간격 토큰 ────────────────────────────────────────────────────────────────
+class AppSpacing {
+  const AppSpacing._();
+  static const double s4 = 4;
+  static const double s8 = 8;
+  static const double s12 = 12;
+  static const double s16 = 16;
+  static const double s20 = 20;
+  static const double s24 = 24;
+  static const double s32 = 32;
+}
+
+// ─── 라운딩 토큰 ──────────────────────────────────────────────────────────────
+class AppRadius {
+  const AppRadius._();
+  static const double sm = 8;
+  static const double md = 12;
+  static const double lg = 16;
+  static const double xl = 20;
+
+  static const BorderRadius bSm = BorderRadius.all(Radius.circular(sm));
+  static const BorderRadius bMd = BorderRadius.all(Radius.circular(md));
+  static const BorderRadius bLg = BorderRadius.all(Radius.circular(lg));
+  static const BorderRadius bXl = BorderRadius.all(Radius.circular(xl));
+}
+
+// ─── 그림자 토큰 ──────────────────────────────────────────────────────────────
+class AppElevation {
+  const AppElevation._();
+
+  /// 카드·패널: 아주 약한 그림자
+  static const List<BoxShadow> soft = [
+    BoxShadow(
+      color: Color(0x0D000000), // black 5%
+      blurRadius: 8,
+      offset: Offset(0, 2),
+    ),
+  ];
+
+  /// 부유 요소: 눈에 띄는 그림자
+  static const List<BoxShadow> card = [
+    BoxShadow(
+      color: Color(0x1A000000), // black 10%
+      blurRadius: 12,
+      offset: Offset(0, 4),
+    ),
+  ];
+}
+
+// ─── 텍스트 스타일 토큰 ───────────────────────────────────────────────────────
+class AppTextStyles {
+  const AppTextStyles._();
+  static const String _font = 'SpoqaHanSansNeo';
+
+  /// 화면 상단 대표 수치·타이틀 (24px bold)
+  static const TextStyle display = TextStyle(
+    fontFamily: _font,
+    fontSize: 24,
+    fontWeight: FontWeight.bold,
+  );
+
+  /// 섹션/다이얼로그 제목 (20px bold)
+  static const TextStyle title = TextStyle(
+    fontFamily: _font,
+    fontSize: 20,
+    fontWeight: FontWeight.bold,
+  );
+
+  /// 소제목 (17px semibold)
+  static const TextStyle titleSm = TextStyle(
+    fontFamily: _font,
+    fontSize: 17,
+    fontWeight: FontWeight.w600,
+  );
+
+  /// 본문 (15px regular)
+  static const TextStyle body = TextStyle(
+    fontFamily: _font,
+    fontSize: 15,
+    fontWeight: FontWeight.normal,
+  );
+
+  /// 보조 본문 (13px regular)
+  static const TextStyle bodySm = TextStyle(
+    fontFamily: _font,
+    fontSize: 13,
+    fontWeight: FontWeight.normal,
+  );
+
+  /// 캡션·레이블 (11px regular)
+  static const TextStyle caption = TextStyle(
+    fontFamily: _font,
+    fontSize: 11,
+    fontWeight: FontWeight.normal,
+  );
+}
+
+// ─── 앱 스타일 ────────────────────────────────────────────────────────────────
 class AppStyles {
   // 폰트 사이즈 상수 정의
   static const double kAppBarTitleSize = 18.0;
@@ -157,6 +255,34 @@ class AppStyles {
         focusedBorder: OutlineInputBorder(
           borderSide: const BorderSide(color: kMainColor, width: 2),
           borderRadius: BorderRadius.circular(8),
+        ),
+      );
+
+  // ─── KDS 카드 버튼 스타일 ──────────────────────────────────────────────────
+
+  /// KDS 카드 하단 주 액션 버튼 (접수/완료 등)
+  static ButtonStyle kdsCardPrimaryButton() => ElevatedButton.styleFrom(
+        backgroundColor: kMainColor,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        shape: const RoundedRectangleBorder(borderRadius: AppRadius.bSm),
+        minimumSize: const Size(0, 36),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.s16,
+          vertical: AppSpacing.s8,
+        ),
+      );
+
+  /// KDS 카드 하단 보조 액션 버튼 (취소 등)
+  static ButtonStyle kdsCardSecondaryButton() => ElevatedButton.styleFrom(
+        backgroundColor: gray2,
+        foregroundColor: gray9,
+        elevation: 0,
+        shape: const RoundedRectangleBorder(borderRadius: AppRadius.bSm),
+        minimumSize: const Size(0, 36),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.s16,
+          vertical: AppSpacing.s8,
         ),
       );
 }

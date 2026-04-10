@@ -11,25 +11,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../i18n/strings.g.dart';
 import '../../exceptions/api_exceptions.dart';
 
-// 공통 버튼 스타일
+// 공통 버튼 스타일 — AppStyles 팩토리로 위임
 class KdsButtonStyle {
-  static ButtonStyle get primary => ElevatedButton.styleFrom(
-        elevation: 0,
-        backgroundColor: AppStyles.kMainColor,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
-        padding: const EdgeInsets.symmetric(vertical: 8),
-      );
-
-  static ButtonStyle get secondary => ElevatedButton.styleFrom(
-        elevation: 0,
-        backgroundColor: AppStyles.gray2,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
-        padding: const EdgeInsets.symmetric(vertical: 8),
-      );
+  static ButtonStyle get primary => AppStyles.kdsCardPrimaryButton();
+  static ButtonStyle get secondary => AppStyles.kdsCardSecondaryButton();
 }
 
 // 진행 탭용 하단 버튼 위젯
@@ -67,7 +52,8 @@ class KdsProgressBottomButtonsWidget extends ConsumerWidget {
             child: ElevatedButton(
               onPressed: () async {
                 // await 전에 캡처 (다이얼로그 대기 중 위젯 dispose 대비)
-                final animationsNotifier = ref.read(kdsCardAnimationsProvider.notifier);
+                final animationsNotifier =
+                    ref.read(kdsCardAnimationsProvider.notifier);
                 final orderNotifier = ref.read(orderProvider.notifier);
                 final navigator = Navigator.of(context);
 
@@ -85,13 +71,15 @@ class KdsProgressBottomButtonsWidget extends ConsumerWidget {
                           'KDS 카드 픽업 요청: displayNum=${order.displayNum}, simpleNum=${order.shopOrderNo}, orderId=${order.orderId}');
                   try {
                     // 1단계: 애니메이션 먼저 시작
-                    animationsNotifier.startStatusChangeAnimation(order.orderId);
+                    animationsNotifier
+                        .startStatusChangeAnimation(order.orderId);
 
                     // 2단계: 약간의 지연 후 상태 변경 (애니메이션이 보이도록)
                     await Future.delayed(const Duration(milliseconds: 300));
 
                     // 3단계: 실제 상태 변경
-                    final success = await orderNotifier.updateOrderStatus(order, OrderStatus.READY);
+                    final success = await orderNotifier.updateOrderStatus(
+                        order, OrderStatus.READY);
                     if (success) {
                       logToFile(
                           tag: LogTag.UI_ACTION,
@@ -115,12 +103,15 @@ class KdsProgressBottomButtonsWidget extends ConsumerWidget {
                         tag: LogTag.UI_ACTION,
                         message:
                             'KDS 픽업 요청 오류: displayNum=${order.displayNum}, simpleNum=${order.shopOrderNo}, orderId=${order.orderId}, error=$e');
-                    logger.e('KDS: 픽업 처리 오류 - ${e.runtimeType}: $e', error: e, stackTrace: s);
+                    logger.e('KDS: 픽업 처리 오류 - ${e.runtimeType}: $e',
+                        error: e, stackTrace: s);
                     if (navigator.mounted) {
                       CommonDialog.showInfoDialog(
                         context: navigator.context,
                         title: t.common.error_title,
-                        content: e is ApiException ? e.message : t.order_detail.status_update_fail,
+                        content: e is ApiException
+                            ? e.message
+                            : t.order_detail.status_update_fail,
                       );
                     }
                   }
@@ -200,7 +191,9 @@ class KdsPickupBottomButtonsWidget extends ConsumerWidget {
                     await Future.delayed(const Duration(milliseconds: 300));
 
                     // 실제 상태 변경 (READY -> DONE)
-                    final success = await ref.read(orderProvider.notifier).updateOrderStatus(
+                    final success = await ref
+                        .read(orderProvider.notifier)
+                        .updateOrderStatus(
                           order,
                           OrderStatus.DONE,
                         );
@@ -227,12 +220,15 @@ class KdsPickupBottomButtonsWidget extends ConsumerWidget {
                         tag: LogTag.UI_ACTION,
                         message:
                             'KDS 완료 처리 오류: displayNum=${order.displayNum}, simpleNum=${order.shopOrderNo}, orderId=${order.orderId}, error=$e');
-                    logger.e('KDS: 완료 처리 오류 - ${e.runtimeType}: $e', error: e, stackTrace: s);
+                    logger.e('KDS: 완료 처리 오류 - ${e.runtimeType}: $e',
+                        error: e, stackTrace: s);
                     if (navigator.mounted) {
                       CommonDialog.showInfoDialog(
                         context: navigator.context,
                         title: t.common.error_title,
-                        content: e is ApiException ? e.message : t.order_detail.status_update_fail,
+                        content: e is ApiException
+                            ? e.message
+                            : t.order_detail.status_update_fail,
                       );
                     }
                   }

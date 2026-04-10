@@ -24,6 +24,7 @@ import 'package:appfit_order_agent/i18n/strings.g.dart';
 import 'package:appfit_order_agent/providers/locale_provider.dart';
 import 'package:appfit_order_agent/providers/rotation_provider.dart';
 import 'services/monitoring/order_agent_monitoring_context.dart';
+import 'constants/app_styles.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -182,6 +183,142 @@ Future<OrderAgentMonitoringContext> _buildMonitoringContext() async {
 
 // _checkLegacyDataPermissions 제거됨: V2 마이그레이션은 PreferenceService.init()에서 처리
 
+ThemeData _buildTheme() {
+  final colorScheme = ColorScheme.fromSeed(
+    seedColor: AppStyles.kMainColor,
+    brightness: Brightness.light,
+  ).copyWith(
+    // 앱 전반에 쓰이는 상태 색상은 기존 팔레트 유지
+    error: AppStyles.kRed,
+    surface: AppStyles.gray1,
+  );
+
+  return ThemeData(
+    useMaterial3: true,
+    colorScheme: colorScheme,
+    fontFamily: 'SpoqaHanSansNeo',
+
+    // ── AppBar ─────────────────────────────────────────────────────────────
+    appBarTheme: AppBarTheme(
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      backgroundColor: Colors.white,
+      foregroundColor: AppStyles.gray9,
+      surfaceTintColor: Colors.transparent,
+      iconTheme: const IconThemeData(color: AppStyles.gray9, size: 24),
+      actionsIconTheme: const IconThemeData(color: AppStyles.gray9, size: 24),
+      titleTextStyle: AppTextStyles.titleSm.copyWith(color: AppStyles.gray9),
+    ),
+
+    // ── 버튼 ───────────────────────────────────────────────────────────────
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: AppStyles.kMainColor,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        shape: const RoundedRectangleBorder(borderRadius: AppRadius.bSm),
+        textStyle: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
+      ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppStyles.kMainColor,
+        side: const BorderSide(color: AppStyles.kMainColor),
+        shape: const RoundedRectangleBorder(borderRadius: AppRadius.bSm),
+        textStyle: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
+      ),
+    ),
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(
+        foregroundColor: AppStyles.kMainColor,
+        shape: const RoundedRectangleBorder(borderRadius: AppRadius.bSm),
+        textStyle: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
+      ),
+    ),
+    iconButtonTheme: IconButtonThemeData(
+      style: IconButton.styleFrom(
+        foregroundColor: AppStyles.gray9,
+        highlightColor: AppStyles.kMainColor.withAlpha(20),
+      ),
+    ),
+
+    // ── 카드 ───────────────────────────────────────────────────────────────
+    cardTheme: const CardThemeData(
+      elevation: 0,
+      color: Colors.white,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: AppRadius.bLg,
+        side: BorderSide(color: AppStyles.gray3),
+      ),
+      margin: EdgeInsets.all(AppSpacing.s4),
+    ),
+
+    // ── 다이얼로그 ─────────────────────────────────────────────────────────
+    dialogTheme: DialogThemeData(
+      backgroundColor: AppStyles.gray1,
+      surfaceTintColor: Colors.transparent,
+      shape: const RoundedRectangleBorder(borderRadius: AppRadius.bLg),
+      elevation: 8,
+      titleTextStyle: AppTextStyles.title.copyWith(color: AppStyles.gray9),
+      contentTextStyle: AppTextStyles.body.copyWith(color: AppStyles.gray6),
+    ),
+
+    // ── TabBar ──────────────────────────────────────────────────────────────
+    tabBarTheme: const TabBarThemeData(
+      labelColor: AppStyles.kMainColor,
+      unselectedLabelColor: AppStyles.gray6,
+      labelStyle: AppTextStyles.titleSm,
+      unselectedLabelStyle: AppTextStyles.titleSm,
+      indicatorColor: AppStyles.kMainColor,
+      indicatorSize: TabBarIndicatorSize.tab,
+      dividerColor: AppStyles.gray3,
+    ),
+
+    // ── 입력 필드 ──────────────────────────────────────────────────────────
+    inputDecorationTheme: const InputDecorationTheme(
+      filled: true,
+      fillColor: AppStyles.gray2,
+      border: OutlineInputBorder(
+        borderSide: BorderSide.none,
+        borderRadius: AppRadius.bSm,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderSide: BorderSide.none,
+        borderRadius: AppRadius.bSm,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderSide: BorderSide(color: AppStyles.kMainColor, width: 2),
+        borderRadius: AppRadius.bSm,
+      ),
+      errorBorder: OutlineInputBorder(
+        borderSide: BorderSide(color: AppStyles.kRed),
+        borderRadius: AppRadius.bSm,
+      ),
+      contentPadding: EdgeInsets.symmetric(
+        horizontal: AppSpacing.s16,
+        vertical: AppSpacing.s12,
+      ),
+    ),
+
+    // ── 구분선 ─────────────────────────────────────────────────────────────
+    dividerTheme: const DividerThemeData(
+      color: AppStyles.gray3,
+      thickness: 1,
+      space: 1,
+    ),
+
+    // ── PopupMenu ──────────────────────────────────────────────────────────
+    popupMenuTheme: PopupMenuThemeData(
+      color: Colors.white,
+      surfaceTintColor: Colors.transparent,
+      elevation: 4,
+      shape: const RoundedRectangleBorder(borderRadius: AppRadius.bMd),
+      textStyle: AppTextStyles.body.copyWith(color: AppStyles.gray9),
+    ),
+  );
+}
+
 class MyApp extends ConsumerWidget {
   const MyApp({Key? key}) : super(key: key);
 
@@ -200,18 +337,7 @@ class MyApp extends ConsumerWidget {
         supportedLocales: AppLocaleUtils.supportedLocales,
         localizationsDelegates: GlobalMaterialLocalizations.delegates,
 
-        theme: ThemeData(
-          primarySwatch: Colors.brown,
-          useMaterial3: true,
-          fontFamily: 'SpoqaHanSansNeo',
-          appBarTheme: const AppBarTheme(
-            elevation: 0,
-            scrolledUnderElevation: 0,
-            backgroundColor: Colors.white, // 앱바 배경색
-            foregroundColor: Colors.black, // 앱바 텍스트 및 아이콘 색상
-            surfaceTintColor: Colors.transparent, // 스크롤 시 색조 변화 제거
-          ),
-        ),
+        theme: _buildTheme(),
         builder: (context, child) {
           // WillPopScope로 뒤로가기 버튼 동작 제어
           return PopScope(

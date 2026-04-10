@@ -22,73 +22,60 @@ class CommonDialog {
       barrierDismissible: false,
       builder: (BuildContext context) {
         return AlertDialog(
-          backgroundColor: AppStyles.gray1,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
           title: Text(title,
               style:
                   const TextStyle(fontWeight: FontWeight.bold, fontSize: 25)),
-          titlePadding:
-              const EdgeInsets.symmetric(horizontal: 30.0, vertical: 30.0),
-          contentPadding: const EdgeInsets.fromLTRB(30.0, 20.0, 30.0, 0),
+          titlePadding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.s24,
+            vertical: AppSpacing.s24,
+          ),
+          contentPadding: const EdgeInsets.fromLTRB(
+            AppSpacing.s24,
+            AppSpacing.s16,
+            AppSpacing.s24,
+            0,
+          ),
           content: SizedBox(
             width: 400,
             height: 80,
             child: Align(
               alignment: Alignment.centerLeft,
-              child: Text(
-                content,
-                style: const TextStyle(fontSize: 18),
-              ),
+              child: Text(content, style: const TextStyle(fontSize: 18)),
             ),
           ),
-          actionsPadding:
-              const EdgeInsets.symmetric(horizontal: 30.0, vertical: 30.0),
+          actionsPadding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.s24,
+            vertical: AppSpacing.s24,
+          ),
           actions: <Widget>[
             if (cancelText.isNotEmpty)
-              TextButton(
-                style: TextButton.styleFrom(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  minimumSize: const Size(100, 45),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    side: BorderSide(color: Colors.grey.shade400),
+              ElevatedButton(
+                style: AppStyles.outlinedButton(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.s20,
+                    vertical: AppSpacing.s12,
                   ),
-                  backgroundColor: Colors.white,
+                  minimumSize: const Size(100, 45),
                 ),
-                child: Text(
-                  cancelText,
-                  style: const TextStyle(
-                      color: Colors.black,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold),
-                ),
-                onPressed: () {
-                  Navigator.of(context).pop(false);
-                },
+                onPressed: () => Navigator.of(context).pop(false),
+                child: Text(cancelText,
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold)),
               ),
-            TextButton(
-              style: TextButton.styleFrom(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            ElevatedButton(
+              style: AppStyles.primaryButton(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.s20,
+                  vertical: AppSpacing.s12,
+                ),
                 minimumSize: const Size(100, 45),
-                backgroundColor: AppStyles.kMainColor,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
               ),
-              child: Text(
-                confirmText,
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold),
-              ),
-              onPressed: () {
-                Navigator.of(context).pop(true);
-              },
+              onPressed: () => Navigator.of(context).pop(true),
+              child: Text(confirmText,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold)),
             ),
           ],
         );
@@ -113,16 +100,19 @@ class CommonDialog {
       barrierDismissible: true,
       builder: (BuildContext context) {
         return AlertDialog(
-          backgroundColor: AppStyles.gray1,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
           title: Text(title ?? t.dialog.status_change.title,
               style:
                   const TextStyle(fontWeight: FontWeight.bold, fontSize: 25)),
-          titlePadding:
-              const EdgeInsets.symmetric(horizontal: 30.0, vertical: 30.0),
-          contentPadding: const EdgeInsets.fromLTRB(30.0, 20.0, 30.0, 0),
+          titlePadding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.s24,
+            vertical: AppSpacing.s24,
+          ),
+          contentPadding: const EdgeInsets.fromLTRB(
+            AppSpacing.s24,
+            AppSpacing.s16,
+            AppSpacing.s24,
+            0,
+          ),
           content: SizedBox(
             width: 420,
             child: Column(
@@ -149,29 +139,26 @@ class CommonDialog {
               ],
             ),
           ),
-          actionsPadding:
-              const EdgeInsets.symmetric(horizontal: 30.0, vertical: 30.0),
+          actionsPadding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.s24,
+            vertical: AppSpacing.s24,
+          ),
           actions: <Widget>[
             // 닫기
-            TextButton(
-              style: TextButton.styleFrom(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                minimumSize: const Size(100, 45),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  side: BorderSide(color: Colors.grey.shade400),
+            ElevatedButton(
+              style: AppStyles.outlinedButton(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.s20,
+                  vertical: AppSpacing.s12,
                 ),
-                backgroundColor: Colors.white,
-              ),
-              child: Text(
-                t.common.close,
-                style: const TextStyle(
-                    color: Colors.black,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold),
+                minimumSize: const Size(100, 45),
               ),
               onPressed: () => Navigator.of(context).pop(null),
+              child: Text(
+                t.common.close,
+                style:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
             ),
 
             // 품절/판매 토글
@@ -183,18 +170,29 @@ class CommonDialog {
                     : t.dialog.status_change.sold_out;
                 final ProductStatus target =
                     showSale ? ProductStatus.sale : ProductStatus.soldOut;
-                final Color bg =
-                    showSale ? AppStyles.kMainColor : Colors.redAccent;
-                return TextButton(
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 12),
-                    minimumSize: const Size(100, 45),
-                    backgroundColor: bg,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
+                final ButtonStyle style = showSale
+                    ? AppStyles.primaryButton(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.s20,
+                          vertical: AppSpacing.s12,
+                        ),
+                        minimumSize: const Size(100, 45),
+                      )
+                    : ElevatedButton.styleFrom(
+                        backgroundColor: AppStyles.kRed,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.s20,
+                          vertical: AppSpacing.s12,
+                        ),
+                        minimumSize: const Size(100, 45),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: AppRadius.bSm,
+                        ),
+                      );
+                return ElevatedButton(
+                  style: style,
+                  onPressed: () => Navigator.of(context).pop(target),
                   child: Text(
                     label,
                     style: const TextStyle(
@@ -202,23 +200,27 @@ class CommonDialog {
                         fontSize: 18,
                         fontWeight: FontWeight.bold),
                   ),
-                  onPressed: () => Navigator.of(context).pop(target),
                 );
               },
             ),
 
             // 미노출
             if (options.contains(ProductStatus.hidden))
-              TextButton(
-                style: TextButton.styleFrom(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  minimumSize: const Size(100, 45),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.grey[700],
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.s20,
+                    vertical: AppSpacing.s12,
+                  ),
+                  minimumSize: const Size(100, 45),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: AppRadius.bSm,
                   ),
                 ),
+                onPressed: () =>
+                    Navigator.of(context).pop(ProductStatus.hidden),
                 child: Text(
                   t.dialog.status_change.hidden_delete,
                   style: const TextStyle(
@@ -226,8 +228,6 @@ class CommonDialog {
                       fontSize: 18,
                       fontWeight: FontWeight.bold),
                 ),
-                onPressed: () =>
-                    Navigator.of(context).pop(ProductStatus.hidden),
               ),
           ],
         );
@@ -267,10 +267,6 @@ class CommonDialog {
       barrierDismissible: true,
       builder: (BuildContext context) {
         return AlertDialog(
-          backgroundColor: AppStyles.gray1,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
           title: Row(
             children: [
               const Icon(Icons.info_outline,
@@ -281,8 +277,18 @@ class CommonDialog {
                       fontWeight: FontWeight.bold, fontSize: 22)),
             ],
           ),
-          titlePadding: const EdgeInsets.fromLTRB(30.0, 30.0, 30.0, 0),
-          contentPadding: const EdgeInsets.fromLTRB(30.0, 20.0, 30.0, 10.0),
+          titlePadding: const EdgeInsets.fromLTRB(
+            AppSpacing.s24,
+            AppSpacing.s24,
+            AppSpacing.s24,
+            0,
+          ),
+          contentPadding: const EdgeInsets.fromLTRB(
+            AppSpacing.s24,
+            AppSpacing.s16,
+            AppSpacing.s24,
+            AppSpacing.s8,
+          ),
           content: ConstrainedBox(
             constraints: const BoxConstraints(minWidth: 400),
             child: Text(
@@ -290,18 +296,20 @@ class CommonDialog {
               style: const TextStyle(fontSize: 18, color: Colors.black87),
             ),
           ),
-          actionsPadding:
-              const EdgeInsets.symmetric(horizontal: 30.0, vertical: 25.0),
+          actionsPadding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.s24,
+            vertical: AppSpacing.s24,
+          ),
           actions: <Widget>[
-            TextButton(
-              style: TextButton.styleFrom(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                backgroundColor: AppStyles.kMainColor,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+            ElevatedButton(
+              style: AppStyles.primaryButton(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.s24,
+                  vertical: AppSpacing.s12,
                 ),
+                minimumSize: const Size(100, 45),
               ),
+              onPressed: () => Navigator.of(context).pop(),
               child: Text(
                 confirmText!,
                 style: const TextStyle(
@@ -309,9 +317,6 @@ class CommonDialog {
                     fontSize: 18,
                     fontWeight: FontWeight.bold),
               ),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
             ),
           ],
         );
@@ -332,24 +337,29 @@ class CommonDialog {
       barrierDismissible: true,
       builder: (BuildContext context) {
         return AlertDialog(
-          backgroundColor: AppStyles.gray1,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
           title: Row(
             children: [
-              const Icon(Icons.error_outline,
-                  color: Colors.redAccent, size: 28),
+              Icon(Icons.error_outline, color: AppStyles.kRed, size: 28),
               const SizedBox(width: 12),
               Text(title,
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 22,
-                      color: Colors.redAccent)),
+                      color: AppStyles.kRed)),
             ],
           ),
-          titlePadding: const EdgeInsets.fromLTRB(30.0, 30.0, 30.0, 0),
-          contentPadding: const EdgeInsets.fromLTRB(30.0, 20.0, 30.0, 10.0),
+          titlePadding: const EdgeInsets.fromLTRB(
+            AppSpacing.s24,
+            AppSpacing.s24,
+            AppSpacing.s24,
+            0,
+          ),
+          contentPadding: const EdgeInsets.fromLTRB(
+            AppSpacing.s24,
+            AppSpacing.s16,
+            AppSpacing.s24,
+            AppSpacing.s8,
+          ),
           content: ConstrainedBox(
             constraints: const BoxConstraints(minWidth: 400),
             child: Text(
@@ -357,18 +367,25 @@ class CommonDialog {
               style: const TextStyle(fontSize: 18, color: Colors.black87),
             ),
           ),
-          actionsPadding:
-              const EdgeInsets.symmetric(horizontal: 30.0, vertical: 25.0),
+          actionsPadding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.s24,
+            vertical: AppSpacing.s24,
+          ),
           actions: <Widget>[
-            TextButton(
-              style: TextButton.styleFrom(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                backgroundColor: Colors.redAccent,
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppStyles.kRed,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.s24,
+                  vertical: AppSpacing.s12,
+                ),
+                minimumSize: const Size(100, 45),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: AppRadius.bSm,
                 ),
               ),
+              onPressed: () => Navigator.of(context).pop(),
               child: Text(
                 confirmText!,
                 style: const TextStyle(
@@ -376,9 +393,6 @@ class CommonDialog {
                     fontSize: 18,
                     fontWeight: FontWeight.bold),
               ),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
             ),
           ],
         );
@@ -454,15 +468,18 @@ class _UpdateProgressDialogState extends State<_UpdateProgressDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: AppStyles.gray1,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
       title: Text(t.dialog.update.title,
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 25)),
-      titlePadding:
-          const EdgeInsets.symmetric(horizontal: 30.0, vertical: 30.0),
-      contentPadding: const EdgeInsets.fromLTRB(30.0, 20.0, 30.0, 0),
+      titlePadding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.s24,
+        vertical: AppSpacing.s24,
+      ),
+      contentPadding: const EdgeInsets.fromLTRB(
+        AppSpacing.s24,
+        AppSpacing.s16,
+        AppSpacing.s24,
+        0,
+      ),
       content: SizedBox(
         width: 400,
         child: Column(
@@ -542,38 +559,35 @@ class _UpdateProgressDialogState extends State<_UpdateProgressDialog> {
           ],
         ),
       ),
-      actionsPadding:
-          const EdgeInsets.symmetric(horizontal: 30.0, vertical: 30.0),
+      actionsPadding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.s24,
+        vertical: AppSpacing.s24,
+      ),
       actions: [
         if (!_isDownloading && !_downloadComplete && !_downloadError) ...[
-          TextButton(
-            style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              minimumSize: const Size(100, 45),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-                side: BorderSide(color: Colors.grey.shade400),
+          ElevatedButton(
+            style: AppStyles.outlinedButton(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.s20,
+                vertical: AppSpacing.s12,
               ),
-              backgroundColor: Colors.white,
-            ),
-            child: Text(
-              t.common.later,
-              style: const TextStyle(
-                  color: Colors.black,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold),
+              minimumSize: const Size(100, 45),
             ),
             onPressed: () => Navigator.of(context).pop(false),
-          ),
-          TextButton(
-            style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              minimumSize: const Size(100, 45),
-              backgroundColor: AppStyles.kMainColor,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
+            child: Text(
+              t.common.later,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
+          ),
+          ElevatedButton(
+            style: AppStyles.primaryButton(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.s20,
+                vertical: AppSpacing.s12,
+              ),
+              minimumSize: const Size(100, 45),
+            ),
+            onPressed: _startDownload,
             child: Text(
               t.dialog.update.download,
               style: const TextStyle(
@@ -581,18 +595,17 @@ class _UpdateProgressDialogState extends State<_UpdateProgressDialog> {
                   fontSize: 18,
                   fontWeight: FontWeight.bold),
             ),
-            onPressed: _startDownload,
           ),
         ] else if (_downloadComplete) ...[
-          TextButton(
-            style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              minimumSize: const Size(100, 45),
-              backgroundColor: AppStyles.kMainColor,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+          ElevatedButton(
+            style: AppStyles.primaryButton(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.s20,
+                vertical: AppSpacing.s12,
               ),
+              minimumSize: const Size(100, 45),
             ),
+            onPressed: () => Navigator.of(context).pop(true),
             child: Text(
               t.common.confirm,
               style: const TextStyle(
@@ -600,37 +613,31 @@ class _UpdateProgressDialogState extends State<_UpdateProgressDialog> {
                   fontSize: 18,
                   fontWeight: FontWeight.bold),
             ),
-            onPressed: () => Navigator.of(context).pop(true),
           ),
         ] else if (_downloadError) ...[
-          TextButton(
-            style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              minimumSize: const Size(100, 45),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-                side: BorderSide(color: Colors.grey.shade400),
+          ElevatedButton(
+            style: AppStyles.outlinedButton(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.s20,
+                vertical: AppSpacing.s12,
               ),
-              backgroundColor: Colors.white,
-            ),
-            child: Text(
-              t.common.cancel,
-              style: const TextStyle(
-                  color: Colors.black,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold),
+              minimumSize: const Size(100, 45),
             ),
             onPressed: () => Navigator.of(context).pop(false),
-          ),
-          TextButton(
-            style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              minimumSize: const Size(100, 45),
-              backgroundColor: AppStyles.kMainColor,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
+            child: Text(
+              t.common.cancel,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
+          ),
+          ElevatedButton(
+            style: AppStyles.primaryButton(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.s20,
+                vertical: AppSpacing.s12,
+              ),
+              minimumSize: const Size(100, 45),
+            ),
+            onPressed: _startDownload,
             child: Text(
               t.common.retry,
               style: const TextStyle(
@@ -638,28 +645,22 @@ class _UpdateProgressDialogState extends State<_UpdateProgressDialog> {
                   fontSize: 18,
                   fontWeight: FontWeight.bold),
             ),
-            onPressed: _startDownload,
           ),
         ] else ...[
-          TextButton(
-            style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              minimumSize: const Size(100, 45),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-                side: BorderSide(color: Colors.grey.shade400),
+          ElevatedButton(
+            style: AppStyles.outlinedButton(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.s20,
+                vertical: AppSpacing.s12,
               ),
-              backgroundColor: Colors.white,
-            ),
-            child: Text(
-              t.common.cancel,
-              style: const TextStyle(
-                  color: Colors.black,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold),
+              minimumSize: const Size(100, 45),
             ),
             onPressed:
                 _isDownloading ? null : () => Navigator.of(context).pop(false),
+            child: Text(
+              t.common.cancel,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ],
@@ -716,7 +717,7 @@ class _UpdateProgressDialogState extends State<_UpdateProgressDialog> {
           });
         },
       );
-    } catch (e, s) {
+    } catch (e) {
       setState(() {
         _downloadError = true;
         _errorMessage = e.toString();

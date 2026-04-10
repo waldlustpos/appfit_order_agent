@@ -9,6 +9,8 @@ import '../../constants/app_styles.dart';
 import '../../services/platform_service.dart';
 import '../custom_switch.dart';
 import '../../widgets/common/common_dialog.dart';
+import '../../widgets/common/app_icon_action.dart';
+import '../../widgets/common/app_loading_indicator.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:appfit_order_agent/utils/test/socket_burst_test.dart'
     as test_util; // [TEST]
@@ -284,7 +286,8 @@ class _HomeAppBarWidgetState extends ConsumerState<HomeAppBarWidget> {
     );
   }
 
-  Widget _buildTitle(bool isKdsMode, appfit_core.ConnectionStatus socketStatus) {
+  Widget _buildTitle(
+      bool isKdsMode, appfit_core.ConnectionStatus socketStatus) {
     return Stack(
       alignment: Alignment.center,
       children: [
@@ -310,157 +313,89 @@ class _HomeAppBarWidgetState extends ConsumerState<HomeAppBarWidget> {
 
   Widget _buildLeftActions(bool isKdsMode) {
     return Row(
-                children: [
-                  // 매장명 및 주문 건수
-                  Row(
-                    children: [
-                      Consumer(
-                        builder: (context, ref, _) {
-                          final store = ref.watch(storeProvider);
-                          return Text(
-                            store.value?.name ?? '',
-                            style: const TextStyle(
-                              fontSize: AppStyles.kAppBarTitleSize,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          );
-                        },
-                      ),
-                      // 주문 건수 표시
-                      const SizedBox(width: 8),
-                      Consumer(
-                        builder: (context, ref, _) {
-                          final blinkState = ref.watch(blinkStateProvider);
-                          return GestureDetector(
-                            onTap: () {
-                              if (blinkState.isBlinking ||
-                                  blinkState.activeOrderCount > 0) {
-                                // OrderProvider의 stopBlinking 호출하여 점멸과 소리 함께 중지
-                                ref.read(orderProvider.notifier).stopBlinking();
-                                logToFile(
-                                    tag: LogTag.UI_ACTION,
-                                    message: '앱바 주문건수 터치로 알림음/점멸 중지');
-                              }
-                            },
-                            child: Container(
-                              height: 30,
-                              margin: const EdgeInsets.only(left: 8),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: blinkState.isBlinking
-                                    ? AppStyles.kMainColor
-                                        .withValues(alpha: 0.5)
-                                    : AppStyles.kMainColor,
-                                borderRadius: BorderRadius.circular(15),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  t.app_bar.new_order_count(
-                                      n: blinkState.activeOrderCount),
-                                  style: const TextStyle(
-                                    fontSize: AppStyles.kSectionCountSize,
-                                    fontWeight: FontWeight.normal,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                      const SizedBox(width: 8),
-                      // 새로고침 버튼 - isKdsMode는 부모 build()에서 파라미터로 전달됨
-                      if (isKdsMode)
-                        Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                AppStyles.kMainColor,
-                                AppStyles.kMainColor.withValues(alpha: 0.8),
-                              ],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            borderRadius: BorderRadius.circular(8),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppStyles.kMainColor
-                                    .withValues(alpha: 0.3),
-                                spreadRadius: 1,
-                                blurRadius: 4,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              onTap: _isRefreshing ? null : _handleRefresh,
-                              borderRadius: BorderRadius.circular(8),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 8),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    _isRefreshing
-                                        ? const SizedBox(
-                                            width: 18,
-                                            height: 18,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                              valueColor:
-                                                  AlwaysStoppedAnimation<
-                                                      Color>(Colors.white),
-                                            ),
-                                          )
-                                        : const Icon(Icons.refresh,
-                                            size: 18, color: Colors.white),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      t.common.refresh,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        )
-                      else
-                        IconButton(
-                          icon: Icon(
-                            Icons.refresh,
-                            size: 30,
-                            color: _isRefreshing
-                                ? Colors.grey.withValues(alpha: 0.5)
-                                : null,
-                          ),
-                          onPressed: _isRefreshing ? null : _handleRefresh,
-                        ),
-                      const SizedBox(width: 8),
-                      // 서브디스플레이 문구 추가 — isKdsMode는 파라미터로 전달됨
-                      if (isKdsMode)
-                        Container(
-                          margin: const EdgeInsets.only(right: 8),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
-                          child: Text(
-                            t.app_bar.kds_mode,
-                            style: const TextStyle(
-                              fontSize: AppStyles.kAppBarTitleSize,
-                              fontWeight: FontWeight.normal,
-                            ),
-                          ),
-                        ),
-                    ],
+      children: [
+        // 매장명 및 주문 건수
+        Row(
+          children: [
+            Consumer(
+              builder: (context, ref, _) {
+                final store = ref.watch(storeProvider);
+                return Text(
+                  store.value?.name ?? '',
+                  style: const TextStyle(
+                    fontSize: AppStyles.kAppBarTitleSize,
+                    fontWeight: FontWeight.bold,
                   ),
-                ],
+                );
+              },
+            ),
+            // 주문 건수 표시
+            const SizedBox(width: 8),
+            Consumer(
+              builder: (context, ref, _) {
+                final blinkState = ref.watch(blinkStateProvider);
+                return GestureDetector(
+                  onTap: () {
+                    if (blinkState.isBlinking ||
+                        blinkState.activeOrderCount > 0) {
+                      // OrderProvider의 stopBlinking 호출하여 점멸과 소리 함께 중지
+                      ref.read(orderProvider.notifier).stopBlinking();
+                      logToFile(
+                          tag: LogTag.UI_ACTION,
+                          message: '앱바 주문건수 터치로 알림음/점멸 중지');
+                    }
+                  },
+                  child: Container(
+                    height: 30,
+                    margin: const EdgeInsets.only(left: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: blinkState.isBlinking
+                          ? AppStyles.kMainColor.withValues(alpha: 0.5)
+                          : AppStyles.kMainColor,
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: Center(
+                      child: Text(
+                        t.app_bar
+                            .new_order_count(n: blinkState.activeOrderCount),
+                        style: const TextStyle(
+                          fontSize: AppStyles.kSectionCountSize,
+                          fontWeight: FontWeight.normal,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(width: 8),
+            // 새로고침 버튼 — KDS/일반 모드 공통
+            AppIconAction(
+              icon: Icons.refresh,
+              onPressed: _handleRefresh,
+              tooltip: t.common.refresh,
+              isLoading: _isRefreshing,
+            ),
+            const SizedBox(width: 8),
+            // 서브디스플레이 문구 추가 — isKdsMode는 파라미터로 전달됨
+            if (isKdsMode)
+              Container(
+                margin: const EdgeInsets.only(right: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                child: Text(
+                  t.app_bar.kds_mode,
+                  style: const TextStyle(
+                    fontSize: AppStyles.kAppBarTitleSize,
+                    fontWeight: FontWeight.normal,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -469,62 +404,55 @@ class _HomeAppBarWidgetState extends ConsumerState<HomeAppBarWidget> {
     return Row(
       children: [
         // 서브디스플레이 모드가 아닐 때만 오더 토글 스위치 표시
-                  Consumer(
-                    builder: (context, ref, _) {
-                      return isKdsMode
-                          ? const SizedBox.shrink()
-                          : Row(
-                              children: [
-                                Text(
-                                  t.app_bar.order_toggle,
-                                  style: const TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.bold),
-                                ),
-                                const SizedBox(width: 8),
-                                // 판매 상태 스위치
-                                CustomSwitch(
-                                  ratio: 1.2,
-                                  value:
-                                      ref.watch(storeProvider).value?.isOpen ??
-                                          false,
-                                  activeColor: AppStyles.kMainColor,
-                                  inactiveColor: Colors.grey,
-                                  activeText: 'ON',
-                                  inactiveText: 'OFF',
-                                  onChanged: (value) async {
-                                    logToFile(
-                                        tag: LogTag.UI_ACTION,
-                                        message: '오더 스위치 터치: $value');
+        Consumer(
+          builder: (context, ref, _) {
+            return isKdsMode
+                ? const SizedBox.shrink()
+                : Row(
+                    children: [
+                      Text(
+                        t.app_bar.order_toggle,
+                        style: const TextStyle(
+                            fontSize: 15, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(width: 8),
+                      // 판매 상태 스위치
+                      CustomSwitch(
+                        ratio: 1.2,
+                        value: ref.watch(storeProvider).value?.isOpen ?? false,
+                        activeColor: AppStyles.kMainColor,
+                        inactiveColor: Colors.grey,
+                        activeText: 'ON',
+                        inactiveText: 'OFF',
+                        onChanged: (value) async {
+                          logToFile(
+                              tag: LogTag.UI_ACTION,
+                              message: '오더 스위치 터치: $value');
 
-                                    // ON/OFF 전환 시 확인 다이얼로그 표시
-                                    final shouldChange =
-                                        await CommonDialog.showConfirmDialog(
-                                      context: context,
-                                      title: value
-                                          ? t.app_bar.order_start_confirm_title
-                                          : t.app_bar.order_stop_confirm_title,
-                                      content: value
-                                          ? t.app_bar
-                                              .order_start_confirm_content
-                                          : t.app_bar
-                                              .order_stop_confirm_content,
-                                      confirmText: t.common.confirm,
-                                      cancelText: t.common.cancel,
-                                    );
+                          // ON/OFF 전환 시 확인 다이얼로그 표시
+                          final shouldChange =
+                              await CommonDialog.showConfirmDialog(
+                            context: context,
+                            title: value
+                                ? t.app_bar.order_start_confirm_title
+                                : t.app_bar.order_stop_confirm_title,
+                            content: value
+                                ? t.app_bar.order_start_confirm_content
+                                : t.app_bar.order_stop_confirm_content,
+                            confirmText: t.common.confirm,
+                            cancelText: t.common.cancel,
+                          );
 
-                                    if (shouldChange != true) {
-                                      logToFile(
-                                          tag: LogTag.UI_ACTION,
-                                          message: '오더 상태변경 팝업 취소로 닫기');
-                                      return; // 사용자가 취소를 선택하면 전환하지 않음
-                                    }
+                          if (shouldChange != true) {
+                            logToFile(
+                                tag: LogTag.UI_ACTION,
+                                message: '오더 상태변경 팝업 취소로 닫기');
+                            return; // 사용자가 취소를 선택하면 전환하지 않음
+                          }
 
-                                    ref
-                                        .watch(storeProvider.notifier)
-                                        .setIsOpen(value);
-                                    // 스낵바 대신 다이얼로그 표시
-                                    /* CommonDialog.showConfirmDialog(
+                          ref.watch(storeProvider.notifier).setIsOpen(value);
+                          // 스낵바 대신 다이얼로그 표시
+                          /* CommonDialog.showConfirmDialog(
                                       context: context,
                                       title: value ? '판매 시작' : '판매 중지',
                                       content:
@@ -532,84 +460,73 @@ class _HomeAppBarWidgetState extends ConsumerState<HomeAppBarWidget> {
                                       confirmText: '확인',
                                       cancelText: '',
                                     );*/
-                                  },
-                                ),
-                              ],
-                            );
-                    },
-                  ),
-                  const SizedBox(width: 8),
-
-                  if (!isKdsMode)
-                    const SizedBox(
-                      height: 50.0, // AppBar의 기본 높이로 설정
-                      child: VerticalDivider(
-                        width: 20,
-                        thickness: 1.5,
-                        indent: 10,
-                        endIndent: 10,
-                        color: Colors.grey,
+                        },
                       ),
-                    ),
+                    ],
+                  );
+          },
+        ),
+        const SizedBox(width: 8),
 
-                  const SizedBox(width: 8),
-                  // 인터넷 상태 아이콘
-                  Icon(
-                    _getNetworkIcon(),
-                    color: _getNetworkIconColor(),
-                    size: 26,
-                  ),
-                  const SizedBox(width: 4),
-                  // 소켓(실시간 주문) 연결 상태 아이콘 (3-state)
-                  GestureDetector(
-                    onTap: socketStatus == appfit_core.ConnectionStatus.disconnected
-                        ? widget.onReconnect
-                        : null,
-                    child: Tooltip(
-                      message: socketStatus.isConnected
-                          ? '실시간 주문 수신 중'
-                          : socketStatus == appfit_core.ConnectionStatus.reconnecting
-                              ? '재연결 중...'
-                              : '실시간 주문 연결 끊김 - 탭하여 재연결',
-                      child: Icon(
-                        socketStatus != appfit_core.ConnectionStatus.disconnected
-                            ? Icons.sensors
-                            : Icons.sensors_off,
-                        color: socketStatus.isConnected
-                            ? Colors.green
-                            : socketStatus == appfit_core.ConnectionStatus.reconnecting
-                                ? Colors.orange
-                                : Colors.red,
-                        size: 26,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  // 최소화 버튼
-                  IconButton(
-                    icon: const Icon(
-                      Icons.minimize_outlined,
-                      size: 30,
-                    ),
-                    onPressed: widget.onMinimize,
-                  ),
-                  const SizedBox(width: 8),
-                  // 앱 종료 버튼
-                  IconButton(
-                    icon: const Icon(
-                      Icons.power_settings_new,
-                      size: 30,
-                      color: Colors.red,
-                    ),
-                    tooltip: t.app_bar.exit_app,
-                    onPressed: () {
-                      logToFile(tag: LogTag.UI_ACTION, message: '앱 종료 버튼 터치');
-                      _showExitConfirmationDialog(context,
-                          isKdsMode: isKdsMode);
-                    },
-                  ),
-                ],
-      );
+        if (!isKdsMode)
+          const SizedBox(
+            height: 50.0, // AppBar의 기본 높이로 설정
+            child: VerticalDivider(
+              width: 20,
+              thickness: 1.5,
+              indent: 10,
+              endIndent: 10,
+              color: Colors.grey,
+            ),
+          ),
+
+        const SizedBox(width: 8),
+        // 인터넷 상태 아이콘 (비인터랙티브)
+        AppIconAction(
+          icon: _getNetworkIcon(),
+          color: _getNetworkIconColor(),
+          isStatus: true,
+        ),
+        const SizedBox(width: 4),
+        // 소켓(실시간 주문) 연결 상태 아이콘 (3-state, disconnected시 탭 재연결)
+        AppIconAction(
+          icon: socketStatus != appfit_core.ConnectionStatus.disconnected
+              ? Icons.sensors
+              : Icons.sensors_off,
+          color: socketStatus.isConnected
+              ? Colors.green
+              : socketStatus == appfit_core.ConnectionStatus.reconnecting
+                  ? Colors.orange
+                  : Colors.red,
+          tooltip: socketStatus.isConnected
+              ? '실시간 주문 수신 중'
+              : socketStatus == appfit_core.ConnectionStatus.reconnecting
+                  ? '재연결 중...'
+                  : '실시간 주문 연결 끊김 - 탭하여 재연결',
+          onPressed: socketStatus == appfit_core.ConnectionStatus.disconnected
+              ? widget.onReconnect
+              : null,
+          isStatus: socketStatus != appfit_core.ConnectionStatus.disconnected,
+        ),
+        const SizedBox(width: 8),
+        // 최소화 버튼
+        AppIconAction(
+          icon: Icons.minimize_outlined,
+          onPressed: widget.onMinimize,
+        ),
+        const SizedBox(width: 8),
+        // 앱 종료 버튼
+        AppIconAction(
+          icon: Icons.power_settings_new,
+          color: AppStyles.kRed,
+          tooltip: t.app_bar.exit_app,
+          onPressed: () {
+            logToFile(tag: LogTag.UI_ACTION, message: '앱 종료 버튼 터치');
+            _showExitConfirmationDialog(context, isKdsMode: isKdsMode);
+          },
+        ),
+      ],
+    );
   }
 
   // 앱 종료 확인 대화상자
@@ -626,15 +543,17 @@ class _HomeAppBarWidgetState extends ConsumerState<HomeAppBarWidget> {
         return StatefulBuilder(
           builder: (context, setStateDialog) {
             return AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+              title: Text(t.app_bar.exit_app, style: AppTextStyles.title),
+              titlePadding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.s24,
+                vertical: AppSpacing.s24,
               ),
-              title: Text(t.app_bar.exit_app,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold, fontSize: 25)),
-              titlePadding:
-                  const EdgeInsets.symmetric(horizontal: 30.0, vertical: 30.0),
-              contentPadding: const EdgeInsets.fromLTRB(30.0, 20.0, 30.0, 0),
+              contentPadding: const EdgeInsets.fromLTRB(
+                AppSpacing.s24,
+                AppSpacing.s16,
+                AppSpacing.s24,
+                0,
+              ),
               content: SizedBox(
                 width: 400,
                 height: 80,
@@ -644,108 +563,76 @@ class _HomeAppBarWidgetState extends ConsumerState<HomeAppBarWidget> {
                     !isKdsMode
                         ? t.app_bar.exit_app_desc
                         : t.app_bar.exit_app_kds_desc,
-                    style: const TextStyle(fontSize: 18),
+                    style: AppTextStyles.body,
                   ),
                 ),
               ),
-              actionsPadding:
-                  const EdgeInsets.symmetric(horizontal: 30.0, vertical: 30.0),
+              actionsPadding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.s24,
+                vertical: AppSpacing.s24,
+              ),
               actions: <Widget>[
-                TextButton(
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 12),
+                ElevatedButton(
+                  style: AppStyles.outlinedButton(
                     minimumSize: const Size(100, 45),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      side: BorderSide(color: Colors.grey.shade400),
-                    ),
-                    backgroundColor: Colors.white,
                   ),
                   onPressed: _isExiting
-                      ? null // 종료 중에는 취소 버튼 비활성화
+                      ? null
                       : () {
                           Navigator.of(dialogContext).pop(false);
                           logToFile(
-                              tag: LogTag.UI_ACTION,
-                              message: '앱 종료 다이얼로그 -> 취소');
+                            tag: LogTag.UI_ACTION,
+                            message: '앱 종료 다이얼로그 -> 취소',
+                          );
                         },
-                  child: Text(
-                    t.common.cancel,
-                    style: const TextStyle(
-                        color: Colors.black,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold),
-                  ),
+                  child: Text(t.common.cancel),
                 ),
-                TextButton(
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 12),
+                ElevatedButton(
+                  style: AppStyles.primaryButton(
                     minimumSize: const Size(100, 45),
-                    backgroundColor: AppStyles.kMainColor,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
                   ),
                   onPressed: _isExiting
-                      ? null // 이미 종료 중이면 다시 누르지 못하도록
+                      ? null
                       : () async {
-                          setStateDialog(() {
-                            _isExiting = true;
-                          });
+                          setStateDialog(() => _isExiting = true);
                           logToFile(
-                              tag: LogTag.UI_ACTION,
-                              message: '앱 종료 다이얼로그 -> 종료 시작');
+                            tag: LogTag.UI_ACTION,
+                            message: '앱 종료 다이얼로그 -> 종료 시작',
+                          );
 
                           final store = ref.watch(storeProvider);
-                          String storeId = store.value?.storeId ?? '';
+                          final storeId = store.value?.storeId ?? '';
 
-                          //여의도 IFC몰, 송파둘레길, 테스트매장 2개 하드코딩
+                          // 여의도 IFC몰, 송파둘레길, 테스트매장 — 종료 전 로그 업로드
                           if (storeId.toLowerCase().contains('k0130556') ||
                               storeId.toLowerCase().contains('k0130789') ||
                               storeId.toLowerCase().contains('k0130101') ||
                               storeId.toLowerCase().contains('k0130084')) {
                             try {
-                              // 앱 종료 전 로그 업로드 실행
                               await ref
                                   .read(appLifecycleObserverProvider.notifier)
                                   .uploadLogsOnExit();
                               logToFile(
-                                  tag: LogTag.SYSTEM,
-                                  message: '앱 종료 전 로그 업로드 성공');
-                            } catch (e, s) {
+                                tag: LogTag.SYSTEM,
+                                message: '앱 종료 전 로그 업로드 성공',
+                              );
+                            } catch (e) {
                               logToFile(
-                                  tag: LogTag.ERROR,
-                                  message: '앱 종료 전 로그 업로드 실패: $e');
+                                tag: LogTag.ERROR,
+                                message: '앱 종료 전 로그 업로드 실패: $e',
+                              );
                             }
                           }
 
-                          // 위젯이 여전히 마운트되어 있을 경우에만 onLogout 호출
-                          if (mounted) {
-                            widget.onLogout(); // 앱 종료 함수 실행
-                          }
-                          // 다이얼로그를 닫는 것은 onLogout 이후 또는 여기서 명시적으로 처리할 수 있으나,
-                          // 앱이 완전히 종료되므로 이 다이얼로그가 자동으로 닫힐 것임.
-                          // 만약 앱이 즉시 종료되지 않는 로직이라면 여기서 Navigator.of(dialogContext).pop(true); 를 호출
+                          if (mounted) widget.onLogout();
                         },
                   child: _isExiting
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor:
-                                AlwaysStoppedAnimation<Color>(Colors.white),
-                          ),
+                      ? const AppLoadingIndicator(
+                          size: 20,
+                          color: Colors.white,
+                          strokeWidth: 2,
                         )
-                      : Text(
-                          t.dialog.exit.confirm,
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold),
-                        ),
+                      : Text(t.dialog.exit.confirm),
                 ),
               ],
             );

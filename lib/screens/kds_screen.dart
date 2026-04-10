@@ -14,6 +14,7 @@ import '../utils/logger.dart';
 import '../utils/model_parse_utils.dart';
 import '../widgets/order/order_detail_popup.dart';
 import '../widgets/common/common_dialog.dart';
+import '../widgets/common/app_toolbar_button.dart';
 import '../utils/kds_utils.dart' as kds_utils;
 import '../models/order_model.dart';
 import '../widgets/home/order_card_widget.dart';
@@ -437,8 +438,7 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
   void _syncTabOnIndexChange(int? prev, int next) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      if (_pageController.hasClients &&
-          _pageController.page?.round() != next) {
+      if (_pageController.hasClients && _pageController.page?.round() != next) {
         _pageController.jumpToPage(next);
       }
       if (_tabController.index != next) {
@@ -779,42 +779,33 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
       elevation: 4,
       shadowColor: Colors.black.withValues(alpha: 0.1),
       color: Colors.white,
-      child: Container(
+      child: SizedBox(
         width: 130,
         height: 40,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border.all(color: Colors.grey[300]!),
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              spreadRadius: 1,
-              blurRadius: 3,
-              offset: const Offset(0, 1),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border.all(color: AppStyles.gray3),
+            borderRadius: AppRadius.bSm,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  currentTabSortDirection == OrderSortDirection.ASC
+                      ? t.kds.sort.oldest
+                      : t.kds.sort.newest,
+                  style: AppTextStyles.bodySm.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: AppStyles.gray9,
+                  ),
+                ),
+                const Icon(Icons.unfold_more, size: 18, color: AppStyles.gray6),
+              ],
             ),
-          ],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              currentTabSortDirection == OrderSortDirection.ASC
-                  ? t.kds.sort.oldest
-                  : t.kds.sort.newest,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: Colors.black87,
-              ),
-            ),
-            Icon(
-              Icons.unfold_more,
-              size: 18,
-              color: Colors.grey[600],
-            ),
-          ],
+          ),
         ),
       ),
       onSelected: (OrderSortDirection value) {
@@ -881,229 +872,103 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
     final currentTabIndex = ref.watch(kdsTabIndexProvider);
     if (currentTabIndex != 2) return const SizedBox.shrink();
 
-    return Container(
-      height: 40, // 다른 버튼들과 높이 통일
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppStyles.kMainColor,
-            AppStyles.kMainColor.withValues(alpha: 0.8),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: [
-          BoxShadow(
-            color: AppStyles.kMainColor.withValues(alpha: 0.3),
-            spreadRadius: 1,
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () async {
-            // 현재 픽업 탭의 주문 목록 가져오기 (READY 상태)
-            final currentOrdersResult = ref.read(orderHistoryProvider);
-            const READY_STATUS = OrderStatus.READY;
+    return AppToolbarButton.primary(
+      label: t.kds.btn_batch_complete,
+      icon: Icons.done_all,
+      onPressed: () async {
+        final currentOrdersResult = ref.read(orderHistoryProvider);
+        const readyStatus = OrderStatus.READY;
 
-            currentOrdersResult.whenData((orders) async {
-              final pickupOrders =
-                  orders.where((o) => o.status == READY_STATUS).toList();
+        currentOrdersResult.whenData((orders) async {
+          final pickupOrders =
+              orders.where((o) => o.status == readyStatus).toList();
 
-              if (pickupOrders.isEmpty) {
-                CommonDialog.showErrorDialog(
-                  context: context,
-                  title: t.common.error,
-                  content: t.kds.msg_no_pickup_to_complete,
-                );
-                return;
+          if (pickupOrders.isEmpty) {
+            CommonDialog.showErrorDialog(
+              context: context,
+              title: t.common.error,
+              content: t.kds.msg_no_pickup_to_complete,
+            );
+            return;
+          }
+
+          final confirmed = await CommonDialog.showConfirmDialog(
+            context: context,
+            title: t.kds.btn_batch_complete,
+            content: t.order_status
+                .batch_complete_confirm_content(n: pickupOrders.length),
+            confirmText: t.common.confirm,
+            cancelText: t.common.cancel,
+          );
+
+          if (confirmed == true) {
+            try {
+              final result =
+                  await ref.read(orderProvider.notifier).completeReadyOrders();
+
+              ref.invalidate(orderHistoryProvider);
+
+              if (!context.mounted) return;
+              final String resultMessage;
+              if (result.failCount == 0 && result.successCount > 0) {
+                resultMessage =
+                    t.order_status.batch_result_success(n: result.successCount);
+              } else if (result.successCount > 0) {
+                resultMessage = t.order_status.batch_result_partial(
+                    success: result.successCount, fail: result.failCount);
+              } else {
+                resultMessage =
+                    t.order_status.batch_result_fail(error: result.failCount);
               }
 
-              final confirmed = await CommonDialog.showConfirmDialog(
+              CommonDialog.showInfoDialog(
                 context: context,
                 title: t.kds.btn_batch_complete,
-                content: t.order_status.batch_complete_confirm_content(
-                    n: pickupOrders.length),
-                confirmText: t.common.confirm,
-                cancelText: t.common.cancel,
+                content: resultMessage,
               );
-
-              if (confirmed == true) {
-                try {
-                  final result = await ref
-                      .read(orderProvider.notifier)
-                      .completeReadyOrders();
-
-                  // KDS 전용: 히스토리 뷰 갱신
-                  ref.invalidate(orderHistoryProvider);
-
-                  if (!context.mounted) return;
-                  final String resultMessage;
-                  if (result.failCount == 0 && result.successCount > 0) {
-                    resultMessage = t.order_status
-                        .batch_result_success(n: result.successCount);
-                  } else if (result.successCount > 0) {
-                    resultMessage = t.order_status.batch_result_partial(
-                        success: result.successCount, fail: result.failCount);
-                  } else {
-                    resultMessage = t.order_status
-                        .batch_result_fail(error: result.failCount);
-                  }
-
-                  CommonDialog.showInfoDialog(
-                    context: context,
-                    title: t.kds.btn_batch_complete,
-                    content: resultMessage,
-                  );
-                } catch (e, s) {
-                  if (!context.mounted) return;
-                  CommonDialog.showErrorDialog(
-                    context: context,
-                    title: t.common.error,
-                    content: t.order_status.batch_result_error,
-                  );
-                }
-              }
-            });
-          },
-          borderRadius: BorderRadius.circular(8),
-          child: Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.done_all, color: Colors.white, size: 18),
-                const SizedBox(width: 8),
-                Text(
-                  t.kds.btn_batch_complete,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+            } catch (e) {
+              if (!context.mounted) return;
+              CommonDialog.showErrorDialog(
+                context: context,
+                title: t.common.error,
+                content: t.order_status.batch_result_error,
+              );
+            }
+          }
+        });
+      },
     );
   }
 
   /// 날짜 선택기 위젯 (높이 40px로 통일)
   Widget _buildDateSelectorWidget() {
     final selectedDate = ref.watch(selectedDateProvider);
-    return InkWell(
-      onTap: _showCalendarDialog,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        height: 40,
-        padding: const EdgeInsets.symmetric(horizontal: 12.0),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border.all(color: Colors.grey[300]!),
-          borderRadius: BorderRadius.circular(8.0),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              spreadRadius: 1,
-              blurRadius: 3,
-              offset: const Offset(0, 1),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.calendar_today,
-                color: AppStyles.kMainColor, size: 18),
-            const SizedBox(width: 8.0),
-            Text(
-              selectedDate,
-              style: const TextStyle(
-                fontSize: 14.0,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-            ),
-            const SizedBox(width: 4),
-            Icon(Icons.arrow_drop_down, color: Colors.grey[600], size: 20),
-          ],
-        ),
-      ),
+    return AppToolbarButton.secondary(
+      label: selectedDate,
+      icon: Icons.calendar_today,
+      onPressed: _showCalendarDialog,
     );
   }
 
-  /// 오늘 조회 버튼 (높이 40px로 통일)
   Widget _buildTodaySearchButton() {
-    return InkWell(
-      onTap: () async {
+    return AppToolbarButton.secondary(
+      label: t.order_history.search_today,
+      onPressed: () {
         logger.d('KDS: 오늘날짜조회 버튼 클릭');
         ref.read(selectedDateProvider.notifier).updateDate(todayDateString());
         _ensureTabSyncAfterRefresh();
       },
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        height: 40,
-        padding: const EdgeInsets.symmetric(horizontal: 12.0),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border.all(color: Colors.grey[300]!),
-          borderRadius: BorderRadius.circular(8.0),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              spreadRadius: 1,
-              blurRadius: 3,
-              offset: const Offset(0, 1),
-            ),
-          ],
-        ),
-        child: Center(
-          child: Text(
-            t.order_history.search_today,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-          ),
-        ),
-      ),
     );
   }
 
-  // 과거 날짜 조회 건수 위젯 (스타일 동일화)
+  // 과거 날짜 조회 건수 위젯
   Widget _buildHistoryCountWidget() {
     final historyAsync = ref.watch(orderHistoryProvider);
-    return historyAsync.when(
-      data: (orders) => Container(
-        height: 40,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        decoration: BoxDecoration(
-          color: AppStyles.kMainColor.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(8),
-          border:
-              Border.all(color: AppStyles.kMainColor.withValues(alpha: 0.2)),
-        ),
-        child: Center(
-          child: Text(
-            '조회: ${orders.length}건',
-            style: const TextStyle(
-              color: AppStyles.kMainColor,
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-            ),
-          ),
-        ),
+    return historyAsync.maybeWhen(
+      data: (orders) => AppToolbarButton.ghost(
+        label: '조회: ${orders.length}건',
       ),
-      loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
+      orElse: () => const SizedBox.shrink(),
     );
   }
 
@@ -1351,7 +1216,6 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
         ),
       );
     }
-
 
     final sortedOrders = List<OrderModel>.from(orders);
 
