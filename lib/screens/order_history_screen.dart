@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:table_calendar/table_calendar.dart';
 import '../providers/providers.dart';
 import '../widgets/home/order_card_widget.dart';
@@ -278,8 +279,8 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen> {
             ),
             Expanded(
               // Content display logic
-              child: _buildOrderListWidget(
-                  isToday, selectedFilter, sortDirection),
+              child:
+                  _buildOrderListWidget(isToday, selectedFilter, sortDirection),
             ),
           ],
         ),
@@ -422,7 +423,6 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen> {
 
   // 정렬 방향 토글 버튼 — sortDirection은 build()에서 전달받음
   Widget _buildSortDirectionToggle(OrderSortDirection sortDirection) {
-
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -520,7 +520,7 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen> {
           }
           return _buildOrderGrid(orders);
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const _OrderHistorySkeletonGrid(),
         error: (error, stackTrace) {
           logger.e('Build Error State for History',
               error: error, stackTrace: stackTrace);
@@ -564,6 +564,36 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen> {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+/// 주문 내역 로딩 시 shimmer 스켈레톤 그리드
+class _OrderHistorySkeletonGrid extends StatelessWidget {
+  const _OrderHistorySkeletonGrid();
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.builder(
+      padding: const EdgeInsets.all(8.0),
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 8,
+        childAspectRatio: 1.0,
+        crossAxisSpacing: 8.0,
+        mainAxisSpacing: 8.0,
+      ),
+      itemCount: 16,
+      itemBuilder: (context, index) => Shimmer.fromColors(
+        baseColor: Colors.grey[300]!,
+        highlightColor: Colors.grey[100]!,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
       ),
     );
   }

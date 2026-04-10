@@ -196,7 +196,7 @@ ThemeData _buildTheme() {
   return ThemeData(
     useMaterial3: true,
     colorScheme: colorScheme,
-    fontFamily: 'SpoqaHanSansNeo',
+    fontFamily: 'Pretendard',
 
     // ── AppBar ─────────────────────────────────────────────────────────────
     appBarTheme: AppBarTheme(
@@ -315,6 +315,13 @@ ThemeData _buildTheme() {
       elevation: 4,
       shape: const RoundedRectangleBorder(borderRadius: AppRadius.bMd),
       textStyle: AppTextStyles.body.copyWith(color: AppStyles.gray9),
+    ),
+
+    // ── 페이지 전환 ────────────────────────────────────────────────────────
+    pageTransitionsTheme: const PageTransitionsTheme(
+      builders: {
+        TargetPlatform.android: ZoomPageTransitionsBuilder(),
+      },
     ),
   );
 }

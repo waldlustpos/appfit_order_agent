@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import '../widgets/common/app_loading_indicator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -65,7 +66,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           return;
         }
 
-
         for (var device in devices) {
           final vendorId = device['vendorId'];
           final productId = device['productId'];
@@ -78,12 +78,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             identification = ' [라벨 프린터 식별됨: Posbank]';
           }
 
-          if(identification.isNotEmpty) {
+          if (identification.isNotEmpty) {
             logToFile(
-            tag: LogTag.PLATFORM,
-            message:
-                ' - $productName ($manufacturer): VID=$vendorId, PID=$productId$identification',
-          );
+              tag: LogTag.PLATFORM,
+              message:
+                  ' - $productName ($manufacturer): VID=$vendorId, PID=$productId$identification',
+            );
           }
         }
       } catch (e, s) {
@@ -210,7 +210,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     });
 
     // 디버그 모드인 경우 테스트 계정 정보 자동 입력
-   /* if (kDebugMode) {
+    /* if (kDebugMode) {
       _idController.text = 'TPCP00002';
       _passwordController.text = '1234';
       logger.i('[LoginScreen] 디버그 모드: 테스트 계정 정보가 설정되었습니다.');
@@ -286,7 +286,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         model = deviceInfo.model;
         androidVersion = deviceInfo.version.release;
       }
-      logger.i('[OTA] 업데이트 체크 시작 - 기기: $manufacturer $model (Android $androidVersion)');
+      logger.i(
+          '[OTA] 업데이트 체크 시작 - 기기: $manufacturer $model (Android $androidVersion)');
       logger.i('[OTA] versionUrl: ${OtaConfig.versionUrl}');
 
       final otaManager = OtaUpdateManager();
@@ -299,22 +300,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       if (updateInfo == null) {
         logger.w('[OTA] 버전 정보 없음 (updateInfo == null) - 업데이트 체크 생략');
       } else {
-        logger.i('[OTA] 버전 확인 완료 - 현재: v${updateInfo.currentVersion}, 최신: v${updateInfo.latestVersion}, 업데이트필요: ${updateInfo.hasUpdate}');
+        logger.i(
+            '[OTA] 버전 확인 완료 - 현재: v${updateInfo.currentVersion}, 최신: v${updateInfo.latestVersion}, 업데이트필요: ${updateInfo.hasUpdate}');
       }
 
       if (updateInfo != null && updateInfo.hasUpdate && mounted) {
-        logger.i('[OTA] 업데이트 다이얼로그 표시 - downloadUrl: ${updateInfo.downloadUrl}');
+        logger
+            .i('[OTA] 업데이트 다이얼로그 표시 - downloadUrl: ${updateInfo.downloadUrl}');
         final shouldDownload = await CommonDialog.showUpdateProgressDialog(
           context: context,
           updateInfo: updateInfo,
           onStartUpdate:
               (downloadUrl, destinationFilename, onEvent, onDone, onError) {
-            logger.i('[OTA] 다운로드 시작 - url: $downloadUrl, dest: $destinationFilename');
+            logger.i(
+                '[OTA] 다운로드 시작 - url: $downloadUrl, dest: $destinationFilename');
             otaManager.executeUpdate(
               downloadUrl: downloadUrl,
               destinationFilename: destinationFilename,
               onStatus: (status, progress) {
-                logger.d('[OTA] 다운로드 진행 - status: $status, progress: ${(progress * 100).toStringAsFixed(1)}%');
+                logger.d(
+                    '[OTA] 다운로드 진행 - status: $status, progress: ${(progress * 100).toStringAsFixed(1)}%');
                 onEvent(OtaDownloadEvent(status: status, progress: progress));
               },
               onDone: onDone,
@@ -692,13 +697,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                 }),
               ),
               child: _isLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
+                  ? const AppLoadingIndicator(
+                      size: 20,
+                      color: Colors.white,
+                      strokeWidth: 2,
                     )
                   : Text(
                       t.login.button,
@@ -768,7 +770,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               ),
             ],
           ),
-
         ],
       ),
     );
@@ -866,16 +867,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             child: Row(
               children: [
                 Icon(
-                  isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
+                  isSelected
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_off,
                   size: 20,
-                  color: isSelected ? Theme.of(context).primaryColor : Colors.grey,
+                  color:
+                      isSelected ? Theme.of(context).primaryColor : Colors.grey,
                 ),
                 const SizedBox(width: 12),
                 Text(
                   _envLabel(env),
                   style: TextStyle(
                     fontSize: 15,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    fontWeight:
+                        isSelected ? FontWeight.bold : FontWeight.normal,
                   ),
                 ),
               ],
@@ -911,7 +916,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
   void _onDevAreaTap() {
     final now = DateTime.now();
-    if (_lastDevTap != null && now.difference(_lastDevTap!).inMilliseconds > 1000) {
+    if (_lastDevTap != null &&
+        now.difference(_lastDevTap!).inMilliseconds > 1000) {
       _devTapCount = 0;
     }
     _lastDevTap = now;
@@ -952,7 +958,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           SimpleDialogOption(
             onPressed: () => Navigator.pop(context),
             child: const Center(
-              child: Text('닫기', style: TextStyle(fontSize: 14, color: Colors.grey)),
+              child: Text('닫기',
+                  style: TextStyle(fontSize: 14, color: Colors.grey)),
             ),
           ),
         ],

@@ -52,7 +52,7 @@ class AppElevation {
 // ─── 텍스트 스타일 토큰 ───────────────────────────────────────────────────────
 class AppTextStyles {
   const AppTextStyles._();
-  static const String _font = 'SpoqaHanSansNeo';
+  static const String _font = 'Pretendard';
 
   /// 화면 상단 대표 수치·타이틀 (24px bold)
   static const TextStyle display = TextStyle(

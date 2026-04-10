@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:appfit_order_agent/constants/app_styles.dart';
+import 'package:shimmer/shimmer.dart';
 import '../providers/product_provider.dart';
 import '../widgets/product/product_card_widget.dart';
 import '../models/product_model.dart';
@@ -228,8 +229,7 @@ class _ProductManagementScreenState
                                 ),
                               );
                             },
-                            loading: () => const Center(
-                                child: CircularProgressIndicator()),
+                            loading: () => const _ProductGridSkeleton(),
                             error: (error, stack) {
                               // Center(child: Text('Error: $error')),
                               return Center(
@@ -340,14 +340,43 @@ class _ProductManagementScreenState
                       ],
                     );
                   },
-                  loading: () =>
-                      const Center(child: CircularProgressIndicator()),
+                  loading: () => const _ProductGridSkeleton(),
                   error: (error, stack) => Center(child: Text('Error: $error')),
                 );
               },
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// 상품 관리 로딩 시 shimmer 스켈레톤 그리드
+class _ProductGridSkeleton extends StatelessWidget {
+  const _ProductGridSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.builder(
+      padding: const EdgeInsets.all(8),
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 5,
+        childAspectRatio: 1,
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
+      ),
+      itemCount: 10,
+      itemBuilder: (context, index) => Shimmer.fromColors(
+        baseColor: Colors.grey[300]!,
+        highlightColor: Colors.grey[100]!,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+          ),
+        ),
       ),
     );
   }

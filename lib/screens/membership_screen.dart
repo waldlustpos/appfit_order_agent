@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // Required for TextInputFormatter
+import '../widgets/common/app_loading_indicator.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart'; // DateFormat 사용 위해 추가
 import 'package:appfit_order_agent/providers/providers.dart'; // providers import
@@ -332,8 +333,8 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
                   hintText: hintText,
                   hintStyle: const TextStyle(fontSize: 15),
                 ).copyWith(
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 16),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
                 ),
               );
             },
@@ -559,7 +560,7 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
           // Tab Content
           Expanded(
             child: isLoading || isLoadingHistory
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(child: AppLoadingIndicator(size: 32))
                 : TabBarView(children: [
                     _buildStampHistoryTab(), // 스탬프내역
                     _buildCouponHistoryTab(), // 쿠폰사용내역

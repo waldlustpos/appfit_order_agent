@@ -178,7 +178,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     // (appfit_core 내부에서 Connectivity를 감시하여 인터넷 복구 시 소켓을 재연결하고,
     //  order_socket_manager.dart의 재연결 핸들러가 refresh를 담당)
     if (mounted) {
-      logToFile(tag: LogTag.SYSTEM, message: '인터넷 연결 복구 감지 (소켓 재연결 후 refresh 예정)');
+      logToFile(
+          tag: LogTag.SYSTEM, message: '인터넷 연결 복구 감지 (소켓 재연결 후 refresh 예정)');
     }
   }
 
@@ -508,12 +509,19 @@ class HomeContent extends ConsumerWidget {
     logger.d(
         'HomeContent build triggered. SelectedIndex: $selectedIndex, KDS Mode: $isKdsMode');
 
-    // KDS 모드일 때는 좌측 메뉴 없이 KDS 화면만 표시
-    if (isKdsMode) {
-      return const KdsScreen();
-    }
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 200),
+      transitionBuilder: (child, animation) =>
+          FadeTransition(opacity: animation, child: child),
+      child: isKdsMode
+          ? const KdsScreen(key: ValueKey('kds'))
+          : _buildNormalMode(selectedIndex, ref),
+    );
+  }
 
+  Widget _buildNormalMode(int selectedIndex, WidgetRef ref) {
     return Row(
+      key: const ValueKey('normal'),
       children: [
         Container(
           width: 120,

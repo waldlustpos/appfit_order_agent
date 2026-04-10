@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../widgets/common/app_loading_indicator.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:appfit_order_agent/widgets/kds/kds_card_grid_layout_widget.dart';
@@ -490,7 +491,7 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      CircularProgressIndicator(),
+                      AppLoadingIndicator(size: 32),
                       SizedBox(height: 16),
                       Text('주문 정보를 불러오는 중...'),
                     ],
