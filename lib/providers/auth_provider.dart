@@ -8,7 +8,8 @@ import '../services/api_service.dart';
 import '../services/platform_service.dart'; // logToFile, LogTag 사용 위해 추가
 
 import '../services/secure_storage_service.dart'; // SecureStorageService
-import 'package:appfit_core/appfit_core.dart' as appfit_core; // AppFitConfig (패키지)
+import 'package:appfit_core/appfit_core.dart'
+    as appfit_core; // AppFitConfig (패키지)
 
 part 'auth_provider.g.dart';
 
@@ -105,13 +106,13 @@ class Auth extends _$Auth {
               message: '[Auth] V2 Project Info Validation Success');
 
           // (확인용) 저장된 API Key 유효성 검증
-          final isValid =
-              await ref.read(appFitTokenManagerProvider).validateApiKey();
-          if (!isValid) {
-            logger.w('[Auth] API Key 유효성 검증 실패 (로그인은 진행)');
-          } else {
-            logger.i('[Auth] API Key 유효성 검증 완료');
-          }
+          // final isValid =
+          //     await ref.read(appFitTokenManagerProvider).validateApiKey();
+          // if (!isValid) {
+          //   logger.w('[Auth] API Key 유효성 검증 실패 (로그인은 진행)');
+          // } else {
+          //   logger.i('[Auth] API Key 유효성 검증 완료');
+          // }
 
           logToFile(
               tag: LogTag.API,
@@ -229,8 +230,6 @@ class Auth extends _$Auth {
       logger.e('[Auth] 재연결 오류', error: e, stackTrace: s);
     }
   }
-
 }
-
 
 // 기존 Provider 정의 삭제 (Generator가 자동으로 생성)

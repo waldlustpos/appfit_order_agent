@@ -23,27 +23,38 @@ class OrderPaymentInfoWidget extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey[400]!),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: AppRadius.bLg,
+        boxShadow: AppElevation.soft,
       ),
+      padding: const EdgeInsets.all(AppSpacing.s20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          _buildRow(t.order.amount, totalAmount),
-          const SizedBox(height: 12),
-          _buildRow(t.order.discount, discountAmount, isDiscount: true),
+          _buildRow(
+            t.order.amount,
+            totalAmount,
+            style: AppTextStyles.body,
+          ),
+          const SizedBox(height: AppSpacing.s12),
+          _buildRow(
+            t.order.discount,
+            discountAmount,
+            isDiscount: true,
+            style: AppTextStyles.body.copyWith(color: AppStyles.gray6),
+          ),
           const Padding(
-            padding: EdgeInsets.symmetric(vertical: 8),
-            child: Divider(thickness: 1),
+            padding: EdgeInsets.symmetric(vertical: AppSpacing.s12),
+            child: Divider(height: 1, color: AppStyles.gray3),
           ),
           _buildRow(
             t.order.payment,
             paymentAmount,
-            isBold: true,
-            textSize: 18,
-            color: AppStyles.kMainColor,
+            style: AppTextStyles.titleSm.copyWith(
+              color: AppStyles.kMainColor,
+            ),
           ),
         ],
       ),
@@ -54,29 +65,17 @@ class OrderPaymentInfoWidget extends StatelessWidget {
     String label,
     double amount, {
     bool isDiscount = false,
-    bool isBold = false,
-    double textSize = 14,
-    Color color = Colors.black,
+    required TextStyle style,
   }) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-            fontSize: textSize,
-          ),
-        ),
+        Text(label, style: style),
         Text(
           isDiscount
               ? '-${CommonUtil.formatPrice(amount, currencyUnit: currencySymbol)}'
               : CommonUtil.formatPrice(amount, currencyUnit: currencySymbol),
-          style: TextStyle(
-            color: color,
-            fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-            fontSize: textSize,
-          ),
+          style: style,
         ),
       ],
     );

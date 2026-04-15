@@ -22,7 +22,7 @@ final printServiceProvider = Provider<PrintService>.internal(
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef PrintServiceRef = ProviderRef<PrintService>;
-String _$selectedDateHash() => r'94d588e62397eeb51b39fc66e940f2411c1de9db';
+String _$selectedDateHash() => r'28ec5463b3f1fd94bf620ea59a385ed0cb63efdb';
 
 /// See also [SelectedDate].
 @ProviderFor(SelectedDate)

@@ -6,7 +6,7 @@ part of 'membership_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$membershipHash() => r'c6edf11a9c9bd6215c765ea388a40531b4a4f6b0';
+String _$membershipHash() => r'bf32ea9d0cbd42a6921330a9faf7839d45814c2c';
 
 /// See also [Membership].
 @ProviderFor(Membership)

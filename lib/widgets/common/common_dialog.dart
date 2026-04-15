@@ -22,9 +22,7 @@ class CommonDialog {
       barrierDismissible: false,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text(title,
-              style:
-                  const TextStyle(fontWeight: FontWeight.bold, fontSize: 25)),
+          title: Text(title, style: AppTextStyles.title),
           titlePadding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.s24,
             vertical: AppSpacing.s24,
@@ -40,7 +38,7 @@ class CommonDialog {
             height: 80,
             child: Align(
               alignment: Alignment.centerLeft,
-              child: Text(content, style: const TextStyle(fontSize: 18)),
+              child: Text(content, style: AppTextStyles.body),
             ),
           ),
           actionsPadding: const EdgeInsets.symmetric(
@@ -100,9 +98,10 @@ class CommonDialog {
       barrierDismissible: true,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text(title ?? t.dialog.status_change.title,
-              style:
-                  const TextStyle(fontWeight: FontWeight.bold, fontSize: 25)),
+          title: Text(
+            title ?? t.dialog.status_change.title,
+            style: AppTextStyles.title,
+          ),
           titlePadding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.s24,
             vertical: AppSpacing.s24,
@@ -121,7 +120,7 @@ class CommonDialog {
               children: [
                 Text(
                   t.dialog.status_change.content(item: itemName),
-                  style: const TextStyle(fontSize: 18),
+                  style: AppTextStyles.body,
                 ),
                 const SizedBox(height: 8),
                 Row(
@@ -468,8 +467,7 @@ class _UpdateProgressDialogState extends State<_UpdateProgressDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(t.dialog.update.title,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 25)),
+      title: Text(t.dialog.update.title, style: AppTextStyles.title),
       titlePadding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.s24,
         vertical: AppSpacing.s24,

@@ -27,7 +27,7 @@ final kdsCurrentSortDirectionProvider =
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef KdsCurrentSortDirectionRef = AutoDisposeProviderRef<OrderSortDirection>;
-String _$kdsModeHash() => r'b1c86b27cd18dad4f78cb836e0c72c4458030d9d';
+String _$kdsModeHash() => r'83c3f6e3b999ec8e16d32cea25f5b23b648e3dbe';
 
 /// KDS 모드 상태 관리 (기존 kdsProvider를 @riverpod로 변환)
 ///
@@ -97,7 +97,7 @@ final kdsTabSortDirectionsProvider = NotifierProvider<KdsTabSortDirections,
 
 typedef _$KdsTabSortDirections = Notifier<Map<int, OrderSortDirection>>;
 String _$kdsScrollControllerMapHash() =>
-    r'53d11386288e2081ccc15816c10bf3ff55d338f7';
+    r'0fe0812def610b1908fe42eb7d93e2669fc4c261';
 
 /// 스크롤 컨트롤러 통합 관리
 ///
@@ -172,7 +172,7 @@ final kdsScrollPositionsProvider =
 );
 
 typedef _$KdsScrollPositions = Notifier<Map<String, double>>;
-String _$kdsCardAnimationsHash() => r'23697b9932cb813da1f20b89fc0ee6b5b2816878';
+String _$kdsCardAnimationsHash() => r'18f01db30c6bd53a3eb8da1f91febc45008d53f8';
 
 /// 카드 애니메이션 상태 관리 (개선된 버전)
 ///

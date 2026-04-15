@@ -6,7 +6,7 @@ part of 'order_detail_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$orderDetailHash() => r'75576145ead113ad125face95967577a7b26d2c1';
+String _$orderDetailHash() => r'c419eafad2b61ac6a2b0055d7181a348b0d7f4ee';
 
 /// See also [OrderDetail].
 @ProviderFor(OrderDetail)

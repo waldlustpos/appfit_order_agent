@@ -6,7 +6,7 @@ part of 'order_history_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$orderHistoryHash() => r'4a4a0108b9de4b74db069b4198df0ae4b15dcbc7';
+String _$orderHistoryHash() => r'929d64db2cbaf0a04952426a698f97758337d32e';
 
 /// See also [OrderHistory].
 @ProviderFor(OrderHistory)

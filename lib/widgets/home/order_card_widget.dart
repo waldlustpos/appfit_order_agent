@@ -81,34 +81,11 @@ class OrderCardWidget extends ConsumerWidget {
     }
 
     // 상태별 색상 및 스타일 결정
-    Color backgroundColor;
-    Color orderNumberColor;
-    Color countColor;
-    bool showStrikethrough = false; // kept for future use (cancelled state)
-    bool showCountStrikethrough = false;
-
-    if (isCancelled) {
-      backgroundColor = AppStyles.kRedAlpha;
-      orderNumberColor = AppStyles.kRed;
-      countColor = Colors.grey[600]!; // gray6
-      showStrikethrough = true; // 취소건에만 주문번호 취소선
-      showCountStrikethrough = true; // 취소건에만 개수 취소선
-    } else {
-      backgroundColor = AppStyles.kBlueAlpha;
-      orderNumberColor = AppStyles.kBlue;
-      countColor = Colors.black;
-      showStrikethrough = false; // 접수건에는 취소선 없음
-      showCountStrikethrough = false; // 접수건에는 취소선 없음
-
-      // 매장/포장/매장+포장에 따른 색상 변경
-      if (orderPrefix == t.order.type_dine_in) {
-        backgroundColor = AppStyles.kSubAlpha;
-        orderNumberColor = AppStyles.kSub;
-      } else if (orderPrefix == t.order.type_both) {
-        backgroundColor = AppStyles.gray2;
-        orderNumberColor = AppStyles.gray9;
-      }
-    }
+    final palette = AppStyles.orderPalette(type, isCancelled: isCancelled);
+    final backgroundColor = palette.bg;
+    final orderNumberColor = palette.fg;
+    final countColor = isCancelled ? AppStyles.gray6 : Colors.black;
+    final showCountStrikethrough = isCancelled;
 
     return AspectRatio(
       aspectRatio: 1,

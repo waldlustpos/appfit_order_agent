@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../models/order_model.dart';
 
 // ─── 간격 토큰 ────────────────────────────────────────────────────────────────
 class AppSpacing {
@@ -30,21 +31,21 @@ class AppRadius {
 class AppElevation {
   const AppElevation._();
 
-  /// 카드·패널: 아주 약한 그림자
+  /// 카드·패널: 약한 그림자
   static const List<BoxShadow> soft = [
     BoxShadow(
-      color: Color(0x0D000000), // black 5%
-      blurRadius: 8,
-      offset: Offset(0, 2),
+      color: Color(0x1A000000), // black 10%
+      blurRadius: 12,
+      offset: Offset(0, 3),
     ),
   ];
 
   /// 부유 요소: 눈에 띄는 그림자
   static const List<BoxShadow> card = [
     BoxShadow(
-      color: Color(0x1A000000), // black 10%
-      blurRadius: 12,
-      offset: Offset(0, 4),
+      color: Color(0x26000000), // black 15%
+      blurRadius: 16,
+      offset: Offset(0, 6),
     ),
   ];
 }
@@ -285,4 +286,42 @@ class AppStyles {
           vertical: AppSpacing.s8,
         ),
       );
+
+  // ─── 주문 카드 상태 색상 (SSOT) ───────────────────────────────────────────
+
+  /// 주문 유형·상태에 따른 카드 배경·전경 색 페어를 반환한다 (단일 진실 공급원).
+  ///
+  /// - [type]: 매장/포장/매장+포장 구분
+  /// - [isCancelled]: true면 [type]을 무시하고 빨강 계열 반환
+  /// - [muted]: KDS 픽업·완료 탭처럼 bg를 중성(gray2)으로 고정하되 fg는 유지
+  static OrderPalette orderPalette(
+    SpecialProductType type, {
+    bool isCancelled = false,
+    bool muted = false,
+  }) {
+    if (isCancelled) {
+      return const OrderPalette(kRedAlpha, kRed);
+    }
+    final fg = switch (type) {
+      SpecialProductType.dineIn => kSub,
+      SpecialProductType.takeout => kBlue,
+      SpecialProductType.both => gray9,
+      SpecialProductType.none => kBlue,
+    };
+    if (muted) return OrderPalette(gray2, fg);
+    final bg = switch (type) {
+      SpecialProductType.dineIn => kSubAlpha,
+      SpecialProductType.takeout => kBlueAlpha,
+      SpecialProductType.both => gray2,
+      SpecialProductType.none => kBlueAlpha,
+    };
+    return OrderPalette(bg, fg);
+  }
+}
+
+/// 주문 카드에서 사용하는 배경(bg)·전경(fg) 색 페어.
+class OrderPalette {
+  final Color bg;
+  final Color fg;
+  const OrderPalette(this.bg, this.fg);
 }

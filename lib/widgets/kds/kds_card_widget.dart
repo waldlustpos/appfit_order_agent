@@ -32,51 +32,17 @@ class KdsCardHeaderWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Color headerColor;
-    Color textColor;
-
     final productType = detailedOrder.detectSpecialProductType();
 
-    switch (cardType) {
-      case CardType.progress:
-        // 매장/포장/매장+포장에 따른 색상 변경
-        if (productType == SpecialProductType.dineIn) {
-          headerColor = AppStyles.kSubAlpha;
-          textColor = AppStyles.kSub;
-        } else if (productType == SpecialProductType.both) {
-          headerColor = AppStyles.gray2;
-          textColor = AppStyles.gray9;
-        } else {
-          headerColor = AppStyles.kBlueAlpha;
-          textColor = AppStyles.kBlue;
-        }
-
-        break;
-      case CardType.pickup:
-        if (productType == SpecialProductType.dineIn) {
-          textColor = AppStyles.kSub;
-        } else if (productType == SpecialProductType.both) {
-          textColor = AppStyles.gray9;
-        } else {
-          textColor = AppStyles.kBlue;
-        }
-        headerColor = AppStyles.gray2;
-        break;
-      case CardType.completed:
-        if (productType == SpecialProductType.dineIn) {
-          textColor = AppStyles.kSub;
-        } else if (productType == SpecialProductType.both) {
-          textColor = AppStyles.gray9;
-        } else {
-          textColor = AppStyles.kBlue;
-        }
-        headerColor = AppStyles.gray2;
-        break;
-      case CardType.cancelled:
-        headerColor = AppStyles.kRedAlpha;
-        textColor = AppStyles.kRed;
-        break;
-    }
+    final palette = switch (cardType) {
+      CardType.progress => AppStyles.orderPalette(productType),
+      CardType.pickup => AppStyles.orderPalette(productType, muted: true),
+      CardType.completed => AppStyles.orderPalette(productType, muted: true),
+      CardType.cancelled =>
+        AppStyles.orderPalette(productType, isCancelled: true),
+    };
+    final headerColor = palette.bg;
+    final textColor = palette.fg;
 
     return Container(
       decoration: BoxDecoration(

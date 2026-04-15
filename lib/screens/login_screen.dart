@@ -568,159 +568,78 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     }
   }
 
-  // 로그인 폼 위젯
-  Widget _buildLoginForm({required GlobalKey<FormState> formKey}) {
-    return Form(
-      key: formKey,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // KDS 모드 토글 상단 배치 (새로운 UI 디자인)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            margin: const EdgeInsets.only(bottom: 24),
-            decoration: BoxDecoration(
-              color: _isSubDisplay
-                  ? AppStyles.kMainColor.withValues(alpha: 0.1)
-                  : Colors.grey[100],
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: _isSubDisplay ? AppStyles.kMainColor : Colors.grey[300]!,
-                width: 1.5,
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.display_settings,
-                      color: _isSubDisplay
-                          ? AppStyles.kMainColor
-                          : Colors.grey[600],
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      '주방모니터(KDS) 전용 로그인',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight:
-                            _isSubDisplay ? FontWeight.bold : FontWeight.w600,
-                        color: _isSubDisplay
-                            ? AppStyles.kMainColor
-                            : Colors.grey[800],
-                      ),
-                    ),
-                  ],
-                ),
-                Switch(
-                  value: _isSubDisplay,
-                  onChanged: (value) {
-                    setState(() {
-                      _isSubDisplay = value;
-                    });
-                  },
-                  activeColor: AppStyles.kMainColor,
-                  inactiveThumbColor: Colors.grey[400],
-                  inactiveTrackColor: Colors.grey[300],
-                ),
-              ],
-            ),
-          ),
+  // ──── UI 빌더 메서드 ──────────────────────────────────────────────────────
 
-          // 아이디 입력 필드
-          TextFormField(
-            controller: _idController,
-            decoration: AppStyles.filledInputDecoration(
-              labelText: t.login.id_label,
-              prefixIcon: const Icon(Icons.person),
-            ),
-            keyboardType: TextInputType.text,
-            textInputAction: TextInputAction.next,
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return t.login.id_placeholder;
-              }
-              return null;
-            },
-          ),
-          const SizedBox(height: 16),
+  Widget _buildFormPanel() {
+    final t = Translations.of(context);
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.all(AppSpacing.s32),
+      child: SingleChildScrollView(
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(t.login.title, style: AppTextStyles.title),
+              const SizedBox(height: AppSpacing.s24),
 
-          // 비밀번호 입력 필드
-          TextFormField(
-            controller: _passwordController,
-            decoration: AppStyles.filledInputDecoration(
-              labelText: t.login.pw_label,
-              prefixIcon: const Icon(Icons.lock),
-              suffixIcon: IconButton(
-                icon: Icon(
-                  _obscurePassword ? Icons.visibility_off : Icons.visibility,
+              // 아이디 입력 필드
+              TextFormField(
+                controller: _idController,
+                decoration: AppStyles.filledInputDecoration(
+                  labelText: t.login.id_label,
+                  prefixIcon: const Icon(Icons.person),
                 ),
-                onPressed: () {
-                  setState(() {
-                    _obscurePassword = !_obscurePassword;
-                  });
+                keyboardType: TextInputType.text,
+                textInputAction: TextInputAction.next,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return t.login.id_placeholder;
+                  }
+                  return null;
                 },
               ),
-            ),
-            obscureText: _obscurePassword,
-            textInputAction: TextInputAction.done,
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return t.login.pw_placeholder;
-              }
-              return null;
-            },
-            onFieldSubmitted: (_) => _login(),
-          ),
-          const SizedBox(height: 24),
+              const SizedBox(height: AppSpacing.s16),
 
-          // 로그인 버튼 — 텍스트 필드 변경 시 버튼만 리빌드되도록 ListenableBuilder 사용
-          ListenableBuilder(
-            listenable: Listenable.merge([_idController, _passwordController]),
-            builder: (context, _) => ElevatedButton(
-              onPressed: (_idController.text.trim().isEmpty ||
-                      _passwordController.text.trim().isEmpty ||
-                      _isLoading)
-                  ? null
-                  : _login,
-              style: AppStyles.primaryButton(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-              ).copyWith(
-                backgroundColor: WidgetStateProperty.resolveWith((states) {
-                  if (states.contains(WidgetState.disabled)) {
-                    return AppStyles.gray4;
-                  }
-                  return AppStyles.kMainColor;
-                }),
-              ),
-              child: _isLoading
-                  ? const AppLoadingIndicator(
-                      size: 20,
-                      color: Colors.white,
-                      strokeWidth: 2,
-                    )
-                  : Text(
-                      t.login.button,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                          color: Colors.white),
+              // 비밀번호 입력 필드
+              TextFormField(
+                controller: _passwordController,
+                decoration: AppStyles.filledInputDecoration(
+                  labelText: t.login.pw_label,
+                  prefixIcon: const Icon(Icons.lock),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword
+                          ? Icons.visibility_off
+                          : Icons.visibility,
                     ),
-            ),
-          ),
-          const SizedBox(height: 16),
+                    onPressed: () {
+                      setState(() {
+                        _obscurePassword = !_obscurePassword;
+                      });
+                    },
+                  ),
+                ),
+                obscureText: _obscurePassword,
+                textInputAction: TextInputAction.done,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return t.login.pw_placeholder;
+                  }
+                  return null;
+                },
+                onFieldSubmitted: (_) => _login(),
+              ),
+              const SizedBox(height: AppSpacing.s12),
 
-          // 체크박스 영역
-          Column(
-            children: [
+              // 체크박스 영역
               Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.start,
                 children: [
                   Transform.scale(
-                    scale: 1.3, // 체크박스 크기 30% 증가
+                    scale: 1.3,
                     child: Checkbox(
                       value: _isSaveId,
                       onChanged: (value) {
@@ -728,21 +647,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                           _isSaveId = value ?? false;
                         });
                       },
-                      shape: const CircleBorder(), // 원형 디자인
+                      shape: const CircleBorder(),
                       fillColor: WidgetStateProperty.resolveWith<Color>(
                         (Set<WidgetState> states) {
                           if (states.contains(WidgetState.selected)) {
-                            return AppStyles.green100; // green100 색상
+                            return AppStyles.green100;
                           }
                           return Colors.white;
                         },
                       ),
                     ),
                   ),
-                  Text(t.login.save_id, style: const TextStyle(fontSize: 15)),
-                  const SizedBox(width: 16),
+                  Text(t.login.save_id, style: AppTextStyles.body),
+                  const SizedBox(width: AppSpacing.s16),
                   Transform.scale(
-                    scale: 1.3, // 체크박스 크기 30% 증가
+                    scale: 1.3,
                     child: Checkbox(
                       value: _isAutoLogin,
                       onChanged: (value) {
@@ -753,24 +672,142 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                           }
                         });
                       },
-                      shape: const CircleBorder(), // 원형 디자인
+                      shape: const CircleBorder(),
                       fillColor: WidgetStateProperty.resolveWith<Color>(
                         (Set<WidgetState> states) {
                           if (states.contains(WidgetState.selected)) {
-                            return AppStyles.green100; // green100 색상
+                            return AppStyles.green100;
                           }
                           return Colors.white;
                         },
                       ),
                     ),
                   ),
-                  Text(t.login.auto_login,
-                      style: const TextStyle(fontSize: 15)),
+                  Text(t.login.auto_login, style: AppTextStyles.body),
                 ],
+              ),
+              const SizedBox(height: AppSpacing.s20),
+
+              // 로그인 버튼 — 텍스트 필드 변경 시 버튼만 리빌드되도록 ListenableBuilder 사용
+              ListenableBuilder(
+                listenable:
+                    Listenable.merge([_idController, _passwordController]),
+                builder: (context, _) => ElevatedButton(
+                  onPressed: (_idController.text.trim().isEmpty ||
+                          _passwordController.text.trim().isEmpty ||
+                          _isLoading)
+                      ? null
+                      : _login,
+                  style: AppStyles.primaryButton(
+                    minimumSize: const Size.fromHeight(52),
+                  ).copyWith(
+                    backgroundColor: WidgetStateProperty.resolveWith((states) {
+                      if (states.contains(WidgetState.disabled)) {
+                        return AppStyles.gray4;
+                      }
+                      return AppStyles.kMainColor;
+                    }),
+                    textStyle: WidgetStateProperty.all(
+                      AppTextStyles.titleSm,
+                    ),
+                  ),
+                  child: _isLoading
+                      ? const AppLoadingIndicator(
+                          size: 20,
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        )
+                      : Text(
+                          t.login.button,
+                          style: AppTextStyles.titleSm
+                              .copyWith(color: Colors.white),
+                        ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.s24),
+
+              // 모드 선택 세그먼티드 탭
+              _ModeSegmentedTabs(
+                isSubDisplay: _isSubDisplay,
+                onChanged: (isKds) {
+                  setState(() => _isSubDisplay = isKds);
+                },
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeroPanel() {
+    final locale = ref.watch(localeNotifierProvider);
+
+    final String heroSubTitle = switch (locale) {
+      AppLocale.ko => '주문 에이전트',
+      AppLocale.en => 'Order Agent',
+      AppLocale.ja => 'オーダーエージェント',
+    };
+
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppStyles.kMainColor, AppStyles.kSub],
+        ),
+      ),
+      padding: const EdgeInsets.all(AppSpacing.s32),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // 상단: 아이콘 + 브랜드명
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.restaurant_menu, size: 48, color: Colors.white),
+              const SizedBox(height: AppSpacing.s16),
+              Text(
+                'AppFit',
+                style: AppTextStyles.display.copyWith(
+                  color: Colors.white,
+                  fontSize: 32,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.s4),
+              Text(
+                heroSubTitle,
+                style: AppTextStyles.titleSm.copyWith(
+                  color: Colors.white.withValues(alpha: 0.85),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox.shrink(),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSplitCard() {
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: AppRadius.bLg,
+        boxShadow: AppElevation.card,
+      ),
+      child: ClipRRect(
+        borderRadius: AppRadius.bLg,
+        child: SizedBox.expand(
+          child: Row(
+            children: [
+              Expanded(flex: 5, child: _buildHeroPanel()),
+              Expanded(flex: 4, child: _buildFormPanel()),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -780,18 +817,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     final currentLocale = ref.watch(localeNotifierProvider);
 
     return Container(
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        borderRadius: AppRadius.bSm,
+        boxShadow: AppElevation.soft,
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.s4,
+        vertical: AppSpacing.s4,
+      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: AppLocale.values.map((locale) {
@@ -800,18 +834,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             onTap: () {
               ref.read(localeNotifierProvider.notifier).changeLocale(locale);
             },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.s12,
+                vertical: AppSpacing.s8,
+              ),
               decoration: BoxDecoration(
                 color: isSelected ? AppStyles.kMainColor : Colors.transparent,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: AppRadius.bSm,
               ),
               child: Text(
                 _getLocaleDisplay(locale),
-                style: TextStyle(
-                  color: isSelected ? Colors.white : Colors.grey[600],
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                  fontSize: 12,
+                style: AppTextStyles.bodySm.copyWith(
+                  color: isSelected ? Colors.white : AppStyles.gray6,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                 ),
               ),
             ),
@@ -832,23 +869,29 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   Widget _buildEnvBadge() {
     return GestureDetector(
       onTap: _showEnvSelectDialog,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            _envLabel(_selectedEnv),
-            style: TextStyle(
-              fontSize: 11,
-              color: Colors.white.withOpacity(0.6),
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.s8,
+          vertical: AppSpacing.s4,
+        ),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.16),
+          borderRadius: AppRadius.bSm,
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.24),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              _envLabel(_selectedEnv),
+              style: AppTextStyles.caption.copyWith(color: Colors.white),
             ),
-          ),
-          const SizedBox(width: 2),
-          Icon(
-            Icons.arrow_drop_down,
-            size: 14,
-            color: Colors.white.withOpacity(0.6),
-          ),
-        ],
+            const SizedBox(width: AppSpacing.s4),
+            const Icon(Icons.arrow_drop_down, size: 14, color: Colors.white),
+          ],
+        ),
       ),
     );
   }
@@ -859,7 +902,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     final selected = await showDialog<String>(
       context: context,
       builder: (context) => SimpleDialog(
+        shape: const RoundedRectangleBorder(borderRadius: AppRadius.bLg),
         title: const Text('서버 환경 선택'),
+        titleTextStyle: AppTextStyles.title,
         children: envOptions.map((env) {
           final isSelected = env == _selectedEnv;
           return SimpleDialogOption(
@@ -871,16 +916,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                       ? Icons.radio_button_checked
                       : Icons.radio_button_off,
                   size: 20,
-                  color:
-                      isSelected ? Theme.of(context).primaryColor : Colors.grey,
+                  color: isSelected ? AppStyles.kMainColor : AppStyles.gray6,
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: AppSpacing.s12),
                 Text(
                   _envLabel(env),
-                  style: TextStyle(
-                    fontSize: 15,
+                  style: AppTextStyles.body.copyWith(
                     fontWeight:
-                        isSelected ? FontWeight.bold : FontWeight.normal,
+                        isSelected ? FontWeight.w600 : FontWeight.normal,
+                    color: isSelected ? AppStyles.kMainColor : AppStyles.gray9,
                   ),
                 ),
               ],
@@ -939,7 +983,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       context: context,
       barrierDismissible: false,
       builder: (context) => SimpleDialog(
+        shape: const RoundedRectangleBorder(borderRadius: AppRadius.bLg),
         title: const Text('개발 계정 선택'),
+        titleTextStyle: AppTextStyles.title,
         children: [
           ...accounts.map((account) {
             final (name, id) = account;
@@ -951,15 +997,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                   _passwordController.text = '1234';
                 });
               },
-              child: Text('$name ($id)', style: const TextStyle(fontSize: 14)),
+              child: Text('$name ($id)', style: AppTextStyles.body),
             );
           }),
-          const Divider(),
+          const Divider(color: AppStyles.gray3),
           SimpleDialogOption(
             onPressed: () => Navigator.pop(context),
-            child: const Center(
-              child: Text('닫기',
-                  style: TextStyle(fontSize: 14, color: Colors.grey)),
+            child: Center(
+              child: Text(
+                '닫기',
+                style: AppTextStyles.body.copyWith(color: AppStyles.gray6),
+              ),
             ),
           ),
         ],
@@ -984,12 +1032,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       resizeToAvoidBottomInset: true,
       body: Stack(
         children: [
-          // 배경 이미지
+          // 배경: 브랜드 그라디언트
           Container(
             decoration: const BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage('assets/images/login-bg.png'),
-                fit: BoxFit.cover,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [AppStyles.kMainColor, AppStyles.kSub],
               ),
             ),
           ),
@@ -1001,28 +1050,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               child: Center(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(
-                    maxWidth: 460,
+                    maxWidth: 880,
+                    maxHeight: 560,
                   ),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.grey.withOpacity(0.1),
-                          spreadRadius: 1,
-                          blurRadius: 10,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: SingleChildScrollView(
-                      child: Padding(
-                        padding: const EdgeInsets.all(40.0),
-                        child: _buildLoginForm(formKey: _formKey),
-                      ),
-                    ),
-                  ),
+                  child: _buildSplitCard(),
                 ),
               ),
             ),
@@ -1041,20 +1072,107 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
           // 언어 선택 위젯 + 서버 환경 표시 (우측 상단)
           Positioned(
-            top: 20,
-            right: 20,
+            top: AppSpacing.s20,
+            right: AppSpacing.s20,
             child: SafeArea(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   _buildLanguageSwitcher(),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: AppSpacing.s4),
                   _buildEnvBadge(),
                 ],
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ─── 모드 선택 세그먼티드 탭 ────────────────────────────────────────────────
+
+class _ModeSegmentedTabs extends StatelessWidget {
+  final bool isSubDisplay;
+  final void Function(bool isKds) onChanged;
+
+  const _ModeSegmentedTabs({
+    required this.isSubDisplay,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Translations.of(context);
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppStyles.gray2,
+        borderRadius: AppRadius.bSm,
+      ),
+      padding: const EdgeInsets.all(AppSpacing.s4),
+      child: Row(
+        children: [
+          Expanded(
+            child: _tab(
+              label: t.login.tabs.order,
+              icon: Icons.point_of_sale,
+              selected: !isSubDisplay,
+              onTap: () => onChanged(false),
+            ),
+          ),
+          Expanded(
+            child: _tab(
+              label: t.login.tabs.kitchen,
+              icon: Icons.display_settings,
+              selected: isSubDisplay,
+              onTap: () => onChanged(true),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _tab({
+    required String label,
+    required IconData icon,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.s12),
+        decoration: selected
+            ? const BoxDecoration(
+                color: Colors.white,
+                borderRadius: AppRadius.bSm,
+                boxShadow: AppElevation.soft,
+              )
+            : const BoxDecoration(
+                color: Colors.transparent,
+                borderRadius: AppRadius.bSm,
+              ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 18,
+              color: selected ? AppStyles.kMainColor : AppStyles.gray6,
+            ),
+            const SizedBox(width: AppSpacing.s8),
+            Text(
+              label,
+              style: AppTextStyles.body.copyWith(
+                color: selected ? AppStyles.kMainColor : AppStyles.gray6,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
