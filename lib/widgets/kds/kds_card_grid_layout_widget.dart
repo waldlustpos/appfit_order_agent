@@ -63,6 +63,12 @@ class _KdsCardGridLayoutWidgetState
     // widget.items 참조가 변경되었더라도 요소들이 동일하면 재계산 방지
     if (!listEquals(widget.items, oldWidget.items)) {
       _prepareGroupedData();
+      // 아이템 수 변경 시 maxScrollExtent 가 재계산된 뒤에 화살표 상태를 다시 평가.
+      // ScrollController listener 는 offset 이 바뀔 때만 울리므로, 우측 끝에 멈춰
+      // 있는 상태에서 새 주문이 추가되면 자동 갱신되지 않는다.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _updateScrollArrowState();
+      });
     }
     // 외부 스크롤 컨트롤러가 변경된 경우 리스너 재등록
     if (widget.scrollController != oldWidget.scrollController) {
@@ -221,9 +227,8 @@ class _KdsCardGridLayoutWidgetState
               customBorder: const CircleBorder(),
               onTap: () {
                 if (!_scrollController.hasClients) return;
-                final target = isLeft
-                    ? 0.0
-                    : _scrollController.position.maxScrollExtent;
+                final target =
+                    isLeft ? 0.0 : _scrollController.position.maxScrollExtent;
                 _scrollController.animateTo(
                   target,
                   duration: const Duration(milliseconds: 300),
