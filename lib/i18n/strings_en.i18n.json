@@ -50,6 +50,13 @@
         "save": "Save",
         "save_success": "Settings saved.",
         "save_error": "Error saving settings: {error}",
+        "section_general": "General",
+        "section_printer": "Printer",
+        "section_sound": "Notifications",
+        "section_kiosk": "Kiosk",
+        "section_server": "Server",
+        "section_print_count": "Print",
+        "section_update": "Updates",
         "mode_switch": {
             "to_main": "Switch to Main",
             "to_kds": "Switch to KDS Mode",

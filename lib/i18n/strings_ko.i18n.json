@@ -50,6 +50,13 @@
         "save": "저장",
         "save_success": "설정이 저장되었습니다.",
         "save_error": "설정 저장 중 오류가 발생했습니다: {error}",
+        "section_general": "일반 설정",
+        "section_printer": "프린터 설정",
+        "section_sound": "알림 설정",
+        "section_kiosk": "키오스크 설정",
+        "section_server": "서버 설정",
+        "section_print_count": "출력 설정",
+        "section_update": "업데이트",
         "mode_switch": {
             "to_main": "메인 시스템으로 전환",
             "to_kds": "KDS 모드로 전환",

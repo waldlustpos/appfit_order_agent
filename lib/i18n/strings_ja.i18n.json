@@ -50,6 +50,13 @@
         "save": "保存",
         "save_success": "設定が保存されました。",
         "save_error": "設定の保存中にエラーが発生しました: {error}",
+        "section_general": "一般設定",
+        "section_printer": "プリンター設定",
+        "section_sound": "通知設定",
+        "section_kiosk": "キオスク設定",
+        "section_server": "サーバー設定",
+        "section_print_count": "印刷設定",
+        "section_update": "アップデート",
         "mode_switch": {
             "to_main": "メインに切替",
             "to_kds": "KDSモードに切替",

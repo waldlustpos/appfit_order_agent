@@ -7,41 +7,27 @@ import '../providers/product_provider.dart';
 import '../constants/app_styles.dart';
 import '../services/platform_service.dart';
 import '../services/local_server_service.dart';
-import '../widgets/custom_switch.dart';
 import '../services/preference_service.dart';
-import 'package:audioplayers/audioplayers.dart';
-import '../services/print_service.dart';
-import '../utils/print/label_painter.dart';
-import 'package:appfit_order_agent/i18n/strings.g.dart';
-import 'package:appfit_order_agent/providers/locale_provider.dart';
-import 'package:appfit_order_agent/providers/currency_provider.dart';
-import 'package:appfit_order_agent/providers/rotation_provider.dart';
-import 'package:appfit_order_agent/utils/currency_unit.dart';
 import '../widgets/common/common_dialog.dart';
-import 'appfit_test_screen.dart';
-import '../utils/mock_order_generator.dart' as __MockOrderGenerator;
-import '../core/orders/order_queue_service.dart';
-import 'package:appfit_core/appfit_core.dart';
+import '../services/appfit/appfit_providers.dart' as appfit_providers;
+import 'package:appfit_order_agent/i18n/strings.g.dart';
 import '../config/ota_config.dart';
 import '../services/secure_storage_service.dart';
-import '../services/appfit/appfit_providers.dart' as appfit_providers;
+import '../widgets/settings/settings_left_panel.dart';
+import '../widgets/settings/settings_right_panel.dart';
+import 'package:appfit_core/appfit_core.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
-  const SettingsScreen({Key? key}) : super(key: key);
+  const SettingsScreen({super.key});
 
   @override
   ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-  final TextEditingController _serverUrlController = TextEditingController();
-  final TextEditingController _storeIdController = TextEditingController();
-  final TextEditingController _storeNameController = TextEditingController();
-
-  final AudioPlayer _audioPlayer = AudioPlayer();
   final PreferenceService _preferenceService = PreferenceService();
-  final ScrollController _leftScrollController = ScrollController();
-  final ScrollController _rightScrollController = ScrollController();
+
+  // ── 상태 변수 ──────────────────────────────────────────────────────────────
   bool _isAutoStart = false;
   bool _isAutoReceipt = true;
   bool _isPrintOrder = true;
@@ -50,36 +36,34 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _isUseBuiltinPrinter = true;
   bool _isTpcpStore = false;
 
-  // 라벨프린터 테스트 모드 설정
   int _labelAutoReplyMode = 0;
   bool _labelUseFeedToTear = true;
   bool _labelUseBackToPrint = true;
   bool _labelUseStatusPolling = false;
   bool _labelUseCalibrate = false;
   int _labelPrintDelay = 300;
-  int _labelFilterMode = 0; // 0: 전체, 1: 와플만, 2: 와플제외
-  bool _isLabelTestExpanded = false;
+  int _labelFilterMode = 0;
+
   bool _isKioskOrderVisible = false;
   bool _isKioskOrderSoundEnabled = false;
-  bool _isOrderHistoryScroll = true; // 주문내역 보기설정 추가
-  bool _isIgnoreOtherDeviceKds = false; // KDS 타 기기 이벤트 무시 설정 추가
-  bool _forceSocketReconnect = false; // 소켓 강제 재접속 (1분마다)
-  int _devOptionsTapCount = 0; // 개발자 옵션 비밀 탭 카운터
-  bool _isDevOptionsVisible = false; // 개발자 옵션 표시 여부
+  bool _isOrderHistoryScroll = true;
+  bool _isIgnoreOtherDeviceKds = false;
+  bool _forceSocketReconnect = false;
+
+  int _devOptionsTapCount = 0;
+  bool _isDevOptionsVisible = false;
+
   int _notificationVolume = 5;
   String _selectedSound = 'alert10.mp3';
   int _alertCount = 3;
-  int _printCount = 1; // 주문서 출력 개수
-  bool _isLocalServerEnabled = false; // 로컬 서버 활성화 상태
-  bool _isLocalServerRunning = false; // 로컬 서버 실행 중 여부 (info box 갱신용)
-  bool _isRotated180 = false; // 화면 상하 반전
-  bool _isAutoCheckUpdate = true; // 자동 업데이트 체크 설정
-  bool _isCheckingUpdate = false; // 업데이트 버전 확인 중 여부
-  UpdateInfo? _updateInfo; // 최신 버전 정보
+  int _printCount = 1;
+  bool _isLocalServerEnabled = false;
+  bool _isLocalServerRunning = false;
+  bool _isRotated180 = false;
+  bool _isAutoCheckUpdate = true;
+  bool _isCheckingUpdate = false;
+  UpdateInfo? _updateInfo;
   String _selectedEnv = PreferenceService().getEnvironment();
-
-  // AudioPlayer 상태 관리를 위한 플래그 추가
-  bool _isVolumeChanging = false;
 
   @override
   void initState() {
@@ -90,11 +74,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         .addPostFrameCallback((_) => _checkUpdateFromSettings());
   }
 
+  // ── 설정 로드 / 저장 ───────────────────────────────────────────────────────
+
   void _loadSettings() {
     setState(() {
-      _storeIdController.text = _preferenceService.getStoreId() ?? '';
-      _storeNameController.text = _preferenceService.getStoreName() ?? '';
-
       _isAutoStart = _preferenceService.getAutoLaunch();
       _isAutoReceipt = _preferenceService.getAutoReceipt();
       logger.i('설정 화면 로드 - 자동접수 설정: $_isAutoReceipt');
@@ -104,7 +87,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _isUseLabelPrinter = _preferenceService.getUseLabelPrinter();
       _isTpcpStore = _preferenceService.isTpcpStore();
 
-      // 라벨프린터 테스트 모드 설정
       _labelAutoReplyMode = _preferenceService.getLabelAutoReplyMode();
       _labelUseFeedToTear = _preferenceService.getLabelUseFeedToTear();
       _labelUseBackToPrint = _preferenceService.getLabelUseBackToPrint();
@@ -113,10 +95,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _labelPrintDelay = _preferenceService.getLabelPrintDelay();
       _labelFilterMode = _preferenceService.getLabelFilterMode();
 
-      // 일반 모드에서는 저장된 설정을 사용
       _isKioskOrderVisible = _preferenceService.getShowKioskOrder();
       _isKioskOrderSoundEnabled = _preferenceService.getKioskPrintAndSound();
-
       _isOrderHistoryScroll = _preferenceService.getOrderHistoryScroll();
       _isIgnoreOtherDeviceKds =
           _preferenceService.getIgnoreOtherDeviceTasksKds();
@@ -130,43 +110,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _isRotated180 = _preferenceService.getIsRotated180();
       _isAutoCheckUpdate = _preferenceService.getAutoCheckUpdate();
     });
-  }
-
-  Future<void> _checkUpdateFromSettings() async {
-    if (!mounted) return;
-    setState(() => _isCheckingUpdate = true);
-    try {
-      final otaManager = OtaUpdateManager();
-      final info = await otaManager.checkForUpdate(
-        versionUrl: OtaConfig.versionUrl,
-        downloadUrl: OtaConfig.downloadUrl,
-      );
-      if (mounted) setState(() => _updateInfo = info);
-    } catch (e, s) {
-      // 버전 확인 실패 - 무시
-    } finally {
-      if (mounted) setState(() => _isCheckingUpdate = false);
-    }
-  }
-
-  Future<void> _performUpdateFromSettings() async {
-    if (_updateInfo == null || !mounted) return;
-    final otaManager = OtaUpdateManager();
-    await CommonDialog.showUpdateProgressDialog(
-      context: context,
-      updateInfo: _updateInfo!,
-      onStartUpdate:
-          (downloadUrl, destinationFilename, onEvent, onDone, onError) {
-        otaManager.executeUpdate(
-          downloadUrl: downloadUrl,
-          destinationFilename: destinationFilename,
-          onStatus: (status, progress) =>
-              onEvent(OtaDownloadEvent(status: status, progress: progress)),
-          onDone: onDone,
-          onError: onError,
-        );
-      },
-    );
   }
 
   Future<void> _saveSettings() async {
@@ -196,22 +139,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await _preferenceService.setPrintCount(_printCount);
       await _preferenceService.setLocalServerEnabled(_isLocalServerEnabled);
 
-      // orderHistoryScrollProvider 상태 업데이트
       ref.read(orderHistoryScrollProvider.notifier).state =
           _isOrderHistoryScroll;
-
-      // 저장 성공 시 SnackBar 표시 (선택적)
-      if (mounted) {
-        /*ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(t.settings.save_success),
-            duration: Duration(seconds: 2),
-            backgroundColor: Colors.green,
-          ),
-        );*/
-      }
-    } catch (e, s) {
-      logger.e('Error saving settings', error: e, stackTrace: s);
+    } catch (e) {
+      logger.e('Error saving settings: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -224,11 +155,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
-  Future<void> _handleModeSwitch(bool currentIsKdsMode) async {
-    final title = currentIsKdsMode
+  // ── 비즈니스 로직 ──────────────────────────────────────────────────────────
+
+  Future<void> _handleModeSwitch() async {
+    final isKdsMode = ref.read(kdsModeProvider);
+    final title = isKdsMode
         ? t.settings.mode_switch.to_main
         : t.settings.mode_switch.to_kds;
-    final content = currentIsKdsMode
+    final content = isKdsMode
         ? t.settings.mode_switch.confirm_to_main
         : t.settings.mode_switch.confirm_to_kds;
 
@@ -241,14 +175,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
 
     if (confirm == true) {
-      final newMode = !currentIsKdsMode;
-      // Preference 저장
+      final newMode = !isKdsMode;
       await _preferenceService.setSubDisplay(newMode);
-
-      // 상태 업데이트
       ref.read(kdsModeProvider.notifier).setKdsMode(newMode);
 
-      // KDS 모드로 전환 시 로컬 서버 중지 보장
       if (newMode) {
         final localServer = LocalServerService.instance;
         if (localServer != null) {
@@ -258,7 +188,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       }
 
       if (mounted) {
-        Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+        Navigator.pushNamedAndRemoveUntil(context, '/home', (r) => false);
         Future.delayed(const Duration(milliseconds: 100), () {
           ref.read(orderProvider.notifier).reloadSettings();
         });
@@ -266,1368 +196,247 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
-  Widget _buildModeSwitchItem(bool isKdsMode) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16.0),
-      padding: const EdgeInsets.all(16.0),
-      decoration: BoxDecoration(
-        color: isKdsMode
-            ? AppStyles.kMainColor.withValues(alpha: 0.1)
-            : Colors.blue.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isKdsMode ? AppStyles.kMainColor : Colors.blue,
-          width: 1.5,
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              Icon(
-                isKdsMode ? Icons.point_of_sale : Icons.kitchen,
-                color: isKdsMode ? AppStyles.kMainColor : Colors.blue,
-                size: 28,
-              ),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    isKdsMode
-                        ? t.settings.mode_switch.to_main
-                        : t.settings.mode_switch.to_kds,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color:
-                          isKdsMode ? AppStyles.kMainColor : Colors.blue[800],
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    isKdsMode
-                        ? t.settings.mode_switch.desc_to_main
-                        : t.settings.mode_switch.desc_to_kds,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[700],
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          ElevatedButton(
-            onPressed: () => _handleModeSwitch(isKdsMode),
-            style: AppStyles.primaryButton().copyWith(
-              backgroundColor: WidgetStatePropertyAll(
-                isKdsMode ? AppStyles.kMainColor : Colors.blue,
-              ),
-            ),
-            child: Text(t.settings.mode_switch.btn_switch,
-                style: const TextStyle(fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
+  Future<void> _checkUpdateFromSettings() async {
+    if (!mounted) return;
+    setState(() => _isCheckingUpdate = true);
+    try {
+      final otaManager = OtaUpdateManager();
+      final info = await otaManager.checkForUpdate(
+        versionUrl: OtaConfig.versionUrl,
+        downloadUrl: OtaConfig.downloadUrl,
+      );
+      if (mounted) setState(() => _updateInfo = info);
+    } catch (_) {
+      // 버전 확인 실패 — 무시
+    } finally {
+      if (mounted) setState(() => _isCheckingUpdate = false);
+    }
+  }
+
+  Future<void> _performUpdateFromSettings() async {
+    if (_updateInfo == null || !mounted) return;
+    final otaManager = OtaUpdateManager();
+    await CommonDialog.showUpdateProgressDialog(
+      context: context,
+      updateInfo: _updateInfo!,
+      onStartUpdate:
+          (downloadUrl, destinationFilename, onEvent, onDone, onError) {
+        otaManager.executeUpdate(
+          downloadUrl: downloadUrl,
+          destinationFilename: destinationFilename,
+          onStatus: (status, progress) =>
+              onEvent(OtaDownloadEvent(status: status, progress: progress)),
+          onDone: onDone,
+          onError: onError,
+        );
+      },
     );
   }
 
-  Future<void> _playSound(String soundFile) async {
-    try {
-      await _audioPlayer.play(AssetSource('sounds/$soundFile'));
-    } catch (e, s) {
-      logger.e('Error playing sound', error: e, stackTrace: s);
-      // 사용자에게 SnackBar로 에러 알림 추가
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('알림음 재생 중 오류가 발생했습니다: $e'),
-            duration: const Duration(seconds: 3),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
+  Future<void> _onEnvChanged(String env) async {
+    await _preferenceService.setEnvironment(env);
+    await _preferenceService.setEnvironmentManualOverride(true);
 
-  // 안전한 사운드 재생 메서드 (음량 조절용)
-  Future<void> _playSoundSafely(String soundFile) async {
-    try {
-      await _audioPlayer.play(AssetSource('sounds/$soundFile'));
-    } catch (e, s) {
-      // AudioPlayer 재생 실패 시 재시도 (한 번만)
-      logger.w('첫 번째 재생 시도 실패, 재시도: $e');
-      try {
-        await Future.delayed(const Duration(milliseconds: 100));
-        await _audioPlayer.play(AssetSource('sounds/$soundFile'));
-      } catch (retryError, retryStack) {
-        logger.e('사운드 재생 재시도도 실패', error: retryError, stackTrace: retryStack);
-        // 사용자에게 알림 (기존 SnackBar 로직 유지)
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('알림음 재생 중 오류가 발생했습니다: $retryError'),
-              duration: const Duration(seconds: 3),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
-    }
-  }
+    final newEnvironment = switch (env) {
+      'live' => AppFitEnvironment.live,
+      'japanLive' => AppFitEnvironment.japanLive,
+      'dev' => AppFitEnvironment.dev,
+      'staging' => AppFitEnvironment.staging,
+      _ => AppFitEnvironment.live,
+    };
+    AppFitConfig.configure(
+        environment: newEnvironment, requestSource: 'ORDER_AGENT');
 
-  Widget _buildSettingItem({
-    required String title,
-    required String description,
-    required Widget trailing,
-    Widget? additionalContent,
-    bool enabled = true,
-    bool isVertical = false,
-  }) {
-    return Opacity(
-      opacity: enabled ? 1.0 : 0.5,
-      child: IgnorePointer(
-        ignoring: !enabled,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16.0),
-              child: isVertical
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          description,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: enabled ? Colors.grey[600] : Colors.grey,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        trailing,
-                      ],
-                    )
-                  : Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                title,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                description,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color:
-                                      enabled ? Colors.grey[600] : Colors.grey,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        trailing,
-                      ],
-                    ),
+    await ref.read(appfit_providers.appFitTokenManagerProvider).clearToken();
+    final secureStorage = SecureStorageService();
+    await secureStorage.delete(SecureStorageService.appFitProjectId);
+    await secureStorage.delete(SecureStorageService.appFitProjectApiKey);
+
+    ref.invalidate(appfit_providers.appFitTokenManagerProvider);
+    ref.invalidate(appfit_providers.appFitDioProvider);
+
+    await _preferenceService.clearLoginInfo();
+    setState(() => _selectedEnv = env);
+
+    if (mounted) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => AlertDialog(
+          title: const Text('환경 변경'),
+          content: Text('$env 환경으로 변경되었습니다.\n로그인 화면으로 이동합니다.'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                ref.read(authProvider.notifier).unauthenticate();
+                Navigator.pushNamedAndRemoveUntil(
+                    context, '/login', (route) => false);
+              },
+              child: Text(Translations.of(context).common.confirm),
             ),
-            if (additionalContent != null) ...[
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16.0),
-                child: additionalContent,
-              ),
-            ],
-            const Divider(),
           ],
         ),
-      ),
-    );
+      );
+    }
   }
 
-  Widget _buildSoundButton(String value, String label) {
-    final isSelected = _selectedSound == value;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4.0),
-      child: ElevatedButton(
-        onPressed: () async {
-          setState(() {
-            _selectedSound = value;
-            logToFile(tag: LogTag.UI_ACTION, message: '알림음 변경 -> $value');
-          });
-          await _saveSettings();
-          await _playSound(value);
-          ref.read(orderProvider.notifier).updateSoundSettings();
-        },
-        style: AppStyles.settingsToggleButton(isSelected),
-        child: Text(
-          label,
-          style: TextStyle(
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal),
-        ),
-      ),
-    );
+  Future<void> _handleLocalServerChanged(bool value) async {
+    setState(() => _isLocalServerEnabled = value);
+    await _preferenceService.setLocalServerEnabled(value);
+
+    final localServer = LocalServerService.instance;
+    if (localServer == null) return;
+
+    if (value) {
+      try {
+        final productState = ref.read(productProvider);
+        if (productState.hasValue && productState.value != null) {
+          await localServer.startServer(products: productState.value!);
+        } else {
+          await localServer.startServer();
+        }
+      } catch (_) {
+        await localServer.startServer();
+      }
+      if (mounted) {
+        final serverUrl = localServer.serverUrl;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('로컬 서버가 시작되었습니다.\nURL: ${serverUrl ?? "Unknown"}'),
+            duration: const Duration(seconds: 4),
+            backgroundColor: Colors.green,
+          ),
+        );
+        setState(() => _isLocalServerRunning = localServer.isRunning);
+      }
+    } else {
+      await localServer.stopServer();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('로컬 서버가 중지되었습니다.'),
+            duration: Duration(seconds: 2),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        setState(() => _isLocalServerRunning = localServer.isRunning);
+      }
+    }
   }
 
-  Widget _buildAlertCountButton(int value, String label) {
-    final isSelected = _alertCount == value;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4.0),
-      child: ElevatedButton(
-        onPressed: () async {
-          setState(() {
-            _alertCount = value;
-          });
-          await _preferenceService.setSoundNum(value);
-          ref.read(orderProvider.notifier).updateSoundSettings();
-          logToFile(tag: LogTag.UI_ACTION, message: '알림횟수 변경 -> $value회');
-        },
-        style: AppStyles.settingsToggleButton(isSelected),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-          ),
-        ),
-      ),
-    );
+  Future<void> _setWindowSoftInputMode(String mode) async {
+    try {
+      await platform
+          .invokeMethod(mode == 'pan' ? 'setAdjustPan' : 'setAdjustResize');
+    } on PlatformException catch (e) {
+      logger.w("Failed to set windowSoftInputMode: '${e.message}'.");
+    }
   }
 
-  Widget _buildPrintCountButton(int value, String label) {
-    final isSelected = _printCount == value;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4.0),
-      child: ElevatedButton(
-        onPressed: () async {
-          setState(() {
-            _printCount = value;
-          });
-          await _preferenceService.setPrintCount(value);
-          logToFile(tag: LogTag.UI_ACTION, message: '주문서 출력 개수 변경 -> $value개');
-        },
-        style: AppStyles.settingsToggleButton(isSelected),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-          ),
-        ),
-      ),
-    );
+  // ── 콜백 헬퍼 (setState + saveSettings) ──────────────────────────────────
+
+  void _setAndSave(VoidCallback mutate) {
+    setState(mutate);
+    _saveSettings();
   }
 
-  Widget _buildConnectionStatus({
-    required bool isConnected,
-    required VoidCallback onReconnect,
-  }) {
-    final t = Translations.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey[300]!),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            isConnected ? Icons.check_circle : Icons.error_outline,
-            size: 16,
-            color: isConnected ? Colors.green : Colors.red,
-          ),
-          const SizedBox(width: 8),
-          Text(
-            isConnected ? t.settings.connection.connected : t.settings.connection.disconnected,
-            style: TextStyle(
-              color: isConnected ? Colors.green[700] : Colors.red[700],
-              fontWeight: FontWeight.bold,
-              fontSize: 13,
-            ),
-          ),
-          const SizedBox(width: 12),
-          SizedBox(
-            height: 28,
-            child: ElevatedButton(
-              onPressed: onReconnect,
-              style: AppStyles.outlinedButton(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                borderColor: Colors.grey[400]!,
-              ).copyWith(
-                foregroundColor: WidgetStatePropertyAll(Colors.grey[800]),
-                textStyle: const WidgetStatePropertyAll(
-                  TextStyle(fontSize: 12),
-                ),
-              ),
-              child: Text(t.settings.connection.reconnect),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  // ── build ──────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     final isKdsMode = ref.watch(kdsModeProvider);
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(child: _buildLeftPanel(isKdsMode)),
-        Expanded(child: _buildRightPanel(isKdsMode)),
-      ],
-    );
-  }
-
-  Widget _buildLeftPanel(bool isKdsMode) {
-    return Scrollbar(
-      controller: _leftScrollController,
-      thumbVisibility: true,
-      child: SingleChildScrollView(
-        controller: _leftScrollController,
-        padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildModeSwitchItem(isKdsMode),
-            _buildSettingItem(
-              title: t.settings.language.title,
-              description: t.settings.language.desc,
-              trailing: _buildLanguageSwitcher(),
-              isVertical: true,
-            ),
-            _buildSettingItem(
-              title: t.settings.currency.title,
-              description: t.settings.currency.desc,
-              trailing: _buildCurrencySwitcher(),
-              isVertical: true,
-            ),
-            _buildSettingItem(
-              title: t.settings.display_rotate.title,
-              description: t.settings.display_rotate.desc,
-              trailing: CustomSwitch(
-                value: _isRotated180,
-                activeColor: AppStyles.kMainColor,
-                inactiveColor: Colors.grey,
-                onChanged: (value) async {
-                  final hasPermission =
-                      await PlatformService.checkWriteSettingsPermission();
-                  if (!hasPermission) {
-                    if (mounted) {
-                      showDialog(
-                        context: context,
-                        builder: (_) => AlertDialog(
-                          title: const Text('권한 필요'),
-                          content: const Text(
-                              '시스템 설정을 변경하려면 "시스템 설정 수정" 권한이 필요합니다.\n설정 화면으로 이동하시겠습니까?'),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: const Text('취소'),
-                            ),
-                            TextButton(
-                              onPressed: () {
-                                Navigator.pop(context);
-                                PlatformService.requestWriteSettingsPermission();
-                              },
-                              child: const Text('설정으로 이동'),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-                    return;
-                  }
-                  setState(() => _isRotated180 = value);
-                  await ref
-                      .read(rotationNotifierProvider.notifier)
-                      .setRotated180(value);
-                },
-              ),
-            ),
-            _buildSettingItem(
-              title: t.settings.auto_start.title,
-              description: isKdsMode
-                  ? t.settings.auto_start.desc
-                  : t.settings.auto_start.desc_general,
-              isVertical: false,
-              trailing: CustomSwitch(
-                value: _isAutoStart,
-                activeColor: AppStyles.kMainColor,
-                inactiveColor: Colors.grey,
-                activeText: t.settings.auto_start.on,
-                inactiveText: t.settings.auto_start.off,
-                onChanged: (value) {
-                  setState(() {
-                    _isAutoStart = value;
-                    logToFile(
-                        tag: LogTag.UI_ACTION,
-                        message: 'PC시작 시 자동 실행 변경 -> $value');
-                  });
-                  _saveSettings();
-                },
-              ),
-            ),
-            if (isKdsMode)
-              _buildSettingItem(
-                title: t.settings.kds_ignore_status.title,
-                description: t.settings.kds_ignore_status.desc,
-                trailing: CustomSwitch(
-                  value: _isIgnoreOtherDeviceKds,
-                  activeColor: AppStyles.kMainColor,
-                  inactiveColor: Colors.grey,
-                  activeText: t.settings.auto_start.on, // 'ON'
-                  inactiveText: t.settings.auto_start.off, // 'OFF'
-                  onChanged: (value) {
-                    setState(() {
-                      _isIgnoreOtherDeviceKds = value;
-                      logToFile(
-                          tag: LogTag.UI_ACTION,
-                          message: 'KDS 타 기기 진행상태 무시 변경 -> $value');
-                    });
-                    _saveSettings();
-                  },
-                ),
-              ),
-            if (!isKdsMode)
-              _buildSettingItem(
-                title: t.settings.auto_receipt.title,
-                description: t.settings.auto_receipt.desc,
-                trailing: CustomSwitch(
-                  value: _isAutoReceipt,
-                  activeColor: AppStyles.kMainColor,
-                  inactiveColor: Colors.grey,
-                  activeText: t.settings.auto_start.on,
-                  inactiveText: t.settings.auto_start.off,
-                  onChanged: (value) {
-                    setState(() {
-                      _isAutoReceipt = value;
-                      logToFile(
-                          tag: LogTag.UI_ACTION,
-                          message: '픽업 오더 자동 접수 변경 -> $value');
-                    });
-                    logger.i('자동접수 설정 변경 - UI에서: $value');
-                    _saveSettings();
-                    ref.read(orderProvider.notifier).updateAutoReceipt(value);
-                  },
-                ),
-              ),
-            _buildSettingItem(
-              title: t.settings.print_order.title,
-              description: t.settings.print_order.desc,
-              trailing: CustomSwitch(
-                value: _isPrintOrder,
-                activeColor: AppStyles.kMainColor,
-                inactiveColor: Colors.grey,
-                activeText: t.settings.auto_start.on,
-                inactiveText: t.settings.auto_start.off,
-                onChanged: (value) {
-                  setState(() {
-                    _isPrintOrder = value;
-                    if (!_isPrintOrder) {
-                      _isUseBuiltinPrinter = false;
-                      _isUseExternalPrinter = false;
-                      // PrintService 캐시 업데이트
-                      ref.read(printServiceProvider).updatePrinterSettings(
-                            builtinPrinter: false,
-                            externalPrinter: false,
-                          );
-                    } else {
-                      if (!_isUseBuiltinPrinter && !_isUseExternalPrinter) {
-                        _isUseBuiltinPrinter = true;
-                        // PrintService 캐시 업데이트
-                        ref.read(printServiceProvider).updatePrinterSettings(
-                              builtinPrinter: true,
-                              externalPrinter: false,
-                            );
-                      }
-                    }
-                    logToFile(
-                        tag: LogTag.UI_ACTION,
-                        message: '주문서 출력 변경 -> $_isPrintOrder');
-                  });
-                  _saveSettings();
-                },
-              ),
-            ),
-            _buildSettingItem(
-              title: t.settings.builtin_printer.title,
-              description: t.settings.builtin_printer.desc,
-              enabled: _isPrintOrder,
-              trailing: CustomSwitch(
-                value: _isUseBuiltinPrinter,
-                activeColor: AppStyles.kMainColor,
-                inactiveColor: Colors.grey,
-                activeText: t.settings.auto_start.on,
-                inactiveText: t.settings.auto_start.off,
-                onChanged: (value) {
-                  if (!_isPrintOrder) return;
-                  setState(() {
-                    _isUseBuiltinPrinter = value;
-                    logToFile(
-                        tag: LogTag.UI_ACTION,
-                        message: '기기 내장 프린터 사용 변경 -> $_isUseBuiltinPrinter');
-                  });
-                  _saveSettings();
-                  // PrintService 캐시 업데이트
-                  ref.read(printServiceProvider).updatePrinterSettings(
-                        builtinPrinter: _isUseBuiltinPrinter,
-                      );
-                },
-              ),
-            ),
-            _buildSettingItem(
-              title: t.settings.external_printer.title,
-              description: t.settings.external_printer.desc,
-              enabled: _isPrintOrder,
-              trailing: CustomSwitch(
-                value: _isUseExternalPrinter,
-                activeColor: AppStyles.kMainColor,
-                inactiveColor: Colors.grey,
-                activeText: t.settings.auto_start.on,
-                inactiveText: t.settings.auto_start.off,
-                onChanged: (value) {
-                  if (!_isPrintOrder) return;
-                  setState(() {
-                    _isUseExternalPrinter = value;
-                    logToFile(
-                        tag: LogTag.UI_ACTION,
-                        message: '외부 프린터 사용 변경 -> $_isUseExternalPrinter');
-                  });
-                  _saveSettings();
-                  // PrintService 캐시 업데이트
-                  final printService = ref.read(printServiceProvider);
-                  printService.updatePrinterSettings(
-                    externalPrinter: _isUseExternalPrinter,
-                  );
-                  // 활성화 시 즉시 연결 확인
-                  if (value) {
-                    printService.checkConnection();
-                  }
-                },
-              ),
-              additionalContent: Consumer(
-                builder: (context, ref, child) {
-                  final status = ref.watch(printerStatusProvider);
-                  return _buildConnectionStatus(
-                    isConnected: status.isExternalConnected,
-                    onReconnect: () =>
-                        ref.read(printServiceProvider).checkConnection(),
-                  );
-                },
-              ),
-            ),
-            _buildSettingItem(
-              title: t.settings.label_printer.title,
-              description: t.settings.label_printer.desc,
-              // enabled: _isPrintOrder, // 독립적으로 동작하도록 종속성 제거
-              trailing: CustomSwitch(
-                value: _isUseLabelPrinter,
-                activeColor: AppStyles.kMainColor,
-                inactiveColor: Colors.grey,
-                activeText: t.settings.auto_start.on,
-                inactiveText: t.settings.auto_start.off,
-                onChanged: (value) {
-                  // if (!_isPrintOrder) return; // 독립적으로 동작하도록 종속성 제거
-                  setState(() {
-                    _isUseLabelPrinter = value;
-                    logToFile(
-                        tag: LogTag.UI_ACTION,
-                        message: '라벨 프린터 사용 변경 -> $_isUseLabelPrinter');
-                  });
-                  _saveSettings();
-                  // PrintService 캐시 업데이트
-                  final printService = ref.read(printServiceProvider);
-                  printService.updatePrinterSettings(
-                    labelPrinter: _isUseLabelPrinter,
-                  );
-                  // 활성화 시 즉시 연결 확인
-                  if (value) {
-                    printService.checkConnection();
-                  }
-                },
-              ),
-              additionalContent: Consumer(
-                builder: (context, ref, child) {
-                  final status = ref.watch(printerStatusProvider);
-                  return _buildConnectionStatus(
-                    isConnected: status.isLabelConnected,
-                    onReconnect: () =>
-                        ref.read(printServiceProvider).checkConnection(),
-                  );
-                },
-              ),
-            ),
-            // 라벨 출력 필터 모드 설정 (TPCP 매장에서만 표시)
-            if (_isUseLabelPrinter && _isTpcpStore)
-              _buildSettingItem(
-                title: t.settings.label_filter.title,
-                description: _labelFilterMode == 0
-                    ? t.settings.label_filter.desc_all
-                    : _labelFilterMode == 1
-                        ? t.settings.label_filter.desc_waffle_only
-                        : t.settings.label_filter.desc_waffle_exclude,
-                isVertical: true,
-                trailing: Row(
-                  children: [
-                    _buildFilterModeButton(t.settings.label_filter.btn_all, 0),
-                    const SizedBox(width: 8),
-                    _buildFilterModeButton(t.settings.label_filter.btn_waffle_only, 1),
-                    const SizedBox(width: 8),
-                    _buildFilterModeButton(t.settings.label_filter.btn_waffle_exclude, 2),
-                  ],
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFilterModeButton(String label, int mode) {
-    final isSelected = _labelFilterMode == mode;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () {
-          setState(() {
-            _labelFilterMode = mode;
-            logToFile(
-                tag: LogTag.UI_ACTION,
-                message: '라벨 출력 필터 모드 변경 -> $_labelFilterMode');
-          });
-          _saveSettings();
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            color: isSelected ? AppStyles.kMainColor : Colors.grey[200],
-            borderRadius: BorderRadius.circular(8),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            label,
-            style: TextStyle(
-              color: isSelected ? Colors.white : Colors.black87,
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-              fontSize: 13,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLabelTestModeSection() {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
-      child: Theme(
-        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
-          initiallyExpanded: _isLabelTestExpanded,
-          onExpansionChanged: (expanded) {
-            setState(() => _isLabelTestExpanded = expanded);
-          },
-          tilePadding: const EdgeInsets.symmetric(horizontal: 8.0),
-          title: const Text(
-            '라벨프린터 고급 설정 (테스트)',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: Colors.deepOrange,
-            ),
-          ),
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // AutoReply 모드
-                  _buildTestToggleRow(
-                    label: 'AutoReply 모드',
-                    description: '양방향 통신 (0=비활성, 1=활성)',
-                    child: DropdownButton<int>(
-                      value: _labelAutoReplyMode,
-                      items: const [
-                        DropdownMenuItem(value: 0, child: Text('0 (비활성)')),
-                        DropdownMenuItem(value: 1, child: Text('1 (활성)')),
-                      ],
-                      onChanged: (value) {
-                        if (value == null) return;
-                        setState(() => _labelAutoReplyMode = value);
-                        _saveSettings();
-                      },
-                    ),
-                  ),
-                  const Divider(height: 1),
-                  // 뜯기 위치 이동
-                  _buildTestToggleRow(
-                    label: '뜯기 위치 이동',
-                    description: 'FeedPaperToTearPosition',
-                    child: CustomSwitch(
-                      value: _labelUseFeedToTear,
-                      activeColor: AppStyles.kMainColor,
-                      inactiveColor: Colors.grey,
-                      activeText: 'ON',
-                      inactiveText: 'OFF',
-                      onChanged: (value) {
-                        setState(() => _labelUseFeedToTear = value);
-                        _saveSettings();
-                      },
-                    ),
-                  ),
-                  const Divider(height: 1),
-                  // 인쇄 위치 복귀
-                  _buildTestToggleRow(
-                    label: '인쇄 위치 복귀',
-                    description: 'BackPaperToPrintPosition',
-                    child: CustomSwitch(
-                      value: _labelUseBackToPrint,
-                      activeColor: AppStyles.kMainColor,
-                      inactiveColor: Colors.grey,
-                      activeText: 'ON',
-                      inactiveText: 'OFF',
-                      onChanged: (value) {
-                        setState(() => _labelUseBackToPrint = value);
-                        _saveSettings();
-                      },
-                    ),
-                  ),
-                  const Divider(height: 1),
-                  // 상태 폴링
-                  _buildTestToggleRow(
-                    label: '상태 폴링',
-                    description: '인쇄 완료 확인 후 다음 장',
-                    child: CustomSwitch(
-                      value: _labelUseStatusPolling,
-                      activeColor: AppStyles.kMainColor,
-                      inactiveColor: Colors.grey,
-                      activeText: 'ON',
-                      inactiveText: 'OFF',
-                      onChanged: (value) {
-                        setState(() => _labelUseStatusPolling = value);
-                        _saveSettings();
-                      },
-                    ),
-                  ),
-                  const Divider(height: 1),
-                  // 캘리브레이션
-                  _buildTestToggleRow(
-                    label: '캘리브레이션',
-                    description: '연결 시 갭 센서 보정',
-                    child: CustomSwitch(
-                      value: _labelUseCalibrate,
-                      activeColor: AppStyles.kMainColor,
-                      inactiveColor: Colors.grey,
-                      activeText: 'ON',
-                      inactiveText: 'OFF',
-                      onChanged: (value) {
-                        setState(() => _labelUseCalibrate = value);
-                        _saveSettings();
-                      },
-                    ),
-                  ),
-                  const Divider(height: 1),
-                  // 출력 간 딜레이
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            const Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text('출력 간 딜레이',
-                                      style: TextStyle(
-                                          fontSize: 14, fontWeight: FontWeight.w600)),
-                                  Text('라벨 간 대기 시간 (ms)',
-                                      style: TextStyle(
-                                          fontSize: 11, color: Colors.grey)),
-                                ],
-                              ),
-                            ),
-                            Text('${_labelPrintDelay}ms',
-                                style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.deepOrange)),
-                          ],
-                        ),
-                        Slider(
-                          value: _labelPrintDelay.toDouble(),
-                          min: 300,
-                          max: 10000,
-                          divisions: 97,
-                          activeColor: Colors.deepOrange,
-                          label: '${_labelPrintDelay}ms',
-                          onChanged: (value) {
-                            setState(() => _labelPrintDelay = value.round());
-                          },
-                          onChangeEnd: (value) {
-                            _saveSettings();
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  // 테스트 출력 버튼
-                  Center(
-                    child: ElevatedButton.icon(
-                      onPressed: _printLabelTest,
-                      icon: const Icon(Icons.print, size: 18),
-                      label: const Text('테스트 출력 (3장)'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.deepOrange,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 24, vertical: 12),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTestToggleRow({
-    required String label,
-    required String description,
-    required Widget child,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      padding: const EdgeInsets.all(AppSpacing.s16),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label,
-                    style: const TextStyle(
-                        fontSize: 14, fontWeight: FontWeight.w600)),
-                Text(description,
-                    style: TextStyle(
-                        fontSize: 11, color: Colors.grey.shade600)),
-              ],
+            child: SettingsLeftPanel(
+              isKdsMode: isKdsMode,
+              isRotated180: _isRotated180,
+              isAutoStart: _isAutoStart,
+              isIgnoreOtherDeviceKds: _isIgnoreOtherDeviceKds,
+              isAutoReceipt: _isAutoReceipt,
+              isPrintOrder: _isPrintOrder,
+              isUseBuiltinPrinter: _isUseBuiltinPrinter,
+              isUseExternalPrinter: _isUseExternalPrinter,
+              isUseLabelPrinter: _isUseLabelPrinter,
+              isTpcpStore: _isTpcpStore,
+              labelFilterMode: _labelFilterMode,
+              onModeSwitch: _handleModeSwitch,
+              onRotated180Changed: (v) => setState(() => _isRotated180 = v),
+              onAutoStartChanged: (v) => _setAndSave(() => _isAutoStart = v),
+              onIgnoreOtherDeviceKdsChanged: (v) =>
+                  _setAndSave(() => _isIgnoreOtherDeviceKds = v),
+              onAutoReceiptChanged: (v) =>
+                  _setAndSave(() => _isAutoReceipt = v),
+              onPrintOrderChanged: (v) => _setAndSave(() {
+                _isPrintOrder = v;
+                if (!v) {
+                  _isUseBuiltinPrinter = false;
+                  _isUseExternalPrinter = false;
+                } else {
+                  if (!_isUseBuiltinPrinter && !_isUseExternalPrinter) {
+                    _isUseBuiltinPrinter = true;
+                  }
+                }
+              }),
+              onUseBuiltinPrinterChanged: (v) =>
+                  _setAndSave(() => _isUseBuiltinPrinter = v),
+              onUseExternalPrinterChanged: (v) =>
+                  _setAndSave(() => _isUseExternalPrinter = v),
+              onUseLabelPrinterChanged: (v) =>
+                  _setAndSave(() => _isUseLabelPrinter = v),
+              onLabelFilterModeChanged: (v) =>
+                  _setAndSave(() => _labelFilterMode = v),
             ),
           ),
-          child,
-        ],
-      ),
-    );
-  }
-
-  Future<void> _printLabelTest() async {
-    final printService = ref.read(printServiceProvider);
-    final status = ref.read(printerStatusProvider);
-
-    if (!status.isLabelConnected) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('라벨 프린터가 연결되어 있지 않습니다.')),
-        );
-      }
-      return;
-    }
-
-    final config = 'autoReply=$_labelAutoReplyMode'
-        ' feedToTear=$_labelUseFeedToTear'
-        ' backToPrint=$_labelUseBackToPrint'
-        ' polling=$_labelUseStatusPolling'
-        ' calibrate=$_labelUseCalibrate'
-        ' delay=${_labelPrintDelay}ms';
-
-    logToFile(
-        tag: LogTag.PLATFORM,
-        message: '[LabelTest] ====== 테스트 출력 시작 (3장) ======');
-    logToFile(
-        tag: LogTag.PLATFORM,
-        message: '[LabelTest] [CONFIG] $config');
-
-    try {
-      final sw = Stopwatch()..start();
-      for (int i = 1; i <= 3; i++) {
-        final labelSw = Stopwatch()..start();
-        final imageBytes = await LabelPainter.generateLabelImage(
-          menuName: '테스트 상품 $i',
-          options: ['옵션A', '옵션B'],
-          shopOrderNo: '0000',
-          orderTime: '03/26\n12:00:00',
-          orderIndex: i,
-          orderTotal: 3,
-        );
-        logToFile(
-            tag: LogTag.PLATFORM,
-            message: '[LabelTest] [$i/3] printLabel 호출 (${imageBytes.length} bytes)...');
-        await printService.printLabel(imageBytes);
-        logToFile(
-            tag: LogTag.PLATFORM,
-            message: '[LabelTest] [$i/3] printLabel 완료 (${labelSw.elapsedMilliseconds}ms)');
-        if (i < 3) {
-          logToFile(
-              tag: LogTag.PLATFORM,
-              message: '[LabelTest] [$i/3] 다음 장 대기 ${_labelPrintDelay}ms...');
-          await Future.delayed(Duration(milliseconds: _labelPrintDelay));
-        }
-      }
-      sw.stop();
-      logToFile(
-          tag: LogTag.PLATFORM,
-          message: '[LabelTest] ====== 테스트 출력 완료 (총 ${sw.elapsedMilliseconds}ms) ======');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('테스트 라벨 3장 출력 완료 (${sw.elapsedMilliseconds}ms)')),
-        );
-      }
-    } catch (e, s) {
-      logToFile(
-          tag: LogTag.ERROR,
-          message: '[LabelTest] 테스트 라벨 출력 실패: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('테스트 출력 실패: $e')),
-        );
-      }
-    }
-  }
-
-  Widget _buildRightPanel(bool isKdsMode) {
-    return Scrollbar(
-      controller: _rightScrollController,
-      thumbVisibility: true,
-      child: SingleChildScrollView(
-        controller: _rightScrollController,
-        padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildSettingItem(
-              title: t.settings.volume.title,
-              description: t.settings.volume.desc,
-              trailing: SizedBox(
-                width: 300,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        Expanded(
-                          child: Slider(
-                            value: _notificationVolume.toDouble(),
-                            min: 0,
-                            max: 15,
-                            label: _notificationVolume.round().toString(),
-                            onChanged: (value) {
-                              setState(() {
-                                _notificationVolume = value.toInt();
-                              });
-                            },
-                            onChangeEnd: (value) async {
-                              if (_isVolumeChanging) return;
-                              _isVolumeChanging = true;
-
-                              try {
-                                _saveSettings();
-
-                                try {
-                                  await _audioPlayer.stop();
-                                } catch (e, s) {
-                                  logger.d('AudioPlayer stop 실패 (무시): $e');
-                                }
-
-                                await Future.delayed(
-                                    const Duration(milliseconds: 100));
-
-                                await _audioPlayer.setVolume(value / 15.0);
-
-                                var audioContext = AudioContext(
-                                  android: const AudioContextAndroid(
-                                    audioFocus: AndroidAudioFocus.none,
-                                  ),
-                                );
-                                await _audioPlayer
-                                    .setAudioContext(audioContext);
-
-                                await Future.delayed(
-                                    const Duration(milliseconds: 50));
-
-                                await _playSoundSafely('alert10.mp3');
-
-                                ref
-                                    .read(orderProvider.notifier)
-                                    .updateSoundSettings();
-
-                                logToFile(
-                                    tag: LogTag.UI_ACTION,
-                                    message: '알림음 크기 변경 -> ${value.toInt()}');
-                              } catch (e, s) {
-                                logger.e('음량 변경 중 오류 발생',
-                                    error: e, stackTrace: s);
-                              } finally {
-                                _isVolumeChanging = false;
-                              }
-                            },
-                            activeColor: AppStyles.kMainColor,
-                            inactiveColor:
-                                AppStyles.kMainColor.withOpacity(0.3),
-                          ),
-                        ),
-                        Text(
-                          '${_notificationVolume.round()}',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            _buildSettingItem(
-              title: t.settings.sound.title,
-              description: t.settings.sound.desc,
-              isVertical: true,
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _buildSoundButton('alert10.mp3', t.settings.sound.sound1),
-                  const SizedBox(width: 8),
-                  _buildSoundButton('alert_speech.mp3', t.settings.sound.sound2),
-                ],
-              ),
-            ),
-            // 공통 설정 (KDS 모드와 일반 모드 모두)
-            _buildSettingItem(
-              title: t.settings.alert_count.title,
-              description: t.settings.alert_count.desc,
-              isVertical: true,
-              trailing: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _buildAlertCountButton(
-                        1, t.settings.alert_count.count(n: 1)),
-                    _buildAlertCountButton(
-                        3, t.settings.alert_count.count(n: 3)),
-                    _buildAlertCountButton(
-                        5, t.settings.alert_count.count(n: 5)),
-                    _buildAlertCountButton(
-                        10, t.settings.alert_count.count(n: 10)),
-                    _buildAlertCountButton(0, t.settings.alert_count.unlimited),
-                  ],
-                ),
-              ),
-            ),
-
-            // 키오스크 주문 노출 설정
-            _buildSettingItem(
-              title: '키오스크 주문 노출',
-              description: '키오스크 주문을 화면에 표시합니다. OFF 시 내부 접수는 정상 처리됩니다.',
-              trailing: CustomSwitch(
-                value: _isKioskOrderVisible,
-                activeColor: AppStyles.kMainColor,
-                inactiveColor: Colors.grey,
-                activeText: t.settings.auto_start.on,
-                inactiveText: t.settings.auto_start.off,
-                onChanged: (value) {
-                  setState(() {
-                    _isKioskOrderVisible = value;
-                    if (!value) {
-                      // 노출 OFF 시 출력/알람도 자동 OFF
-                      _isKioskOrderSoundEnabled = false;
-                    }
-                    logToFile(
-                        tag: LogTag.UI_ACTION,
-                        message: '키오스크 주문 노출 변경 -> $value');
-                  });
-                  _saveSettings();
-                  ref.read(orderProvider.notifier).updateKioskSettings();
-                },
-              ),
-            ),
-            // 키오스크 주문 출력 및 알람 설정
-            _buildSettingItem(
-              title: '키오스크 주문 주문서 및 알림소리',
-              description: '키오스크 주문 수신 시 주문서 출력과 알림음을 재생합니다.',
-              enabled: _isKioskOrderVisible,
-              trailing: CustomSwitch(
-                value: _isKioskOrderSoundEnabled,
-                activeColor: AppStyles.kMainColor,
-                inactiveColor: Colors.grey,
-                activeText: t.settings.auto_start.on,
-                inactiveText: t.settings.auto_start.off,
-                onChanged: (value) {
-                  if (!_isKioskOrderVisible) return;
-                  setState(() {
-                    _isKioskOrderSoundEnabled = value;
-                    logToFile(
-                        tag: LogTag.UI_ACTION,
-                        message: '키오스크 주문 출력/알람 변경 -> $value');
-                  });
-                  _saveSettings();
-                },
-              ),
-            ),
-
-            // 로컬 서버 설정 (일반 모드에서만 표시)
-            if (!isKdsMode) ...[
-              _buildSettingItem(
-                title: t.settings.local_server.title,
-                description: t.settings.local_server.desc,
-                trailing: CustomSwitch(
-                  value: _isLocalServerEnabled,
-                  activeColor: AppStyles.kMainColor,
-                  inactiveColor: Colors.grey,
-                  activeText: 'ON',
-                  inactiveText: 'OFF',
-                  onChanged: (value) async {
-                    setState(() {
-                      _isLocalServerEnabled = value;
-                    });
-                    await _preferenceService.setLocalServerEnabled(value);
-
-                    // Server Start/Stop Logic
-                    final localServer = LocalServerService.instance;
-                    if (localServer != null) {
-                      if (value) {
-                        try {
-                          final productState = ref.read(productProvider);
-                          if (productState.hasValue &&
-                              productState.value != null) {
-                            await localServer.startServer(
-                                products: productState.value!);
-                          } else {
-                            await localServer.startServer();
-                          }
-                        } catch (e, s) {
-                          logger.w('상품 데이터 로드 실패, 서버만 시작', error: e);
-                          await localServer.startServer();
-                        }
-
-                        if (mounted) {
-                          final serverUrl = localServer.serverUrl;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                  '로컬 서버가 시작되었습니다.\nURL: ${serverUrl ?? "Unknown"}'),
-                              duration: const Duration(seconds: 4),
-                              backgroundColor: Colors.green,
-                            ),
-                          );
-                          setState(() {
-                            _isLocalServerRunning = localServer.isRunning;
-                          });
-                        }
-                      } else {
-                        await localServer.stopServer();
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('로컬 서버가 중지되었습니다.'),
-                              duration: Duration(seconds: 2),
-                              backgroundColor: Colors.orange,
-                            ),
-                          );
-                          setState(() {
-                            _isLocalServerRunning = localServer.isRunning;
-                          });
-                        }
-                      }
-                    }
-                  },
-                ),
-              ),
-              if (_isLocalServerEnabled)
-                Padding(
-                  padding:
-                      const EdgeInsets.only(left: 16, right: 16, bottom: 16),
-                  child: StatefulBuilder(
-                    builder: (context, setState) {
-                      final localServer = LocalServerService.instance;
-                      final serverUrl = localServer?.serverUrl;
-                      final localIp = localServer?.localIp;
-
-                      return Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: _isLocalServerRunning
-                              ? Colors.green.withOpacity(0.1)
-                              : Colors.grey.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: _isLocalServerRunning
-                                ? Colors.green.withOpacity(0.3)
-                                : Colors.grey.withOpacity(0.3),
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              t.settings.local_server.info,
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.green[700],
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              t.settings.local_server
-                                  .ip(ip: localIp ?? 'Loading...'),
-                              style: TextStyle(color: Colors.green[600]),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              t.settings.local_server
-                                  .port(port: localServer?.port ?? 8080),
-                              style: TextStyle(color: Colors.green[600]),
-                            ),
-                            if (serverUrl != null) ...[
-                              const SizedBox(height: 4),
-                              Text(
-                                t.settings.local_server.url(url: serverUrl),
-                                style: TextStyle(color: Colors.green[600]),
-                              ),
-                            ],
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                ),
-            ],
-
-            // 주문서 출력 매수 설정
-            _buildSettingItem(
-              title: t.settings.print_count.title,
-              description: t.settings.print_count.desc,
-              isVertical: true,
-              trailing: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _buildPrintCountButton(
-                        1, t.settings.print_count.count(n: 1)),
-                    _buildPrintCountButton(
-                        2, t.settings.print_count.count(n: 2)),
-                    _buildPrintCountButton(
-                        3, t.settings.print_count.count(n: 3)),
-                    _buildPrintCountButton(
-                        4, t.settings.print_count.count(n: 4)),
-                    _buildPrintCountButton(
-                        5, t.settings.print_count.count(n: 5)),
-                  ],
-                ),
-              ),
-            ),
-            // 자동 업데이트 체크 설정
-            _buildSettingItem(
-              title: t.settings.app_update.auto_check_title,
-              description: t.settings.app_update.auto_check_desc,
-              trailing: CustomSwitch(
-                value: _isAutoCheckUpdate,
-                activeColor: AppStyles.kMainColor,
-                inactiveColor: Colors.grey,
-                activeText: 'ON',
-                inactiveText: 'OFF',
-                onChanged: (value) {
-                  setState(() => _isAutoCheckUpdate = value);
-                  _preferenceService.setAutoCheckUpdate(value);
-                },
-              ),
-            ),
-
-            // 수동 업데이트 섹션
-            _buildSettingItem(
-              title: t.settings.app_update.manual_title,
-              description: _isCheckingUpdate
-                  ? t.settings.app_update.checking
-                  : (_updateInfo == null
-                      ? t.settings.app_update.check_failed
-                      : (_updateInfo!.hasUpdate
-                          ? t.settings.app_update.version_info(
-                              currentVersion: _updateInfo!.currentVersion,
-                              latestVersion: _updateInfo!.latestVersion,
-                            )
-                          : t.settings.app_update.up_to_date)),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  OutlinedButton(
-                    onPressed:
-                        _isCheckingUpdate ? null : _checkUpdateFromSettings,
-                    child: Text(t.settings.app_update.check_btn),
-                  ),
-                  if (_updateInfo != null && _updateInfo!.hasUpdate) ...[
-                    const SizedBox(width: 8),
-                    ElevatedButton(
-                      onPressed: _performUpdateFromSettings,
-                      style: ElevatedButton.styleFrom(
-                          backgroundColor: AppStyles.kMainColor),
-                      child: Text(t.settings.app_update.update_btn,
-                          style: const TextStyle(color: Colors.white)),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-
-            // KDS 모드일 때만 표시할 설정 (현재 미사용)
-            /*if (isKdsMode) ...[
-                  _buildSettingItem(
-                    title: '주문내역 보기설정',
-                    description: '주문내역 표시 방식을 설정합니다.',
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _buildOrderHistoryScrollButton(true, '스크롤 O'),
-                        _buildOrderHistoryScrollButton(false, '스크롤 X'),
-                      ],
-                    ),
-                  ),
-                ],*/
-
-            // 앱 버전 텍스트 (5번 탭하면 개발자 옵션 활성화)
-            GestureDetector(
-              onTap: () {
+          const SizedBox(width: AppSpacing.s16),
+          Expanded(
+            child: SettingsRightPanel(
+              isKdsMode: isKdsMode,
+              notificationVolume: _notificationVolume,
+              selectedSound: _selectedSound,
+              alertCount: _alertCount,
+              isKioskOrderVisible: _isKioskOrderVisible,
+              isKioskOrderSoundEnabled: _isKioskOrderSoundEnabled,
+              isLocalServerEnabled: _isLocalServerEnabled,
+              isLocalServerRunning: _isLocalServerRunning,
+              printCount: _printCount,
+              isAutoCheckUpdate: _isAutoCheckUpdate,
+              isCheckingUpdate: _isCheckingUpdate,
+              updateInfo: _updateInfo,
+              isDevOptionsVisible: _isDevOptionsVisible,
+              devOptionsTapCount: _devOptionsTapCount,
+              forceSocketReconnect: _forceSocketReconnect,
+              selectedEnv: _selectedEnv,
+              labelAutoReplyMode: _labelAutoReplyMode,
+              labelUseFeedToTear: _labelUseFeedToTear,
+              labelUseBackToPrint: _labelUseBackToPrint,
+              labelUseStatusPolling: _labelUseStatusPolling,
+              labelUseCalibrate: _labelUseCalibrate,
+              labelPrintDelay: _labelPrintDelay,
+              onVolumeChanged: (v) => setState(() => _notificationVolume = v),
+              onVolumeChangeEnd: (_) => _saveSettings(),
+              onSoundChanged: (v) => _setAndSave(() => _selectedSound = v),
+              onAlertCountChanged: (v) => _setAndSave(() => _alertCount = v),
+              onKioskOrderVisibleChanged: (v) => _setAndSave(() {
+                _isKioskOrderVisible = v;
+                if (!v) _isKioskOrderSoundEnabled = false;
+              }),
+              onKioskOrderSoundChanged: (v) =>
+                  _setAndSave(() => _isKioskOrderSoundEnabled = v),
+              onLocalServerChanged: _handleLocalServerChanged,
+              onPrintCountChanged: (v) => _setAndSave(() => _printCount = v),
+              onAutoCheckUpdateChanged: (v) {
+                setState(() => _isAutoCheckUpdate = v);
+                _preferenceService.setAutoCheckUpdate(v);
+              },
+              onCheckUpdate: _checkUpdateFromSettings,
+              onPerformUpdate: _performUpdateFromSettings,
+              onDevOptionsTap: () {
                 setState(() {
                   _devOptionsTapCount++;
                   if (_devOptionsTapCount >= 5) {
@@ -1642,290 +451,34 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   }
                 });
               },
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
-                child: ref.watch(appInfoProvider).whenOrNull(
-                      data: (info) => Text(
-                        'v${info.version} (${info.buildNumber})',
-                        style: TextStyle(color: Colors.grey[400], fontSize: 12),
-                      ),
-                    ) ?? const SizedBox.shrink(),
-              ),
-            ),
-
-            // 개발자 옵션 (숨김 - 버전 텍스트 5번 탭으로 활성화)
-            if (_isDevOptionsVisible) ...[
-              const SizedBox(height: 16),
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                child: Text(
-                  t.settings.developer_options.title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey,
-                  ),
-                ),
-              ),
-              _buildSettingItem(
-                title: '긴급 모드',
-                description: '서버 이상 대비: 주문 폴링 주기를 10초로 단축합니다.',
-                trailing: CustomSwitch(
-                  value: _forceSocketReconnect,
-                  activeColor: AppStyles.kMainColor,
-                  inactiveColor: Colors.grey,
-                  activeText: t.settings.auto_start.on,
-                  inactiveText: t.settings.auto_start.off,
-                  onChanged: (value) {
-                    setState(() {
-                      _forceSocketReconnect = value;
-                      logToFile(
-                          tag: LogTag.UI_ACTION,
-                          message: '긴급모드 변경 -> $value');
-                    });
-                    _preferenceService.setForceSocketReconnect(value);
-                    ref.read(orderProvider.notifier).updateEmergencyPoll(value);
-                  },
-                ),
-              ),
-              _buildSettingItem(
-                title: '서버 환경',
-                description:
-                    '현재 실행 중: ${AppFitConfig.environment.name} | 재시작 후 반영됩니다.',
-                isVertical: true,
-                trailing: SegmentedButton<String>(
-                  segments: const [
-                    ButtonSegment(value: 'dev', label: Text('Dev')),
-                    ButtonSegment(value: 'staging', label: Text('Stage')),
-                    ButtonSegment(value: 'live', label: Text('Live')),
-                    ButtonSegment(value: 'japanLive', label: Text('JP Live')),
-                  ],
-                  selected: {_selectedEnv},
-                  onSelectionChanged: (s) => _onEnvChanged(s.first),
-                ),
-              ),
-              _buildSettingItem(
-                title: t.settings.developer_options.appfit_test.title,
-                description: t.settings.developer_options.appfit_test.desc,
-                isVertical: true,
-                trailing: ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const AppFitTestScreen(),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.science, size: 18),
-                  label: Text(t.settings.developer_options.appfit_test.btn),
-                  style: AppStyles.primaryButton().copyWith(
-                    backgroundColor: const WidgetStatePropertyAll(Colors.blue),
-                  ),
-                ),
-              ),
-              _buildSettingItem(
-                title: '대량 주문 처리 테스트 (로컬)',
-                description:
-                    '가상 주문을 대량으로 생성하여 내부 큐 파이프라인(순서 정렬, UI출력, 라벨/영수증 인쇄 등)을 테스트합니다.',
-                isVertical: true,
-                trailing: Wrap(
-                  spacing: 8.0,
-                  runSpacing: 8.0,
-                  children: [
-                    _buildBulkTestButton(10),
-                    _buildBulkTestButton(50),
-                    _buildBulkTestButton(100),
-                  ],
-                ),
-              ),
-              _buildLabelTestModeSection(),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLanguageSwitcher() {
-    final currentLocale = ref.watch(localeNotifierProvider);
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: AppLocale.values.map((locale) {
-        final isSelected = currentLocale == locale;
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4.0),
-          child: ElevatedButton(
-            onPressed: () {
-              ref.read(localeNotifierProvider.notifier).changeLocale(locale);
-              logToFile(
-                  tag: LogTag.UI_ACTION,
-                  message: '언어 변경 -> ${locale.languageCode}');
-            },
-            style: AppStyles.settingsToggleButton(isSelected),
-            child: Text(
-              _getLocaleDisplay(locale),
-              style: TextStyle(
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-              ),
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _buildCurrencySwitcher() {
-    final currentCurrency = ref.watch(currencyNotifierProvider);
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: CurrencyUnit.values.map((unit) {
-        final isSelected = currentCurrency == unit;
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4.0),
-          child: ElevatedButton(
-            onPressed: () {
-              ref.read(currencyNotifierProvider.notifier).changeCurrency(unit);
-              logToFile(
-                  tag: LogTag.UI_ACTION,
-                  message: '화폐단위 변경 -> ${unit.name}');
-            },
-            style: AppStyles.settingsToggleButton(isSelected),
-            child: Text(
-              _getCurrencyDisplay(unit),
-              style: TextStyle(
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-              ),
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  String _getCurrencyDisplay(CurrencyUnit unit) {
-    final t = Translations.of(context);
-    switch (unit) {
-      case CurrencyUnit.krw:
-        return t.settings.currency.krw;
-      case CurrencyUnit.jpy:
-        return t.settings.currency.jpy;
-    }
-  }
-
-  String _getLocaleDisplay(AppLocale locale) {
-    switch (locale) {
-      case AppLocale.ko:
-        return '한국어';
-      case AppLocale.en:
-        return 'English';
-      case AppLocale.ja:
-        return '日本語';
-    }
-  }
-
-  Widget _buildBulkTestButton(int count) {
-    return ElevatedButton.icon(
-      onPressed: () {
-        importMockGeneratorAndExecute(count);
-      },
-      icon: const Icon(Icons.bug_report, size: 18),
-      label: Text('$count개 주문 전송'),
-      style: AppStyles.primaryButton().copyWith(
-        backgroundColor: WidgetStatePropertyAll(Colors.amber[700]),
-      ),
-    );
-  }
-
-  void importMockGeneratorAndExecute(int count) {
-    try {
-      final mockOrders =
-          __MockOrderGenerator.MockOrderGenerator.generateMockOrders(count);
-      ref.read(orderQueueAppServiceProvider).enqueueAll(mockOrders);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('$count개의 가상 주문이 큐에 추가되었습니다.'),
-          duration: const Duration(seconds: 2),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } catch (e, s) {
-      logger.e('Mock Order Generation Failed', error: e, stackTrace: s);
-    }
-  }
-
-  Future<void> _onEnvChanged(String env) async {
-    await _preferenceService.setEnvironment(env);
-    // 개발자가 수동으로 서버를 변경했으므로 오버라이드 플래그 설정
-    await _preferenceService.setEnvironmentManualOverride(true);
-
-    // AppFitConfig 정적 상태를 새 환경으로 즉시 업데이트
-    final newEnvironment = switch (env) {
-      'live' => AppFitEnvironment.live,
-      'japanLive' => AppFitEnvironment.japanLive,
-      'dev' => AppFitEnvironment.dev,
-      'staging' => AppFitEnvironment.staging,
-      _ => AppFitEnvironment.live,
-    };
-    AppFitConfig.configure(
-        environment: newEnvironment, requestSource: 'ORDER_AGENT');
-
-    // 이전 환경의 토큰 및 프로젝트 크리덴셜 삭제
-    await ref.read(appfit_providers.appFitTokenManagerProvider).clearToken();
-    final secureStorage = SecureStorageService();
-    await secureStorage.delete(SecureStorageService.appFitProjectId);
-    await secureStorage.delete(SecureStorageService.appFitProjectApiKey);
-
-    // Provider를 무효화하여 새 환경의 baseUrl로 재생성되도록 함
-    ref.invalidate(appfit_providers.appFitTokenManagerProvider);
-    ref.invalidate(appfit_providers.appFitDioProvider);
-
-    // 저장된 로그인 정보(비밀번호, 자동로그인) 초기화
-    await _preferenceService.clearLoginInfo();
-
-    setState(() => _selectedEnv = env);
-    if (mounted) {
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) => AlertDialog(
-          title: const Text('환경 변경'),
-          content: Text('$env 환경으로 변경되었습니다.\n로그인 화면으로 이동합니다.'),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                // 인증 상태(WebSocket) 해제 후 로그인 화면으로 이동
-                ref.read(authProvider.notifier).unauthenticate();
-                Navigator.pushNamedAndRemoveUntil(
-                    context, '/login', (route) => false);
+              onForceSocketReconnectChanged: (v) {
+                setState(() => _forceSocketReconnect = v);
+                _preferenceService.setForceSocketReconnect(v);
+                ref.read(orderProvider.notifier).updateEmergencyPoll(v);
+                logToFile(tag: LogTag.UI_ACTION, message: '긴급모드 변경 -> $v');
               },
-              child: Text(Translations.of(context).common.confirm),
+              onEnvChanged: _onEnvChanged,
+              onAutoReplyModeChanged: (v) =>
+                  _setAndSave(() => _labelAutoReplyMode = v),
+              onFeedToTearChanged: (v) =>
+                  _setAndSave(() => _labelUseFeedToTear = v),
+              onBackToPrintChanged: (v) =>
+                  _setAndSave(() => _labelUseBackToPrint = v),
+              onStatusPollingChanged: (v) =>
+                  _setAndSave(() => _labelUseStatusPolling = v),
+              onCalibrateChanged: (v) =>
+                  _setAndSave(() => _labelUseCalibrate = v),
+              onPrintDelayChanged: (v) =>
+                  _setAndSave(() => _labelPrintDelay = v),
             ),
-          ],
-        ),
-      );
-    }
-  }
-
-  Future<void> _setWindowSoftInputMode(String mode) async {
-    try {
-      await platform
-          .invokeMethod(mode == 'pan' ? 'setAdjustPan' : 'setAdjustResize');
-    } on PlatformException catch (e) {
-      logger.w("Failed to set windowSoftInputMode: '${e.message}'.");
-    }
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   void dispose() {
-    _serverUrlController.dispose();
-    _storeIdController.dispose();
-    _storeNameController.dispose();
-    _audioPlayer.dispose();
-    _leftScrollController.dispose();
-    _rightScrollController.dispose();
     super.dispose();
   }
 }

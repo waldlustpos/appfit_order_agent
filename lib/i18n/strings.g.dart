@@ -4,9 +4,9 @@
 /// To regenerate, run: `dart run slang`
 ///
 /// Locales: 3
-/// Strings: 953 (317 per locale)
+/// Strings: 974 (324 per locale)
 ///
-/// Built on 2026-04-06 at 01:15 UTC
+/// Built on 2026-04-16 at 02:15 UTC
 
 // coverage:ignore-file
 // ignore_for_file: type=lint
@@ -229,6 +229,13 @@ class _StringsSettingsKo {
 	String get save => '저장';
 	String get save_success => '설정이 저장되었습니다.';
 	String save_error({required Object error}) => '설정 저장 중 오류가 발생했습니다: ${error}';
+	String get section_general => '일반 설정';
+	String get section_printer => '프린터 설정';
+	String get section_sound => '알림 설정';
+	String get section_kiosk => '키오스크 설정';
+	String get section_server => '서버 설정';
+	String get section_print_count => '출력 설정';
+	String get section_update => '업데이트';
 	late final _StringsSettingsModeSwitchKo mode_switch = _StringsSettingsModeSwitchKo._(_root);
 	late final _StringsSettingsAutoStartKo auto_start = _StringsSettingsAutoStartKo._(_root);
 	late final _StringsSettingsAutoReceiptKo auto_receipt = _StringsSettingsAutoReceiptKo._(_root);
@@ -1082,6 +1089,13 @@ class _StringsSettingsEn extends _StringsSettingsKo {
 	@override String get save => 'Save';
 	@override String get save_success => 'Settings saved.';
 	@override String save_error({required Object error}) => 'Error saving settings: ${error}';
+	@override String get section_general => 'General';
+	@override String get section_printer => 'Printer';
+	@override String get section_sound => 'Notifications';
+	@override String get section_kiosk => 'Kiosk';
+	@override String get section_server => 'Server';
+	@override String get section_print_count => 'Print';
+	@override String get section_update => 'Updates';
 	@override late final _StringsSettingsModeSwitchEn mode_switch = _StringsSettingsModeSwitchEn._(_root);
 	@override late final _StringsSettingsAutoStartEn auto_start = _StringsSettingsAutoStartEn._(_root);
 	@override late final _StringsSettingsAutoReceiptEn auto_receipt = _StringsSettingsAutoReceiptEn._(_root);
@@ -1943,6 +1957,13 @@ class _StringsSettingsJa extends _StringsSettingsKo {
 	@override String get save => '保存';
 	@override String get save_success => '設定が保存されました。';
 	@override String save_error({required Object error}) => '設定の保存中にエラーが発生しました: ${error}';
+	@override String get section_general => '一般設定';
+	@override String get section_printer => 'プリンター設定';
+	@override String get section_sound => '通知設定';
+	@override String get section_kiosk => 'キオスク設定';
+	@override String get section_server => 'サーバー設定';
+	@override String get section_print_count => '印刷設定';
+	@override String get section_update => 'アップデート';
 	@override late final _StringsSettingsModeSwitchJa mode_switch = _StringsSettingsModeSwitchJa._(_root);
 	@override late final _StringsSettingsAutoStartJa auto_start = _StringsSettingsAutoStartJa._(_root);
 	@override late final _StringsSettingsAutoReceiptJa auto_receipt = _StringsSettingsAutoReceiptJa._(_root);
