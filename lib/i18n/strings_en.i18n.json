@@ -223,7 +223,8 @@
         "batch_result_partial": "Completed: Success {success}, Fail {fail}",
         "batch_result_fail": "Processing failed: {error}",
         "batch_result_error": "Error: An exception occurred during processing.",
-        "scroll_to_start": "Go to Start"
+        "scroll_to_start": "Go to Start",
+        "scroll_to_end": "Go to End"
     },
     "order_history": {
         "title": "History",

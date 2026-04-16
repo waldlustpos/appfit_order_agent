@@ -525,11 +525,9 @@ class HomeContent extends ConsumerWidget {
       children: [
         Container(
           width: 120,
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             border: Border(
-              right: BorderSide(
-                color: Colors.grey[400]!,
-              ),
+              right: BorderSide(color: AppStyles.gray3),
             ),
           ),
           child: Column(

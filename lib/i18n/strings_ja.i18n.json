@@ -221,7 +221,8 @@
         "batch_result_partial": "処理完了: 成功 {success}件, 失敗 {fail}件",
         "batch_result_fail": "処理失敗: {error}",
         "batch_result_error": "エラー: 処理中に例外が発生しました。",
-        "scroll_to_start": "先頭へ"
+        "scroll_to_start": "先頭へ",
+        "scroll_to_end": "最後へ"
     },
     "order_history": {
         "title": "注文履歴",

@@ -4,9 +4,9 @@
 /// To regenerate, run: `dart run slang`
 ///
 /// Locales: 3
-/// Strings: 974 (324 per locale)
+/// Strings: 977 (325 per locale)
 ///
-/// Built on 2026-04-16 at 02:15 UTC
+/// Built on 2026-04-16 at 04:17 UTC
 
 // coverage:ignore-file
 // ignore_for_file: type=lint
@@ -319,6 +319,7 @@ class _StringsOrderStatusKo {
 	String batch_result_fail({required Object error}) => '처리 실패: ${error}';
 	String get batch_result_error => '오류 발생: 처리 중 예외가 발생했습니다.';
 	String get scroll_to_start => '맨 앞으로';
+	String get scroll_to_end => '맨 뒤로';
 }
 
 // Path: order_history
@@ -1181,6 +1182,7 @@ class _StringsOrderStatusEn extends _StringsOrderStatusKo {
 	@override String batch_result_fail({required Object error}) => 'Processing failed: ${error}';
 	@override String get batch_result_error => 'Error: An exception occurred during processing.';
 	@override String get scroll_to_start => 'Go to Start';
+	@override String get scroll_to_end => 'Go to End';
 }
 
 // Path: order_history
@@ -2047,6 +2049,7 @@ class _StringsOrderStatusJa extends _StringsOrderStatusKo {
 	@override String batch_result_fail({required Object error}) => '処理失敗: ${error}';
 	@override String get batch_result_error => 'エラー: 処理中に例外が発生しました。';
 	@override String get scroll_to_start => '先頭へ';
+	@override String get scroll_to_end => '最後へ';
 }
 
 // Path: order_history

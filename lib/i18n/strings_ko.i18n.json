@@ -221,7 +221,8 @@
         "batch_result_partial": "처리 완료: 성공 {success}건, 실패 {fail}건",
         "batch_result_fail": "처리 실패: {error}",
         "batch_result_error": "오류 발생: 처리 중 예외가 발생했습니다.",
-        "scroll_to_start": "맨 앞으로"
+        "scroll_to_start": "맨 앞으로",
+        "scroll_to_end": "맨 뒤로"
     },
     "order_history": {
         "title": "주문내역",

@@ -276,13 +276,15 @@ class _HomeAppBarWidgetState extends ConsumerState<HomeAppBarWidget> {
               },
       ),
       title: _buildTitle(isKdsMode, socketStatus),
-      bottom: PreferredSize(
-        preferredSize: const Size.fromHeight(1),
-        child: Container(
-          height: isKdsMode ? 0 : 1,
-          color: Colors.grey[400],
-        ),
-      ),
+      bottom: isKdsMode
+          ? null
+          : const PreferredSize(
+              preferredSize: Size.fromHeight(1),
+              child: ColoredBox(
+                color: AppStyles.gray3,
+                child: SizedBox(height: 1, width: double.infinity),
+              ),
+            ),
     );
   }
 

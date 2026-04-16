@@ -133,6 +133,9 @@ class AppStyles {
 
   static const Color green100 = Color(0xff37dc28);
 
+  /// 앰버 — 준비완료(READY) 상태 강조색
+  static const Color kAmber = Color(0xFFF59E0B);
+
   // ─── 공통 버튼 스타일 ───────────────────────────────────────────────────────
 
   /// 메인 컬러 filled 버튼 (kMainColor 배경, 흰 글씨)

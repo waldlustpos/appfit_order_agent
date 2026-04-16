@@ -2,10 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../constants/app_styles.dart';
 import '../../models/order_model.dart';
-import '../../providers/kds_unified_providers.dart';
 import '../order/order_detail_popup.dart';
 import '../../providers/providers.dart';
-import '../../utils/logger.dart';
 import '../../utils/model_parse_utils.dart';
 import '../../i18n/strings.g.dart';
 
@@ -22,9 +20,7 @@ class OrderCardWidget extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final bool isCancelled = order.status == OrderStatus.CANCELLED;
-    final bool isAccepted = order.status == OrderStatus.PREPARING;
-    final bool isCompleted =
-        order.status == OrderStatus.DONE || order.status == OrderStatus.READY;
+    final bool isDone = order.status == OrderStatus.DONE;
 
     // KDS 모드 여부 확인
     final isKdsMode = ref.watch(kdsModeProvider);
@@ -61,7 +57,6 @@ class OrderCardWidget extends ConsumerWidget {
     }
 
     // 특정 상품코드 체크 - 한 번만 계산
-    // orderToCheck가 원본 order와 동일한 객체인 경우에도 안전하게 처리
     // 매장/포장/매장+포장 프리픽스 계산
     final type = orderToCheck.detectSpecialProductType();
     String orderPrefix = '';
@@ -81,79 +76,114 @@ class OrderCardWidget extends ConsumerWidget {
     }
 
     // 상태별 색상 및 스타일 결정
-    final palette = AppStyles.orderPalette(type, isCancelled: isCancelled);
+    final palette =
+        AppStyles.orderPalette(type, isCancelled: isCancelled, muted: isDone);
     final backgroundColor = palette.bg;
-    final orderNumberColor = palette.fg;
-    final countColor = isCancelled ? AppStyles.gray6 : Colors.black;
+    final orderNumberColor =
+        isCancelled || isDone ? AppStyles.gray6 : palette.fg;
+    final countColor = isCancelled || isDone ? AppStyles.gray6 : Colors.black;
     final showCountStrikethrough = isCancelled;
 
-    return AspectRatio(
-      aspectRatio: 1,
-      child: Card(
-        elevation: 0,
-        color: backgroundColor,
-        shape: RoundedRectangleBorder(
-          borderRadius: const BorderRadius.all(Radius.circular(16)),
-          side: BorderSide(
-            color: Colors.grey[400]!, // 모든 상태에서 동일한 테두리 색상
-            width: 1,
+    // 상태별 보더 및 그림자
+    final borderColor = _borderForStatus(order.status, isCancelled);
+    final borderWidth = _borderWidthForStatus(order.status, isCancelled);
+    final shadows = order.status == OrderStatus.NEW ? AppElevation.soft : null;
+
+    return RepaintBoundary(
+      child: AspectRatio(
+        aspectRatio: 1,
+        child: Container(
+          margin: const EdgeInsets.all(AppSpacing.s4),
+          decoration: BoxDecoration(
+            color: backgroundColor,
+            borderRadius: AppRadius.bLg,
+            border: Border.all(color: borderColor, width: borderWidth),
+            boxShadow: shadows,
           ),
-        ),
-        margin: const EdgeInsets.all(4),
-        child: InkWell(
-          onTap: () {
-            if (onTap != null) {
-              onTap!();
-            } else {
-              _showOrderDetailPopup(context);
-            }
-          },
-          borderRadius: const BorderRadius.all(Radius.circular(16)),
-          child: Container(
-            padding: const EdgeInsets.all(8),
-            width: double.infinity,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                if (orderPrefix.isNotEmpty)
-                  Text(
-                    orderPrefix,
-                    style: TextStyle(
-                      fontSize: AppStyles.kOrderNumberSize,
-                      fontWeight: FontWeight.bold,
-                      color: orderNumberColor,
+          child: Material(
+            color: Colors.transparent,
+            borderRadius: AppRadius.bLg,
+            child: InkWell(
+              onTap: () {
+                if (onTap != null) {
+                  onTap!();
+                } else {
+                  _showOrderDetailPopup(context);
+                }
+              },
+              borderRadius: AppRadius.bLg,
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.s8),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    if (orderPrefix.isNotEmpty)
+                      Text(
+                        orderPrefix,
+                        style: AppTextStyles.body.copyWith(
+                          fontSize: AppStyles.kOrderNumberSize,
+                          fontWeight: FontWeight.bold,
+                          color: orderNumberColor,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    Text(
+                      order.displayNum,
+                      style: AppTextStyles.body.copyWith(
+                        fontSize: AppStyles.kOrderNumberSize,
+                        fontWeight: FontWeight.bold,
+                        color: orderNumberColor,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
-                    textAlign: TextAlign.center,
-                  ),
-                Text(
-                  order.displayNum,
-                  style: TextStyle(
-                    fontSize: AppStyles.kOrderNumberSize,
-                    fontWeight: FontWeight.bold,
-                    color: orderNumberColor,
-                  ),
-                  textAlign: TextAlign.center,
+                    const SizedBox(height: AppSpacing.s8),
+                    Text(
+                      t.order.count(n: int.tryParse(order.orderCount) ?? 1),
+                      style: AppTextStyles.bodySm.copyWith(
+                        fontSize: AppStyles.kSectionCountSize,
+                        color: countColor,
+                        decoration: showCountStrikethrough
+                            ? TextDecoration.lineThrough
+                            : null,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 10),
-                Text(
-                  t.order.count(n: int.tryParse(order.orderCount) ?? 1),
-                  style: TextStyle(
-                    fontSize: AppStyles.kSectionCountSize,
-                    fontWeight: FontWeight.normal,
-                    color: countColor,
-                    decoration: showCountStrikethrough
-                        ? TextDecoration.lineThrough
-                        : null,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
+              ),
             ),
           ),
         ),
       ),
     );
+  }
+
+  /// 주문 상태에 따른 보더 색상 반환
+  Color _borderForStatus(OrderStatus status, bool isCancelled) {
+    if (isCancelled) return AppStyles.kRed;
+    switch (status) {
+      case OrderStatus.NEW:
+        return AppStyles.kMainColor;
+      case OrderStatus.READY:
+        return AppStyles.kAmber;
+      case OrderStatus.PREPARING:
+      case OrderStatus.DONE:
+      default:
+        return AppStyles.gray3;
+    }
+  }
+
+  /// 주문 상태에 따른 보더 두께 반환
+  double _borderWidthForStatus(OrderStatus status, bool isCancelled) {
+    if (isCancelled) return 1.0;
+    switch (status) {
+      case OrderStatus.NEW:
+      case OrderStatus.READY:
+        return 1.5;
+      default:
+        return 1.0;
+    }
   }
 
   void _showOrderDetailPopup(BuildContext context) {
