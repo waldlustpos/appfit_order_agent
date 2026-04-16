@@ -28,6 +28,7 @@ class ProductCardWidget extends ConsumerWidget {
       currentStatus: product.status,
     ).then((selectedStatus) {
       if (selectedStatus == null || selectedStatus == product.status) return;
+      if (!context.mounted) return;
 
       // 미노출 선택 시 재확인 다이얼로그 표시
       if (selectedStatus == ProductStatus.hidden) {
@@ -45,7 +46,6 @@ class ProductCardWidget extends ConsumerWidget {
                 .updateProductStatus(product.productId, selectedStatus)
                 .then((success) {
               if (success) {
-                // 미노출 처리 시 목록 새로고침
                 ref.read(productProvider.notifier).refresh();
               }
             });
@@ -62,77 +62,81 @@ class ProductCardWidget extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final currencySymbol = ref.watch(currencySymbolProvider);
-    return GestureDetector(
-      onTap: () => _showStatusChangeDialog(context, ref),
-      child: Card(
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: const BorderRadius.all(Radius.circular(16)),
-          side: BorderSide(
-            color: product.status != ProductStatus.soldOut
-                ? Colors.grey[400]!
-                : AppStyles.kMainColor,
-            width: 1,
-          ),
+    final isSoldOut = product.status == ProductStatus.soldOut;
+
+    final borderColor = isSoldOut ? AppStyles.kMainColor : AppStyles.gray3;
+    final borderWidth = isSoldOut ? 1.5 : 1.0;
+    final bgColor =
+        isSoldOut ? AppStyles.kMainColor.withValues(alpha: 0.08) : Colors.white;
+
+    return RepaintBoundary(
+      child: Container(
+        margin: const EdgeInsets.all(AppSpacing.s4),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: AppRadius.bLg,
+          border: Border.all(color: borderColor, width: borderWidth),
         ),
-        color: product.status == ProductStatus.soldOut
-            ? AppStyles.kMainColor.withValues(alpha: 0.1)
-            : Colors.white,
-        margin: const EdgeInsets.all(4),
-        child: Stack(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      product.productName,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: AppRadius.bLg,
+          child: InkWell(
+            onTap: () => _showStatusChangeDialog(context, ref),
+            borderRadius: AppRadius.bLg,
+            child: Stack(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(AppSpacing.s8),
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          product.productName,
+                          style: AppTextStyles.titleSm.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: AppSpacing.s8),
+                        Text(
+                          CommonUtil.formatPrice(product.menuPrice,
+                              currencyUnit: currencySymbol),
+                          style: AppTextStyles.body.copyWith(
+                            color: AppStyles.gray6,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 10),
-                    Text(
-                      CommonUtil.formatPrice(product.menuPrice, currencyUnit: currencySymbol),
-                      style: const TextStyle(
-                        fontSize: 15,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
+                if (isSoldOut)
+                  Positioned(
+                    top: AppSpacing.s8,
+                    left: AppSpacing.s8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.s8,
+                        vertical: AppSpacing.s4,
+                      ),
+                      decoration: const BoxDecoration(
+                        color: AppStyles.kMainColor,
+                        borderRadius: AppRadius.bMd,
+                      ),
+                      child: Text(
+                        t.product_mgmt.sold_out,
+                        style: AppTextStyles.caption.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
-            if (product.status == ProductStatus.soldOut)
-              Positioned(
-                top: 0,
-                left: 0,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: const BoxDecoration(
-                    color: AppStyles.kMainColor,
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(16),
-                      bottomRight: Radius.circular(16),
-                    ),
-                  ),
-                  child: Text(
-                    t.product_mgmt.sold_out,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-          ],
+          ),
         ),
       ),
     );
