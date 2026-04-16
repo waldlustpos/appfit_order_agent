@@ -104,11 +104,8 @@ class LabelPainter extends CustomPainter {
     if (logoImage != null) {
       // Logo (centered)
       logoHeight = logoWidthDefault;
-      final Rect dstRect = Rect.fromLTWH(
-          size.width / 2 - logoWidthDefault / 2,
-          startY,
-          logoWidthDefault,
-          logoHeight);
+      final Rect dstRect = Rect.fromLTWH(size.width / 2 - logoWidthDefault / 2,
+          startY, logoWidthDefault, logoHeight);
 
       canvas.drawImageRect(
         logoImage!,
@@ -306,7 +303,7 @@ class LabelPainter extends CustomPainter {
 
       _drawText(
         canvas,
-        "+ ${options[i]}",
+        options[i],
         Offset(x, y),
         fontSize: fsOptionItem,
         maxWidth: colWidth - 5,
@@ -323,8 +320,9 @@ class LabelPainter extends CustomPainter {
     const double detailQrSize = 75;
 
     // QR 영역 왼쪽 경계
-    final double qrAreaLeft =
-        hasQr ? size.width - defaultMargin - detailQrSize - 10 : double.infinity;
+    final double qrAreaLeft = hasQr
+        ? size.width - defaultMargin - detailQrSize - 10
+        : double.infinity;
 
     // 상단 수평 구분선
     canvas.drawLine(
@@ -335,11 +333,15 @@ class LabelPainter extends CustomPainter {
 
     if (hasQr) {
       // "detail" 타이틀: 왼쪽 영역 중앙
-      final double leftCenterX = defaultMargin + (qrAreaLeft - defaultMargin) / 2;
+      final double leftCenterX =
+          defaultMargin + (qrAreaLeft - defaultMargin) / 2;
       _drawText(
-        canvas, "detail",
+        canvas,
+        "detail",
         Offset(leftCenterX, startY + spacingSectionSmall),
-        fontSize: fsSectionTitle, isBold: true, align: TextAlign.center,
+        fontSize: fsSectionTitle,
+        isBold: true,
+        align: TextAlign.center,
       );
 
       // QR 코드: 타이틀과 같은 Y, 오른쪽 배치
@@ -355,17 +357,21 @@ class LabelPainter extends CustomPainter {
     } else {
       // QR 없을 때: 기존 레이아웃
       _drawText(
-        canvas, "detail",
+        canvas,
+        "detail",
         Offset(size.width / 2, startY + spacingSectionSmall),
-        fontSize: fsSectionTitle, isBold: true, align: TextAlign.center,
+        fontSize: fsSectionTitle,
+        isBold: true,
+        align: TextAlign.center,
       );
     }
 
     // 메모 텍스트 (왼쪽)
     final double contentY =
         startY + spacingSectionSmall + fsSectionTitle + spacingSectionSmall;
-    final double memoMaxWidth =
-        hasQr ? qrAreaLeft - defaultMargin - 5 : size.width - (defaultMargin * 2);
+    final double memoMaxWidth = hasQr
+        ? qrAreaLeft - defaultMargin - 5
+        : size.width - (defaultMargin * 2);
 
     _drawText(
       canvas,

@@ -95,7 +95,8 @@ class OutputService {
 
   /// 주문에 포함된 메뉴들의 라벨을 출력합니다.
   /// [isReprint] true이면 재출력 (필터링 없이 전체 출력)
-  Future<void> printOrderLabels(OrderModel order, {bool isReprint = false}) async {
+  Future<void> printOrderLabels(OrderModel order,
+      {bool isReprint = false}) async {
     try {
       final useLabel = ref.read(preferenceServiceProvider).getUseLabelPrinter();
       if (!useLabel) return;
@@ -116,7 +117,8 @@ class OutputService {
 
       logger.i('[OutputService] 라벨 출력 시작: ${orderToPrint.orderNo}');
       final printService = ref.read(printServiceProvider);
-      final printDelay = ref.read(preferenceServiceProvider).getLabelPrintDelay();
+      final printDelay =
+          ref.read(preferenceServiceProvider).getLabelPrintDelay();
 
       // 전체 상품 목록 로드 (완성된 모델 대기)
       final allProducts = await ref.read(productProvider.future);
@@ -134,7 +136,9 @@ class OutputService {
                     p.internalId == menu.shopItemId,
               );
               // TKP0051, TKP0052은 필터 모드에 상관없이 항상 출력 (product.productId 기준)
-              if (product != null && OrderCategoryCodes.setItemCodes.contains(product.productId)) return true;
+              if (product != null &&
+                  OrderCategoryCodes.setItemCodes.contains(product.productId))
+                return true;
               final isWaffle = OrderCategoryCodes.waffleCategoryCodes
                   .contains(product?.categoryCode);
               return filterMode == 1 ? isWaffle : !isWaffle;
@@ -142,8 +146,8 @@ class OutputService {
           : orderToPrint.menus;
 
       if (menusToprint.isEmpty) {
-        logger.d(
-            '[OutputService] 라벨 출력 건너뜀: 필터 조건에 맞는 메뉴 없음 (${order.orderNo})');
+        logger
+            .d('[OutputService] 라벨 출력 건너뜀: 필터 조건에 맞는 메뉴 없음 (${order.orderNo})');
         return;
       }
 
@@ -194,7 +198,7 @@ class OutputService {
                 opt.optionName != beanType &&
                 opt.optionName != temperature &&
                 opt.optionName != sizeOption)
-            .map((e) => e.optionName)
+            .map((e) => e.qty > 1 ? '${e.qty} ${e.optionName}' : e.optionName)
             .toList();
 
         // 해당 메뉴 수량만큼 반복 출력 (순번별로 이미지 생성)
@@ -214,7 +218,10 @@ class OutputService {
             orderIndex: labelIndex,
             orderTotal: totalLabels,
           );
-          await printService.printLabel(imageBytes, orderNo: orderToPrint.displayNum, labelIndex: labelIndex, totalLabels: totalLabels);
+          await printService.printLabel(imageBytes,
+              orderNo: orderToPrint.displayNum,
+              labelIndex: labelIndex,
+              totalLabels: totalLabels);
           logger.d(
               '[OutputService] 라벨 출력(${menu.itemName}): $labelIndex/$totalLabels');
           // 연속 출력 시 프린터 버퍼 안정화를 위한 딜레이
