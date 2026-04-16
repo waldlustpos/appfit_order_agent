@@ -420,10 +420,9 @@ class _HomeAppBarWidgetState extends ConsumerState<HomeAppBarWidget> {
                       const SizedBox(width: 8),
                       // 판매 상태 스위치
                       CustomSwitch(
-                        ratio: 1.2,
                         value: ref.watch(storeProvider).value?.isOpen ?? false,
                         activeColor: AppStyles.kMainColor,
-                        inactiveColor: Colors.grey,
+                        inactiveColor: AppStyles.gray4,
                         activeText: 'ON',
                         inactiveText: 'OFF',
                         onChanged: (value) async {
