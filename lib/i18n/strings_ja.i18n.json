@@ -260,7 +260,7 @@
     "order": {
         "new_order": "新規",
         "preparing": "受付",
-        "ready": "待機",
+        "ready": "ピックアップ",
         "cancelled": "取消",
         "done": "完了",
         "type_dine_in": "店内",

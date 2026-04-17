@@ -132,9 +132,14 @@ class AppStyles {
   static const Color gray2 = Color(0xffedf1f3);
 
   static const Color green100 = Color(0xff37dc28);
+  static const Color green100Alpha = Color(0x1437dc28);
 
   /// 앰버 — 준비완료(READY) 상태 강조색
   static const Color kAmber = Color(0xFFF59E0B);
+  static const Color kAmberAlpha = Color(0x14F59E0B);
+
+  /// 메인 핑크 10% 알파 — NEW 상태 배경용
+  static const Color kMainColorAlpha = Color(0x14fb3e7e);
 
   // ─── 공통 버튼 스타일 ───────────────────────────────────────────────────────
 
@@ -319,6 +324,29 @@ class AppStyles {
       SpecialProductType.none => kBlueAlpha,
     };
     return OrderPalette(bg, fg);
+  }
+
+  /// 주문 상태(OrderStatus)별 배경·전경 색 페어 (단일 진실 공급원).
+  ///
+  /// 상태별 배지·인디케이터·하이라이트 등 전역에서 재사용한다.
+  /// - NEW: 핑크(주목 필요)
+  /// - PREPARING: 파랑(진행 중)
+  /// - READY: 앰버(픽업 대기)
+  /// - DONE: 그린(완료)
+  /// - CANCELLED: 레드(취소)
+  static OrderPalette statusPalette(OrderStatus status) {
+    switch (status) {
+      case OrderStatus.NEW:
+        return const OrderPalette(kMainColorAlpha, kMainColor);
+      case OrderStatus.PREPARING:
+        return const OrderPalette(kBlueAlpha, kBlue);
+      case OrderStatus.READY:
+        return const OrderPalette(kAmberAlpha, kAmber);
+      case OrderStatus.DONE:
+        return const OrderPalette(green100Alpha, green100);
+      case OrderStatus.CANCELLED:
+        return const OrderPalette(kRedAlpha, kRed);
+    }
   }
 }
 

@@ -260,7 +260,7 @@
     "order": {
         "new_order": "신규",
         "preparing": "접수",
-        "ready": "대기",
+        "ready": "픽업",
         "cancelled": "취소",
         "done": "완료",
         "type_dine_in": "매장",

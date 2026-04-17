@@ -6,7 +6,7 @@
 /// Locales: 3
 /// Strings: 977 (325 per locale)
 ///
-/// Built on 2026-04-16 at 04:17 UTC
+/// Built on 2026-04-17 at 02:00 UTC
 
 // coverage:ignore-file
 // ignore_for_file: type=lint
@@ -378,7 +378,7 @@ class _StringsOrderKo {
 	// Translations
 	String get new_order => '신규';
 	String get preparing => '접수';
-	String get ready => '대기';
+	String get ready => '픽업';
 	String get cancelled => '취소';
 	String get done => '완료';
 	String get type_dine_in => '매장';
@@ -1243,7 +1243,7 @@ class _StringsOrderEn extends _StringsOrderKo {
 	// Translations
 	@override String get new_order => 'New';
 	@override String get preparing => 'Accepted';
-	@override String get ready => 'Ready';
+	@override String get ready => 'Pickup';
 	@override String get cancelled => 'Cancelled';
 	@override String get done => 'Done';
 	@override String get type_dine_in => 'Dine-in';
@@ -2108,7 +2108,7 @@ class _StringsOrderJa extends _StringsOrderKo {
 	// Translations
 	@override String get new_order => '新規';
 	@override String get preparing => '受付';
-	@override String get ready => '待機';
+	@override String get ready => 'ピックアップ';
 	@override String get cancelled => '取消';
 	@override String get done => '完了';
 	@override String get type_dine_in => '店内';

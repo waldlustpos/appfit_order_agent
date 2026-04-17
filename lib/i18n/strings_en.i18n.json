@@ -264,7 +264,7 @@
     "order": {
         "new_order": "New",
         "preparing": "Accepted",
-        "ready": "Ready",
+        "ready": "Pickup",
         "cancelled": "Cancelled",
         "done": "Done",
         "type_dine_in": "Dine-in",

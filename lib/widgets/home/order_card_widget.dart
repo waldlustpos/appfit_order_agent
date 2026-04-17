@@ -165,9 +165,8 @@ class OrderCardWidget extends ConsumerWidget {
     switch (status) {
       case OrderStatus.NEW:
         return AppStyles.kMainColor;
-      case OrderStatus.READY:
-        return AppStyles.kAmber;
       case OrderStatus.PREPARING:
+      case OrderStatus.READY:
       case OrderStatus.DONE:
       default:
         return AppStyles.gray3;
@@ -179,7 +178,6 @@ class OrderCardWidget extends ConsumerWidget {
     if (isCancelled) return 1.0;
     switch (status) {
       case OrderStatus.NEW:
-      case OrderStatus.READY:
         return 1.5;
       default:
         return 1.0;

@@ -895,11 +895,7 @@ class _StatusPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = Translations.of(context);
-    final isCancelled = order.status == OrderStatus.CANCELLED;
-    final palette = AppStyles.orderPalette(
-      order.detectSpecialProductType(),
-      isCancelled: isCancelled,
-    );
+    final palette = AppStyles.statusPalette(order.status);
     final label = switch (order.status) {
       OrderStatus.NEW => t.order.new_order,
       OrderStatus.PREPARING => t.order.preparing,
