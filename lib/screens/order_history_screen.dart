@@ -142,139 +142,61 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen> {
         color: AppStyles.gray1,
         child: Column(
           children: [
-            Container(
-              padding: const EdgeInsets.all(12.0),
-              decoration: BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(color: Colors.grey[400]!),
+            Padding(
+              padding: const EdgeInsets.all(AppSpacing.s12),
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: AppRadius.bMd,
+                  boxShadow: AppElevation.soft,
                 ),
-              ),
-              child: Row(
-                children: [
-                  InkWell(
-                    onTap: _showCalendarDialog,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16.0, vertical: 8.0),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey[400]!),
-                        borderRadius: BorderRadius.circular(8.0),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.calendar_today,
-                              color: AppStyles.kMainColor),
-                          const SizedBox(width: 12.0),
-                          Text(
-                            selectedDate,
-                            style: const TextStyle(
-                              fontSize: 16.0,
-                              fontWeight: FontWeight.bold,
-                            ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.s16,
+                  vertical: AppSpacing.s12,
+                ),
+                child: Row(
+                  children: [
+                    _buildCalendarButton(selectedDate),
+                    const SizedBox(width: AppSpacing.s8),
+                    SizedBox(
+                      height: 48,
+                      child: ElevatedButton(
+                        style: AppStyles.outlinedButton(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.s16,
                           ),
-                          const SizedBox(width: 4),
-                          const Icon(Icons.arrow_drop_down,
-                              color: AppStyles.kMainColor, size: 20),
-                        ],
+                          minimumSize: const Size(100, 48),
+                          borderColor: AppStyles.gray3,
+                        ).copyWith(
+                          textStyle: const WidgetStatePropertyAll(
+                            AppTextStyles.body,
+                          ),
+                        ),
+                        onPressed: () {
+                          ref
+                              .read(selectedDateProvider.notifier)
+                              .updateDate(todayDateString());
+
+                          ref.read(orderFilterProvider.notifier).state =
+                              OrderFilter.ALL;
+
+                          ref.read(orderSortDirectionProvider.notifier).state =
+                              OrderSortDirection.DESC;
+                        },
+                        child: Text(
+                          t.order_history.search_today,
+                          textAlign: TextAlign.center,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 12.0),
-                  ElevatedButton(
-                    style: AppStyles.outlinedButton(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 12),
-                      minimumSize: const Size(100, 48),
-                      borderColor: Colors.grey.shade300,
-                    ).copyWith(
-                      textStyle: WidgetStatePropertyAll(
-                        const TextStyle(fontSize: 16),
-                      ),
-                    ),
-                    onPressed: () {
-                      ref
-                          .read(selectedDateProvider.notifier)
-                          .updateDate(todayDateString());
-
-                      ref.read(orderFilterProvider.notifier).state =
-                          OrderFilter.ALL;
-
-                      ref.read(orderSortDirectionProvider.notifier).state =
-                          OrderSortDirection.DESC;
-                    },
-                    child: Text(
-                      t.order_history.search_today,
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-
-                  const SizedBox(width: 8.0),
-                  // 정렬 방향 버튼 추가
-                  _buildSortDirectionToggle(sortDirection),
-
-                  const Spacer(),
-
-                  const SizedBox(width: 16.0),
-
-                  // Total count display logic - new format
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12.0, vertical: 8.0),
-                    child: _buildDetailedCountWidget(isToday),
-                  ),
-                  const SizedBox(width: 8.0),
-
-                  // 필터 버튼 그룹 - 오른쪽으로 이동
-                  Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade300),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: [
-                        _buildFilterButton(
-                          context: context,
-                          title: t.order_history.filter_all,
-                          isSelected: selectedFilter == OrderFilter.ALL,
-                          onPressed: () => ref
-                              .read(orderFilterProvider.notifier)
-                              .state = OrderFilter.ALL,
-                          leftRadius: true,
-                        ),
-                        // 구분선 추가
-                        Container(
-                          width: 1,
-                          height: 24,
-                          color: Colors.grey.shade300,
-                        ),
-                        _buildFilterButton(
-                          context: context,
-                          title: t.order_history.filter_completed,
-                          isSelected: selectedFilter == OrderFilter.COMPLETED,
-                          onPressed: () => ref
-                              .read(orderFilterProvider.notifier)
-                              .state = OrderFilter.COMPLETED,
-                        ),
-                        // 구분선 추가
-                        Container(
-                          width: 1,
-                          height: 24,
-                          color: Colors.grey.shade300,
-                        ),
-                        _buildFilterButton(
-                          context: context,
-                          title: t.order_history.filter_cancelled,
-                          isSelected: selectedFilter == OrderFilter.CANCELLED,
-                          onPressed: () => ref
-                              .read(orderFilterProvider.notifier)
-                              .state = OrderFilter.CANCELLED,
-                          rightRadius: true,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                    const SizedBox(width: AppSpacing.s8),
+                    _buildSortDirectionToggle(sortDirection),
+                    const Spacer(),
+                    _buildDetailedCountWidget(isToday),
+                    const SizedBox(width: AppSpacing.s8),
+                    _buildFilterSegment(selectedFilter),
+                  ],
+                ),
               ),
             ),
             Expanded(
@@ -288,176 +210,173 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen> {
     );
   }
 
-  // 필터 버튼 위젯
-  Widget _buildFilterButton({
-    required BuildContext context,
-    required String title,
-    required bool isSelected,
-    required VoidCallback onPressed,
-    bool leftRadius = false,
-    bool rightRadius = false,
-  }) {
-    return InkWell(
-      onTap: onPressed,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: isSelected ? AppStyles.kMainColor : Colors.white,
-          borderRadius: BorderRadius.horizontal(
-            left: leftRadius ? const Radius.circular(8) : Radius.zero,
-            right: rightRadius ? const Radius.circular(8) : Radius.zero,
+  // 달력 피커 버튼 — 높이 48, gray3 아웃라인, bSm 라운딩
+  Widget _buildCalendarButton(String selectedDate) {
+    return Material(
+      color: Colors.white,
+      borderRadius: AppRadius.bSm,
+      child: InkWell(
+        onTap: _showCalendarDialog,
+        borderRadius: AppRadius.bSm,
+        child: Container(
+          height: 48,
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.s16,
           ),
-        ),
-        child: Text(
-          title,
-          style: TextStyle(
-            color: isSelected ? Colors.white : Colors.black87,
-            fontSize: 14,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          decoration: BoxDecoration(
+            border: Border.all(color: AppStyles.gray3),
+            borderRadius: AppRadius.bSm,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.calendar_today,
+                  color: AppStyles.kMainColor, size: 18),
+              const SizedBox(width: AppSpacing.s8),
+              Text(
+                selectedDate,
+                style: AppTextStyles.body.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: AppStyles.gray9,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.s4),
+              const Icon(Icons.arrow_drop_down,
+                  color: AppStyles.kMainColor, size: 20),
+            ],
           ),
         ),
       ),
     );
   }
 
-  // 상세 건수 표시 위젯 (총n건 | 취소 n건 | 자동취소 n건)
+  // 필터 세그먼트 — gray3 외곽 박스 + ClipRRect, 선택만 kMainColor
+  Widget _buildFilterSegment(OrderFilter selectedFilter) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border.all(color: AppStyles.gray3),
+        borderRadius: AppRadius.bSm,
+      ),
+      child: ClipRRect(
+        borderRadius: AppRadius.bSm,
+        child: IntrinsicHeight(
+          child: Row(
+            children: [
+              _FilterSegmentButton(
+                title: t.order_history.filter_all,
+                isSelected: selectedFilter == OrderFilter.ALL,
+                onPressed: () => ref.read(orderFilterProvider.notifier).state =
+                    OrderFilter.ALL,
+              ),
+              const _FilterSegmentDivider(),
+              _FilterSegmentButton(
+                title: t.order_history.filter_completed,
+                isSelected: selectedFilter == OrderFilter.COMPLETED,
+                onPressed: () => ref.read(orderFilterProvider.notifier).state =
+                    OrderFilter.COMPLETED,
+              ),
+              const _FilterSegmentDivider(),
+              _FilterSegmentButton(
+                title: t.order_history.filter_cancelled,
+                isSelected: selectedFilter == OrderFilter.CANCELLED,
+                onPressed: () => ref.read(orderFilterProvider.notifier).state =
+                    OrderFilter.CANCELLED,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // 상세 건수 표시 — gray2 뱃지 2개 (총/취소)
   Widget _buildDetailedCountWidget(bool isToday) {
     if (isToday) {
       final orderState = ref.watch(orderProvider);
       final orders = orderState.orders;
-
-      // 총 건수
       final totalCount = orders.length;
-
-      // 취소 건수 (일반 취소)
       final cancelledCount =
           orders.where((order) => order.status == OrderStatus.CANCELLED).length;
-
-      return Row(
-        children: [
-          Text(
-            t.order_history.total_count(n: totalCount),
-            style: const TextStyle(
-              fontSize: AppStyles.kSectionCountSize,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(width: 8),
-          const Text(
-            '|',
-            style: TextStyle(
-              fontSize: AppStyles.kSectionCountSize,
-              color: Colors.grey,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            t.order_history.cancel_count(n: cancelledCount),
-            style: const TextStyle(
-              fontSize: AppStyles.kSectionCountSize,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      );
-    } else {
-      final historyStateAsync = ref.watch(orderHistoryProvider);
-
-      return historyStateAsync.when(
-        data: (orders) {
-          // 총 건수
-          final totalCount = orders.length;
-
-          // 취소 건수 (일반 취소)
-          final cancelledCount = orders
-              .where((order) => order.status == OrderStatus.CANCELLED)
-              .length;
-
-          return Row(
-            children: [
-              Text(
-                t.order_history.total_count(n: totalCount),
-                style: const TextStyle(
-                  fontSize: AppStyles.kSectionCountSize,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(width: 8),
-              const Text(
-                '|',
-                style: TextStyle(
-                  fontSize: AppStyles.kSectionCountSize,
-                  color: Colors.grey,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                t.order_history.cancel_count(n: cancelledCount),
-                style: const TextStyle(
-                  fontSize: AppStyles.kSectionCountSize,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          );
-        },
-        loading: () => Text(
-          t.order_history.loading,
-          style: const TextStyle(
-            fontSize: AppStyles.kSectionCountSize,
-            fontWeight: FontWeight.w500,
-            color: Colors.grey,
-          ),
-        ),
-        error: (error, stackTrace) => Text(
-          t.common.error,
-          style: const TextStyle(
-            fontSize: AppStyles.kSectionCountSize,
-            fontWeight: FontWeight.w500,
-            color: Colors.red,
-          ),
-        ),
-      );
+      return _buildCountChipsRow(totalCount, cancelledCount);
     }
+
+    final historyStateAsync = ref.watch(orderHistoryProvider);
+    return historyStateAsync.when(
+      data: (orders) {
+        final totalCount = orders.length;
+        final cancelledCount = orders
+            .where((order) => order.status == OrderStatus.CANCELLED)
+            .length;
+        return _buildCountChipsRow(totalCount, cancelledCount);
+      },
+      loading: () => Text(
+        t.order_history.loading,
+        style: AppTextStyles.bodySm.copyWith(
+          fontWeight: FontWeight.w600,
+          color: AppStyles.gray9,
+        ),
+      ),
+      error: (error, stackTrace) => Text(
+        t.common.error,
+        style: AppTextStyles.bodySm.copyWith(
+          fontWeight: FontWeight.w600,
+          color: Colors.red,
+        ),
+      ),
+    );
   }
 
-  // 정렬 방향 토글 버튼 — sortDirection은 build()에서 전달받음
+  Widget _buildCountChipsRow(int totalCount, int cancelledCount) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _CountChip(label: t.order_history.total_count(n: totalCount)),
+        const SizedBox(width: AppSpacing.s8),
+        _CountChip(
+          label: t.order_history.cancel_count(n: cancelledCount),
+          emphasize: cancelledCount > 0,
+        ),
+      ],
+    );
+  }
+
+  // 정렬 방향 토글 버튼 — 높이 48, gray3 아웃라인, bSm 라운딩
   Widget _buildSortDirectionToggle(OrderSortDirection sortDirection) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: Colors.grey.shade300),
-        borderRadius: BorderRadius.circular(8),
-      ),
+    return Material(
+      color: Colors.white,
+      borderRadius: AppRadius.bSm,
       child: InkWell(
+        borderRadius: AppRadius.bSm,
         onTap: () {
-          // 정렬 변경 전에 즉시 스크롤 초기화
           if (_scrollController.hasClients) {
             _scrollController.jumpTo(0.0);
           }
-
-          // 정렬 방향 토글
           ref.read(orderSortDirectionProvider.notifier).state =
               sortDirection == OrderSortDirection.ASC
                   ? OrderSortDirection.DESC
                   : OrderSortDirection.ASC;
         },
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        child: Container(
+          height: 48,
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s12),
+          decoration: BoxDecoration(
+            border: Border.all(color: AppStyles.gray3),
+            borderRadius: AppRadius.bSm,
+          ),
           child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Text(
                 t.order_history.sort,
-                style: const TextStyle(
-                  fontSize: 14,
-                ),
+                style: AppTextStyles.body.copyWith(color: AppStyles.gray9),
               ),
-              const SizedBox(width: 4),
+              const SizedBox(width: AppSpacing.s4),
               Icon(
                 sortDirection == OrderSortDirection.ASC
                     ? Icons.arrow_upward
                     : Icons.arrow_downward,
                 size: 18,
+                color: AppStyles.gray9,
               ),
             ],
           ),
@@ -596,5 +515,83 @@ class _OrderHistorySkeletonGrid extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// 건수 표시 뱃지 — gray2 배경, emphasize 시 kMainColor 강조.
+class _CountChip extends StatelessWidget {
+  const _CountChip({required this.label, this.emphasize = false});
+
+  final String label;
+  final bool emphasize;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.s12,
+        vertical: AppSpacing.s4,
+      ),
+      decoration: BoxDecoration(
+        color: emphasize
+            ? AppStyles.kMainColor.withValues(alpha: 0.08)
+            : AppStyles.gray2,
+        borderRadius: AppRadius.bMd,
+        border: emphasize ? Border.all(color: AppStyles.kMainColor) : null,
+      ),
+      child: Text(
+        label,
+        style: AppTextStyles.bodySm.copyWith(
+          fontSize: AppStyles.kSectionCountSize,
+          fontWeight: FontWeight.w600,
+          color: emphasize ? AppStyles.kMainColor : AppStyles.gray9,
+        ),
+      ),
+    );
+  }
+}
+
+/// 필터 세그먼트 내부 개별 버튼 — 선택 시 kMainColor 채움.
+class _FilterSegmentButton extends StatelessWidget {
+  const _FilterSegmentButton({
+    required this.title,
+    required this.isSelected,
+    required this.onPressed,
+  });
+
+  final String title;
+  final bool isSelected;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: isSelected ? AppStyles.kMainColor : Colors.white,
+      child: InkWell(
+        onTap: onPressed,
+        child: Container(
+          height: 48,
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s16),
+          child: Text(
+            title,
+            style: AppTextStyles.body.copyWith(
+              color: isSelected ? Colors.white : AppStyles.gray9,
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 필터 세그먼트 버튼 사이 구분선.
+class _FilterSegmentDivider extends StatelessWidget {
+  const _FilterSegmentDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(width: 1, color: AppStyles.gray3);
   }
 }

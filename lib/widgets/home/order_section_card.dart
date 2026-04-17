@@ -37,7 +37,12 @@ class OrderSectionCard extends StatelessWidget {
             thickness: 1,
             color: AppStyles.gray3,
           ),
-          Expanded(child: content),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(left: AppSpacing.s8),
+              child: content,
+            ),
+          ),
         ],
       ),
     );
