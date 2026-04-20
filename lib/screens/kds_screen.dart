@@ -712,7 +712,7 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
       labelStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
       unselectedLabelStyle:
           const TextStyle(fontSize: 18, fontWeight: FontWeight.normal),
-      indicator: const BoxDecoration(
+      indicator: BoxDecoration(
         border:
             Border(bottom: BorderSide(color: AppStyles.kMainColor, width: 3)),
         borderRadius: BorderRadius.zero, // 각진 형태
@@ -998,12 +998,12 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
               formatButtonVisible: false,
               titleCentered: true,
             ),
-            calendarStyle: const CalendarStyle(
+            calendarStyle: CalendarStyle(
               selectedDecoration: BoxDecoration(
                 color: AppStyles.kMainColor,
                 shape: BoxShape.circle,
               ),
-              todayDecoration: BoxDecoration(
+              todayDecoration: const BoxDecoration(
                 color: Colors.orange,
                 shape: BoxShape.circle,
               ),

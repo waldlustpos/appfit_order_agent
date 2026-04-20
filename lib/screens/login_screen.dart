@@ -16,6 +16,7 @@ import '../providers/auth_provider.dart';
 import '../providers/store_provider.dart';
 
 import '../widgets/common/common_dialog.dart';
+import '../widgets/common/brand_logo.dart';
 import '../constants/app_styles.dart';
 import '../services/local_server_service.dart';
 import '../providers/providers.dart';
@@ -749,44 +750,35 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       AppLocale.ja => 'オーダーエージェント',
     };
 
+    final brand = AppStyles.activeBrand;
     return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppStyles.kMainColor, AppStyles.kSub],
-        ),
+      decoration: BoxDecoration(
+        color: brand.loginGradient == null ? brand.loginBackground : null,
+        gradient: brand.loginGradient,
       ),
       padding: const EdgeInsets.all(AppSpacing.s32),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          // 상단: 아이콘 + 브랜드명
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Icon(Icons.restaurant_menu, size: 48, color: Colors.white),
-              const SizedBox(height: AppSpacing.s16),
-              Text(
-                'AppFit',
-                style: AppTextStyles.display.copyWith(
-                  color: Colors.white,
-                  fontSize: 32,
-                ),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            BrandLogo(
+              height: 120,
+              fallbackText: 'AppFit',
+              fallbackStyle: AppTextStyles.display.copyWith(
+                color: brand.onLoginBackground,
+                fontSize: 40,
               ),
-              const SizedBox(height: AppSpacing.s4),
-              Text(
-                heroSubTitle,
-                style: AppTextStyles.titleSm.copyWith(
-                  color: Colors.white.withValues(alpha: 0.85),
-                ),
+            ),
+            const SizedBox(height: AppSpacing.s32),
+            Text(
+              heroSubTitle,
+              style: AppTextStyles.title.copyWith(
+                color: brand.onLoginBackground,
+                fontWeight: FontWeight.w600,
               ),
-            ],
-          ),
-
-          const SizedBox.shrink(),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1032,16 +1024,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       resizeToAvoidBottomInset: true,
       body: Stack(
         children: [
-          // 배경: 브랜드 그라디언트
-          Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [AppStyles.kMainColor, AppStyles.kSub],
+          // 배경: 브랜드 그라데이션(또는 단색 폴백)
+          Builder(builder: (_) {
+            final brand = AppStyles.activeBrand;
+            return Container(
+              decoration: BoxDecoration(
+                color:
+                    brand.loginGradient == null ? brand.loginBackground : null,
+                gradient: brand.loginGradient,
               ),
-            ),
-          ),
+            );
+          }),
 
           SafeArea(
             child: GestureDetector(

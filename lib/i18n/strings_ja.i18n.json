@@ -118,6 +118,18 @@
             "title": "言語設定",
             "desc": "アプリの言語を設定します。"
         },
+        "theme": {
+            "title": "テーマ",
+            "desc": "アプリ全体のブランドカラーとロゴを変更します。",
+            "restart_title": "再起動が必要",
+            "restart_message": "テーマ変更を適用するにはアプリを再起動する必要があります。今すぐ終了しますか？",
+            "restart_now": "今すぐ終了",
+            "restart_later": "後で",
+            "options": {
+                "appfit_default": "デフォルト",
+                "mammoth_coffee": "マンモスコーヒー"
+            }
+        },
         "currency": {
             "title": "通貨単位設定",
             "desc": "金額表示に使用する通貨単位を選択します。",
@@ -148,6 +160,12 @@
                 "desc": "Waldlust Platform AppFit API 設定確認とテスト",
                 "btn": "テスト"
             }
+        },
+        "kiosk": {
+            "visible_title": "キオスク注文の表示",
+            "visible_desc": "キオスク注文を画面に表示します。OFFの場合も内部受付は通常通り処理されます。",
+            "sound_title": "キオスク注文の注文票と通知音",
+            "sound_desc": "キオスク注文受信時に注文票を出力し、通知音を再生します。"
         },
         "local_server": {
             "title": "ローカルサーバー有効化",

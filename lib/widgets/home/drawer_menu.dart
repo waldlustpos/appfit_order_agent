@@ -82,7 +82,7 @@ class _DrawerHeader extends StatelessWidget {
         horizontal: AppSpacing.s16,
         vertical: AppSpacing.s20,
       ),
-      decoration: const BoxDecoration(color: AppStyles.kMainColor),
+      decoration: BoxDecoration(color: AppStyles.kMainColor),
       child: Row(
         children: [
           Container(

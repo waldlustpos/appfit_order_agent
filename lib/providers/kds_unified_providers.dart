@@ -167,8 +167,6 @@ class KdsScrollButtonStates extends _$KdsScrollButtonStates {
     final currentState = state[orderId];
     if (currentState == null || currentState != newState) {
       state = {...state, orderId: newState};
-
-
     }
   }
 
@@ -285,7 +283,7 @@ class KdsCardAnimations extends _$KdsCardAnimations {
     // 애니메이션 시작
     state = {
       ...state,
-      orderId: const CardAnimationState(
+      orderId: CardAnimationState(
         isAnimating: true,
         borderColor: AppStyles.kMainColor,
       )
@@ -318,7 +316,7 @@ class KdsCardAnimations extends _$KdsCardAnimations {
     // 애니메이션 시작
     state = {
       ...state,
-      orderId: const CardAnimationState(
+      orderId: CardAnimationState(
         isAnimating: true,
         borderColor: AppStyles.kMainColor,
       )

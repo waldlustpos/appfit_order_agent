@@ -121,7 +121,7 @@ class ProductCardWidget extends ConsumerWidget {
                         horizontal: AppSpacing.s8,
                         vertical: AppSpacing.s4,
                       ),
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         color: AppStyles.kMainColor,
                         borderRadius: AppRadius.bMd,
                       ),

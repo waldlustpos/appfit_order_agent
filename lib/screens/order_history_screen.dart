@@ -76,12 +76,12 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen> {
               formatButtonVisible: false,
               titleCentered: true,
             ),
-            calendarStyle: const CalendarStyle(
+            calendarStyle: CalendarStyle(
               selectedDecoration: BoxDecoration(
                 color: AppStyles.kMainColor,
                 shape: BoxShape.circle,
               ),
-              todayDecoration: BoxDecoration(
+              todayDecoration: const BoxDecoration(
                 color: Colors.orange,
                 shape: BoxShape.circle,
               ),
@@ -230,8 +230,7 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.calendar_today,
-                  color: AppStyles.kMainColor, size: 18),
+              Icon(Icons.calendar_today, color: AppStyles.kMainColor, size: 18),
               const SizedBox(width: AppSpacing.s8),
               Text(
                 selectedDate,
@@ -241,7 +240,7 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen> {
                 ),
               ),
               const SizedBox(width: AppSpacing.s4),
-              const Icon(Icons.arrow_drop_down,
+              Icon(Icons.arrow_drop_down,
                   color: AppStyles.kMainColor, size: 20),
             ],
           ),

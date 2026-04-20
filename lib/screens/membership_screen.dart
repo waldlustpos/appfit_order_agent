@@ -579,7 +579,7 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
               onPressed: isLoading ? null : () => _cancelSavedStamp(stamp),
               style: _actionButtonStyle,
               child: isLoading
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 16,
                       height: 16,
                       child: CircularProgressIndicator(
@@ -713,7 +713,7 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
           onPressed: isLoading ? null : () => _cancelCoupon(coupon),
           style: _actionButtonStyle,
           child: isLoading
-              ? const SizedBox(
+              ? SizedBox(
                   width: 16,
                   height: 16,
                   child: CircularProgressIndicator(
@@ -811,7 +811,7 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
                   onPressed: isLoading ? null : () => _useCoupon(coupon),
                   style: _actionButtonStyle,
                   child: isLoading
-                      ? const SizedBox(
+                      ? SizedBox(
                           width: 16,
                           height: 16,
                           child: CircularProgressIndicator(

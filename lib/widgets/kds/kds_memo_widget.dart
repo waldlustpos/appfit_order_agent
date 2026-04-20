@@ -37,7 +37,7 @@ class KdsMemoWidget extends StatelessWidget {
           children: [
             Container(
               width: 4,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: AppStyles.kMainColor,
                 borderRadius: BorderRadius.all(Radius.circular(2)),
               ),

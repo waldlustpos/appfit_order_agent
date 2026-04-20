@@ -4,7 +4,7 @@ import '../constants/app_styles.dart';
 class CustomSwitch extends StatefulWidget {
   final bool value;
   final ValueChanged<bool> onChanged;
-  final Color activeColor;
+  final Color? activeColor;
   final Color inactiveColor;
   final String activeText;
   final String inactiveText;
@@ -14,7 +14,7 @@ class CustomSwitch extends StatefulWidget {
     Key? key,
     required this.value,
     required this.onChanged,
-    this.activeColor = AppStyles.kMainColor,
+    this.activeColor,
     this.inactiveColor = AppStyles.gray4,
     this.activeText = 'ON',
     this.inactiveText = 'OFF',
@@ -56,7 +56,9 @@ class _CustomSwitchState extends State<CustomSwitch> {
           height: _trackH,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(_trackH / 2),
-            color: isOn ? widget.activeColor : widget.inactiveColor,
+            color: isOn
+                ? (widget.activeColor ?? AppStyles.kMainColor)
+                : widget.inactiveColor,
           ),
           child: Stack(
             children: [

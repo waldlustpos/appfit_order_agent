@@ -25,6 +25,7 @@ import 'package:appfit_order_agent/providers/locale_provider.dart';
 import 'package:appfit_order_agent/providers/rotation_provider.dart';
 import 'services/monitoring/order_agent_monitoring_context.dart';
 import 'constants/app_styles.dart';
+import 'constants/brand_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -114,6 +115,11 @@ void main() async {
     final preferenceService = PreferenceService();
     await preferenceService.init();
     logger.i('PreferenceService 초기화 완료');
+
+    // 브랜드 테마 적용 — runApp 이전에 AppStyles 의 활성 브랜드를 확정
+    final savedBrand = BrandTheme.fromId(preferenceService.getBrandThemeId());
+    AppStyles.applyBrand(savedBrand);
+    logger.i('[Main] 브랜드 테마 적용: ${savedBrand.id}');
 
     // 저장된 시스템 회전 설정 복원 (ON 상태일 때만 — 권한 필요 없는 기본값은 호출 불필요)
     final savedRotation = preferenceService.getIsRotated180();
@@ -223,7 +229,7 @@ ThemeData _buildTheme() {
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
         foregroundColor: AppStyles.kMainColor,
-        side: const BorderSide(color: AppStyles.kMainColor),
+        side: BorderSide(color: AppStyles.kMainColor),
         shape: const RoundedRectangleBorder(borderRadius: AppRadius.bSm),
         textStyle: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
       ),
@@ -265,7 +271,7 @@ ThemeData _buildTheme() {
     ),
 
     // ── TabBar ──────────────────────────────────────────────────────────────
-    tabBarTheme: const TabBarThemeData(
+    tabBarTheme: TabBarThemeData(
       labelColor: AppStyles.kMainColor,
       unselectedLabelColor: AppStyles.gray6,
       labelStyle: AppTextStyles.titleSm,
@@ -276,14 +282,14 @@ ThemeData _buildTheme() {
     ),
 
     // ── 입력 필드 ──────────────────────────────────────────────────────────
-    inputDecorationTheme: const InputDecorationTheme(
+    inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: AppStyles.gray2,
-      border: OutlineInputBorder(
+      border: const OutlineInputBorder(
         borderSide: BorderSide.none,
         borderRadius: AppRadius.bSm,
       ),
-      enabledBorder: OutlineInputBorder(
+      enabledBorder: const OutlineInputBorder(
         borderSide: BorderSide.none,
         borderRadius: AppRadius.bSm,
       ),
@@ -291,11 +297,11 @@ ThemeData _buildTheme() {
         borderSide: BorderSide(color: AppStyles.kMainColor, width: 2),
         borderRadius: AppRadius.bSm,
       ),
-      errorBorder: OutlineInputBorder(
+      errorBorder: const OutlineInputBorder(
         borderSide: BorderSide(color: AppStyles.kRed),
         borderRadius: AppRadius.bSm,
       ),
-      contentPadding: EdgeInsets.symmetric(
+      contentPadding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.s16,
         vertical: AppSpacing.s12,
       ),

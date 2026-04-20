@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../constants/app_styles.dart';
+import '../../i18n/strings.g.dart';
 
 /// 주문현황 섹션의 좌측 120px 헤더 위젯.
 ///
@@ -58,7 +59,7 @@ class OrderSectionHeader extends StatelessWidget {
                       : null,
                 ),
                 child: Text(
-                  '$orderCount건',
+                  t.order_status.order_count(n: orderCount),
                   style: AppTextStyles.bodySm.copyWith(
                     fontSize: AppStyles.kSectionCountSize,
                     fontWeight: FontWeight.w600,

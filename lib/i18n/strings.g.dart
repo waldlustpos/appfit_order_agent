@@ -4,9 +4,9 @@
 /// To regenerate, run: `dart run slang`
 ///
 /// Locales: 3
-/// Strings: 977 (325 per locale)
+/// Strings: 1013 (337 per locale)
 ///
-/// Built on 2026-04-17 at 02:00 UTC
+/// Built on 2026-04-20 at 01:50 UTC
 
 // coverage:ignore-file
 // ignore_for_file: type=lint
@@ -248,11 +248,13 @@ class _StringsSettingsKo {
 	late final _StringsSettingsAlertCountKo alert_count = _StringsSettingsAlertCountKo._(_root);
 	late final _StringsSettingsPrintCountKo print_count = _StringsSettingsPrintCountKo._(_root);
 	late final _StringsSettingsLanguageKo language = _StringsSettingsLanguageKo._(_root);
+	late final _StringsSettingsThemeKo theme = _StringsSettingsThemeKo._(_root);
 	late final _StringsSettingsCurrencyKo currency = _StringsSettingsCurrencyKo._(_root);
 	late final _StringsSettingsDisplayRotateKo display_rotate = _StringsSettingsDisplayRotateKo._(_root);
 	late final _StringsSettingsKdsIgnoreStatusKo kds_ignore_status = _StringsSettingsKdsIgnoreStatusKo._(_root);
 	late final _StringsSettingsLabelFilterKo label_filter = _StringsSettingsLabelFilterKo._(_root);
 	late final _StringsSettingsDeveloperOptionsKo developer_options = _StringsSettingsDeveloperOptionsKo._(_root);
+	late final _StringsSettingsKioskKo kiosk = _StringsSettingsKioskKo._(_root);
 	late final _StringsSettingsLocalServerKo local_server = _StringsSettingsLocalServerKo._(_root);
 	late final _StringsSettingsConnectionKo connection = _StringsSettingsConnectionKo._(_root);
 	late final _StringsSettingsAppUpdateKo app_update = _StringsSettingsAppUpdateKo._(_root);
@@ -672,6 +674,22 @@ class _StringsSettingsLanguageKo {
 	String get desc => '앱의 언어를 설정합니다.';
 }
 
+// Path: settings.theme
+class _StringsSettingsThemeKo {
+	_StringsSettingsThemeKo._(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+	String get title => '테마';
+	String get desc => '앱 전반의 브랜드 컬러와 로고를 변경합니다.';
+	String get restart_title => '재시작 필요';
+	String get restart_message => '테마 변경을 적용하려면 앱을 다시 시작해야 합니다. 지금 종료할까요?';
+	String get restart_now => '지금 종료';
+	String get restart_later => '나중에';
+	late final _StringsSettingsThemeOptionsKo options = _StringsSettingsThemeOptionsKo._(_root);
+}
+
 // Path: settings.currency
 class _StringsSettingsCurrencyKo {
 	_StringsSettingsCurrencyKo._(this._root);
@@ -732,6 +750,19 @@ class _StringsSettingsDeveloperOptionsKo {
 	// Translations
 	String get title => '개발자 옵션';
 	late final _StringsSettingsDeveloperOptionsAppfitTestKo appfit_test = _StringsSettingsDeveloperOptionsAppfitTestKo._(_root);
+}
+
+// Path: settings.kiosk
+class _StringsSettingsKioskKo {
+	_StringsSettingsKioskKo._(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+	String get visible_title => '키오스크 주문 노출';
+	String get visible_desc => '키오스크 주문을 화면에 표시합니다. OFF 시 내부 접수는 정상 처리됩니다.';
+	String get sound_title => '키오스크 주문 주문서 및 알림소리';
+	String get sound_desc => '키오스크 주문 수신 시 주문서 출력과 알림음을 재생합니다.';
 }
 
 // Path: settings.local_server
@@ -971,6 +1002,17 @@ class _StringsKdsSortKo {
 	String get newest => '최신 주문순';
 }
 
+// Path: settings.theme.options
+class _StringsSettingsThemeOptionsKo {
+	_StringsSettingsThemeOptionsKo._(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+	String get appfit_default => '기본';
+	String get mammoth_coffee => '매머드커피';
+}
+
 // Path: settings.developer_options.appfit_test
 class _StringsSettingsDeveloperOptionsAppfitTestKo {
 	_StringsSettingsDeveloperOptionsAppfitTestKo._(this._root);
@@ -1109,11 +1151,13 @@ class _StringsSettingsEn extends _StringsSettingsKo {
 	@override late final _StringsSettingsAlertCountEn alert_count = _StringsSettingsAlertCountEn._(_root);
 	@override late final _StringsSettingsPrintCountEn print_count = _StringsSettingsPrintCountEn._(_root);
 	@override late final _StringsSettingsLanguageEn language = _StringsSettingsLanguageEn._(_root);
+	@override late final _StringsSettingsThemeEn theme = _StringsSettingsThemeEn._(_root);
 	@override late final _StringsSettingsCurrencyEn currency = _StringsSettingsCurrencyEn._(_root);
 	@override late final _StringsSettingsDisplayRotateEn display_rotate = _StringsSettingsDisplayRotateEn._(_root);
 	@override late final _StringsSettingsKdsIgnoreStatusEn kds_ignore_status = _StringsSettingsKdsIgnoreStatusEn._(_root);
 	@override late final _StringsSettingsLabelFilterEn label_filter = _StringsSettingsLabelFilterEn._(_root);
 	@override late final _StringsSettingsDeveloperOptionsEn developer_options = _StringsSettingsDeveloperOptionsEn._(_root);
+	@override late final _StringsSettingsKioskEn kiosk = _StringsSettingsKioskEn._(_root);
 	@override late final _StringsSettingsLocalServerEn local_server = _StringsSettingsLocalServerEn._(_root);
 	@override late final _StringsSettingsConnectionEn connection = _StringsSettingsConnectionEn._(_root);
 	@override late final _StringsSettingsAppUpdateEn app_update = _StringsSettingsAppUpdateEn._(_root);
@@ -1541,6 +1585,22 @@ class _StringsSettingsLanguageEn extends _StringsSettingsLanguageKo {
 	@override String get desc => 'Set the application language.';
 }
 
+// Path: settings.theme
+class _StringsSettingsThemeEn extends _StringsSettingsThemeKo {
+	_StringsSettingsThemeEn._(_StringsEn root) : this._root = root, super._(root);
+
+	@override final _StringsEn _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'Theme';
+	@override String get desc => 'Change the app-wide brand color and logo.';
+	@override String get restart_title => 'Restart required';
+	@override String get restart_message => 'The theme change will apply after restarting the app. Quit now?';
+	@override String get restart_now => 'Quit now';
+	@override String get restart_later => 'Later';
+	@override late final _StringsSettingsThemeOptionsEn options = _StringsSettingsThemeOptionsEn._(_root);
+}
+
 // Path: settings.currency
 class _StringsSettingsCurrencyEn extends _StringsSettingsCurrencyKo {
 	_StringsSettingsCurrencyEn._(_StringsEn root) : this._root = root, super._(root);
@@ -1601,6 +1661,19 @@ class _StringsSettingsDeveloperOptionsEn extends _StringsSettingsDeveloperOption
 	// Translations
 	@override String get title => 'Developer Options';
 	@override late final _StringsSettingsDeveloperOptionsAppfitTestEn appfit_test = _StringsSettingsDeveloperOptionsAppfitTestEn._(_root);
+}
+
+// Path: settings.kiosk
+class _StringsSettingsKioskEn extends _StringsSettingsKioskKo {
+	_StringsSettingsKioskEn._(_StringsEn root) : this._root = root, super._(root);
+
+	@override final _StringsEn _root; // ignore: unused_field
+
+	// Translations
+	@override String get visible_title => 'Show Kiosk Orders';
+	@override String get visible_desc => 'Display kiosk orders on screen. When OFF, internal orders are still processed normally.';
+	@override String get sound_title => 'Kiosk Order Ticket & Sound';
+	@override String get sound_desc => 'Print ticket and play notification sound when a kiosk order is received.';
 }
 
 // Path: settings.local_server
@@ -1840,6 +1913,17 @@ class _StringsKdsSortEn extends _StringsKdsSortKo {
 	@override String get newest => 'Newest';
 }
 
+// Path: settings.theme.options
+class _StringsSettingsThemeOptionsEn extends _StringsSettingsThemeOptionsKo {
+	_StringsSettingsThemeOptionsEn._(_StringsEn root) : this._root = root, super._(root);
+
+	@override final _StringsEn _root; // ignore: unused_field
+
+	// Translations
+	@override String get appfit_default => 'Default';
+	@override String get mammoth_coffee => 'Mammoth Coffee';
+}
+
 // Path: settings.developer_options.appfit_test
 class _StringsSettingsDeveloperOptionsAppfitTestEn extends _StringsSettingsDeveloperOptionsAppfitTestKo {
 	_StringsSettingsDeveloperOptionsAppfitTestEn._(_StringsEn root) : this._root = root, super._(root);
@@ -1978,11 +2062,13 @@ class _StringsSettingsJa extends _StringsSettingsKo {
 	@override late final _StringsSettingsAlertCountJa alert_count = _StringsSettingsAlertCountJa._(_root);
 	@override late final _StringsSettingsPrintCountJa print_count = _StringsSettingsPrintCountJa._(_root);
 	@override late final _StringsSettingsLanguageJa language = _StringsSettingsLanguageJa._(_root);
+	@override late final _StringsSettingsThemeJa theme = _StringsSettingsThemeJa._(_root);
 	@override late final _StringsSettingsCurrencyJa currency = _StringsSettingsCurrencyJa._(_root);
 	@override late final _StringsSettingsDisplayRotateJa display_rotate = _StringsSettingsDisplayRotateJa._(_root);
 	@override late final _StringsSettingsKdsIgnoreStatusJa kds_ignore_status = _StringsSettingsKdsIgnoreStatusJa._(_root);
 	@override late final _StringsSettingsLabelFilterJa label_filter = _StringsSettingsLabelFilterJa._(_root);
 	@override late final _StringsSettingsDeveloperOptionsJa developer_options = _StringsSettingsDeveloperOptionsJa._(_root);
+	@override late final _StringsSettingsKioskJa kiosk = _StringsSettingsKioskJa._(_root);
 	@override late final _StringsSettingsLocalServerJa local_server = _StringsSettingsLocalServerJa._(_root);
 	@override late final _StringsSettingsConnectionJa connection = _StringsSettingsConnectionJa._(_root);
 	@override late final _StringsSettingsAppUpdateJa app_update = _StringsSettingsAppUpdateJa._(_root);
@@ -2402,6 +2488,22 @@ class _StringsSettingsLanguageJa extends _StringsSettingsLanguageKo {
 	@override String get desc => 'アプリの言語を設定します。';
 }
 
+// Path: settings.theme
+class _StringsSettingsThemeJa extends _StringsSettingsThemeKo {
+	_StringsSettingsThemeJa._(_StringsJa root) : this._root = root, super._(root);
+
+	@override final _StringsJa _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'テーマ';
+	@override String get desc => 'アプリ全体のブランドカラーとロゴを変更します。';
+	@override String get restart_title => '再起動が必要';
+	@override String get restart_message => 'テーマ変更を適用するにはアプリを再起動する必要があります。今すぐ終了しますか？';
+	@override String get restart_now => '今すぐ終了';
+	@override String get restart_later => '後で';
+	@override late final _StringsSettingsThemeOptionsJa options = _StringsSettingsThemeOptionsJa._(_root);
+}
+
 // Path: settings.currency
 class _StringsSettingsCurrencyJa extends _StringsSettingsCurrencyKo {
 	_StringsSettingsCurrencyJa._(_StringsJa root) : this._root = root, super._(root);
@@ -2462,6 +2564,19 @@ class _StringsSettingsDeveloperOptionsJa extends _StringsSettingsDeveloperOption
 	// Translations
 	@override String get title => '開発者オプション';
 	@override late final _StringsSettingsDeveloperOptionsAppfitTestJa appfit_test = _StringsSettingsDeveloperOptionsAppfitTestJa._(_root);
+}
+
+// Path: settings.kiosk
+class _StringsSettingsKioskJa extends _StringsSettingsKioskKo {
+	_StringsSettingsKioskJa._(_StringsJa root) : this._root = root, super._(root);
+
+	@override final _StringsJa _root; // ignore: unused_field
+
+	// Translations
+	@override String get visible_title => 'キオスク注文の表示';
+	@override String get visible_desc => 'キオスク注文を画面に表示します。OFFの場合も内部受付は通常通り処理されます。';
+	@override String get sound_title => 'キオスク注文の注文票と通知音';
+	@override String get sound_desc => 'キオスク注文受信時に注文票を出力し、通知音を再生します。';
 }
 
 // Path: settings.local_server
@@ -2699,6 +2814,17 @@ class _StringsKdsSortJa extends _StringsKdsSortKo {
 	// Translations
 	@override String get oldest => '古い順';
 	@override String get newest => '新しい順';
+}
+
+// Path: settings.theme.options
+class _StringsSettingsThemeOptionsJa extends _StringsSettingsThemeOptionsKo {
+	_StringsSettingsThemeOptionsJa._(_StringsJa root) : this._root = root, super._(root);
+
+	@override final _StringsJa _root; // ignore: unused_field
+
+	// Translations
+	@override String get appfit_default => 'デフォルト';
+	@override String get mammoth_coffee => 'マンモスコーヒー';
 }
 
 // Path: settings.developer_options.appfit_test

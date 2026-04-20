@@ -85,6 +85,9 @@ class PreferenceService {
   static const String KEY_UPDATE_TPCP_OVERRIDE_DONE =
       "KEY_UPDATE_TPCP_OVERRIDE_DONE";
 
+  // 브랜드 테마 키 (BrandTheme.id 를 문자열로 저장)
+  static const String KEY_BRAND_THEME = "KEY_BRAND_THEME";
+
   // New Printer Setting Keys
 
   static final PreferenceService _instance = PreferenceService._internal();
@@ -203,7 +206,8 @@ class PreferenceService {
           logger.i('[PreferenceService] Sunmi 디바이스 감지: 자동 업데이트 체크 OFF 설정');
         } else {
           await setAutoCheckUpdate(true);
-          logger.i('[PreferenceService] 일반 디바이스 감지($manufacturer): 자동 업데이트 체크 ON 설정');
+          logger.i(
+              '[PreferenceService] 일반 디바이스 감지($manufacturer): 자동 업데이트 체크 ON 설정');
         }
       } else {
         await setAutoCheckUpdate(true);
@@ -396,8 +400,7 @@ class PreferenceService {
   }
 
   // 서버 환경 조회 (dev / staging / live / japanLive)
-  String getEnvironment() =>
-      _prefs.getString(KEY_ENVIRONMENT) ?? 'live';
+  String getEnvironment() => _prefs.getString(KEY_ENVIRONMENT) ?? 'live';
 
   // 서버 환경 저장
   Future<void> setEnvironment(String env) =>
@@ -410,6 +413,13 @@ class PreferenceService {
   // 개발자 수동 서버 환경 오버라이드 플래그 저장
   Future<void> setEnvironmentManualOverride(bool value) =>
       _prefs.setBool(KEY_ENVIRONMENT_MANUAL_OVERRIDE, value);
+
+  // 브랜드 테마 id 조회 (저장되지 않았으면 null → 기본 테마)
+  String? getBrandThemeId() => _prefs.getString(KEY_BRAND_THEME);
+
+  // 브랜드 테마 id 저장
+  Future<void> setBrandThemeId(String id) =>
+      _prefs.setString(KEY_BRAND_THEME, id);
 
   // 모든 로그인 정보 삭제
   Future<void> clearLoginInfo() async {
@@ -468,8 +478,7 @@ class PreferenceService {
       _prefs.getBool(KEY_USE_LABEL_PRINTER) ?? false; // Default false
 
   // 라벨프린터 테스트 모드 getters
-  int getLabelAutoReplyMode() =>
-      _prefs.getInt(KEY_LABEL_AUTO_REPLY_MODE) ?? 0;
+  int getLabelAutoReplyMode() => _prefs.getInt(KEY_LABEL_AUTO_REPLY_MODE) ?? 0;
   bool getLabelUseFeedToTear() =>
       _prefs.getBool(KEY_LABEL_USE_FEED_TO_TEAR) ?? true;
   bool getLabelUseBackToPrint() =>
@@ -478,11 +487,10 @@ class PreferenceService {
       _prefs.getBool(KEY_LABEL_USE_STATUS_POLLING) ?? false;
   bool getLabelUseCalibrate() =>
       _prefs.getBool(KEY_LABEL_USE_CALIBRATE) ?? false;
-  int getLabelPrintDelay() =>
-      _prefs.getInt(KEY_LABEL_PRINT_DELAY) ?? 300;
+  int getLabelPrintDelay() => _prefs.getInt(KEY_LABEL_PRINT_DELAY) ?? 300;
+
   /// 라벨 필터 모드 (0: 전체, 1: 와플만, 2: 와플제외)
-  int getLabelFilterMode() =>
-      _prefs.getInt(KEY_LABEL_FILTER_MODE) ?? 0;
+  int getLabelFilterMode() => _prefs.getInt(KEY_LABEL_FILTER_MODE) ?? 0;
 
   // 영업 상태 저장
   Future<void> setOrderOn(bool value) async {
@@ -759,8 +767,7 @@ class PreferenceService {
   }
 
   // 자동 업데이트 체크 설정 조회 (기본값: true)
-  bool getAutoCheckUpdate() =>
-      _prefs.getBool(KEY_AUTO_CHECK_UPDATE) ?? true;
+  bool getAutoCheckUpdate() => _prefs.getBool(KEY_AUTO_CHECK_UPDATE) ?? true;
 
   // 자동 업데이트 체크 설정 저장
   Future<void> setAutoCheckUpdate(bool value) async =>

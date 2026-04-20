@@ -172,7 +172,7 @@ final kdsScrollPositionsProvider =
 );
 
 typedef _$KdsScrollPositions = Notifier<Map<String, double>>;
-String _$kdsCardAnimationsHash() => r'18f01db30c6bd53a3eb8da1f91febc45008d53f8';
+String _$kdsCardAnimationsHash() => r'930ab928b0deef74a310a51b14a675dcfb21a48f';
 
 /// 카드 애니메이션 상태 관리 (개선된 버전)
 ///

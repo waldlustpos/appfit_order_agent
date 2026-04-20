@@ -11,6 +11,7 @@ import 'package:appfit_order_agent/i18n/strings.g.dart';
 import 'settings_section_card.dart';
 import 'settings_item_widget.dart';
 import 'settings_developer_options.dart';
+import 'settings_brand_theme_section.dart';
 
 /// 설정화면 우측 패널 — 알림/키오스크/출력/업데이트 설정.
 class SettingsRightPanel extends ConsumerStatefulWidget {
@@ -253,6 +254,10 @@ class _SettingsRightPanelState extends ConsumerState<SettingsRightPanel> {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
+            // ── 테마(브랜드) 선택 카드 ────────────────────────────────────
+            const SettingsBrandThemeSection(),
+            const SizedBox(height: AppSpacing.s16),
+
             // ── 알림 설정 카드 ─────────────────────────────────────────────
             SettingsSectionCard(
               title: t.settings.section_sound,
@@ -396,8 +401,8 @@ class _SettingsRightPanelState extends ConsumerState<SettingsRightPanel> {
               icon: Icons.tablet_outlined,
               children: [
                 SettingsItemWidget(
-                  title: '키오스크 주문 노출',
-                  description: '키오스크 주문을 화면에 표시합니다. OFF 시 내부 접수는 정상 처리됩니다.',
+                  title: t.settings.kiosk.visible_title,
+                  description: t.settings.kiosk.visible_desc,
                   trailing: CustomSwitch(
                     value: widget.isKioskOrderVisible,
                     activeColor: AppStyles.kMainColor,
@@ -414,8 +419,8 @@ class _SettingsRightPanelState extends ConsumerState<SettingsRightPanel> {
                   ),
                 ),
                 SettingsItemWidget(
-                  title: '키오스크 주문 주문서 및 알림소리',
-                  description: '키오스크 주문 수신 시 주문서 출력과 알림음을 재생합니다.',
+                  title: t.settings.kiosk.sound_title,
+                  description: t.settings.kiosk.sound_desc,
                   enabled: widget.isKioskOrderVisible,
                   showDivider: false,
                   trailing: CustomSwitch(

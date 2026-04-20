@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/order_model.dart';
+import 'brand_theme.dart';
 
 // ─── 간격 토큰 ────────────────────────────────────────────────────────────────
 class AppSpacing {
@@ -111,8 +112,21 @@ class AppStyles {
   static const double kOrderCardTitleSize = 24.0;
   static const double kOrderCardTimeSize = 14.0 * 1.2;
 
-  // 메인 컬러 정의
-  static const Color kMainColor = Color(0xFFfb3e7e);
+  // ─── 활성 브랜드 ────────────────────────────────────────────────────────────
+  static BrandTheme _activeBrand = BrandTheme.appfitDefault;
+
+  /// 현재 활성 브랜드. 앱 세션 중에는 불변이며, 변경은 재시작으로만 반영.
+  static BrandTheme get activeBrand => _activeBrand;
+
+  /// 앱 부팅 시 1회 호출. 런타임 중 재호출 시 이미 캡처된 위젯은 갱신되지 않음.
+  static void applyBrand(BrandTheme brand) {
+    _activeBrand = brand;
+    kMainColor = brand.primary;
+    kMainColorAlpha = brand.primaryAlpha;
+  }
+
+  // 메인 컬러 정의 — 부팅 시 applyBrand 로 덮어씌움
+  static Color kMainColor = BrandTheme.appfitDefault.primary;
   static const Color kSub = Color(0xff9843cb);
   static const Color kSubAlpha = Color(0x149843cb);
 
@@ -138,8 +152,8 @@ class AppStyles {
   static const Color kAmber = Color(0xFFF59E0B);
   static const Color kAmberAlpha = Color(0x14F59E0B);
 
-  /// 메인 핑크 10% 알파 — NEW 상태 배경용
-  static const Color kMainColorAlpha = Color(0x14fb3e7e);
+  /// 메인 핑크 10% 알파 — NEW 상태 배경용. 부팅 시 applyBrand 로 덮어씌움
+  static Color kMainColorAlpha = BrandTheme.appfitDefault.primaryAlpha;
 
   // ─── 공통 버튼 스타일 ───────────────────────────────────────────────────────
 
@@ -168,7 +182,7 @@ class AppStyles {
       ElevatedButton.styleFrom(
         backgroundColor: Colors.white,
         foregroundColor: kMainColor,
-        side: const BorderSide(color: kMainColor),
+        side: BorderSide(color: kMainColor),
         elevation: 0,
         padding: padding,
         minimumSize: minimumSize,
@@ -238,7 +252,7 @@ class AppStyles {
           borderRadius: BorderRadius.circular(8),
         ),
         focusedBorder: OutlineInputBorder(
-          borderSide: const BorderSide(color: kMainColor, width: 2),
+          borderSide: BorderSide(color: kMainColor, width: 2),
           borderRadius: BorderRadius.circular(8),
         ),
       );
@@ -262,7 +276,7 @@ class AppStyles {
           borderRadius: BorderRadius.circular(8),
         ),
         focusedBorder: OutlineInputBorder(
-          borderSide: const BorderSide(color: kMainColor, width: 2),
+          borderSide: BorderSide(color: kMainColor, width: 2),
           borderRadius: BorderRadius.circular(8),
         ),
       );
@@ -337,7 +351,7 @@ class AppStyles {
   static OrderPalette statusPalette(OrderStatus status) {
     switch (status) {
       case OrderStatus.NEW:
-        return const OrderPalette(kMainColorAlpha, kMainColor);
+        return OrderPalette(kMainColorAlpha, kMainColor);
       case OrderStatus.PREPARING:
         return const OrderPalette(kBlueAlpha, kBlue);
       case OrderStatus.READY:

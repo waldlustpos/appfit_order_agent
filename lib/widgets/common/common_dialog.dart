@@ -268,8 +268,7 @@ class CommonDialog {
         return AlertDialog(
           title: Row(
             children: [
-              const Icon(Icons.info_outline,
-                  color: AppStyles.kMainColor, size: 28),
+              Icon(Icons.info_outline, color: AppStyles.kMainColor, size: 28),
               const SizedBox(width: 12),
               Text(title,
                   style: const TextStyle(
@@ -502,8 +501,7 @@ class _UpdateProgressDialogState extends State<_UpdateProgressDialog> {
               LinearProgressIndicator(
                 value: _downloadProgress,
                 backgroundColor: Colors.grey[300],
-                valueColor:
-                    const AlwaysStoppedAnimation<Color>(AppStyles.kMainColor),
+                valueColor: AlwaysStoppedAnimation<Color>(AppStyles.kMainColor),
               ),
               const SizedBox(height: 8),
               Text('${(_downloadProgress * 100).round()}%',

@@ -10,6 +10,7 @@ export '../services/api_service.dart';
 export 'order_detail_provider.dart';
 export 'app_info_provider.dart';
 export 'kds_unified_providers.dart';
+export 'brand_theme_provider.dart';
 export '../core/orders/alert_manager.dart'; // AlertManager export
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
