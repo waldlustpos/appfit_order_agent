@@ -11,7 +11,10 @@ import 'package:appfit_order_agent/i18n/strings.g.dart';
 import '../services/platform_service.dart';
 import '../constants/app_styles.dart';
 import '../widgets/membership/numeric_keypad_widget.dart';
-import '../widgets/membership/membership_history_table.dart';
+import '../widgets/membership/membership_history_list.dart';
+import '../widgets/membership/stamp_history_card.dart';
+import '../widgets/membership/coupon_history_card.dart';
+import '../widgets/membership/available_coupon_card.dart';
 
 class MembershipScreen extends ConsumerStatefulWidget {
   const MembershipScreen({Key? key}) : super(key: key);
@@ -23,18 +26,6 @@ class MembershipScreen extends ConsumerStatefulWidget {
 class _MembershipScreenState extends ConsumerState<MembershipScreen> {
   final TextEditingController _inputController = TextEditingController();
   final FocusNode _inputFocusNode = FocusNode();
-
-  ButtonStyle get _actionButtonStyle => AppStyles.outlinedPrimaryButton(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.s12,
-          vertical: AppSpacing.s8,
-        ),
-        minimumSize: const Size(80, 36),
-      ).copyWith(
-        textStyle: WidgetStatePropertyAll(
-          AppTextStyles.bodySm.copyWith(fontWeight: FontWeight.w600),
-        ),
-      );
 
   @override
   void initState() {
@@ -521,309 +512,75 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
   // ─── 스탬프내역 탭 ────────────────────────────────────────────────────────
 
   Widget _buildStampHistoryTab() {
-    final pagedHistory = ref
-        .watch(membershipProvider.select((state) => state.pagedStampHistory));
-    final totalPages = ref.watch(
-        membershipProvider.select((state) => state.stampHistoryTotalPages));
-    final currentPage = ref.watch(
-        membershipProvider.select((state) => state.stampHistoryCurrentPage));
+    final items = ref
+        .watch(membershipProvider.select((state) => state.visibleStampHistory));
+    final hasMore = ref
+        .watch(membershipProvider.select((state) => state.hasMoreStampHistory));
     final loadingActionId =
         ref.watch(membershipProvider.select((state) => state.loadingActionId));
 
-    if (pagedHistory.isEmpty) {
-      return Center(
-        child: Text(
-          t.membership.history.no_stamps,
-          style: AppTextStyles.body.copyWith(color: AppStyles.gray6),
-        ),
-      );
-    }
-
-    return MembershipHistoryTable(
-      currentPage: currentPage,
-      totalPages: totalPages,
-      onPageChanged: (page) =>
-          ref.read(membershipProvider.notifier).setStampHistoryPage(page),
-      prevPageTooltip: t.membership.history.prev_page,
-      nextPageTooltip: t.membership.history.next_page,
-      columns: [
-        DataColumn(
-          label: membershipTableHeader(t.membership.history.col_date),
-          headingRowAlignment: MainAxisAlignment.center,
-        ),
-        DataColumn(
-          label: membershipTableHeader(t.membership.history.col_count),
-          numeric: true,
-          headingRowAlignment: MainAxisAlignment.center,
-        ),
-        DataColumn(
-          label: membershipTableHeader(t.membership.history.col_remark),
-          headingRowAlignment: MainAxisAlignment.center,
-        ),
-      ],
-      rows: pagedHistory.asMap().entries.map((entry) {
-        final index = entry.key;
-        final stamp = entry.value;
-        final isLoading = loadingActionId == stamp.seq;
-
-        String stampCountText = stamp.stampCount.toString();
-        TextStyle stampCountStyle = AppTextStyles.body;
-        Widget remarkWidget;
-
-        switch (stamp.status.toUpperCase()) {
-          case 'SUCCESS':
-          case 'ACCRUED':
-          case '0':
-            stampCountText = '+${stamp.stampCount}';
-            remarkWidget = ElevatedButton(
-              onPressed: isLoading ? null : () => _cancelSavedStamp(stamp),
-              style: _actionButtonStyle,
-              child: isLoading
-                  ? SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: AppStyles.kMainColor),
-                    )
-                  : Text(t.membership.history.btn_cancel_save),
-            );
-            break;
-          case 'CANCELLED':
-          case 'CANCELED':
-          case '7':
-            stampCountText = '-${stamp.stampCount}';
-            stampCountStyle =
-                AppTextStyles.body.copyWith(color: AppStyles.kMainColor);
-            remarkWidget = Text(
-              t.membership.history.status_cancelled,
-              style: AppTextStyles.body.copyWith(color: AppStyles.kMainColor),
-            );
-            break;
-          case 'CONVERTED':
-          case '9':
-            remarkWidget = Text(t.membership.history.status_converted,
-                style: AppTextStyles.body);
-            break;
-          case 'ISSUED':
-            remarkWidget = Text(t.membership.history.status_issued,
-                style: AppTextStyles.body);
-            break;
-          default:
-            final textToShow = stamp.memo.isNotEmpty
-                ? stamp.memo
-                : (stamp.status.isNotEmpty ? stamp.status : '-');
-            remarkWidget = Text(textToShow,
-                style: AppTextStyles.body.copyWith(color: AppStyles.gray6));
-            break;
-        }
-
-        return DataRow(
-          color: membershipRowColor(index),
-          cells: [
-            DataCell(Center(
-              child: Text(
-                DateFormat('yyyy-MM-dd HH:mm').format(stamp.logDate),
-                style: AppTextStyles.body,
-              ),
-            )),
-            DataCell(Center(
-              child: Text(stampCountText, style: stampCountStyle),
-            )),
-            DataCell(Center(child: remarkWidget)),
-          ],
-        );
-      }).toList(),
+    return MembershipHistoryList<StampInfo>(
+      items: items,
+      hasMore: hasMore,
+      onLoadMore: () =>
+          ref.read(membershipProvider.notifier).loadMoreStampHistory(),
+      emptyIcon: Icons.stars_outlined,
+      emptyMessage: t.membership.history.no_stamps,
+      itemBuilder: (_, stamp, __) => StampHistoryCard(
+        stamp: stamp,
+        isLoading: loadingActionId == stamp.seq,
+        onCancel: () => _cancelSavedStamp(stamp),
+      ),
     );
   }
 
   // ─── 쿠폰사용내역 탭 ──────────────────────────────────────────────────────
 
   Widget _buildCouponHistoryTab() {
-    final pagedHistory = ref
-        .watch(membershipProvider.select((state) => state.pagedCouponHistory));
-    final totalPages = ref.watch(
-        membershipProvider.select((state) => state.couponHistoryTotalPages));
-    final currentPage = ref.watch(
-        membershipProvider.select((state) => state.couponHistoryCurrentPage));
+    final items = ref.watch(
+        membershipProvider.select((state) => state.visibleCouponHistory));
+    final hasMore = ref.watch(
+        membershipProvider.select((state) => state.hasMoreCouponHistory));
     final loadingActionId =
         ref.watch(membershipProvider.select((state) => state.loadingActionId));
 
-    if (pagedHistory.isEmpty) {
-      return Center(
-        child: Text(
-          t.membership.history.no_coupons,
-          style: AppTextStyles.body.copyWith(color: AppStyles.gray6),
-        ),
-      );
-    }
-
-    return MembershipHistoryTable(
-      currentPage: currentPage,
-      totalPages: totalPages,
-      onPageChanged: (page) =>
-          ref.read(membershipProvider.notifier).setCouponHistoryPage(page),
-      prevPageTooltip: t.membership.history.prev_page,
-      nextPageTooltip: t.membership.history.next_page,
-      columns: [
-        DataColumn(
-          label: membershipTableHeader(t.membership.history.col_coupon),
-          headingRowAlignment: MainAxisAlignment.center,
-        ),
-        DataColumn(
-          label: membershipTableHeader(t.membership.history.col_use_date),
-          headingRowAlignment: MainAxisAlignment.center,
-        ),
-        DataColumn(
-          label: membershipTableHeader(t.membership.history.col_remark),
-          headingRowAlignment: MainAxisAlignment.center,
-        ),
-      ],
-      rows: pagedHistory.asMap().entries.map((entry) {
-        final index = entry.key;
-        final coupon = entry.value;
-        return DataRow(
-          color: membershipRowColor(index),
-          cells: [
-            DataCell(Center(
-              child: Text(coupon.title, style: AppTextStyles.body),
-            )),
-            DataCell(Center(
-              child: Text(
-                DateFormat('yyyy-MM-dd HH:mm').format(coupon.useDate),
-                style: AppTextStyles.body,
-              ),
-            )),
-            DataCell(Center(
-              child: _buildCouponHistoryRemark(coupon, loadingActionId),
-            )),
-          ],
-        );
-      }).toList(),
+    return MembershipHistoryList<CouponHistoryInfo>(
+      items: items,
+      hasMore: hasMore,
+      onLoadMore: () =>
+          ref.read(membershipProvider.notifier).loadMoreCouponHistory(),
+      emptyIcon: Icons.local_activity_outlined,
+      emptyMessage: t.membership.history.no_coupons,
+      itemBuilder: (_, coupon, __) => CouponHistoryCard(
+        coupon: coupon,
+        isLoading: loadingActionId == coupon.couponId,
+        onCancelUse: () => _cancelCoupon(coupon),
+      ),
     );
-  }
-
-  Widget _buildCouponHistoryRemark(
-      CouponHistoryInfo coupon, String? loadingActionId) {
-    final isLoading = loadingActionId == coupon.couponId;
-
-    switch (coupon.status.toUpperCase()) {
-      case 'USED':
-      case '9':
-        return ElevatedButton(
-          onPressed: isLoading ? null : () => _cancelCoupon(coupon),
-          style: _actionButtonStyle,
-          child: isLoading
-              ? SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                      strokeWidth: 2, color: AppStyles.kMainColor),
-                )
-              : Text(t.membership.history.btn_cancel_use),
-        );
-      case 'EXPIRED':
-      case '7':
-        return Text(
-          t.membership.history.status_expired,
-          style: AppTextStyles.body.copyWith(color: AppStyles.gray6),
-        );
-      case 'ISSUED':
-        return Text(
-          t.membership.history.status_issued,
-          style: AppTextStyles.body.copyWith(color: AppStyles.kBlue),
-        );
-      case 'CANCELLED':
-      case 'CANCELED':
-        return Text(
-          t.membership.history.status_cancelled,
-          style: AppTextStyles.body.copyWith(color: AppStyles.kMainColor),
-        );
-      default:
-        return Text(
-          coupon.status.isNotEmpty ? coupon.status : t.common.unknown,
-          style: AppTextStyles.body,
-        );
-    }
   }
 
   // ─── 보유쿠폰 탭 ──────────────────────────────────────────────────────────
 
   Widget _buildAvailableCouponsTab() {
-    final pagedCoupons = ref.watch(
-        membershipProvider.select((state) => state.pagedAvailableCoupons));
-    final totalPages = ref.watch(
-        membershipProvider.select((state) => state.availableCouponsTotalPages));
-    final currentPage = ref.watch(membershipProvider
-        .select((state) => state.availableCouponsCurrentPage));
+    final items = ref.watch(
+        membershipProvider.select((state) => state.visibleAvailableCoupons));
+    final hasMore = ref.watch(
+        membershipProvider.select((state) => state.hasMoreAvailableCoupons));
     final loadingActionId =
         ref.watch(membershipProvider.select((state) => state.loadingActionId));
 
-    if (pagedCoupons.isEmpty) {
-      return Center(
-        child: Text(
-          t.membership.history.no_available,
-          style: AppTextStyles.body.copyWith(color: AppStyles.gray6),
-        ),
-      );
-    }
-
-    return MembershipHistoryTable(
-      currentPage: currentPage,
-      totalPages: totalPages,
-      onPageChanged: (page) =>
-          ref.read(membershipProvider.notifier).setAvailableCouponsPage(page),
-      prevPageTooltip: t.membership.history.prev_page,
-      nextPageTooltip: t.membership.history.next_page,
-      columns: [
-        DataColumn(
-          label: membershipTableHeader(t.membership.history.col_coupon),
-          headingRowAlignment: MainAxisAlignment.center,
-        ),
-        DataColumn(
-          label: membershipTableHeader(t.membership.history.col_expiry),
-          headingRowAlignment: MainAxisAlignment.center,
-        ),
-        DataColumn(
-          label: membershipTableHeader(t.membership.history.col_remark),
-          headingRowAlignment: MainAxisAlignment.center,
-        ),
-      ],
-      rows: pagedCoupons.asMap().entries.map((entry) {
-        final index = entry.key;
-        final coupon = entry.value;
-        final isLoading = loadingActionId == coupon.couponId;
-
-        return DataRow(
-          color: membershipRowColor(index),
-          cells: [
-            DataCell(Center(
-              child: Text(coupon.couponTitle, style: AppTextStyles.body),
-            )),
-            DataCell(Center(
-              child: Text(
-                coupon.expireDate.toString().substring(0, 10),
-                style: AppTextStyles.body,
-              ),
-            )),
-            DataCell(
-              Center(
-                child: ElevatedButton(
-                  onPressed: isLoading ? null : () => _useCoupon(coupon),
-                  style: _actionButtonStyle,
-                  child: isLoading
-                      ? SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: AppStyles.kMainColor),
-                        )
-                      : Text(t.membership.history.btn_use),
-                ),
-              ),
-            ),
-          ],
-        );
-      }).toList(),
+    return MembershipHistoryList<CouponInfo>(
+      items: items,
+      hasMore: hasMore,
+      onLoadMore: () =>
+          ref.read(membershipProvider.notifier).loadMoreAvailableCoupons(),
+      emptyIcon: Icons.confirmation_number_outlined,
+      emptyMessage: t.membership.history.no_available,
+      itemBuilder: (_, coupon, __) => AvailableCouponCard(
+        coupon: coupon,
+        isLoading: loadingActionId == coupon.couponId,
+        onUse: () => _useCoupon(coupon),
+      ),
     );
   }
 

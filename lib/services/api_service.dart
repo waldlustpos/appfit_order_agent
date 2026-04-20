@@ -26,7 +26,6 @@ ApiService apiService(Ref ref) {
   return ApiService(ref);
 }
 
-
 class ApiService {
   // ignore: unused_field
   final Ref _ref;
@@ -167,16 +166,17 @@ class ApiService {
       logger.i('[AppFit API] updateOrderStatus 실패: $e');
       if (e is DioException) {
         final data = e.response?.data;
-        if (data is Map<String, dynamic> && data['code'] == 'INVALID_ORDER_STATUS') {
+        if (data is Map<String, dynamic> &&
+            data['code'] == 'INVALID_ORDER_STATUS') {
           String message = data['message']?.toString() ?? '유효하지 않은 주문 상태입니다.';
           try {
             final currentOrder = await getOrder(orderId);
             message = switch (currentOrder.status) {
               OrderStatus.CANCELLED => '취소된 주문입니다.',
-              OrderStatus.READY     => '이미 픽업 요청된 주문입니다.',
-              OrderStatus.DONE      => '이미 완료된 주문입니다.',
+              OrderStatus.READY => '이미 픽업 요청된 주문입니다.',
+              OrderStatus.DONE => '이미 완료된 주문입니다.',
               OrderStatus.PREPARING => '이미 수락된 주문입니다.',
-              _                     => message,
+              _ => message,
             };
           } catch (_) {
             // 조회 실패 시 원본 서버 메시지 유지
@@ -203,7 +203,8 @@ class ApiService {
 
         final orderNo = data['orderNo'].toString(); // 고유 식별자 (Long)
         final shopOrderNo = data['shopOrderNo'].toString(); // 매장 표시 번호 (Short)
-        final displayOrderNo = data['displayOrderNo']?.toString() ?? ''; // 고객 표시 번호
+        final displayOrderNo =
+            data['displayOrderNo']?.toString() ?? ''; // 고객 표시 번호
 
         // 2. 메뉴 목록 (orderLines) 매핑
         List<OrderMenuModel> menuList = [];
@@ -313,13 +314,15 @@ class ApiService {
           size: pageSize);
 
       allOrders.addAll(orders);
-      logger.i('[getOrders] 페이지 $currentPage 조회완료: ${orders.length}건 수신 (누적: ${allOrders.length}건)');
+      logger.i(
+          '[getOrders] 페이지 $currentPage 조회완료: ${orders.length}건 수신 (누적: ${allOrders.length}건)');
 
       if (isLast) break;
       currentPage++;
     }
 
-    logger.i('[getOrders] 전체 주문 로딩 완료: 총 ${allOrders.length}건, ${currentPage + 1}페이지');
+    logger.i(
+        '[getOrders] 전체 주문 로딩 완료: 총 ${allOrders.length}건, ${currentPage + 1}페이지');
     return allOrders;
   }
 
@@ -364,7 +367,8 @@ class ApiService {
           final totalDiscount = (item['totalDiscount'] as num).toDouble();
           final String orderId = item['orderNo'].toString(); // 내부 식별용
           final String shopOrderNo = item['shopOrderNo'].toString(); // 표시용
-          final String displayOrderNo = item['displayOrderNo']?.toString() ?? ''; // 고객 표시 번호
+          final String displayOrderNo =
+              item['displayOrderNo']?.toString() ?? ''; // 고객 표시 번호
 
           return OrderModel(
             orderNo: orderId,
@@ -396,7 +400,8 @@ class ApiService {
 
         final slice = data['slice'] as Map<String, dynamic>?;
         final isLast = slice?['last'] as bool? ?? true;
-        logger.i('[getOrders] 페이지 $page 응답: ${orders.length}건, isLast=$isLast, isEmpty=${slice?['empty']}');
+        logger.i(
+            '[getOrders] 페이지 $page 응답: ${orders.length}건, isLast=$isLast, isEmpty=${slice?['empty']}');
 
         return (orders, isLast);
       } else {
@@ -687,32 +692,69 @@ class ApiService {
 
   // savePoint REMOVED
 
-  Future<Map<String, dynamic>> getStampHistory(
+  /// 스탬프 내역 전체 조회. `slice.last`까지 페이지를 순회해 누적 반환한다.
+  Future<List<StampInfo>> getStampHistory(
     String userSearchNo,
-    String storeId, {
-    int page = 0,
-    int size = 50,
-  }) async {
+    String storeId,
+  ) async {
+    const int pageSize = 500;
+    int currentPage = 0;
+    final List<StampInfo> all = [];
+
     try {
-      final encryptedUserNo = _encrypt(userSearchNo);
-      final dio = _ref.read(appFitDioProvider);
-
-      final response = await dio.get(ApiRoutes.stampHistory, queryParameters: {
-        'shopCode': storeId,
-        'userSearchNo': encryptedUserNo,
-        'page': page,
-        'size': size,
-      });
-
-      if (response.statusCode == 200) {
-        return response.data['data'] as Map<String, dynamic>;
-      } else {
-        throw Exception('스탬프 내역 조회 실패: ${response.statusCode}');
+      while (true) {
+        final (stamps, isLast) = await _getStampHistoryPage(
+          userSearchNo,
+          storeId,
+          page: currentPage,
+          size: pageSize,
+        );
+        all.addAll(stamps);
+        logger.i(
+            '[getStampHistory] 페이지 $currentPage 조회완료: ${stamps.length}건 수신 (누적: ${all.length}건)');
+        if (isLast) break;
+        currentPage++;
       }
+      logger.i(
+          '[getStampHistory] 전체 스탬프 내역 로딩 완료: 총 ${all.length}건, ${currentPage + 1}페이지');
+      return all;
     } catch (e, s) {
       logger.e('[AppFit API] getStampHistory 오류: $e');
       _handleError(e, '스탬프 내역 조회에 실패했습니다.');
     }
+  }
+
+  Future<(List<StampInfo>, bool)> _getStampHistoryPage(
+    String userSearchNo,
+    String storeId, {
+    int page = 0,
+    int size = 500,
+  }) async {
+    final encryptedUserNo = _encrypt(userSearchNo);
+    final dio = _ref.read(appFitDioProvider);
+
+    final response = await dio.get(ApiRoutes.stampHistory, queryParameters: {
+      'shopCode': storeId,
+      'userSearchNo': encryptedUserNo,
+      'page': page,
+      'size': size,
+    });
+
+    if (response.statusCode != 200) {
+      throw Exception('스탬프 내역 조회 실패: ${response.statusCode}');
+    }
+
+    final data = response.data['data'] as Map<String, dynamic>;
+    final content = data['content'] as List<dynamic>? ?? [];
+    final stamps = content
+        .map((s) => StampInfo.fromAppFitJson(s as Map<String, dynamic>))
+        .toList();
+
+    final slice = data['slice'] as Map<String, dynamic>?;
+    final isLast = slice?['last'] as bool? ?? true;
+    logger
+        .i('[getStampHistory] 페이지 $page 응답: ${stamps.length}건, isLast=$isLast');
+    return (stamps, isLast);
   }
 
   Future<bool> cancelStamp(String rewardId) async {
@@ -813,32 +855,70 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> getCouponHistory(
+  /// 쿠폰 내역 전체 조회 (ISSUED/USED/EXPIRED/CANCELLED 모두 포함).
+  /// `slice.last`까지 페이지를 순회해 누적 반환한다.
+  Future<List<CouponHistoryInfo>> getCouponHistory(
     String storeId,
-    String userSearchNo, {
-    int page = 0,
-    int size = 10,
-  }) async {
+    String userSearchNo,
+  ) async {
+    const int pageSize = 500;
+    int currentPage = 0;
+    final List<CouponHistoryInfo> all = [];
+
     try {
-      final encryptedUserNo = _encrypt(userSearchNo);
-      final dio = _ref.read(appFitDioProvider);
-
-      final response = await dio.get(ApiRoutes.couponHistory, queryParameters: {
-        'shopCode': storeId,
-        'userSearchNo': encryptedUserNo,
-        'page': page,
-        'size': size,
-      });
-
-      if (response.statusCode == 200) {
-        return response.data['data'] as Map<String, dynamic>;
-      } else {
-        throw Exception('쿠폰 내역 조회 실패: ${response.statusCode}');
+      while (true) {
+        final (coupons, isLast) = await _getCouponHistoryPage(
+          storeId,
+          userSearchNo,
+          page: currentPage,
+          size: pageSize,
+        );
+        all.addAll(coupons);
+        logger.i(
+            '[getCouponHistory] 페이지 $currentPage 조회완료: ${coupons.length}건 수신 (누적: ${all.length}건)');
+        if (isLast) break;
+        currentPage++;
       }
+      logger.i(
+          '[getCouponHistory] 전체 쿠폰 내역 로딩 완료: 총 ${all.length}건, ${currentPage + 1}페이지');
+      return all;
     } catch (e, s) {
       logger.e('[AppFit API] getCouponHistory 오류: $e');
       _handleError(e, '쿠폰 내역 조회에 실패했습니다.');
     }
+  }
+
+  Future<(List<CouponHistoryInfo>, bool)> _getCouponHistoryPage(
+    String storeId,
+    String userSearchNo, {
+    int page = 0,
+    int size = 500,
+  }) async {
+    final encryptedUserNo = _encrypt(userSearchNo);
+    final dio = _ref.read(appFitDioProvider);
+
+    final response = await dio.get(ApiRoutes.couponHistory, queryParameters: {
+      'shopCode': storeId,
+      'userSearchNo': encryptedUserNo,
+      'page': page,
+      'size': size,
+    });
+
+    if (response.statusCode != 200) {
+      throw Exception('쿠폰 내역 조회 실패: ${response.statusCode}');
+    }
+
+    final data = response.data['data'] as Map<String, dynamic>;
+    final content = data['content'] as List<dynamic>? ?? [];
+    final coupons = content
+        .map((c) => CouponHistoryInfo.fromAppFitJson(c as Map<String, dynamic>))
+        .toList();
+
+    final slice = data['slice'] as Map<String, dynamic>?;
+    final isLast = slice?['last'] as bool? ?? true;
+    logger.i(
+        '[getCouponHistory] 페이지 $page 응답: ${coupons.length}건, isLast=$isLast');
+    return (coupons, isLast);
   }
 
   Future<Map<String, dynamic>> getUserProfile(

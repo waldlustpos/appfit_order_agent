@@ -1,11 +1,9 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:appfit_order_agent/models/membership_model.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
-import 'package:appfit_order_agent/services/api_service.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/exceptions/api_exceptions.dart';
-import 'dart:math' as math;
 
 part 'membership_provider.g.dart';
 
@@ -25,15 +23,14 @@ class MembershipState {
   final bool isLoadingRewardHistory; // Loading state for history data
   final String? errorMessage;
   final String? successMessage; // <<< Add success message field
-  final int stampHistoryCurrentPage;
-  final int couponHistoryCurrentPage;
-  final int availableCouponsCurrentPage;
-  final int pointSaveHistoryCurrentPage;
-  final int pointUseHistoryCurrentPage;
+  final int stampHistoryVisibleCount;
+  final int couponHistoryVisibleCount;
+  final int availableCouponsVisibleCount;
   final String? loadingActionId;
   final String? rewardType;
 
-  static const int itemsPerPage = 10;
+  /// 무한 스크롤 페이지 단위.
+  static const int pageSize = 20;
 
   MembershipState({
     this.customerName = '',
@@ -50,11 +47,9 @@ class MembershipState {
     this.isLoadingRewardHistory = false,
     this.errorMessage,
     this.successMessage,
-    this.stampHistoryCurrentPage = 0,
-    this.couponHistoryCurrentPage = 0,
-    this.availableCouponsCurrentPage = 0,
-    this.pointSaveHistoryCurrentPage = 0,
-    this.pointUseHistoryCurrentPage = 0,
+    this.stampHistoryVisibleCount = pageSize,
+    this.couponHistoryVisibleCount = pageSize,
+    this.availableCouponsVisibleCount = pageSize,
     this.loadingActionId,
     this.rewardType,
   });
@@ -76,11 +71,9 @@ class MembershipState {
     String? successMessage,
     bool clearErrorMessage = false,
     bool clearSuccessMessage = false,
-    int? stampHistoryCurrentPage,
-    int? couponHistoryCurrentPage,
-    int? availableCouponsCurrentPage,
-    int? pointSaveHistoryCurrentPage,
-    int? pointUseHistoryCurrentPage,
+    int? stampHistoryVisibleCount,
+    int? couponHistoryVisibleCount,
+    int? availableCouponsVisibleCount,
     String? loadingActionId,
     bool clearLoadingActionId = false,
     String? rewardType,
@@ -101,113 +94,41 @@ class MembershipState {
           isLoadingRewardHistory ?? this.isLoadingRewardHistory,
       errorMessage:
           clearErrorMessage ? null : errorMessage ?? this.errorMessage,
-      successMessage: clearSuccessMessage
-          ? null
-          : successMessage ?? this.successMessage, // <<< Update copyWith
-      stampHistoryCurrentPage:
-          stampHistoryCurrentPage ?? this.stampHistoryCurrentPage,
-      couponHistoryCurrentPage:
-          couponHistoryCurrentPage ?? this.couponHistoryCurrentPage,
-      availableCouponsCurrentPage:
-          availableCouponsCurrentPage ?? this.availableCouponsCurrentPage,
-      pointSaveHistoryCurrentPage:
-          pointSaveHistoryCurrentPage ?? this.pointSaveHistoryCurrentPage,
-      pointUseHistoryCurrentPage:
-          pointUseHistoryCurrentPage ?? this.pointUseHistoryCurrentPage,
+      successMessage:
+          clearSuccessMessage ? null : successMessage ?? this.successMessage,
+      stampHistoryVisibleCount:
+          stampHistoryVisibleCount ?? this.stampHistoryVisibleCount,
+      couponHistoryVisibleCount:
+          couponHistoryVisibleCount ?? this.couponHistoryVisibleCount,
+      availableCouponsVisibleCount:
+          availableCouponsVisibleCount ?? this.availableCouponsVisibleCount,
       loadingActionId:
           clearLoadingActionId ? null : loadingActionId ?? this.loadingActionId,
       rewardType: rewardType ?? this.rewardType,
     );
   }
 
-  // Helper getters for pagination
-  int get stampHistoryTotalPages => (stampHistory.length / itemsPerPage).ceil();
-  List<StampInfo> get pagedStampHistory {
-    final totalPages = stampHistoryTotalPages;
-    int currentPage = stampHistoryCurrentPage;
-    if (currentPage >= totalPages && totalPages > 0) {
-      currentPage = totalPages - 1;
-    }
-    if (currentPage < 0) currentPage = 0;
-    final startIndex = currentPage * itemsPerPage;
-    final endIndex = math.min(startIndex + itemsPerPage, stampHistory.length);
-    return (startIndex < endIndex)
-        ? stampHistory.sublist(startIndex, endIndex)
-        : [];
-  }
+  // ─── 무한 스크롤 슬라이딩 윈도우 ──────────────────────────────────────────
+  //
+  // 서버가 전체 목록을 한 번에 돌려주므로, 클라이언트 측에서 visibleCount 만큼
+  // 잘라서 보여주고 스크롤 하단 도달 시 pageSize 씩 늘린다.
 
-  int get couponHistoryTotalPages {
-    final filtered = couponHistory
-        .where((c) => c.status.toUpperCase() == 'USED' || c.status == '9')
-        .toList();
-    return (filtered.length / itemsPerPage).ceil();
-  }
+  List<StampInfo> get visibleStampHistory =>
+      stampHistory.take(stampHistoryVisibleCount).toList();
+  bool get hasMoreStampHistory =>
+      stampHistoryVisibleCount < stampHistory.length;
 
-  List<CouponHistoryInfo> get pagedCouponHistory {
-    final filtered = couponHistory
-        .where((c) => c.status.toUpperCase() == 'USED' || c.status == '9')
-        .toList();
-    final totalPages = couponHistoryTotalPages;
-    int currentPage = couponHistoryCurrentPage;
-    if (currentPage >= totalPages && totalPages > 0) {
-      currentPage = totalPages - 1;
-    }
-    if (currentPage < 0) currentPage = 0;
-    final startIndex = currentPage * itemsPerPage;
-    final endIndex = math.min(startIndex + itemsPerPage, filtered.length);
-    return (startIndex < endIndex)
-        ? filtered.sublist(startIndex, endIndex)
-        : [];
-  }
+  List<CouponHistoryInfo> get visibleCouponHistory =>
+      couponHistory.take(couponHistoryVisibleCount).toList();
+  bool get hasMoreCouponHistory =>
+      couponHistoryVisibleCount < couponHistory.length;
 
-  int get availableCouponsTotalPages =>
-      ((membershipInfo?.coupons.length ?? 0) / itemsPerPage).ceil();
-  List<CouponInfo> get pagedAvailableCoupons {
-    final coupons = membershipInfo?.coupons ?? [];
-    final totalPages = availableCouponsTotalPages;
-    int currentPage = availableCouponsCurrentPage;
-    if (currentPage >= totalPages && totalPages > 0) {
-      currentPage = totalPages - 1;
-    }
-    if (currentPage < 0) currentPage = 0;
-    final startIndex = currentPage * itemsPerPage;
-    final endIndex = math.min(startIndex + itemsPerPage, coupons.length);
-    return (startIndex < endIndex) ? coupons.sublist(startIndex, endIndex) : [];
-  }
-
-  int get pointSaveHistoryTotalPages =>
-      (pointSaveHistory.length / itemsPerPage).ceil();
-  List<PointHistoryInfo> get pagedPointSaveHistory {
-    final totalPages = pointSaveHistoryTotalPages;
-    int currentPage = pointSaveHistoryCurrentPage;
-    if (currentPage >= totalPages && totalPages > 0) {
-      currentPage = totalPages - 1;
-    }
-    if (currentPage < 0) currentPage = 0;
-    final startIndex = currentPage * itemsPerPage;
-    final endIndex =
-        math.min(startIndex + itemsPerPage, pointSaveHistory.length);
-    return (startIndex < endIndex)
-        ? pointSaveHistory.sublist(startIndex, endIndex)
-        : [];
-  }
-
-  int get pointUseHistoryTotalPages =>
-      (pointUseHistory.length / itemsPerPage).ceil();
-  List<PointHistoryInfo> get pagedPointUseHistory {
-    final totalPages = pointUseHistoryTotalPages;
-    int currentPage = pointUseHistoryCurrentPage;
-    if (currentPage >= totalPages && totalPages > 0) {
-      currentPage = totalPages - 1;
-    }
-    if (currentPage < 0) currentPage = 0;
-    final startIndex = currentPage * itemsPerPage;
-    final endIndex =
-        math.min(startIndex + itemsPerPage, pointUseHistory.length);
-    return (startIndex < endIndex)
-        ? pointUseHistory.sublist(startIndex, endIndex)
-        : [];
-  }
+  List<CouponInfo> get visibleAvailableCoupons =>
+      (membershipInfo?.coupons ?? [])
+          .take(availableCouponsVisibleCount)
+          .toList();
+  bool get hasMoreAvailableCoupons =>
+      availableCouponsVisibleCount < (membershipInfo?.coupons.length ?? 0);
 }
 
 // Notifier class
@@ -270,27 +191,17 @@ class Membership extends _$Membership {
       logToFile(tag: LogTag.API, message: '멤버십 정보 조회 성공: $membershipData');
 
       // 4. Fetch Reward History (Parallel fetch for performance)
+      // 두 API 모두 ApiService 내부에서 slice.last까지 페이지를 순회하며
+      // 누적된 List를 반환한다(pageSize 500).
       logger.i('Fetching STAMP & COUPON history...');
 
       final results = await Future.wait([
         _apiService.getStampHistory(phone, _storeId),
-        _apiService.getCouponHistory(_storeId, phone, size: 50)
+        _apiService.getCouponHistory(_storeId, phone),
       ]);
 
-      final stampHistoryData = results[0];
-      final couponHistoryData = results[1];
-
-      final stampDataRaw = stampHistoryData['content'] as List<dynamic>? ?? [];
-      final couponDataRaw =
-          couponHistoryData['content'] as List<dynamic>? ?? [];
-
-      final stampData = stampDataRaw
-          .map((s) => StampInfo.fromAppFitJson(s as Map<String, dynamic>))
-          .toList();
-      final couponData = couponDataRaw
-          .map((c) =>
-              CouponHistoryInfo.fromAppFitJson(c as Map<String, dynamic>))
-          .toList();
+      final stampData = results[0] as List<StampInfo>;
+      final couponData = results[1] as List<CouponHistoryInfo>;
 
       stampData.sort((a, b) => b.logDate.compareTo(a.logDate));
       couponData.sort((a, b) => b.useDate.compareTo(a.useDate));
@@ -299,6 +210,9 @@ class Membership extends _$Membership {
         stampHistory: stampData,
         couponHistory: couponData,
         isLoadingRewardHistory: false,
+        stampHistoryVisibleCount: MembershipState.pageSize,
+        couponHistoryVisibleCount: MembershipState.pageSize,
+        availableCouponsVisibleCount: MembershipState.pageSize,
       );
       logger.i(
           'STAMP history fetch success: ${stampData.length} stamps, ${couponData.length} coupons');
@@ -543,17 +457,29 @@ class Membership extends _$Membership {
     }
   }
 
-  // --- Pagination & Other UI Helpers ---
-  void setStampHistoryPage(int page) {
-    state = state.copyWith(stampHistoryCurrentPage: page);
+  // --- 무한 스크롤 ---
+  void loadMoreStampHistory() {
+    if (!state.hasMoreStampHistory) return;
+    state = state.copyWith(
+      stampHistoryVisibleCount:
+          state.stampHistoryVisibleCount + MembershipState.pageSize,
+    );
   }
 
-  void setCouponHistoryPage(int page) {
-    state = state.copyWith(couponHistoryCurrentPage: page);
+  void loadMoreCouponHistory() {
+    if (!state.hasMoreCouponHistory) return;
+    state = state.copyWith(
+      couponHistoryVisibleCount:
+          state.couponHistoryVisibleCount + MembershipState.pageSize,
+    );
   }
 
-  void setAvailableCouponsPage(int page) {
-    state = state.copyWith(availableCouponsCurrentPage: page);
+  void loadMoreAvailableCoupons() {
+    if (!state.hasMoreAvailableCoupons) return;
+    state = state.copyWith(
+      availableCouponsVisibleCount:
+          state.availableCouponsVisibleCount + MembershipState.pageSize,
+    );
   }
 
   Future<Map<String, dynamic>?> validateCoupon(String couponNo) async {

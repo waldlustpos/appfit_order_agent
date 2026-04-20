@@ -627,37 +627,34 @@ ${orders.length > 5 ? '...외 ${orders.length - 5}개 더 있음' : ''}
 
     try {
       final pref = ref.read(preferenceServiceProvider);
-      final testShopCode = pref.getId() ?? 'TPCP00002';
+      final testShopCode = pref.getId() ?? 'MHST00001';
 
       // 1. 테스트 데이터 구성
-      const testUserSearchNo = '1621725316154595'; // 테스트용 번호
+      const testUserSearchNo = '01062947151'; // 테스트용 번호
 
-      // 2. API 호출
+      // 2. API 호출 (전체 페이지 누적 반환, ISSUED/USED/EXPIRED/CANCELLED 모두 포함)
       final apiService = ref.read(apiServiceProvider);
-      final history =
+      final coupons =
           await apiService.getCouponHistory(testShopCode, testUserSearchNo);
-
-      final List<dynamic> content = history['content'] ?? [];
 
       // 3. 결과 출력
       setState(() {
         final buffer = StringBuffer();
         buffer.writeln('✅ 쿠폰 내역 조회 성공!');
         buffer.writeln('검색번호: $testUserSearchNo');
-        buffer.writeln('조회 결과: ${content.length}건');
+        buffer.writeln('조회 결과: ${coupons.length}건');
         buffer.writeln('');
-        for (var item in content) {
-          buffer.writeln('- [${item['status']}] ${item['title']}');
-          buffer.writeln('  번호: ${item['couponNo']}');
-          if (item['usedAt'] != null) {
-            buffer.writeln('  사용일: ${item['usedAt']}');
-          }
+        for (final coupon in coupons) {
+          buffer.writeln('- [${coupon.status}] ${coupon.title}');
+          buffer.writeln('  번호: ${coupon.couponId}');
+          buffer.writeln(
+              '  사용일: ${DateFormat('yyyy-MM-dd HH:mm').format(coupon.useDate)}');
           buffer.writeln('');
         }
         _result = buffer.toString();
       });
 
-      logger.i('[AppFit 테스트] 쿠폰 내역 조회 성공: ${content.length}건');
+      logger.i('[AppFit 테스트] 쿠폰 내역 조회 성공: ${coupons.length}건');
     } catch (e, s) {
       logger.e('[AppFit 테스트] 쿠폰 내역 조회 실패', error: e, stackTrace: s);
       setState(() {
@@ -688,14 +685,14 @@ ${orders.length > 5 ? '...외 ${orders.length - 5}개 더 있음' : ''}
 
     try {
       final pref = ref.read(preferenceServiceProvider);
-      final testShopCode = pref.getId() ?? 'TPCP00002';
+      final testShopCode = pref.getId() ?? 'MHST00001';
       var testUserSearchNo =
           CryptoUtils.encryptAesGcm('01062947151', AppEnv.aesKey); // 테스트용 번호
 
       // 1. API 호출
       final apiService = ref.read(apiServiceProvider);
       final response =
-          await apiService.getUserProfile(testShopCode, testUserSearchNo);
+          await apiService.getUserProfile(testShopCode, 'testUserSearchNo');
 
       final data = response['data'] as Map<String, dynamic>?;
 
@@ -859,17 +856,15 @@ ${orders.length > 5 ? '...외 ${orders.length - 5}개 더 있음' : ''}
       final testUserPhone = '01062947151';
 
       final apiService = ref.read(apiServiceProvider);
-      final history =
+      final stamps =
           await apiService.getStampHistory(testUserPhone, testShopCode);
-      final List<dynamic> stamps = history['content'] ?? [];
 
       setState(() {
         final buffer = StringBuffer();
         buffer.writeln('✅ 스탬프 내역 조회 성공!');
         buffer.writeln('조회 결과: ${stamps.length}건');
         buffer.writeln('');
-        for (var item in stamps) {
-          final stamp = StampInfo.fromAppFitJson(item as Map<String, dynamic>);
+        for (final stamp in stamps) {
           buffer.writeln('- [${stamp.status}] ${stamp.stampCount}개');
           buffer.writeln(
               '  날짜: ${DateFormat('yyyy-MM-dd HH:mm').format(stamp.logDate)}');
@@ -912,9 +907,8 @@ ${orders.length > 5 ? '...외 ${orders.length - 5}개 더 있음' : ''}
       final apiService = ref.read(apiServiceProvider);
 
       // 1. 먼저 내역조회해서 최근 적립건 찾기
-      final history =
+      final stamps =
           await apiService.getStampHistory(testUserPhone, testShopCode);
-      final List<dynamic> stamps = history['content'] ?? [];
 
       if (stamps.isEmpty) {
         setState(() {
@@ -923,8 +917,7 @@ ${orders.length > 5 ? '...외 ${orders.length - 5}개 더 있음' : ''}
         return;
       }
 
-      final latestStamp =
-          StampInfo.fromAppFitJson(stamps.first as Map<String, dynamic>);
+      final latestStamp = stamps.first;
 
       // 2. 취소 호출
       final success = await apiService.cancelStamp(latestStamp.rewardId);
