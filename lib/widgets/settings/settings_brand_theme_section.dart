@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:appfit_order_agent/i18n/strings.g.dart';
 import '../../constants/app_styles.dart';
@@ -109,7 +108,8 @@ class SettingsBrandThemeSection extends ConsumerWidget {
     );
 
     if (shouldQuit == true) {
-      await SystemNavigator.pop();
+      logToFile(tag: LogTag.UI_ACTION, message: '브랜드 테마 변경 — 앱 재시작 호출');
+      await PlatformService.restartApp();
     }
   }
 }

@@ -9,7 +9,11 @@ enum BrandTheme {
     loginBackground: Color(0xFFfb3e7e),
     onLoginBackground: Colors.white,
     logoAsset: null,
-    loginGradient: null,
+    loginGradient: LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [Color(0xFFfb3e7e), Color(0xFF9843cb)],
+    ),
   ),
   mammothCoffee(
     id: 'mammoth_coffee',

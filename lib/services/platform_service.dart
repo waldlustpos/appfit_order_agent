@@ -145,8 +145,8 @@ class PlatformService {
   /// 시스템 디스플레이 회전 설정 (reversed=true: 180도, false: 정상)
   static Future<bool> setSystemRotation(bool reversed) async {
     try {
-      final bool? result =
-          await platform.invokeMethod('setSystemRotation', {'reversed': reversed});
+      final bool? result = await platform
+          .invokeMethod('setSystemRotation', {'reversed': reversed});
       return result ?? false;
     } catch (e, s) {
       logger.e('시스템 회전 설정 중 오류 발생', error: e, stackTrace: s);
@@ -297,9 +297,13 @@ class PlatformService {
     }
   }
 
-  /// 앱 재시작
-  Future<void> restartApp() async {
-    await platform.invokeMethod('restartApp');
+  /// 앱 재시작 (네이티브에서 새 Activity로 재부팅)
+  static Future<void> restartApp() async {
+    try {
+      await platform.invokeMethod('restartApp');
+    } on PlatformException catch (e) {
+      logger.w('[PlatformService] restartApp 호출 실패: ${e.message}');
+    }
   }
 
   /// 배치 로그 기록 (정적 메서드)
