@@ -496,7 +496,7 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
 
   Widget _buildTabBar() {
     return TabBar(
-      indicatorPadding: const EdgeInsets.only(bottom: 10),
+      indicatorPadding: const EdgeInsets.only(bottom: 4),
       dividerColor: Colors.transparent,
       isScrollable: false,
       labelColor: AppStyles.gray9,
