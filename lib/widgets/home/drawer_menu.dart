@@ -85,16 +85,13 @@ class _DrawerHeader extends StatelessWidget {
       decoration: BoxDecoration(color: AppStyles.kMainColor),
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.s8),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.25),
-              borderRadius: AppRadius.bMd,
-            ),
-            child: const Icon(
-              Icons.storefront_outlined,
-              color: Colors.white,
-              size: 20,
+          ClipRRect(
+            borderRadius: AppRadius.bMd,
+            child: Image.asset(
+              'assets/icons/app_icon.png',
+              width: 36,
+              height: 36,
+              fit: BoxFit.cover,
             ),
           ),
           const SizedBox(width: AppSpacing.s12),
