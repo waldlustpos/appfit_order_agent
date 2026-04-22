@@ -234,6 +234,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _onEnvChanged(String env) async {
+    // 이전 환경 WebSocket을 먼저 해제해 configure 이후의 잔존 연결을 방지
+    ref.read(authProvider.notifier).unauthenticate();
+
     await _preferenceService.setEnvironment(env);
     await _preferenceService.setEnvironmentManualOverride(true);
 
@@ -247,13 +250,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     AppFitConfig.configure(
         environment: newEnvironment, requestSource: 'ORDER_AGENT');
 
-    await ref.read(appfit_providers.appFitTokenManagerProvider).clearToken();
+    final tokenManager = ref.read(appfit_providers.appFitTokenManagerProvider);
+    await tokenManager.clearToken();
+    await tokenManager.clearPassword();
     final secureStorage = SecureStorageService();
     await secureStorage.delete(SecureStorageService.appFitProjectId);
     await secureStorage.delete(SecureStorageService.appFitProjectApiKey);
 
     ref.invalidate(appfit_providers.appFitTokenManagerProvider);
     ref.invalidate(appfit_providers.appFitDioProvider);
+    // appFitNotifierServiceProvider 는 invalidate 금지:
+    // AppFitNotifierNotifier._coreService 가 `late final` 이라 build() 재실행 시
+    // LateInitializationError 발생. disconnect() 만으로 이전 연결 정리 충분.
 
     await _preferenceService.clearLoginInfo();
     setState(() => _selectedEnv = env);

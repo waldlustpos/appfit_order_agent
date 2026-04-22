@@ -12,6 +12,7 @@ import '../services/platform_service.dart';
 import '../services/preference_service.dart';
 import '../services/migration/v2_migration_service.dart';
 import '../services/appfit/appfit_providers.dart' as appfit_providers;
+import '../services/secure_storage_service.dart';
 import '../providers/auth_provider.dart';
 import '../providers/store_provider.dart';
 
@@ -928,6 +929,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
     if (selected == null || selected == _selectedEnv) return;
 
+    // 이전 환경 잔존 상태 제거: WebSocket 해제 → 자격증명/토큰 정리 → Provider invalidate
+    ref.read(authProvider.notifier).unauthenticate();
+
     final preferenceService = PreferenceService();
     await preferenceService.setEnvironment(selected);
 
@@ -943,8 +947,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       requestSource: 'ORDER_AGENT',
     );
 
+    final tokenManager = ref.read(appfit_providers.appFitTokenManagerProvider);
+    await tokenManager.clearToken();
+    await tokenManager.clearPassword();
+
+    final secureStorage = SecureStorageService();
+    await secureStorage.delete(SecureStorageService.appFitProjectId);
+    await secureStorage.delete(SecureStorageService.appFitProjectApiKey);
+
+    await preferenceService.clearLoginInfo();
+
     ref.invalidate(appfit_providers.appFitTokenManagerProvider);
     ref.invalidate(appfit_providers.appFitDioProvider);
+    // appFitNotifierServiceProvider 는 invalidate 금지:
+    // AppFitNotifierNotifier._coreService 가 `late final` 이라 build() 재실행 시
+    // LateInitializationError 발생. disconnect() 만으로 이전 연결 정리 충분하며
+    // 재로그인 시 같은 인스턴스에 새 shopCode/projectId/apiKey 로 connect() 호출.
 
     setState(() => _selectedEnv = selected);
     logger.i('[LoginScreen] 서버 환경 수동 변경: → $selected');
