@@ -1607,8 +1607,20 @@ class Order extends _$Order {
         if (ref.read(kdsModeProvider)) {
           continue;
         }
-        // 이미 처리된 주문은 건너뜀 (위에서 processedOrderIds 체크 했으므로 중복이지만 안전상 유지하거나 제거 가능. 여기선 제거)
-        // if (processedOrderIds.contains(order.orderId)) { ... } -> Removed redundant check
+
+        // 서버 PUT 반영 지연으로 폴링이 구버전 NEW 를 돌려주는 경우, 로컬 state 가
+        // 이미 진행 상태(PREPARING 등)라면 자동접수 재시도를 차단한다. _processNewOrdersWhenRefresh
+        // 와 동일 정신의 가드로, _resolveMergedStatus 를 거치지 않는 이 별도 폴링 경로에서도
+        // "이미 수락된 주문입니다" 400 을 사전 방지한다.
+        final existingInState = state.orders.firstWhere(
+          (o) => o.orderId == order.orderId,
+          orElse: () => order,
+        );
+        if (existingInState.status != OrderStatus.NEW) {
+          logger.d(
+              '[Polling] 자동접수 스킵 - 로컬 상태=${existingInState.status}: ${order.orderId}');
+          continue;
+        }
 
         processedOrderIds.add(order.orderId);
 
