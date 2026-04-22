@@ -6,7 +6,7 @@
 /// Locales: 3
 /// Strings: 1013 (337 per locale)
 ///
-/// Built on 2026-04-20 at 01:50 UTC
+/// Built on 2026-04-22 at 03:06 UTC
 
 // coverage:ignore-file
 // ignore_for_file: type=lint
@@ -907,7 +907,7 @@ class _StringsMembershipTabsKo {
 
 	// Translations
 	String get stamps => '스탬프내역';
-	String get coupons => '쿠폰사용내역';
+	String get coupons => '쿠폰내역';
 	String get available => '보유쿠폰';
 }
 
@@ -1010,7 +1010,7 @@ class _StringsSettingsThemeOptionsKo {
 
 	// Translations
 	String get appfit_default => '기본';
-	String get mammoth_coffee => '매머드커피';
+	String get mammoth_coffee => 'Brown';
 }
 
 // Path: settings.developer_options.appfit_test
@@ -1818,7 +1818,7 @@ class _StringsMembershipTabsEn extends _StringsMembershipTabsKo {
 
 	// Translations
 	@override String get stamps => 'Stamps';
-	@override String get coupons => 'Usage';
+	@override String get coupons => 'History';
 	@override String get available => 'Coupons';
 }
 
@@ -1921,7 +1921,7 @@ class _StringsSettingsThemeOptionsEn extends _StringsSettingsThemeOptionsKo {
 
 	// Translations
 	@override String get appfit_default => 'Default';
-	@override String get mammoth_coffee => 'Mammoth Coffee';
+	@override String get mammoth_coffee => 'Brown';
 }
 
 // Path: settings.developer_options.appfit_test
@@ -2721,7 +2721,7 @@ class _StringsMembershipTabsJa extends _StringsMembershipTabsKo {
 
 	// Translations
 	@override String get stamps => 'スタンプ内訳';
-	@override String get coupons => 'クーポン使用内訳';
+	@override String get coupons => 'クーポン履歴';
 	@override String get available => '保有クーポン';
 }
 
@@ -2824,7 +2824,7 @@ class _StringsSettingsThemeOptionsJa extends _StringsSettingsThemeOptionsKo {
 
 	// Translations
 	@override String get appfit_default => 'デフォルト';
-	@override String get mammoth_coffee => 'マンモスコーヒー';
+	@override String get mammoth_coffee => 'Brown';
 }
 
 // Path: settings.developer_options.appfit_test

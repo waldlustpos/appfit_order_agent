@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -9,7 +11,7 @@ import 'package:appfit_order_agent/utils/logger.dart';
 import '../../models/order_model.dart';
 import '../../providers/providers.dart';
 import '../../providers/currency_provider.dart';
-import 'package:appfit_order_agent/core/orders/output_service.dart';
+import 'package:appfit_order_agent/services/output_queue_service.dart';
 import 'package:appfit_order_agent/i18n/strings.g.dart';
 import 'order_menu_list_widget.dart';
 import 'order_payment_info_widget.dart';
@@ -40,6 +42,35 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
 
   late final OrderModel _originalOrder;
 
+  /// 라벨 재출력 버튼 전용 연타 방지 타임스탬프 + 로컬 진행 플래그.
+  /// 재출력 버튼에만 1초 디바운스/프로그레스 적용 (닫기/기타 액션 버튼에는 영향 없음).
+  DateTime? _lastReprintAt;
+  bool _isReprintBusy = false;
+  Timer? _reprintBusyTimer;
+  static const Duration _reprintDebounce = Duration(seconds: 1);
+
+  bool _consumeReprintDebounce() {
+    final now = DateTime.now();
+    if (_lastReprintAt != null &&
+        now.difference(_lastReprintAt!) < _reprintDebounce) {
+      logToFile(
+          tag: LogTag.UI_ACTION, message: '라벨 재출력 버튼 디바운스 차단 (1초 이내 재클릭)');
+      return false;
+    }
+    _lastReprintAt = now;
+    return true;
+  }
+
+  /// 재출력 버튼에 1초 프로그레스를 표시한다. 이 기간 동안 버튼은 비활성.
+  /// 다른 버튼(닫기 등)에는 영향 주지 않기 위해 공용 loadingActionId 대신 로컬 플래그 사용.
+  void _startReprintProgress() {
+    setState(() => _isReprintBusy = true);
+    _reprintBusyTimer?.cancel();
+    _reprintBusyTimer = Timer(_reprintDebounce, () {
+      if (mounted) setState(() => _isReprintBusy = false);
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -59,6 +90,7 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
 
   @override
   void dispose() {
+    _reprintBusyTimer?.cancel();
     _menuScrollController.dispose();
     super.dispose();
   }
@@ -419,17 +451,22 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
         secondary: [
           close(),
           if (ref.read(preferenceServiceProvider).getUseLabelPrinter())
-            _buildButton(t.order_detail.btn_label_reprint, onPressed: () async {
-              if (ref.read(orderDetailProvider).loadingActionId != null) {
-                return;
-              }
-              logToFile(
-                  tag: LogTag.UI_ACTION,
-                  message: '라벨 재출력 버튼 클릭: ${order.orderNo}');
-              await ref
-                  .read(outputAppServiceProvider)
-                  .printOrderLabels(order, isReprint: true);
-            }, actionId: 'reprintLabel'),
+            _buildButton(
+              t.order_detail.btn_label_reprint,
+              onPressed: () async {
+                if (ref.read(orderDetailProvider).loadingActionId != null) {
+                  return;
+                }
+                if (!_consumeReprintDebounce()) return;
+                _startReprintProgress();
+                logToFile(
+                    tag: LogTag.UI_ACTION,
+                    message: '라벨 재출력 버튼 클릭: ${order.orderNo}');
+                ref.read(outputQueueServiceProvider).addReprint(order);
+              },
+              actionId: 'reprintLabel',
+              externalIsLoading: _isReprintBusy,
+            ),
         ],
         primary: _buildButton(
           t.order_detail.btn_pickup_request,
@@ -630,14 +667,15 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
           t.order_detail.btn_label_reprint,
           onPressed: () async {
             if (ref.read(orderDetailProvider).loadingActionId != null) return;
+            if (!_consumeReprintDebounce()) return;
+            _startReprintProgress();
             logToFile(
                 tag: LogTag.UI_ACTION,
                 message: '라벨 재출력 버튼 클릭: ${order.orderNo}');
-            await ref
-                .read(outputAppServiceProvider)
-                .printOrderLabels(order, isReprint: true);
+            ref.read(outputQueueServiceProvider).addReprint(order);
           },
           actionId: 'reprintLabel',
+          externalIsLoading: _isReprintBusy,
         );
 
     final isFromHistory = widget.isFromHistory;
@@ -826,10 +864,14 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
     required VoidCallback? onPressed,
     required String actionId,
     bool isMainAction = false,
+    bool externalIsLoading = false,
   }) {
     final currentOrderId = _originalOrder.orderId;
     final providerState = ref.read(orderDetailProvider);
-    final bool isLoading = providerState.loadingActionId == actionId;
+    // externalIsLoading: 이 버튼 고유의 진행 상태 (예: 라벨 재출력 디바운스)
+    // — 공용 loadingActionId 와 독립적으로 동작해야 다른 버튼(닫기 등)에 영향 없음.
+    final bool isLoading =
+        providerState.loadingActionId == actionId || externalIsLoading;
     final bool isActionInProgress = providerState.loadingActionId != null;
 
     if (isActionInProgress) {
@@ -862,7 +904,7 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
                 AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
               ),
             ),
-      onPressed: isActionInProgress ? null : onPressed,
+      onPressed: (isActionInProgress || externalIsLoading) ? null : onPressed,
       child: Stack(
         alignment: Alignment.center,
         children: [

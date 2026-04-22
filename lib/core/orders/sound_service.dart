@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:appfit_order_agent/services/preference_service.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
@@ -34,6 +35,17 @@ class SoundService {
   static const Duration _defaultDelay = Duration(milliseconds: 2000);
   static const Duration _playbackBuffer = Duration(milliseconds: 200);
 
+  /// dispose 된 AudioPlayer 를 재초기화한다.
+  /// Sentry APPFIT-ORDER-AGENT-N: `Player has not yet been created or has
+  /// already been disposed.` 발생 시 복구용.
+  void _ensurePlayer() {
+    if (_isDisposed) {
+      logger.w('[SoundService] 플레이어 dispose 상태 감지, 재초기화');
+      _player = AudioPlayer();
+      _isDisposed = false;
+    }
+  }
+
   void reloadSettings() {
     try {
       _soundFileName = _preferenceService.getSound();
@@ -43,7 +55,12 @@ class SoundService {
       _cachedDuration = null;
 
       if (!_isDisposed) {
-        _player.setVolume(_volume);
+        try {
+          _player.setVolume(_volume);
+        } on PlatformException catch (e) {
+          logger.w('[SoundService] setVolume 실패 (disposed 가능성): $e');
+          _isDisposed = true;
+        }
         logger.i(
             '[SoundService] 설정 로드: file=$_soundFileName, count=$_playCount, vol=$_volume');
       }
@@ -57,11 +74,7 @@ class SoundService {
       // 항상 최신 설정 로드 (설정 변경 시 반영)
       reloadSettings();
 
-      if (_isDisposed) {
-        logger.w('[SoundService] 플레이어 dispose 상태, 재초기화');
-        _player = AudioPlayer();
-        _isDisposed = false;
-      }
+      _ensurePlayer();
 
       if (_soundFileName.isEmpty || _playCount == 0) {
         logger.w('[SoundService] 사운드 설정 없음, 재생 건너뜀');
@@ -90,12 +103,24 @@ class SoundService {
           try {
             await _player.setSource(_soundSource!);
             _cachedDuration = await _player.getDuration();
+          } on PlatformException catch (e) {
+            logger.w('[SoundService] setSource 실패 (disposed 가능): $e');
+            _isDisposed = true;
+            _isPlaying = false;
+            return;
           } catch (e, s) {
             logger.w('[SoundService] 길이 조회 실패, 기본 지연 사용: $e');
           }
         }
 
-        _player.setVolume(_volume);
+        try {
+          _player.setVolume(_volume);
+        } on PlatformException catch (e) {
+          logger.w('[SoundService] setVolume 실패: $e');
+          _isDisposed = true;
+          _isPlaying = false;
+          return;
+        }
         _processNextAlarm();
       }
     } catch (e, s) {
@@ -137,6 +162,13 @@ class SoundService {
       return;
     }
 
+    if (_isDisposed) {
+      logger.w('[SoundService] 재생 중 플레이어 dispose 감지, 세션 종료');
+      _isPlaying = false;
+      _remainingPlays = 0;
+      return;
+    }
+
     try {
       logger.d('[SoundService] 단위 재생 시작: 해당 세션 남은 횟수=$_remainingPlays');
       await _player.stop();
@@ -161,6 +193,12 @@ class SoundService {
           }
         });
       }
+    } on PlatformException catch (e) {
+      // Sentry APPFIT-ORDER-AGENT-N 대응: 재생 중 플레이어가 disposed 된 경우
+      logger.w('[SoundService] 재생 중 PlatformException (disposed 가능): $e');
+      _isDisposed = true;
+      _isPlaying = false;
+      _remainingPlays = 0;
     } catch (e, s) {
       logger.e('[SoundService] loop 재생 오류', error: e, stackTrace: s);
       _processNextAlarm(); // 에러 발생 시 현재 것 취소하고 다음 큐 진행
@@ -168,8 +206,17 @@ class SoundService {
   }
 
   Future<void> stop() async {
+    if (_isDisposed) {
+      _isPlaying = false;
+      _remainingPlays = 0;
+      _alarmQueue.clear();
+      return;
+    }
     try {
       await _player.stop();
+    } on PlatformException catch (e) {
+      logger.w('[SoundService] stop 중 PlatformException: $e');
+      _isDisposed = true;
     } catch (_) {}
     _isPlaying = false;
     _remainingPlays = 0;
@@ -178,11 +225,12 @@ class SoundService {
   }
 
   Future<void> dispose() async {
+    if (_isDisposed) return;
+    _isDisposed = true;
     try {
       await _player.dispose();
     } catch (_) {}
     _startupTimer?.cancel();
-    _isDisposed = true;
     _isPlaying = false;
     _remainingPlays = 0;
     _sessionId = 0;

@@ -138,7 +138,12 @@ class _KdsCardGridLayoutWidgetState
               if (scrollInfo.metrics.pixels >=
                   scrollInfo.metrics.maxScrollExtent -
                       KdsCardMetrics.loadMoreThreshold) {
-                ref.read(orderProvider.notifier).loadMoreOrders();
+                // loadMoreOrders 내부에서 state 가 갱신되는데, 레이아웃 단계에서
+                // 직접 호출하면 `Tried to modify a provider while the widget tree
+                // was building.` (Sentry APPFIT-ORDER-AGENT-D) 이 발생하므로
+                // 다음 마이크로태스크로 미룬다.
+                Future.microtask(
+                    () => ref.read(orderProvider.notifier).loadMoreOrders());
               }
               return false;
             },

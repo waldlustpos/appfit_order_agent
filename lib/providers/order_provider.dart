@@ -83,8 +83,11 @@ class Order extends _$Order {
     _settingsManager = OrderSettingsManager(ref, _preferenceService);
     _stateManager = OrderStateManager(ref);
     _cacheManager = OrderCacheManager(ref, _orderDetailCache);
-    _queueManager =
-        OrderQueueManager(ref, onProcessSingleOrder: _processSingleOrder);
+    _queueManager = OrderQueueManager(
+      ref,
+      onProcessSingleOrder: _processSingleOrder,
+      onProcessBatchOrders: _processBatchOrders,
+    );
 
     // [NEW] OutputQueueService 초기화
     _outputQueueService = ref.read(outputQueueServiceProvider);
@@ -320,6 +323,83 @@ class Order extends _$Order {
     await _processOrderByStatus(order);
   }
 
+  /// 상태 변경(NEW 이외) 주문을 한 번의 state 업데이트로 일괄 merge.
+  /// 메인 에이전트의 일괄 완료 API 결과가 WebSocket으로 7~12건 동시에 푸시될 때
+  /// 건별 rebuild 로 UI 스레드가 포화되는 ANR 을 방지한다.
+  Future<void> _processBatchOrders(List<OrderModel> batch) async {
+    if (batch.isEmpty) return;
+
+    final String todayDate = todayDateString();
+    final updatedOrders = List<OrderModel>.from(state.orders);
+    bool changed = false;
+
+    for (final order in batch) {
+      final existingIndex =
+          updatedOrders.indexWhere((o) => o.orderId == order.orderId);
+      final orderDate = DateFormat('yyyy-MM-dd').format(order.orderedAt);
+      final bool belongsToToday = orderDate == todayDate;
+
+      if (existingIndex == -1) {
+        // 신규로 들어온 상태 변경 주문 (드물지만 발생 가능)
+        if (belongsToToday && _shouldShowOrder(order)) {
+          OrderModel orderToAdd = order;
+          final cached = _orderDetailCache.get(order.orderId);
+          if (!order.isDetailLoaded &&
+              cached != null &&
+              cached.isDetailLoaded) {
+            orderToAdd = order.copyWith(
+              menus: cached.menus,
+              isDetailLoaded: true,
+              kdsOrderType: cached.kdsOrderType,
+            );
+          }
+          updatedOrders.add(orderToAdd);
+          changed = true;
+        }
+        continue;
+      }
+
+      final existingOrder = updatedOrders[existingIndex];
+      if (existingOrder.status == order.status &&
+          existingOrder.updateTime == order.updateTime) {
+        continue;
+      }
+
+      OrderModel mergedOrder = order;
+      if (!order.isDetailLoaded && existingOrder.isDetailLoaded) {
+        mergedOrder = order.copyWith(
+          menus: existingOrder.menus,
+          isDetailLoaded: true,
+          kdsOrderType: existingOrder.kdsOrderType,
+        );
+        _orderDetailCache.put(mergedOrder.orderId, mergedOrder);
+      }
+      updatedOrders[existingIndex] = mergedOrder;
+      changed = true;
+    }
+
+    if (changed) {
+      state = state.copyWith(
+        orders: updatedOrders,
+        activeOrderCount: _calculateActiveOrderCount(updatedOrders),
+      );
+      logger.i(
+          '[OrderProvider] 상태 배치 merge 완료: ${batch.length}건 → 1회 state 업데이트');
+    }
+
+    // 상태별 부수 효과(알림/라벨/사운드)는 개별 처리
+    // 배치에 포함되는 NEW 이외 상태는 대부분 부수효과가 없으나,
+    // KDS 모드의 PREPARING(접수) / READY(픽업요청) 는 알림·라벨이 필요.
+    for (final order in batch) {
+      try {
+        await _processOrderByStatus(order);
+      } catch (e, s) {
+        logger.e('[OrderProvider] 배치 주문 부수효과 처리 실패: ${order.orderId}',
+            error: e, stackTrace: s);
+      }
+    }
+  }
+
   // 주문 목록에 업데이트하고 변경 여부 반환
   Future<bool> _updateOrderInStateList(OrderModel order) async {
     try {
@@ -510,8 +590,8 @@ class Order extends _$Order {
           logger.d('$modeText: 자동 접수 성공: ${order.orderId}');
           // 접수 성공 시: 프린트 실행 (키오스크 출력/알람 설정 반영)
           if (_shouldNotifyForOrder(order)) {
-            logger
-                .d('$modeText: processOrderOutput 호출 시작 - 주문: ${order.orderId}');
+            logger.d(
+                '$modeText: processOrderOutput 호출 시작 - 주문: ${order.orderId}');
             await _outputService.notifyNewOrder(order, playSound: false);
             logger.d('$modeText: processOrderOutput 완료 - 주문: ${order.orderId}');
           } else {
@@ -705,7 +785,9 @@ class Order extends _$Order {
         } else {
           // 캐시 미스: 현재 state.orders에서 상세 정보 복원 시도 (소켓으로 받은 주문 등)
           final existing = existingOrderMap[basicOrder.orderId];
-          if (existing != null && existing.isDetailLoaded && existing.menus.isNotEmpty) {
+          if (existing != null &&
+              existing.isDetailLoaded &&
+              existing.menus.isNotEmpty) {
             mergedOrders.add(existing.copyWith(
               status: basicOrder.status,
               orderStatus: basicOrder.orderStatus,
@@ -815,7 +897,8 @@ class Order extends _$Order {
     logger.d('Cancelling order: $orderId');
     try {
       // API 호출 전 소켓 이벤트 무시 등록
-      SocketEventSuppressor().add(orderId, appfit_core.OrderEventType.orderCancelled.value);
+      SocketEventSuppressor()
+          .add(orderId, appfit_core.OrderEventType.orderCancelled.value);
 
       final success = await _apiService.cancelOrder(orderId);
       if (success) {
@@ -1043,8 +1126,12 @@ class Order extends _$Order {
   //주기적으로 주문 폴링 - TimerManager로 위임 (긴급모드 ON이면 즉시 10s 적용)
   void _setupPollingTimer() {
     if (_preferenceService.getForceSocketReconnect()) {
-      _timerManager.restartPolling(OrderTimerManager.socketDisconnectedIntervalSeconds);
-      logToFile(tag: LogTag.WEBSOCKET, message: '[긴급모드] 폴링 ${OrderTimerManager.socketDisconnectedIntervalSeconds}s 복원');
+      _timerManager
+          .restartPolling(OrderTimerManager.socketDisconnectedIntervalSeconds);
+      logToFile(
+          tag: LogTag.WEBSOCKET,
+          message:
+              '[긴급모드] 폴링 ${OrderTimerManager.socketDisconnectedIntervalSeconds}s 복원');
     } else {
       _timerManager.setupPollingTimer(_isLoggedOut);
     }
@@ -1240,7 +1327,8 @@ class Order extends _$Order {
           expectedEventType = appfit_core.OrderEventType.orderAccepted.value;
           break;
         case OrderStatus.READY:
-          expectedEventType = appfit_core.OrderEventType.orderPickupRequested.value;
+          expectedEventType =
+              appfit_core.OrderEventType.orderPickupRequested.value;
           break;
         case OrderStatus.DONE:
           expectedEventType = appfit_core.OrderEventType.orderDone.value;
@@ -1418,7 +1506,8 @@ class Order extends _$Order {
     final Set<String> processedOrderIds = {};
 
     // 소켓 연결 상태 확인 (폴링으로 주문이 감지되었을 때 소켓 상태를 죽이지 않기 위함)
-    final isSocketConnected = ref.read(appFitNotifierServiceProvider).isConnected;
+    final isSocketConnected =
+        ref.read(appFitNotifierServiceProvider).isConnected;
     bool latencyDetected = false;
 
     for (final order in newOrders) {
@@ -1592,7 +1681,8 @@ class Order extends _$Order {
   }
 
   /// 외부에서 라벨 출력을 직접 요청할 때 호출 (영수증 재출력 등)
-  Future<void> printOrderLabels(OrderModel order, {bool isReprint = false}) async {
+  Future<void> printOrderLabels(OrderModel order,
+      {bool isReprint = false}) async {
     await _outputService.printOrderLabels(order, isReprint: isReprint);
   }
 
@@ -1847,16 +1937,20 @@ class Order extends _$Order {
   /// 긴급 모드 ON/OFF — 설정 화면에서 호출 (폴링 주기만 변경)
   void updateEmergencyPoll(bool enabled) {
     if (enabled) {
-      _timerManager.restartPolling(OrderTimerManager.socketDisconnectedIntervalSeconds);
+      _timerManager
+          .restartPolling(OrderTimerManager.socketDisconnectedIntervalSeconds);
       logToFile(
         tag: LogTag.WEBSOCKET,
-        message: '[긴급모드] ON - 폴링 ${OrderTimerManager.socketDisconnectedIntervalSeconds}s',
+        message:
+            '[긴급모드] ON - 폴링 ${OrderTimerManager.socketDisconnectedIntervalSeconds}s',
       );
     } else {
-      _timerManager.restartPolling(OrderTimerManager.socketConnectedIntervalSeconds);
+      _timerManager
+          .restartPolling(OrderTimerManager.socketConnectedIntervalSeconds);
       logToFile(
         tag: LogTag.WEBSOCKET,
-        message: '[긴급모드] OFF - 폴링 복원 ${OrderTimerManager.socketConnectedIntervalSeconds}s',
+        message:
+            '[긴급모드] OFF - 폴링 복원 ${OrderTimerManager.socketConnectedIntervalSeconds}s',
       );
     }
   }

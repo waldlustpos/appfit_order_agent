@@ -9,7 +9,7 @@ import '../utils/logger.dart';
 class OrderQueueManager {
   final Ref ref;
 
-  // 1. Buffering Stage
+  // 1. Buffering Stage (NEW 주문용)
   final List<OrderModel> _bufferList = [];
   Timer? _bufferTimer;
   // 요구사항: 1초 정도의 버퍼링 텀 (순서 정렬을 위해 모으는 시간)
@@ -23,28 +23,53 @@ class OrderQueueManager {
   static const Duration _emitIntervalFast = Duration(milliseconds: 250);
   static const int _fastEmitThreshold = 20;
 
+  // 3. 상태 변경(DONE/READY/CANCELLED 등) 배치 스테이지
+  // 메인 에이전트의 일괄 완료 API 결과가 WebSocket으로 7~12건 동시에 푸시될 때
+  // 건별로 setState 를 돌리면 UI 스레드가 포화되어 ANR 발생 → 200ms 윈도우로 묶어 1회 merge
+  final List<OrderModel> _statusUpdateBuffer = [];
+  Timer? _statusUpdateTimer;
+  static const Duration _statusUpdateWindow = Duration(milliseconds: 200);
+
   // 주문 처리 콜백 (UI 업데이트)
   final Future<void> Function(OrderModel) onProcessSingleOrder;
+  // 상태 변경 배치 콜백 (N건을 1회 state merge)
+  final Future<void> Function(List<OrderModel>)? onProcessBatchOrders;
 
-  OrderQueueManager(this.ref, {required this.onProcessSingleOrder});
+  OrderQueueManager(
+    this.ref, {
+    required this.onProcessSingleOrder,
+    this.onProcessBatchOrders,
+  });
 
   /// 외부에서 주문을 큐에 추가
   void queueOrder(OrderModel order) {
-    // 중복 체크: 버퍼나 방출 큐에 이미 있는지 확인
+    // 중복 체크: 버퍼나 방출 큐, 상태 버퍼에 이미 있는지 확인
     final isDuplicate = _bufferList.any((o) => o.orderId == order.orderId) ||
-        _emitQueue.any((o) => o.orderId == order.orderId);
+        _emitQueue.any((o) => o.orderId == order.orderId) ||
+        _statusUpdateBuffer.any((o) => o.orderId == order.orderId);
 
     if (isDuplicate) {
       logger.d('[QueueManager] 중복 주문 무시: ${order.orderId}');
       return;
     }
 
-    // [FIX] NEW 상태가 아닌 상태 변경(PREPARING 등)은 큐(throttle)를 거치지 않고 즉시 방출
-    // 이를 통해 주문 대량 인입 시 상태 변경에 따른 알림, 출력음이 밀리는(25초 뒤 재생) 현상을 방지
+    // NEW 상태가 아닌 상태 변경(PREPARING/READY/DONE/CANCELLED 등)은
+    // NEW throttle 은 우회하되, 200ms 배치 윈도우로 묶어서 일괄 merge 한다.
+    // onProcessBatchOrders 가 주입되지 않은 경우에만 과거처럼 즉시 단건 처리.
     if (order.status != OrderStatus.NEW) {
+      if (onProcessBatchOrders == null) {
+        logger.d(
+            '[QueueManager] 상태 업데이트 즉시 방출 (배치 콜백 없음): ${order.orderId} (${order.status})');
+        onProcessSingleOrder(order);
+        return;
+      }
+      _statusUpdateBuffer.add(order);
       logger.d(
-          '[QueueManager] 상태 업데이트 즉시 방출 (큐 우회): ${order.orderId} (${order.status})');
-      onProcessSingleOrder(order);
+          '[QueueManager] 상태 업데이트 배치 누적: ${order.orderId} (${order.status}) — 현재 ${_statusUpdateBuffer.length}건');
+      if (_statusUpdateTimer == null || !_statusUpdateTimer!.isActive) {
+        _statusUpdateTimer =
+            Timer(_statusUpdateWindow, _flushStatusUpdateBuffer);
+      }
       return;
     }
 
@@ -56,6 +81,25 @@ class OrderQueueManager {
     if (_bufferTimer == null || !_bufferTimer!.isActive) {
       logger.d('[QueueManager] 버퍼 타이머 시작 (${_bufferWindow.inMilliseconds}ms)');
       _bufferTimer = Timer(_bufferWindow, _flushBuffer);
+    }
+  }
+
+  /// 상태 변경 버퍼를 비우고 배치 콜백으로 한 번에 방출
+  void _flushStatusUpdateBuffer() {
+    if (_statusUpdateBuffer.isEmpty) {
+      _statusUpdateTimer = null;
+      return;
+    }
+    final batch = List<OrderModel>.unmodifiable(_statusUpdateBuffer);
+    _statusUpdateBuffer.clear();
+    _statusUpdateTimer = null;
+    logger.d('[QueueManager] 상태 배치 방출: ${batch.length}건');
+    final callback = onProcessBatchOrders;
+    if (callback != null) {
+      callback(batch).catchError((e, s) {
+        logger.e('[QueueManager] 상태 배치 처리 실패',
+            error: e, stackTrace: s is StackTrace ? s : null);
+      });
     }
   }
 
@@ -121,15 +165,21 @@ class OrderQueueManager {
     }
   }
 
-  bool get hasPending => _bufferList.isNotEmpty || _emitQueue.isNotEmpty;
+  bool get hasPending =>
+      _bufferList.isNotEmpty ||
+      _emitQueue.isNotEmpty ||
+      _statusUpdateBuffer.isNotEmpty;
 
   void clearQueues() {
     _bufferList.clear();
     _emitQueue.clear();
+    _statusUpdateBuffer.clear();
     _bufferTimer?.cancel();
     _emitTimer?.cancel();
+    _statusUpdateTimer?.cancel();
     _bufferTimer = null;
     _emitTimer = null;
+    _statusUpdateTimer = null;
     logger.d('[OrderQueueManager] 큐 정리 완료');
   }
 

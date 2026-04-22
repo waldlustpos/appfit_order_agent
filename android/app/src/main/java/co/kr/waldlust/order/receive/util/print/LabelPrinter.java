@@ -7,13 +7,16 @@ import com.caysn.autoreplyprint.AutoReplyPrint;
 import com.sun.jna.Pointer;
 import com.sun.jna.ptr.LongByReference;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 import co.kr.waldlust.order.receive.MainActivity;
 
 public class LabelPrinter {
     private static final String TAG = "LabelPrinter";
     private static Pointer hPrinter = Pointer.NULL;
     private static int currentAutoReplyMode = 0;
-    private static int printCount = 0;
+    // 라벨 재출력 버튼 연타 등으로 동시 호출 시 카운터 경쟁을 방지하기 위해 Atomic 사용
+    private static final AtomicInteger printCount = new AtomicInteger(0);
     private static MainActivity sActivity = null;
 
     /**
@@ -29,7 +32,11 @@ public class LabelPrinter {
     // VID:0x0FE6,PID:0x811E
     // VID:0x067B,PID:0x2303
 
-    public static boolean printBitmap(Bitmap bitmap,
+    /**
+     * USB 라벨 프린터 호출을 직렬화한다. 여러 스레드에서 동시에 호출될 경우
+     * {@code hPrinter} 포인터와 ReadyPrint 상태가 꼬여 공백지 출력 / 지연이 발생한다.
+     */
+    public static synchronized boolean printBitmap(Bitmap bitmap,
                                        int autoReplyMode,
                                        boolean useFeedToTear,
                                        boolean useBackToPrint,
@@ -39,11 +46,11 @@ public class LabelPrinter {
                                        int labelIndex,
                                        int totalLabels) {
         boolean result = false;
-        printCount++;
+        final int seq = printCount.incrementAndGet();
         long startTime = System.currentTimeMillis();
 
         String indexSuffix = (totalLabels > 1) ? " " + labelIndex + "/" + totalLabels : "";
-        log("#" + printCount + " 출력시작 (주문: " + orderNo + ")" + indexSuffix);
+        log("#" + seq + " 출력시작 (주문: " + orderNo + ")" + indexSuffix);
 
         try {
             // autoReplyMode가 변경된 경우 재연결 필요
@@ -76,7 +83,7 @@ public class LabelPrinter {
 
                 if (!AutoReplyPrint.INSTANCE.CP_Port_IsOpened(hPrinter)) {
                     long elapsed = System.currentTimeMillis() - startTime;
-                    log("#" + printCount + " 출력결과 -> 실패 [연결오류] (" + elapsed + "ms)" + indexSuffix);
+                    log("#" + seq + " 출력결과 -> 실패 [연결오류] (" + elapsed + "ms)" + indexSuffix);
                     return false;
                 }
             }
@@ -121,11 +128,11 @@ public class LabelPrinter {
 
             result = AutoReplyPrint.INSTANCE.CP_Port_IsOpened(hPrinter);
             long elapsed = System.currentTimeMillis() - startTime;
-            log("#" + printCount + " 출력결과 -> " + (result ? "성공" : "실패") + " (" + elapsed + "ms)" + indexSuffix);
+            log("#" + seq + " 출력결과 -> " + (result ? "성공" : "실패") + " (" + elapsed + "ms)" + indexSuffix);
 
         } catch (Exception e) {
             long elapsed = System.currentTimeMillis() - startTime;
-            log("#" + printCount + " 출력결과 -> 실패 [예외: " + e.getMessage() + "] (" + elapsed + "ms)" + indexSuffix);
+            log("#" + seq + " 출력결과 -> 실패 [예외: " + e.getMessage() + "] (" + elapsed + "ms)" + indexSuffix);
             Log.e(TAG, "[ERROR] " + e.getMessage(), e);
         }
 
@@ -172,12 +179,12 @@ public class LabelPrinter {
         }
     }
 
-    public static void close() {
+    public static synchronized void close() {
         log("[CLOSE] Closing label printer connection");
         if (hPrinter != Pointer.NULL) {
             AutoReplyPrint.INSTANCE.CP_Port_Close(hPrinter);
             hPrinter = Pointer.NULL;
-            printCount = 0;
+            printCount.set(0);
         }
     }
 }

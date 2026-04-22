@@ -33,6 +33,9 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
     private static final String TAG = "NativeMethodHandler";
     private final MainActivity activity;
     private final ExecutorService fileIoExecutor = Executors.newSingleThreadExecutor();
+    // 라벨 프린터는 USB 단일 자원 → 단일 스레드 executor 로 직렬화하여 재출력 연타 / 동시 호출의
+    // 공백지/지연 이슈를 차단한다.
+    private final ExecutorService labelPrintExecutor = Executors.newSingleThreadExecutor();
 
     public NativeMethodHandler(MainActivity activity) {
         this.activity = activity;
@@ -97,7 +100,7 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
                     final int finalLabelIndex = labelIndex != null ? labelIndex : 1;
                     final int finalTotalLabels = totalLabels != null ? totalLabels : 1;
 
-                    new Thread(() -> {
+                    labelPrintExecutor.submit(() -> {
                         boolean printResult = co.kr.waldlust.order.receive.util.print.LabelPrinter.printBitmap(
                                 bitmap,
                                 finalAutoReplyMode,
@@ -109,7 +112,7 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
                                 finalLabelIndex,
                                 finalTotalLabels);
                         new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> result.success(printResult));
-                    }).start();
+                    });
                 } else {
                     result.error("INVALID_ARGUMENT", "Image bytes are null or empty", null);
                 }
