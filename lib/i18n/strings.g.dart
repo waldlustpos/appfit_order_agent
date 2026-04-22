@@ -6,7 +6,7 @@
 /// Locales: 3
 /// Strings: 1013 (337 per locale)
 ///
-/// Built on 2026-04-22 at 03:06 UTC
+/// Built on 2026-04-22 at 03:43 UTC
 
 // coverage:ignore-file
 // ignore_for_file: type=lint
@@ -684,8 +684,8 @@ class _StringsSettingsThemeKo {
 	String get title => '테마';
 	String get desc => '앱 전반의 브랜드 컬러와 로고를 변경합니다.';
 	String get restart_title => '재시작 필요';
-	String get restart_message => '테마 변경을 적용하려면 앱을 다시 시작해야 합니다. 지금 종료할까요?';
-	String get restart_now => '지금 종료';
+	String get restart_message => '테마 변경을 적용하려면 앱을 다시 시작해야 합니다. 지금 재시작할까요?';
+	String get restart_now => '지금 재시작';
 	String get restart_later => '나중에';
 	late final _StringsSettingsThemeOptionsKo options = _StringsSettingsThemeOptionsKo._(_root);
 }
@@ -1595,8 +1595,8 @@ class _StringsSettingsThemeEn extends _StringsSettingsThemeKo {
 	@override String get title => 'Theme';
 	@override String get desc => 'Change the app-wide brand color and logo.';
 	@override String get restart_title => 'Restart required';
-	@override String get restart_message => 'The theme change will apply after restarting the app. Quit now?';
-	@override String get restart_now => 'Quit now';
+	@override String get restart_message => 'The theme change will apply after restarting the app. Restart now?';
+	@override String get restart_now => 'Restart now';
 	@override String get restart_later => 'Later';
 	@override late final _StringsSettingsThemeOptionsEn options = _StringsSettingsThemeOptionsEn._(_root);
 }
@@ -2498,8 +2498,8 @@ class _StringsSettingsThemeJa extends _StringsSettingsThemeKo {
 	@override String get title => 'テーマ';
 	@override String get desc => 'アプリ全体のブランドカラーとロゴを変更します。';
 	@override String get restart_title => '再起動が必要';
-	@override String get restart_message => 'テーマ変更を適用するにはアプリを再起動する必要があります。今すぐ終了しますか？';
-	@override String get restart_now => '今すぐ終了';
+	@override String get restart_message => 'テーマ変更を適用するにはアプリを再起動する必要があります。今すぐ再起動しますか？';
+	@override String get restart_now => '今すぐ再起動';
 	@override String get restart_later => '後で';
 	@override late final _StringsSettingsThemeOptionsJa options = _StringsSettingsThemeOptionsJa._(_root);
 }

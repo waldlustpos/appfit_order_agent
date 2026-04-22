@@ -122,8 +122,8 @@
             "title": "テーマ",
             "desc": "アプリ全体のブランドカラーとロゴを変更します。",
             "restart_title": "再起動が必要",
-            "restart_message": "テーマ変更を適用するにはアプリを再起動する必要があります。今すぐ終了しますか？",
-            "restart_now": "今すぐ終了",
+            "restart_message": "テーマ変更を適用するにはアプリを再起動する必要があります。今すぐ再起動しますか？",
+            "restart_now": "今すぐ再起動",
             "restart_later": "後で",
             "options": {
                 "appfit_default": "デフォルト",

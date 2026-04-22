@@ -122,8 +122,8 @@
             "title": "Theme",
             "desc": "Change the app-wide brand color and logo.",
             "restart_title": "Restart required",
-            "restart_message": "The theme change will apply after restarting the app. Quit now?",
-            "restart_now": "Quit now",
+            "restart_message": "The theme change will apply after restarting the app. Restart now?",
+            "restart_now": "Restart now",
             "restart_later": "Later",
             "options": {
                 "appfit_default": "Default",

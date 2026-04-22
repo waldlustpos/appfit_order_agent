@@ -122,8 +122,8 @@
             "title": "테마",
             "desc": "앱 전반의 브랜드 컬러와 로고를 변경합니다.",
             "restart_title": "재시작 필요",
-            "restart_message": "테마 변경을 적용하려면 앱을 다시 시작해야 합니다. 지금 종료할까요?",
-            "restart_now": "지금 종료",
+            "restart_message": "테마 변경을 적용하려면 앱을 다시 시작해야 합니다. 지금 재시작할까요?",
+            "restart_now": "지금 재시작",
             "restart_later": "나중에",
             "options": {
                 "appfit_default": "기본",
