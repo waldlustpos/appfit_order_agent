@@ -254,10 +254,6 @@ class _SettingsRightPanelState extends ConsumerState<SettingsRightPanel> {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            // ── 테마(브랜드) 선택 카드 ────────────────────────────────────
-            const SettingsBrandThemeSection(),
-            const SizedBox(height: AppSpacing.s16),
-
             // ── 알림 설정 카드 ─────────────────────────────────────────────
             SettingsSectionCard(
               title: t.settings.section_sound,
@@ -576,6 +572,10 @@ class _SettingsRightPanelState extends ConsumerState<SettingsRightPanel> {
             const SizedBox(height: AppSpacing.s16),
 
             // ── 개발자 옵션 (숨김) ─────────────────────────────────────────
+            if (widget.isDevOptionsVisible) ...[
+              const SettingsBrandThemeSection(),
+              const SizedBox(height: AppSpacing.s16),
+            ],
             if (widget.isDevOptionsVisible)
               SettingsDeveloperOptions(
                 forceSocketReconnect: widget.forceSocketReconnect,
