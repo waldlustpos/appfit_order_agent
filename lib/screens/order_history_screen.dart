@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shimmer/shimmer.dart';
 import 'package:table_calendar/table_calendar.dart';
 import '../providers/providers.dart';
+import '../widgets/common/app_loading_indicator.dart';
 import '../widgets/home/order_card_widget.dart';
 import '../constants/app_styles.dart';
 import '../widgets/order/order_detail_popup.dart';
@@ -438,7 +438,16 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen> {
           }
           return _buildOrderGrid(orders);
         },
-        loading: () => const _OrderHistorySkeletonGrid(),
+        loading: () => const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              AppLoadingIndicator(size: 32),
+              SizedBox(height: 16),
+              Text('주문 정보를 불러오는 중...'),
+            ],
+          ),
+        ),
         error: (error, stackTrace) {
           logger.e('Build Error State for History',
               error: error, stackTrace: stackTrace);
@@ -482,36 +491,6 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen> {
             ),
           );
         },
-      ),
-    );
-  }
-}
-
-/// 주문 내역 로딩 시 shimmer 스켈레톤 그리드
-class _OrderHistorySkeletonGrid extends StatelessWidget {
-  const _OrderHistorySkeletonGrid();
-
-  @override
-  Widget build(BuildContext context) {
-    return GridView.builder(
-      padding: const EdgeInsets.all(8.0),
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 8,
-        childAspectRatio: 1.0,
-        crossAxisSpacing: 8.0,
-        mainAxisSpacing: 8.0,
-      ),
-      itemCount: 16,
-      itemBuilder: (context, index) => Shimmer.fromColors(
-        baseColor: Colors.grey[300]!,
-        highlightColor: Colors.grey[100]!,
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(8),
-          ),
-        ),
       ),
     );
   }
