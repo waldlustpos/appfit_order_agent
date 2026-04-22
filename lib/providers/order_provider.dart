@@ -628,6 +628,10 @@ class Order extends _$Order {
           }
           logger.w('$modeText: 자동 접수 실패: ${order.orderId}');
         }
+      }).catchError((error, stackTrace) {
+        // updateOrderStatus 가 rethrow 한 ApiException 이 unhandled 로 터지며 앱이 죽지 않도록 흡수.
+        logger.w('$modeText: 자동접수 체인 오류(무시): ${order.orderId}',
+            error: error, stackTrace: stackTrace);
       });
 
       return; // 자동접수 경로에서는 추가 알림 처리 불필요
@@ -651,6 +655,28 @@ class Order extends _$Order {
     return _stateManager.calculateActiveOrderCount(orders);
   }
 
+  /// 상태 진행도 비교용 레벨. CANCELLED 은 별도 처리.
+  static const Map<OrderStatus, int> _statusProgress = {
+    OrderStatus.NEW: 0,
+    OrderStatus.PREPARING: 1,
+    OrderStatus.READY: 2,
+    OrderStatus.DONE: 3,
+  };
+
+  /// 서버 응답과 로컬 상태를 병합할 때 다운그레이드(예: PREPARING→NEW)를 막기 위한 헬퍼.
+  ///
+  /// 서버 PUT 직후 GET 응답이 구버전을 돌려주는 타이밍에서, 로컬이 이미
+  /// 더 진행된 상태라면 서버의 구버전 상태로 덮어쓰지 않는다.
+  /// CANCELLED 는 터미널 상태이므로 어느 한쪽이라도 CANCELLED 이면 우선한다.
+  OrderStatus _resolveMergedStatus(OrderStatus local, OrderStatus server) {
+    if (server == OrderStatus.CANCELLED || local == OrderStatus.CANCELLED) {
+      return OrderStatus.CANCELLED;
+    }
+    final lo = _statusProgress[local] ?? 0;
+    final so = _statusProgress[server] ?? 0;
+    return lo > so ? local : server;
+  }
+
   // ==========================================
   // refreshOrders 심플화를 위한 헬퍼 메서드들
   // ==========================================
@@ -668,16 +694,34 @@ class Order extends _$Order {
     // NEW 주문 처리 (자동접수만 처리, 알람소리는 _processNewOrder에서 처리)
     if (newOrders.isNotEmpty && !isKdsMode) {
       for (final order in newOrders) {
-        if (state.isAutoReceipt) {
-          logger.d('[Order Processing] NEW 주문 자동접수: ${order.orderId}');
-          // 자동접수 처리
-          Future.microtask(
-              () => updateOrderStatus(order, OrderStatus.PREPARING));
-        } else {
+        if (!state.isAutoReceipt) {
           logger.d(
               '[Order Processing] NEW 주문 수동접수 모드: ${order.orderId} (알람소리는 _processNewOrder에서 처리)');
-          // 수동접수 모드에서는 알람소리를 재생하지 않음 (이미 _processNewOrder에서 처리됨)
+          continue;
         }
+        // 서버 응답의 NEW 가 로컬 최신 상태와 어긋난 경우(이미 PREPARING 등) 재시도 차단.
+        // 서버 PUT 반영 지연으로 돌아온 NEW 를 그대로 재수락하면 400 "이미 수락된 주문입니다".
+        final currentInState = state.orders.firstWhere(
+          (o) => o.orderId == order.orderId,
+          orElse: () => order,
+        );
+        if (currentInState.status != OrderStatus.NEW) {
+          logger.d(
+              '[Order Processing] NEW 자동접수 스킵 - 로컬 상태=${currentInState.status}: ${order.orderId}');
+          continue;
+        }
+        logger.d('[Order Processing] NEW 주문 자동접수: ${order.orderId}');
+        // rethrow 된 ApiException 이 unhandled async exception 으로 터지며 앱이 죽는 것을 방지.
+        Future.microtask(
+          () => updateOrderStatus(order, OrderStatus.PREPARING),
+        ).catchError((error, stackTrace) {
+          logger.w(
+            '[Order Processing] 자동접수 재시도 실패(무시): ${order.orderId}',
+            error: error,
+            stackTrace: stackTrace,
+          );
+          return false;
+        });
       }
     }
   }
@@ -768,37 +812,59 @@ class Order extends _$Order {
 
       final mergedOrders = <OrderModel>[];
       for (final basicOrder in basicOrders) {
-        // 캐시 확인
+        // 캐시 / 로컬 state 확인
         final cached = _orderDetailCache.get(basicOrder.orderId);
+        final existing = existingOrderMap[basicOrder.orderId];
+
+        // 로컬이 이미 서버보다 앞선 상태(예: PREPARING)인데 서버가 구버전(NEW)으로 응답하는
+        // 타이밍에는 로컬 상태를 유지한다. 그렇지 않으면 자동접수가 재발화되며 400 을 받는다.
+        final OrderStatus localReference =
+            existing?.status ?? cached?.status ?? basicOrder.status;
+        final OrderStatus resolvedStatus =
+            _resolveMergedStatus(localReference, basicOrder.status);
+        final bool keepLocalStatus = resolvedStatus != basicOrder.status;
+        final String resolvedOrderStatus = keepLocalStatus
+            ? (existing?.orderStatus ??
+                cached?.orderStatus ??
+                basicOrder.orderStatus)
+            : basicOrder.orderStatus;
+        if (keepLocalStatus) {
+          logger.w('[refreshOrders] 서버 상태 다운그레이드 차단: ${basicOrder.orderId} '
+              'local=$localReference → server=${basicOrder.status}');
+        }
 
         if (cached != null && cached.menus.isNotEmpty) {
-          // 캐시된 상세 정보가 있으면 병합 (상태는 최신 basicOrder 기준)
+          // 캐시된 상세 정보가 있으면 병합
           mergedOrders.add(cached.copyWith(
-            status: basicOrder.status,
-            orderStatus: basicOrder.orderStatus,
+            status: resolvedStatus,
+            orderStatus: resolvedOrderStatus,
             updateTime: basicOrder.orderedAt.isAfter(cached.updateTime)
                 ? basicOrder.orderedAt
                 : cached.updateTime,
             shopOrderNo: basicOrder.shopOrderNo,
             isDetailLoaded: true,
           ));
+        } else if (existing != null &&
+            existing.isDetailLoaded &&
+            existing.menus.isNotEmpty) {
+          // 캐시 미스: 현재 state.orders에서 상세 정보 복원 시도
+          mergedOrders.add(existing.copyWith(
+            status: resolvedStatus,
+            orderStatus: resolvedOrderStatus,
+            shopOrderNo: basicOrder.shopOrderNo,
+          ));
+          // 캐시에도 저장하여 다음 폴링에서 바로 사용 가능
+          _orderDetailCache.put(basicOrder.orderId, mergedOrders.last);
         } else {
-          // 캐시 미스: 현재 state.orders에서 상세 정보 복원 시도 (소켓으로 받은 주문 등)
-          final existing = existingOrderMap[basicOrder.orderId];
-          if (existing != null &&
-              existing.isDetailLoaded &&
-              existing.menus.isNotEmpty) {
-            mergedOrders.add(existing.copyWith(
-              status: basicOrder.status,
-              orderStatus: basicOrder.orderStatus,
-              shopOrderNo: basicOrder.shopOrderNo,
-            ));
-            // 캐시에도 저장하여 다음 폴링에서 바로 사용 가능
-            _orderDetailCache.put(basicOrder.orderId, mergedOrders.last);
-          } else {
-            // 상세 정보 없음. 그냥 추가 (isDetailLoaded=false 상태)
-            mergedOrders.add(basicOrder);
-          }
+          // 상세 정보 없음. 상태만 로컬 우선 반영하여 추가
+          mergedOrders.add(
+            keepLocalStatus
+                ? basicOrder.copyWith(
+                    status: resolvedStatus,
+                    orderStatus: resolvedOrderStatus,
+                  )
+                : basicOrder,
+          );
         }
       }
 
@@ -1605,6 +1671,10 @@ class Order extends _$Order {
                 logger.w('자동접수 실패로 상태 롤백: ${order.orderId} -> NEW');
               }
             }
+          }).catchError((error, stackTrace) {
+            // updateOrderStatus 의 ApiException rethrow 로 unhandled async 가 나지 않도록 흡수.
+            logger.w('새로고침 주문 자동 접수 체인 오류(무시): ${order.orderId}',
+                error: error, stackTrace: stackTrace);
           });
 
           // 큐 관리는 QueueManager에서 처리됨
