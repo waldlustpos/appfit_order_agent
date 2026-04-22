@@ -71,14 +71,14 @@ List<OrderModel> filterOrders(List<OrderModel> orders, OrderFilter filter) {
   }
 }
 
-// 주문 정렬 함수
+// 주문 정렬 함수 — 주문시간(orderedAt) 기준
 void sortOrders(List<OrderModel> orders, OrderSortDirection direction) {
   if (direction == OrderSortDirection.ASC) {
-    // 오름차순 (낮은 번호부터)
-    orders.sort((a, b) => a.shopOrderNo.compareTo(b.shopOrderNo));
+    // 오름차순 (오래된 주문순)
+    orders.sort((a, b) => a.orderedAt.compareTo(b.orderedAt));
   } else {
-    // 내림차순 (높은 번호부터)
-    orders.sort((a, b) => b.shopOrderNo.compareTo(a.shopOrderNo));
+    // 내림차순 (최신 주문순)
+    orders.sort((a, b) => b.orderedAt.compareTo(a.orderedAt));
   }
 }
 

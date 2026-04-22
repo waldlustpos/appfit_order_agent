@@ -74,22 +74,14 @@ Map<String, int> calculateMenuAndOptionCount(
   };
 }
 
-// 주문 정렬 함수
+// 주문 정렬 함수 — 주문시간(orderedAt) 기준
 void sortOrders(List<OrderModel> orders, OrderSortDirection direction) {
   if (direction == OrderSortDirection.ASC) {
-    // 오름차순 (오래된 주문순) - simpleNum 기준
-    orders.sort((a, b) {
-      final numA = int.tryParse(a.shopOrderNo) ?? 0;
-      final numB = int.tryParse(b.shopOrderNo) ?? 0;
-      return numA.compareTo(numB);
-    });
+    // 오름차순 (오래된 주문순)
+    orders.sort((a, b) => a.orderedAt.compareTo(b.orderedAt));
   } else {
-    // 내림차순 (최신 주문순) - simpleNum 기준
-    orders.sort((a, b) {
-      final numA = int.tryParse(a.shopOrderNo) ?? 0;
-      final numB = int.tryParse(b.shopOrderNo) ?? 0;
-      return numB.compareTo(numA);
-    });
+    // 내림차순 (최신 주문순)
+    orders.sort((a, b) => b.orderedAt.compareTo(a.orderedAt));
   }
 }
 
