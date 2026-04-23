@@ -521,12 +521,14 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
 
               // 전체 탭용 주문 목록 (날짜에 따라 다름)
               List<OrderModel> allOrders;
+              bool isHistoryLoading = false;
               if (isToday) {
                 // 오늘 날짜: 실시간 주문 데이터 사용
                 allOrders = List<OrderModel>.from(filteredOrders);
               } else {
                 // 다른 날짜: orderHistoryProvider에서 해당 날짜 데이터 가져오기
                 final historyAsync = ref.watch(orderHistoryProvider);
+                isHistoryLoading = historyAsync.isLoading;
                 allOrders = historyAsync.when(
                   data: (historyOrders) {
                     logger
@@ -663,7 +665,10 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
                         children: [
                           Padding(
                             padding: const EdgeInsets.all(8.0),
-                            child: _buildStaticAllTab(visibleAllOrders),
+                            child: _buildStaticAllTab(
+                              visibleAllOrders,
+                              isLoading: isHistoryLoading,
+                            ),
                           ),
                           Padding(
                             padding: const EdgeInsets.all(8.0),
@@ -1234,7 +1239,23 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
   }
 
   // 정적 탭 메서드들 (이미 계산된 목록 사용, Consumer 없음 - 깜빡임 완전 제거)
-  Widget _buildStaticAllTab(List<OrderModel> allOrders) {
+  Widget _buildStaticAllTab(
+    List<OrderModel> allOrders, {
+    bool isLoading = false,
+  }) {
+    // 과거 날짜 주문 이력 조회 중일 때 진행 인디케이터 표시 (일반 주문내역과 동일 스타일)
+    if (isLoading && allOrders.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            AppLoadingIndicator(size: 32),
+            SizedBox(height: 16),
+            Text('주문 정보를 불러오는 중...'),
+          ],
+        ),
+      );
+    }
     // 탭 바 영역으로 날짜 버튼들이 이동했으므로, 여기서는 그리드만 표시
     return _buildOrderGrid(allOrders);
   }
