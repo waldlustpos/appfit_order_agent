@@ -267,6 +267,7 @@
     "product_mgmt": {
         "title": "상품관리",
         "search_placeholder": "상품명 검색",
+        "all": "전체",
         "sold_out": "품절",
         "count": "{n}개",
         "total_count": "전체 {n}개",

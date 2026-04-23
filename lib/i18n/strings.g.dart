@@ -4,9 +4,9 @@
 /// To regenerate, run: `dart run slang`
 ///
 /// Locales: 3
-/// Strings: 1013 (337 per locale)
+/// Strings: 1016 (338 per locale)
 ///
-/// Built on 2026-04-22 at 03:43 UTC
+/// Built on 2026-04-23 at 00:09 UTC
 
 // coverage:ignore-file
 // ignore_for_file: type=lint
@@ -362,6 +362,7 @@ class _StringsProductMgmtKo {
 	// Translations
 	String get title => '상품관리';
 	String get search_placeholder => '상품명 검색';
+	String get all => '전체';
 	String get sold_out => '품절';
 	String count({required Object n}) => '${n}개';
 	String total_count({required Object n}) => '전체 ${n}개';
@@ -1269,6 +1270,7 @@ class _StringsProductMgmtEn extends _StringsProductMgmtKo {
 	// Translations
 	@override String get title => 'Products';
 	@override String get search_placeholder => 'Search product name';
+	@override String get all => 'All';
 	@override String get sold_out => 'Sold Out';
 	@override String count({required Object n}) => '${n}';
 	@override String total_count({required Object n}) => 'Total ${n}';
@@ -2176,6 +2178,7 @@ class _StringsProductMgmtJa extends _StringsProductMgmtKo {
 	// Translations
 	@override String get title => '商品管理';
 	@override String get search_placeholder => '商品名検索';
+	@override String get all => '全体';
 	@override String get sold_out => '品切れ';
 	@override String count({required Object n}) => '${n}個';
 	@override String total_count({required Object n}) => '全体 ${n}個';

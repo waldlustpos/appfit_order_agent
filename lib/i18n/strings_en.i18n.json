@@ -271,6 +271,7 @@
     "product_mgmt": {
         "title": "Products",
         "search_placeholder": "Search product name",
+        "all": "All",
         "sold_out": "Sold Out",
         "count": "{n}",
         "total_count": "Total {n}",

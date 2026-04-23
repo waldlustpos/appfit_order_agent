@@ -40,26 +40,41 @@ class _ProductManagementScreenState
     return counts;
   }
 
-  List<ProductModel> _getFilteredProducts(List<ProductModel> products) {
-    return products.where((product) {
-      if (product.status == ProductStatus.hidden) return false;
-      final matchesSearch = product.productName
-          .toLowerCase()
-          .contains(_searchQuery.toLowerCase());
-
-      bool matchesCategory;
-      if (_selectedCategory == t.product_mgmt.sold_out) {
-        matchesCategory = product.status == ProductStatus.soldOut;
-      } else {
-        matchesCategory = _selectedCategory == null ||
-            product.categoryName == _selectedCategory;
-      }
-
-      return matchesSearch && matchesCategory;
-    }).toList();
+  int _getAllUniqueCount(List<ProductModel> products) {
+    final seen = <String>{};
+    return products
+        .where((p) => p.status != ProductStatus.hidden)
+        .where((p) => seen.add(p.internalId))
+        .length;
   }
 
-  Widget _buildCategoryTile(String title, int count, bool isSelected) {
+  List<ProductModel> _getFilteredProducts(List<ProductModel> products) {
+    final base = products.where((product) {
+      if (product.status == ProductStatus.hidden) return false;
+      return product.productName
+          .toLowerCase()
+          .contains(_searchQuery.toLowerCase());
+    });
+
+    Iterable<ProductModel> filtered;
+    if (_selectedCategory == t.product_mgmt.sold_out) {
+      filtered = base.where((p) => p.status == ProductStatus.soldOut);
+    } else if (_selectedCategory == null) {
+      final seen = <String>{};
+      filtered = base.where((p) => seen.add(p.internalId));
+    } else {
+      filtered = base.where((p) => p.categoryName == _selectedCategory);
+    }
+
+    return filtered.toList();
+  }
+
+  Widget _buildCategoryTile(
+    String title,
+    int count,
+    bool isSelected, {
+    bool isAllCategory = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.s8,
@@ -73,7 +88,11 @@ class _ProductManagementScreenState
           onTap: () {
             FocusScope.of(context).unfocus();
             setState(() {
-              _selectedCategory = isSelected ? null : title;
+              if (isAllCategory) {
+                _selectedCategory = null;
+              } else {
+                _selectedCategory = isSelected ? null : title;
+              }
             });
           },
           child: Container(
@@ -191,9 +210,19 @@ class _ProductManagementScreenState
                       controller: _categoryScrollController,
                       child: ListView.builder(
                         controller: _categoryScrollController,
-                        itemCount: categories.length + 1,
+                        itemCount: categories.length + 2,
                         itemBuilder: (context, index) {
                           if (index == 0) {
+                            final allCount = _getAllUniqueCount(products);
+                            final isSelected = _selectedCategory == null;
+                            return _buildCategoryTile(
+                              t.product_mgmt.all,
+                              allCount,
+                              isSelected,
+                              isAllCategory: true,
+                            );
+                          }
+                          if (index == 1) {
                             final soldOutCount = products
                                 .where((p) => p.status == ProductStatus.soldOut)
                                 .length;
@@ -202,7 +231,7 @@ class _ProductManagementScreenState
                             return _buildCategoryTile(t.product_mgmt.sold_out,
                                 soldOutCount, isSelected);
                           }
-                          final category = categories[index - 1];
+                          final category = categories[index - 2];
                           final count = categoryCounts[category]!;
                           final isSelected = category == _selectedCategory;
                           return _buildCategoryTile(

@@ -267,6 +267,7 @@
     "product_mgmt": {
         "title": "商品管理",
         "search_placeholder": "商品名検索",
+        "all": "全体",
         "sold_out": "品切れ",
         "count": "{n}個",
         "total_count": "全体 {n}個",
