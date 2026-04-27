@@ -1,8 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:appfit_core/appfit_core.dart';
 import 'package:appfit_order_agent/models/order_model.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/utils/serial_async_queue.dart';
 import 'package:appfit_order_agent/core/orders/output_service.dart';
 
 /// 출력 큐 작업 종류
@@ -31,7 +31,7 @@ final class ReceiptReprintJob extends OutputJob {
 
 /// 출력 작업 관리를 위한 큐 서비스
 /// 프린트/TTS 등 오래 걸리는 작업을 메인 로직과 분리하여 순차적으로 처리합니다.
-/// appfit_core의 SerialAsyncQueue를 활용합니다.
+/// 자체 구현 [SerialAsyncQueue] (lib/utils/serial_async_queue.dart) 를 사용합니다.
 class OutputQueueService {
   final Ref ref;
   late final SerialAsyncQueue<OutputJob> _queue;
