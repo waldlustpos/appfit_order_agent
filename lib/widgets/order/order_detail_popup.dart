@@ -340,6 +340,7 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
               style: AppTextStyles.display,
             ),
             _StatusPill(order: order),
+            _SourcePill(source: order.source),
             Text(
               DateFormat('yyyy-MM-dd HH:mm:ss').format(order.orderedAt),
               style: AppTextStyles.bodySm.copyWith(color: AppStyles.gray6),
@@ -788,6 +789,51 @@ class _StatusPill extends StatelessWidget {
         label,
         style: AppTextStyles.bodySm.copyWith(
           color: palette.fg,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+// ─── 소스 pill ────────────────────────────────────────────────────────────────
+
+class _SourcePill extends StatelessWidget {
+  final String source;
+
+  const _SourcePill({required this.source});
+
+  @override
+  Widget build(BuildContext context) {
+    final ({String label, Color bg, Color fg})? spec = switch (source) {
+      'WALD_APPFIT' => (
+          label: 'APP',
+          bg: AppStyles.kBlueAlpha,
+          fg: AppStyles.kBlue,
+        ),
+      'WALD_KIOSK' => (
+          label: 'KIOSK',
+          bg: AppStyles.kSubAlpha,
+          fg: AppStyles.kSub,
+        ),
+      _ => null,
+    };
+
+    if (spec == null) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.s12,
+        vertical: AppSpacing.s4,
+      ),
+      decoration: BoxDecoration(
+        color: spec.bg,
+        borderRadius: AppRadius.bSm,
+      ),
+      child: Text(
+        spec.label,
+        style: AppTextStyles.bodySm.copyWith(
+          color: spec.fg,
           fontWeight: FontWeight.w600,
         ),
       ),
