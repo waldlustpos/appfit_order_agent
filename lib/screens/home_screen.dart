@@ -378,6 +378,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
       // JWT 토큰 및 프로젝트 크리덴셜 삭제
       await ref.read(appfit_providers.appFitTokenManagerProvider).clearToken();
+      await ref
+          .read(appfit_providers.appFitTokenManagerProvider)
+          .clearPassword();
       final secureStorage = SecureStorageService();
       await secureStorage.delete(SecureStorageService.appFitProjectId);
       await secureStorage.delete(SecureStorageService.appFitProjectApiKey);

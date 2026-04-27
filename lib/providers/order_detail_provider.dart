@@ -11,13 +11,11 @@ class OrderDetail extends _$OrderDetail {
     OrderModel? order,
     bool isLoading,
     String? errorMessage,
-    String? loadingActionId,
   }) build() {
     return (
       order: null,
       isLoading: false,
       errorMessage: null,
-      loadingActionId: null,
     );
   }
 
@@ -26,7 +24,6 @@ class OrderDetail extends _$OrderDetail {
       order: order,
       isLoading: state.isLoading,
       errorMessage: state.errorMessage,
-      loadingActionId: state.loadingActionId,
     );
   }
 
@@ -35,7 +32,6 @@ class OrderDetail extends _$OrderDetail {
       order: state.order,
       isLoading: isLoading,
       errorMessage: state.errorMessage,
-      loadingActionId: state.loadingActionId,
     );
   }
 
@@ -44,16 +40,6 @@ class OrderDetail extends _$OrderDetail {
       order: state.order,
       isLoading: state.isLoading,
       errorMessage: errorMessage,
-      loadingActionId: state.loadingActionId,
-    );
-  }
-
-  void setLoadingAction(String? actionId) {
-    state = (
-      order: state.order,
-      isLoading: state.isLoading,
-      errorMessage: state.errorMessage,
-      loadingActionId: actionId,
     );
   }
 

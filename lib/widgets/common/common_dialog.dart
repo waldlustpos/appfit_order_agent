@@ -7,75 +7,35 @@ import 'package:appfit_core/appfit_core.dart';
 /// 공통 다이얼로그 위젯
 /// 상태 변경 및 확인용 다이얼로그
 class CommonDialog {
-  /// 확인/취소 버튼이 있는 기본 다이얼로그
+  /// 확인/취소 버튼이 있는 기본 다이얼로그.
+  ///
+  /// [onConfirm] 이 주어지면 confirm 버튼이 비동기 액션을 직접 실행한다.
+  /// 실행 동안 confirm 버튼에 진행 인디케이터가 표시되고 cancel 버튼은 비활성화되며,
+  /// 액션 완료 시 다이얼로그가 자동으로 닫히면서 결과(true)가 반환된다.
+  /// 액션이 예외를 던지면 다이얼로그는 닫히지 않고 confirm 버튼이 다시 활성화된다.
+  ///
+  /// [onConfirm] 이 null 이면 종전 동작과 동일 — confirm 클릭 시 즉시 true 반환.
   static Future<bool?> showConfirmDialog({
     required BuildContext context,
     required String title,
     required String content,
     String confirmText = '',
     String cancelText = '',
+    Future<void> Function()? onConfirm,
   }) async {
-    confirmText = confirmText.isEmpty ? t.common.confirm : confirmText;
-    cancelText = cancelText.isEmpty ? t.common.cancel : cancelText;
+    final resolvedConfirm =
+        confirmText.isEmpty ? t.common.confirm : confirmText;
+    final resolvedCancel = cancelText.isEmpty ? t.common.cancel : cancelText;
     return await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(title, style: AppTextStyles.title),
-          titlePadding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.s24,
-            vertical: AppSpacing.s24,
-          ),
-          contentPadding: const EdgeInsets.fromLTRB(
-            AppSpacing.s24,
-            AppSpacing.s16,
-            AppSpacing.s24,
-            0,
-          ),
-          content: SizedBox(
-            width: 400,
-            height: 80,
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(content, style: AppTextStyles.body),
-            ),
-          ),
-          actionsPadding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.s24,
-            vertical: AppSpacing.s24,
-          ),
-          actions: <Widget>[
-            if (cancelText.isNotEmpty)
-              ElevatedButton(
-                style: AppStyles.outlinedButton(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.s20,
-                    vertical: AppSpacing.s12,
-                  ),
-                  minimumSize: const Size(100, 45),
-                ),
-                onPressed: () => Navigator.of(context).pop(false),
-                child: Text(cancelText,
-                    style: const TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.bold)),
-              ),
-            ElevatedButton(
-              style: AppStyles.primaryButton(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.s20,
-                  vertical: AppSpacing.s12,
-                ),
-                minimumSize: const Size(100, 45),
-              ),
-              onPressed: () => Navigator.of(context).pop(true),
-              child: Text(confirmText,
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold)),
-            ),
-          ],
+      builder: (BuildContext dialogContext) {
+        return _ConfirmDialog(
+          title: title,
+          content: content,
+          confirmText: resolvedConfirm,
+          cancelText: resolvedCancel,
+          onConfirm: onConfirm,
         );
       },
     );
@@ -720,5 +680,125 @@ class _UpdateProgressDialogState extends State<_UpdateProgressDialog> {
         _isDownloading = false;
       });
     }
+  }
+}
+
+/// confirm/cancel 버튼이 있는 다이얼로그 본체.
+/// onConfirm 이 주어지면 confirm 버튼이 자체적으로 비동기 액션을 실행하고,
+/// 실행 동안 자기 자신만 비활성화되며 진행 인디케이터를 표시한다.
+class _ConfirmDialog extends StatefulWidget {
+  final String title;
+  final String content;
+  final String confirmText;
+  final String cancelText;
+  final Future<void> Function()? onConfirm;
+
+  const _ConfirmDialog({
+    required this.title,
+    required this.content,
+    required this.confirmText,
+    required this.cancelText,
+    required this.onConfirm,
+  });
+
+  @override
+  State<_ConfirmDialog> createState() => _ConfirmDialogState();
+}
+
+class _ConfirmDialogState extends State<_ConfirmDialog> {
+  bool _busy = false;
+
+  Future<void> _handleConfirm() async {
+    final action = widget.onConfirm;
+    if (action == null) {
+      Navigator.of(context).pop(true);
+      return;
+    }
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await action();
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (_) {
+      if (mounted) setState(() => _busy = false);
+      rethrow;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.title, style: AppTextStyles.title),
+      titlePadding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.s24,
+        vertical: AppSpacing.s24,
+      ),
+      contentPadding: const EdgeInsets.fromLTRB(
+        AppSpacing.s24,
+        AppSpacing.s16,
+        AppSpacing.s24,
+        0,
+      ),
+      content: SizedBox(
+        width: 400,
+        height: 80,
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Text(widget.content, style: AppTextStyles.body),
+        ),
+      ),
+      actionsPadding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.s24,
+        vertical: AppSpacing.s24,
+      ),
+      actions: <Widget>[
+        if (widget.cancelText.isNotEmpty)
+          ElevatedButton(
+            style: AppStyles.outlinedButton(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.s20,
+                vertical: AppSpacing.s12,
+              ),
+              minimumSize: const Size(100, 45),
+            ),
+            onPressed: _busy ? null : () => Navigator.of(context).pop(false),
+            child: Text(widget.cancelText,
+                style:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          ),
+        ElevatedButton(
+          style: AppStyles.primaryButton(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.s20,
+              vertical: AppSpacing.s12,
+            ),
+            minimumSize: const Size(100, 45),
+          ),
+          onPressed: _busy ? null : _handleConfirm,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Opacity(
+                opacity: _busy ? 0.0 : 1.0,
+                child: Text(widget.confirmText,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold)),
+              ),
+              if (_busy)
+                const SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white70),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 }

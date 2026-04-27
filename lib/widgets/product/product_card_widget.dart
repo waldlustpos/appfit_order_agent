@@ -9,7 +9,7 @@ import '../../providers/product_provider.dart';
 import '../common/common_dialog.dart';
 import '../../i18n/strings.g.dart';
 
-class ProductCardWidget extends ConsumerWidget {
+class ProductCardWidget extends ConsumerStatefulWidget {
   final ProductModel product;
 
   const ProductCardWidget({
@@ -17,52 +17,64 @@ class ProductCardWidget extends ConsumerWidget {
     required this.product,
   }) : super(key: key);
 
-  void _showStatusChangeDialog(BuildContext context, WidgetRef ref) {
+  @override
+  ConsumerState<ProductCardWidget> createState() => _ProductCardWidgetState();
+}
+
+class _ProductCardWidgetState extends ConsumerState<ProductCardWidget> {
+  bool _isUpdating = false;
+
+  Future<void> _applyStatus(ProductStatus newStatus) async {
+    if (_isUpdating) return;
+    setState(() => _isUpdating = true);
+    try {
+      final ok = await ref
+          .read(productProvider.notifier)
+          .updateProductStatus(widget.product.productId, newStatus);
+      if (ok && newStatus == ProductStatus.hidden && mounted) {
+        ref.read(productProvider.notifier).refresh();
+      }
+    } finally {
+      if (mounted) setState(() => _isUpdating = false);
+    }
+  }
+
+  Future<void> _showStatusChangeDialog() async {
+    if (_isUpdating) return;
     logToFile(
         tag: LogTag.UI_ACTION,
-        message: '상품 선택: ${product.productName} : ${product.productId}');
+        message:
+            '상품 선택: ${widget.product.productName} : ${widget.product.productId}');
 
-    CommonDialog.showStatusChangeDialog(
+    final selectedStatus = await CommonDialog.showStatusChangeDialog(
       context: context,
-      itemName: product.productName,
-      currentStatus: product.status,
-    ).then((selectedStatus) {
-      if (selectedStatus == null || selectedStatus == product.status) return;
-      if (!context.mounted) return;
+      itemName: widget.product.productName,
+      currentStatus: widget.product.status,
+    );
+    if (!mounted) return;
+    if (selectedStatus == null || selectedStatus == widget.product.status) {
+      return;
+    }
 
-      // 미노출 선택 시 재확인 다이얼로그 표시
-      if (selectedStatus == ProductStatus.hidden) {
-        CommonDialog.showConfirmDialog(
-          context: context,
-          title: t.product_mgmt.dialog_hidden_title,
-          content:
-              t.product_mgmt.dialog_hidden_content(name: product.productName),
-          confirmText: t.product_mgmt.btn_hidden,
-          cancelText: t.common.cancel,
-        ).then((confirmed) {
-          if (confirmed == true) {
-            ref
-                .read(productProvider.notifier)
-                .updateProductStatus(product.productId, selectedStatus)
-                .then((success) {
-              if (success) {
-                ref.read(productProvider.notifier).refresh();
-              }
-            });
-          }
-        });
-      } else {
-        ref
-            .read(productProvider.notifier)
-            .updateProductStatus(product.productId, selectedStatus);
-      }
-    });
+    if (selectedStatus == ProductStatus.hidden) {
+      final confirmed = await CommonDialog.showConfirmDialog(
+        context: context,
+        title: t.product_mgmt.dialog_hidden_title,
+        content: t.product_mgmt
+            .dialog_hidden_content(name: widget.product.productName),
+        confirmText: t.product_mgmt.btn_hidden,
+        cancelText: t.common.cancel,
+      );
+      if (confirmed != true || !mounted) return;
+    }
+
+    await _applyStatus(selectedStatus);
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final currencySymbol = ref.watch(currencySymbolProvider);
-    final isSoldOut = product.status == ProductStatus.soldOut;
+    final isSoldOut = widget.product.status == ProductStatus.soldOut;
 
     final borderColor = isSoldOut ? AppStyles.kMainColor : AppStyles.gray3;
     final borderWidth = isSoldOut ? 1.5 : 1.0;
@@ -80,62 +92,85 @@ class ProductCardWidget extends ConsumerWidget {
         child: Material(
           color: Colors.transparent,
           borderRadius: AppRadius.bLg,
-          child: InkWell(
-            onTap: () => _showStatusChangeDialog(context, ref),
-            borderRadius: AppRadius.bLg,
-            child: Stack(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(AppSpacing.s8),
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          product.productName,
-                          style: AppTextStyles.titleSm.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
-                          textAlign: TextAlign.center,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
+          child: Stack(
+            children: [
+              InkWell(
+                onTap: _isUpdating ? null : _showStatusChangeDialog,
+                borderRadius: AppRadius.bLg,
+                child: Stack(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(AppSpacing.s8),
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              widget.product.productName,
+                              style: AppTextStyles.titleSm.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
+                              textAlign: TextAlign.center,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: AppSpacing.s8),
+                            Text(
+                              CommonUtil.formatPrice(widget.product.menuPrice,
+                                  currencyUnit: currencySymbol),
+                              style: AppTextStyles.body.copyWith(
+                                color: AppStyles.gray6,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: AppSpacing.s8),
-                        Text(
-                          CommonUtil.formatPrice(product.menuPrice,
-                              currencyUnit: currencySymbol),
-                          style: AppTextStyles.body.copyWith(
-                            color: AppStyles.gray6,
+                      ),
+                    ),
+                    if (isSoldOut)
+                      Positioned(
+                        top: AppSpacing.s8,
+                        left: AppSpacing.s8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.s8,
+                            vertical: AppSpacing.s4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppStyles.kMainColor,
+                            borderRadius: AppRadius.bMd,
+                          ),
+                          child: Text(
+                            t.product_mgmt.sold_out,
+                            style: AppTextStyles.caption.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
-                      ],
+                      ),
+                  ],
+                ),
+              ),
+              if (_isUpdating)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.55),
+                        borderRadius: AppRadius.bLg,
+                      ),
+                      alignment: Alignment.center,
+                      child: const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                        ),
+                      ),
                     ),
                   ),
                 ),
-                if (isSoldOut)
-                  Positioned(
-                    top: AppSpacing.s8,
-                    left: AppSpacing.s8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.s8,
-                        vertical: AppSpacing.s4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppStyles.kMainColor,
-                        borderRadius: AppRadius.bMd,
-                      ),
-                      child: Text(
-                        t.product_mgmt.sold_out,
-                        style: AppTextStyles.caption.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
+            ],
           ),
         ),
       ),

@@ -6,18 +6,12 @@ part of 'order_detail_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$orderDetailHash() => r'c419eafad2b61ac6a2b0055d7181a348b0d7f4ee';
+String _$orderDetailHash() => r'eef1df0e5080f47c1ea71faf04a05fac2808a2a1';
 
 /// See also [OrderDetail].
 @ProviderFor(OrderDetail)
-final orderDetailProvider = AutoDisposeNotifierProvider<
-    OrderDetail,
-    ({
-      OrderModel? order,
-      bool isLoading,
-      String? errorMessage,
-      String? loadingActionId
-    })>.internal(
+final orderDetailProvider = AutoDisposeNotifierProvider<OrderDetail,
+    ({OrderModel? order, bool isLoading, String? errorMessage})>.internal(
   OrderDetail.new,
   name: r'orderDetailProvider',
   debugGetCreateSourceHash:
@@ -27,11 +21,6 @@ final orderDetailProvider = AutoDisposeNotifierProvider<
 );
 
 typedef _$OrderDetail = AutoDisposeNotifier<
-    ({
-      OrderModel? order,
-      bool isLoading,
-      String? errorMessage,
-      String? loadingActionId
-    })>;
+    ({OrderModel? order, bool isLoading, String? errorMessage})>;
 // ignore_for_file: type=lint
 // ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package

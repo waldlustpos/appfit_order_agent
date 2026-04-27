@@ -5,7 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:appfit_order_agent/constants/app_styles.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
+import 'package:appfit_order_agent/widgets/common/action_button_shell.dart';
+import 'package:appfit_order_agent/widgets/common/async_action_button.dart';
 import 'package:appfit_order_agent/widgets/common/common_dialog.dart';
+import 'package:appfit_order_agent/widgets/common/print_action_button.dart';
 import 'package:appfit_order_agent/exceptions/api_exceptions.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import '../../models/order_model.dart';
@@ -42,35 +45,6 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
 
   late final OrderModel _originalOrder;
 
-  /// 라벨 재출력 버튼 전용 연타 방지 타임스탬프 + 로컬 진행 플래그.
-  /// 재출력 버튼에만 1초 디바운스/프로그레스 적용 (닫기/기타 액션 버튼에는 영향 없음).
-  DateTime? _lastReprintAt;
-  bool _isReprintBusy = false;
-  Timer? _reprintBusyTimer;
-  static const Duration _reprintDebounce = Duration(seconds: 1);
-
-  bool _consumeReprintDebounce() {
-    final now = DateTime.now();
-    if (_lastReprintAt != null &&
-        now.difference(_lastReprintAt!) < _reprintDebounce) {
-      logToFile(
-          tag: LogTag.UI_ACTION, message: '라벨 재출력 버튼 디바운스 차단 (1초 이내 재클릭)');
-      return false;
-    }
-    _lastReprintAt = now;
-    return true;
-  }
-
-  /// 재출력 버튼에 1초 프로그레스를 표시한다. 이 기간 동안 버튼은 비활성.
-  /// 다른 버튼(닫기 등)에는 영향 주지 않기 위해 공용 loadingActionId 대신 로컬 플래그 사용.
-  void _startReprintProgress() {
-    setState(() => _isReprintBusy = true);
-    _reprintBusyTimer?.cancel();
-    _reprintBusyTimer = Timer(_reprintDebounce, () {
-      if (mounted) setState(() => _isReprintBusy = false);
-    });
-  }
-
   @override
   void initState() {
     super.initState();
@@ -90,7 +64,6 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
 
   @override
   void dispose() {
-    _reprintBusyTimer?.cancel();
     _menuScrollController.dispose();
     super.dispose();
   }
@@ -202,11 +175,6 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
 
   Future<void> _handleStatusUpdate(
       Future<bool> Function() updateFunction, String actionId) async {
-    final orderDetailNotifier = ref.read(orderDetailProvider.notifier);
-    if (ref.read(orderDetailProvider).loadingActionId != null) return;
-
-    orderDetailNotifier.setLoadingAction(actionId);
-
     String? errorMessage;
     final currentOrder = ref.read(orderDetailProvider).order;
     final orderInfo = currentOrder != null
@@ -219,7 +187,6 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
             tag: LogTag.UI_ACTION,
             message: '상태 변경 성공: action=$actionId, $orderInfo');
         if (mounted) {
-          orderDetailNotifier.setLoadingAction(null);
           Navigator.of(context).pop();
           await Future.delayed(const Duration(milliseconds: 300));
         }
@@ -236,17 +203,12 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
       errorMessage = e is ApiException ? e.message : '오류 발생: $e';
       logger.e('상태 업데이트 처리 중 오류', error: e, stackTrace: s);
     } finally {
-      if (mounted) {
-        if (errorMessage != null) {
-          orderDetailNotifier.setLoadingAction(null);
-          CommonDialog.showInfoDialog(
-            context: context,
-            title: t.common.error_title,
-            content: errorMessage,
-          );
-        }
-      } else {
-        orderDetailNotifier.setLoadingAction(null);
+      if (mounted && errorMessage != null) {
+        CommonDialog.showInfoDialog(
+          context: context,
+          title: t.common.error_title,
+          content: errorMessage,
+        );
       }
     }
   }
@@ -279,8 +241,7 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
             ? _buildLoadingState()
             : orderDetailState.errorMessage != null
                 ? _buildErrorState(orderDetailState.errorMessage!)
-                : _buildContent(
-                    order, orderDetailState.loadingActionId, currencyUnit),
+                : _buildContent(order, currencyUnit),
       ),
     );
   }
@@ -327,8 +288,7 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
     );
   }
 
-  Widget _buildContent(
-      OrderModel order, String? loadingActionId, String currencyUnit) {
+  Widget _buildContent(OrderModel order, String currencyUnit) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -418,24 +378,58 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
 
   ({List<Widget> secondary, Widget primary}) _buildActionButtons(
       OrderModel order) {
-    final orderDetailState = ref.watch(orderDetailProvider);
     final isSubDisplay = ref.read(preferenceServiceProvider).getSubDisplay();
 
-    Widget close() => _buildButton(
-          t.common.close,
-          onPressed: () => Navigator.of(context).pop(),
-          actionId: 'close',
+    Widget closeButton({bool isMainAction = false}) => AsyncActionButton(
+          text: t.common.close,
+          isMainAction: isMainAction,
+          onPressed: () async => Navigator.of(context).pop(),
+        );
+
+    // 라벨 재출력 — PrintActionButton 으로 통일 (위젯 내부 1초 debounce + 자기 버튼만 인디케이터)
+    Widget labelReprintBtn() => PrintActionButton(
+          text: t.order_detail.btn_label_reprint,
+          onPressed: () {
+            logToFile(
+                tag: LogTag.UI_ACTION,
+                message: '라벨 재출력 버튼 클릭: ${order.orderNo}');
+            ref.read(outputQueueServiceProvider).addReprint(order);
+          },
+        );
+
+    // 영수증 재출력 — PrintActionButton (영수증 + 라벨 동시 큐 직렬 처리)
+    Widget receiptReprintBtn() => PrintActionButton(
+          text: t.order_detail.btn_receipt_reprint,
+          onPressed: () {
+            logToFile(
+                tag: LogTag.UI_ACTION,
+                message:
+                    '영수증 재출력 버튼: displayNum=${order.displayNum}, simpleNum=${order.shopOrderNo}, orderId=${order.orderId}');
+            ref.read(outputQueueServiceProvider).addReceiptReprint(order);
+          },
+        );
+
+    // KDS 픽업 버튼 — kSub 배경 특수 스타일
+    ButtonStyle kdsPickupStyle() => AppStyles.primaryButton(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.s32,
+            vertical: AppSpacing.s12,
+          ),
+          minimumSize: const Size(120, 44),
+          elevation: 2,
+        ).copyWith(
+          backgroundColor: const WidgetStatePropertyAll(AppStyles.kSub),
         );
 
     // 완료/취소 탭: 닫기 단일 버튼
     if (widget.isFromCompletedOrCancelled) {
-      return (secondary: [], primary: close());
+      return (secondary: [], primary: closeButton(isMainAction: true));
     }
 
     // KDS 모드
     if (widget.isFromKds) {
       if (isSubDisplay && widget.isFromAllTab) {
-        return (secondary: [], primary: close());
+        return (secondary: [], primary: closeButton(isMainAction: true));
       }
 
       Future<void> requestPickup() async {
@@ -449,42 +443,28 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
 
       return (
         secondary: [
-          close(),
+          closeButton(),
           if (ref.read(preferenceServiceProvider).getUseLabelPrinter())
-            _buildButton(
-              t.order_detail.btn_label_reprint,
-              onPressed: () async {
-                if (ref.read(orderDetailProvider).loadingActionId != null) {
-                  return;
-                }
-                if (!_consumeReprintDebounce()) return;
-                _startReprintProgress();
-                logToFile(
-                    tag: LogTag.UI_ACTION,
-                    message: '라벨 재출력 버튼 클릭: ${order.orderNo}');
-                ref.read(outputQueueServiceProvider).addReprint(order);
-              },
-              actionId: 'reprintLabel',
-              externalIsLoading: _isReprintBusy,
-            ),
+            labelReprintBtn(),
         ],
-        primary: _buildButton(
-          t.order_detail.btn_pickup_request,
-          onPressed: requestPickup,
-          actionId: 'requestPickup',
+        primary: AsyncActionButton(
+          text: t.order_detail.btn_pickup_request,
           isMainAction: true,
+          onPressed: requestPickup,
+          styleOverride: kdsPickupStyle(),
         ),
       );
     }
 
-    // 준비 시간 선택 다이얼로그
+    // 준비 시간 선택 다이얼로그 — await 패턴으로 변환하여
+    // AsyncActionButton 의 busy 가 status update 끝까지 유지되도록 한다.
     Future<void> acceptOrder() async {
-      if (orderDetailState.loadingActionId != null) return;
+      if (!mounted) return;
       logToFile(
           tag: LogTag.UI_ACTION,
           message:
               '주문 접수 버튼: displayNum=${order.displayNum}, simpleNum=${order.shopOrderNo}, orderId=${order.orderId}');
-      showDialog(
+      final time = await showDialog<String>(
         context: context,
         builder: (BuildContext timeContext) {
           return AlertDialog(
@@ -529,7 +509,7 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: ['5', '10', '15']
-                    .map((time) => Padding(
+                    .map((m) => Padding(
                           padding: const EdgeInsets.symmetric(
                               horizontal: AppSpacing.s8),
                           child: ElevatedButton(
@@ -549,15 +529,10 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
                             onPressed: () {
                               logToFile(
                                   tag: LogTag.UI_ACTION,
-                                  message: '주문 접수 버튼 -> 시간선택 $time분');
-                              Navigator.of(timeContext).pop();
-                              _handleStatusUpdate(
-                                  () => _updateOrderStatus(
-                                      OrderStatus.PREPARING,
-                                      readyTime: time),
-                                  'acceptOrder');
+                                  message: '주문 접수 버튼 -> 시간선택 $m분');
+                              Navigator.of(timeContext).pop(m);
                             },
-                            child: Text(t.order_detail.minutes(n: time)),
+                            child: Text(t.order_detail.minutes(n: m)),
                           ),
                         ))
                     .toList(),
@@ -565,6 +540,11 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
             ],
           );
         },
+      );
+      if (time == null || !mounted) return;
+      await _handleStatusUpdate(
+        () => _updateOrderStatus(OrderStatus.PREPARING, readyTime: time),
+        'acceptOrder',
       );
     }
 
@@ -586,18 +566,21 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
           () => _updateOrderStatus(OrderStatus.DONE), 'completeOrder');
     }
 
+    // 주문 취소 — 확인 다이얼로그 내부에서 진행 인디케이터가 표시되도록 onConfirm 으로
+    // _updateOrderStatus 를 직접 호출한다. _handleStatusUpdate 는 popup 자체를 pop 하므로
+    // 여기서는 사용하지 않고, status 업데이트가 끝나 confirm 다이얼로그가 닫힌 뒤
+    // popup 닫기/에러 표시를 직접 처리한다.
     Future<void> cancelOrder() async {
-      if (orderDetailState.loadingActionId != null) return;
-      final order = orderDetailState.order;
-      if (order == null) return;
-      logToFile(
-          tag: LogTag.UI_ACTION,
-          message:
-              '주문 취소버튼: displayNum=${order.displayNum}, simpleNum=${order.shopOrderNo}, orderId=${order.orderId}');
+      final currentOrder = ref.read(orderDetailProvider).order;
+      if (currentOrder == null) return;
+      const String actionId = 'cancelOrder';
+      final orderInfo =
+          'displayNum=${currentOrder.displayNum}, simpleNum=${currentOrder.shopOrderNo}, orderId=${currentOrder.orderId}';
+      logToFile(tag: LogTag.UI_ACTION, message: '주문 취소버튼: $orderInfo');
 
       bool isKioskOrder(OrderModel o) => o.source == 'WALD_KIOSK';
 
-      if (isKioskOrder(order)) {
+      if (isKioskOrder(currentOrder)) {
         CommonDialog.showInfoDialog(
             context: context,
             title: t.order_detail.dialog_kiosk_cancel_title,
@@ -606,76 +589,66 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
         return;
       }
 
-      final result = await CommonDialog.showConfirmDialog(
-          context: context,
-          title: t.order_detail.btn_order_cancel,
-          cancelText: t.common.close,
-          confirmText: t.order_detail.btn_order_cancel,
-          content: t.order_detail
-              .dialog_cancel_confirm_content(n: order.displayNum));
-      if (result == true) {
-        await _handleStatusUpdate(
-            () => _updateOrderStatus(OrderStatus.CANCELLED), 'cancelOrder');
-      }
-    }
-
-    Future<void> printReceipt() async {
-      if (orderDetailState.loadingActionId != null) return;
-      final order = orderDetailState.order;
-      if (order == null) return;
-      logToFile(
-          tag: LogTag.UI_ACTION,
-          message:
-              '영수증 재출력 버튼: displayNum=${order.displayNum}, simpleNum=${order.shopOrderNo}, orderId=${order.orderId}');
-      const String actionId = 'printReceipt';
-      final orderDetailNotifier = ref.read(orderDetailProvider.notifier);
-      orderDetailNotifier.setLoadingAction(actionId);
+      bool success = false;
       String? errorMessage;
-      try {
-        final printService = ref.read(printServiceProvider);
-        final bool isCancelled = (order.status == OrderStatus.CANCELLED);
-        logger.i('영수증 재출력 요청: 주문 ID ${order.orderId}, 취소됨: $isCancelled');
-        await printService.printOrderReceipt(
-          order: order,
-          type: 'receipt',
-          isCancelReceipt: isCancelled,
-        );
-        await ref
-            .read(orderProvider.notifier)
-            .printOrderLabels(order, isReprint: true);
-        if (mounted) {
-          await Future.delayed(const Duration(milliseconds: 1000));
-        }
-      } catch (e, s) {
-        errorMessage = t.order_detail.print_receipt_fail(error: e.toString());
-        logger.e('영수증 출력 실패', error: e, stackTrace: s);
-      } finally {
-        if (mounted) {
-          orderDetailNotifier.setLoadingAction(null);
-          if (errorMessage != null) {
-            CommonDialog.showInfoDialog(
-              context: context,
-              title: t.common.error_title,
-              content: errorMessage,
-            );
-          }
-        }
-      }
-    }
-
-    Widget labelReprintBtn() => _buildButton(
-          t.order_detail.btn_label_reprint,
-          onPressed: () async {
-            if (ref.read(orderDetailProvider).loadingActionId != null) return;
-            if (!_consumeReprintDebounce()) return;
-            _startReprintProgress();
+      await CommonDialog.showConfirmDialog(
+        context: context,
+        title: t.order_detail.btn_order_cancel,
+        cancelText: t.common.close,
+        confirmText: t.order_detail.btn_order_cancel,
+        content: t.order_detail
+            .dialog_cancel_confirm_content(n: currentOrder.displayNum),
+        onConfirm: () async {
+          try {
+            success = await _updateOrderStatus(OrderStatus.CANCELLED);
+            if (success) {
+              logToFile(
+                  tag: LogTag.UI_ACTION,
+                  message: '상태 변경 성공: action=$actionId, $orderInfo');
+            } else {
+              logToFile(
+                  tag: LogTag.UI_ACTION,
+                  message: '상태 변경 실패: action=$actionId, $orderInfo');
+              errorMessage = t.order_detail.status_update_fail;
+            }
+          } catch (e, s) {
             logToFile(
                 tag: LogTag.UI_ACTION,
-                message: '라벨 재출력 버튼 클릭: ${order.orderNo}');
-            ref.read(outputQueueServiceProvider).addReprint(order);
+                message: '상태 변경 오류: action=$actionId, $orderInfo, error=$e');
+            errorMessage = e is ApiException ? e.message : '오류 발생: $e';
+            logger.e('상태 업데이트 처리 중 오류', error: e, stackTrace: s);
+          }
+        },
+      );
+
+      if (!mounted) return;
+      if (success) {
+        Navigator.of(context).pop();
+        await Future.delayed(const Duration(milliseconds: 300));
+      } else if (errorMessage != null) {
+        CommonDialog.showInfoDialog(
+          context: context,
+          title: t.common.error_title,
+          content: errorMessage!,
+        );
+      }
+    }
+
+    // 주문 취소 버튼은 자체 인디케이터를 표시하지 않는다 — 클릭 즉시 확인 다이얼로그가
+    // 떠 있고, 진행 인디케이터는 확인 다이얼로그의 confirm 버튼 쪽에서 표시된다.
+    Widget cancelOrderBtn({bool isMainAction = false}) => ActionButtonShell(
+          text: t.order_detail.btn_order_cancel,
+          busy: false,
+          isMainAction: isMainAction,
+          onPressed: () {
+            cancelOrder();
           },
-          actionId: 'reprintLabel',
-          externalIsLoading: _isReprintBusy,
+        );
+
+    Widget completeOrderBtn({bool isMainAction = false}) => AsyncActionButton(
+          text: t.order_detail.btn_order_complete,
+          isMainAction: isMainAction,
+          onPressed: completeOrder,
         );
 
     final isFromHistory = widget.isFromHistory;
@@ -684,30 +657,19 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
 
     if (isFromHistory) {
       final secondaryBtns = [
-        _buildButton(t.order_detail.btn_receipt_reprint,
-            onPressed: printReceipt, actionId: 'printReceipt'),
+        receiptReprintBtn(),
         if (ref.read(preferenceServiceProvider).getUseLabelPrinter())
           labelReprintBtn(),
       ];
       if (order.status != OrderStatus.CANCELLED) {
         return (
           secondary: secondaryBtns,
-          primary: _buildButton(
-            t.order_detail.btn_order_cancel,
-            onPressed: cancelOrder,
-            actionId: 'cancelOrder',
-            isMainAction: true,
-          ),
+          primary: cancelOrderBtn(isMainAction: true),
         );
       } else {
         return (
           secondary: secondaryBtns,
-          primary: _buildButton(
-            t.common.close,
-            onPressed: () => Navigator.of(context).pop(),
-            actionId: 'close',
-            isMainAction: true,
-          ),
+          primary: closeButton(isMainAction: true),
         );
       }
     }
@@ -716,30 +678,22 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
     if (isSubDisplay && order.status == OrderStatus.READY) {
       return (
         secondary: [],
-        primary: _buildButton(
-          t.order_detail.btn_order_complete,
-          onPressed: completeOrder,
-          actionId: 'completeOrder',
-          isMainAction: true,
-        ),
+        primary: completeOrderBtn(isMainAction: true),
       );
     }
 
     if (order.status == OrderStatus.NEW) {
       return (
         secondary: [
-          _buildButton(t.order_detail.btn_receipt_reprint,
-              onPressed: printReceipt, actionId: 'printReceipt'),
+          receiptReprintBtn(),
           if (ref.read(preferenceServiceProvider).getUseLabelPrinter())
             labelReprintBtn(),
-          _buildButton(t.order_detail.btn_order_cancel,
-              onPressed: cancelOrder, actionId: 'cancelOrder'),
+          cancelOrderBtn(),
         ],
-        primary: _buildButton(
-          t.order_detail.btn_order_accept,
-          onPressed: acceptOrder,
-          actionId: 'acceptOrder',
+        primary: AsyncActionButton(
+          text: t.order_detail.btn_order_accept,
           isMainAction: true,
+          onPressed: acceptOrder,
         ),
       );
     }
@@ -751,35 +705,30 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
           !widget.isFromCompletedOrCancelled) {
         return (
           secondary: [
-            _buildButton(t.order_detail.btn_receipt_reprint,
-                onPressed: printReceipt, actionId: 'printReceipt'),
-            _buildButton(t.order_detail.btn_order_cancel,
-                onPressed: cancelOrder, actionId: 'cancelOrder'),
-            _buildButton(t.order_detail.btn_order_complete,
-                onPressed: completeOrder, actionId: 'completeOrder'),
+            receiptReprintBtn(),
+            cancelOrderBtn(),
+            completeOrderBtn(),
           ],
-          primary: _buildKdsPickupButton(
-            t.order_detail.btn_pickup_request,
-            requestPickup,
+          primary: AsyncActionButton(
+            text: t.order_detail.btn_pickup_request,
+            isMainAction: true,
+            onPressed: requestPickup,
+            styleOverride: kdsPickupStyle(),
           ),
         );
       }
       return (
         secondary: [
-          _buildButton(t.order_detail.btn_receipt_reprint,
-              onPressed: printReceipt, actionId: 'printReceipt'),
+          receiptReprintBtn(),
           if (ref.read(preferenceServiceProvider).getUseLabelPrinter())
             labelReprintBtn(),
-          _buildButton(t.order_detail.btn_order_cancel,
-              onPressed: cancelOrder, actionId: 'cancelOrder'),
-          _buildButton(t.order_detail.btn_order_complete,
-              onPressed: completeOrder, actionId: 'completeOrder'),
+          cancelOrderBtn(),
+          completeOrderBtn(),
         ],
-        primary: _buildButton(
-          t.order_detail.btn_pickup_request,
-          onPressed: requestPickup,
-          actionId: 'requestPickup',
+        primary: AsyncActionButton(
+          text: t.order_detail.btn_pickup_request,
           isMainAction: true,
+          onPressed: requestPickup,
         ),
       );
     }
@@ -787,142 +736,22 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
     if (order.status == OrderStatus.READY) {
       return (
         secondary: [
-          _buildButton(t.order_detail.btn_receipt_reprint,
-              onPressed: printReceipt, actionId: 'printReceipt'),
+          receiptReprintBtn(),
           if (ref.read(preferenceServiceProvider).getUseLabelPrinter())
             labelReprintBtn(),
         ],
-        primary: _buildButton(
-          t.order_detail.btn_order_complete,
-          onPressed: completeOrder,
-          actionId: 'completeOrder',
-          isMainAction: true,
-        ),
+        primary: completeOrderBtn(isMainAction: true),
       );
     }
 
     // DONE / 기타
     return (
       secondary: [
-        _buildButton(t.order_detail.btn_receipt_reprint,
-            onPressed: printReceipt, actionId: 'printReceipt'),
+        receiptReprintBtn(),
         if (ref.read(preferenceServiceProvider).getUseLabelPrinter())
           labelReprintBtn(),
       ],
-      primary: _buildButton(
-        t.common.close,
-        onPressed: () => Navigator.of(context).pop(),
-        actionId: 'close',
-        isMainAction: true,
-      ),
-    );
-  }
-
-  Widget _buildKdsPickupButton(String text, VoidCallback? onPressed) {
-    final providerState = ref.read(orderDetailProvider);
-    final bool isLoading = providerState.loadingActionId == 'requestPickup';
-    final bool isActionInProgress = providerState.loadingActionId != null;
-
-    return ElevatedButton(
-      style: AppStyles.primaryButton(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.s32,
-          vertical: AppSpacing.s12,
-        ),
-        minimumSize: const Size(120, 44),
-        elevation: 2,
-      ).copyWith(
-        backgroundColor: const WidgetStatePropertyAll(AppStyles.kSub),
-        textStyle: WidgetStatePropertyAll(
-          AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
-        ),
-      ),
-      onPressed: isActionInProgress ? null : onPressed,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Opacity(
-            opacity: isLoading ? 0.0 : 1.0,
-            child: Text(text),
-          ),
-          if (isLoading)
-            const SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2.5,
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.white70),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildButton(
-    String text, {
-    required VoidCallback? onPressed,
-    required String actionId,
-    bool isMainAction = false,
-    bool externalIsLoading = false,
-  }) {
-    final currentOrderId = _originalOrder.orderId;
-    final providerState = ref.read(orderDetailProvider);
-    // externalIsLoading: 이 버튼 고유의 진행 상태 (예: 라벨 재출력 디바운스)
-    // — 공용 loadingActionId 와 독립적으로 동작해야 다른 버튼(닫기 등)에 영향 없음.
-    final bool isLoading =
-        providerState.loadingActionId == actionId || externalIsLoading;
-    final bool isActionInProgress = providerState.loadingActionId != null;
-
-    if (isActionInProgress) {
-      logger.d(
-          'Button build: orderId=$currentOrderId, actionId=$actionId, inProgress=${providerState.loadingActionId}');
-    }
-
-    return ElevatedButton(
-      style: isMainAction
-          ? AppStyles.primaryButton(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.s24,
-                vertical: AppSpacing.s12,
-              ),
-              minimumSize: const Size(120, 44),
-            ).copyWith(
-              textStyle: WidgetStatePropertyAll(
-                AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
-              ),
-            )
-          : AppStyles.outlinedButton(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.s20,
-                vertical: AppSpacing.s12,
-              ),
-              minimumSize: const Size(100, 44),
-              borderColor: AppStyles.gray3,
-            ).copyWith(
-              textStyle: WidgetStatePropertyAll(
-                AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
-              ),
-            ),
-      onPressed: (isActionInProgress || externalIsLoading) ? null : onPressed,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Opacity(
-            opacity: isLoading ? 0.0 : 1.0,
-            child: Text(text),
-          ),
-          if (isLoading)
-            const SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2.5,
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.white70),
-              ),
-            ),
-        ],
-      ),
+      primary: closeButton(isMainAction: true),
     );
   }
 }

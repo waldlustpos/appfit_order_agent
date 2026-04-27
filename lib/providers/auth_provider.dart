@@ -7,7 +7,6 @@ import '../services/appfit/appfit_providers.dart'; // appFitTokenManagerProvider
 import '../services/api_service.dart';
 import '../services/platform_service.dart'; // logToFile, LogTag 사용 위해 추가
 
-import '../services/secure_storage_service.dart'; // SecureStorageService
 import 'package:appfit_core/appfit_core.dart'
     as appfit_core; // AppFitConfig (패키지)
 
@@ -129,14 +128,19 @@ class Auth extends _$Auth {
 
         // V2: AppFit WebSocket 연결 시작
         if (connectSocket) {
-          final secureStorage = ref.read(secureStorageServiceProvider);
-          final projectId =
-              await secureStorage.read(SecureStorageService.appFitProjectId) ??
-                  '';
-          final apiKey = await secureStorage
-                  .read(SecureStorageService.appFitProjectApiKey) ??
-              '';
+          // H2 회피: getProjectInfo()의 saveProjectCredentials 와 동일한
+          // FlutterSecureStorage 인스턴스(AppFitTokenManager._storage)에서 read
+          final tm = ref.read(appFitTokenManagerProvider);
+          final projectId = await tm.getStoredProjectId() ?? '';
+          final apiKey = await tm.getStoredApiKey() ?? '';
           final aesKey = AppEnv.aesKey;
+
+          logToFile(
+              tag: LogTag.SYSTEM,
+              message:
+                  '[Auth] WS connect 직전 env=${appfit_core.AppFitConfig.websocketUrl} '
+                  'projectId.len=${projectId.length} apiKey.len=${apiKey.length} '
+                  'aesKey.len=${aesKey.length}');
 
           if (projectId.isNotEmpty && apiKey.isNotEmpty && aesKey.isNotEmpty) {
             // AppFitNotifierService 연결
@@ -150,6 +154,10 @@ class Auth extends _$Auth {
                 tag: LogTag.API, message: '[Auth] AppFit WebSocket Connected');
           } else {
             logger.w('[Auth] Missing credentials for WebSocket connection');
+            logToFile(
+                tag: LogTag.SYSTEM,
+                message:
+                    '[Auth] WS connect SKIP: credentials missing (projectId.len=${projectId.length} apiKey.len=${apiKey.length})');
           }
         } else {
           logger.i('[Auth] WebSocket connection skipped by user setting');
@@ -203,12 +211,9 @@ class Auth extends _$Auth {
   Future<void> reconnect() async {
     logger.i('[Auth] 수동/라이프사이클 재연결 요청');
     try {
-      final secureStorage = ref.read(secureStorageServiceProvider);
-      final projectId =
-          await secureStorage.read(SecureStorageService.appFitProjectId) ?? '';
-      final apiKey =
-          await secureStorage.read(SecureStorageService.appFitProjectApiKey) ??
-              '';
+      final tm = ref.read(appFitTokenManagerProvider);
+      final projectId = await tm.getStoredProjectId() ?? '';
+      final apiKey = await tm.getStoredApiKey() ?? '';
       final aesKey = AppEnv.aesKey;
       final storeId = ref.read(preferenceServiceProvider).getId() ?? '';
 

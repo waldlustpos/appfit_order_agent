@@ -17,6 +17,7 @@ import 'package:appfit_core/appfit_core.dart'; // import 추가
 // import 'appfit/api_routes.dart'; // Removed
 import '../models/enums/order_action.dart';
 import '../exceptions/api_exceptions.dart'; // Added for precise error catching
+import '../services/platform_service.dart'; // logToFile, LogTag 사용 위해 추가
 
 part 'api_service.g.dart';
 
@@ -76,6 +77,11 @@ class ApiService {
 
         await tokenManager.saveProjectCredentials(projectId, finalApiKey);
         logger.i('[AppFit API] Project credentials saved via TokenManager.');
+        logToFile(
+          tag: LogTag.API,
+          message:
+              '[AppFit API] saveProjectCredentials 완료: projectId.len=${projectId.length} apiKey.len=${finalApiKey.length}',
+        );
         logger.i(AppFitConfig.getConfigSummary());
 
         // Legacy 호환성을 위해 SecureStorageService에도 저장 (필요 시 제거 가능)

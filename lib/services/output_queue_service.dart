@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:appfit_core/appfit_core.dart';
 import 'package:appfit_order_agent/models/order_model.dart';
+import 'package:appfit_order_agent/providers/providers.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:appfit_order_agent/core/orders/output_service.dart';
 
@@ -19,6 +20,13 @@ final class NewOrderJob extends OutputJob {
 /// 사용자 요청 기반 라벨 재출력 (영수증/사운드 없음)
 final class ReprintJob extends OutputJob {
   const ReprintJob(super.order);
+}
+
+/// 사용자 요청 기반 영수증 재출력 (라벨 동시 재출력 포함, 사운드 없음).
+/// 라벨 프린터와 영수증 프린터의 USB 자원 경쟁을 같은 큐로 직렬화하기 위해 큐를 경유한다.
+final class ReceiptReprintJob extends OutputJob {
+  const ReceiptReprintJob(super.order, {required this.isCancelReceipt});
+  final bool isCancelReceipt;
 }
 
 /// 출력 작업 관리를 위한 큐 서비스
@@ -53,6 +61,15 @@ class OutputQueueService {
         '[OutputQueue] REPRINT 작업 추가: ${order.orderId} (대기열: ${_queue.length})');
   }
 
+  /// 사용자 영수증 재출력 요청 추가 (영수증 + 라벨 동시 재출력, 사운드 없음).
+  /// 영수증/라벨 프린터의 USB 자원 경쟁 방지를 위해 동일 큐에 직렬화한다.
+  void addReceiptReprint(OrderModel order) {
+    final isCancelled = order.status == OrderStatus.CANCELLED;
+    _queue.add(ReceiptReprintJob(order, isCancelReceipt: isCancelled));
+    logger.d(
+        '[OutputQueue] RECEIPT_REPRINT 작업 추가: ${order.orderId} (취소영수증=$isCancelled, 대기열: ${_queue.length})');
+  }
+
   Future<void> _processItem(OutputJob job) async {
     final outputService = ref.read(outputAppServiceProvider);
     switch (job) {
@@ -64,6 +81,16 @@ class OutputQueueService {
         logger.d('[OutputQueue] REPRINT 출력 시작: ${order.orderId}');
         await outputService.printOrderLabels(order, isReprint: true);
         logger.d('[OutputQueue] REPRINT 출력 완료: ${order.orderId}');
+      case ReceiptReprintJob(order: final order, isCancelReceipt: final cancel):
+        logger.d('[OutputQueue] RECEIPT_REPRINT 출력 시작: ${order.orderId}');
+        final printService = ref.read(printServiceProvider);
+        await printService.printOrderReceipt(
+          order: order,
+          type: 'receipt',
+          isCancelReceipt: cancel,
+        );
+        await outputService.printOrderLabels(order, isReprint: true);
+        logger.d('[OutputQueue] RECEIPT_REPRINT 출력 완료: ${order.orderId}');
     }
   }
 
