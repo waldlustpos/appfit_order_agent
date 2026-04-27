@@ -119,7 +119,13 @@ class _SettingsRightPanelState extends ConsumerState<SettingsRightPanel> {
   @override
   void dispose() {
     _scrollController.dispose();
-    _audioPlayer.dispose();
+    // Sentry APPFIT-ORDER-AGENT-N: 이미 dispose 된 플레이어에 다시 dispose 가
+    // 호출되면 IllegalStateException 이 발생하므로 안전하게 감싼다.
+    try {
+      _audioPlayer.dispose();
+    } catch (e) {
+      logger.w('[SettingsRightPanel] AudioPlayer dispose 중 예외 무시: $e');
+    }
     super.dispose();
   }
 

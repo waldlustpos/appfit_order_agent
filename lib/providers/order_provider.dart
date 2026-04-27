@@ -213,8 +213,16 @@ class Order extends _$Order {
         _orderQueueService.stop();
       }
 
-      _isAudioPlayerDisposed = true;
-      _audioPlayer.dispose();
+      // Sentry APPFIT-ORDER-AGENT-N: 이미 dispose 된 AudioPlayer 에 dispose 가
+      // 또 호출되면 내부 release→stop 경로에서 IllegalStateException 이 발생한다.
+      if (!_isAudioPlayerDisposed) {
+        try {
+          _audioPlayer.dispose();
+        } catch (e) {
+          logger.w('[OrderProvider] AudioPlayer dispose 중 예외 무시: $e');
+        }
+        _isAudioPlayerDisposed = true;
+      }
       _batchProcessingTimer?.cancel(); // 배치 처리 타이머 취소 추가
     });
 
@@ -1937,9 +1945,19 @@ class Order extends _$Order {
     _orderQueueService.stop();
 
     // 4. AudioPlayer 정리
+    // Sentry APPFIT-ORDER-AGENT-N: stop/dispose 가 PlatformException 으로 터져도
+    // 로그아웃 시퀀스 자체가 중단되지 않도록 try-catch 로 감싼다.
     if (!_isAudioPlayerDisposed) {
-      _audioPlayer.stop();
-      _audioPlayer.dispose();
+      try {
+        _audioPlayer.stop();
+      } catch (e) {
+        logger.w('[OrderProvider] AudioPlayer stop 중 예외 무시: $e');
+      }
+      try {
+        _audioPlayer.dispose();
+      } catch (e) {
+        logger.w('[OrderProvider] AudioPlayer dispose 중 예외 무시: $e');
+      }
       _isAudioPlayerDisposed = true;
     }
 
