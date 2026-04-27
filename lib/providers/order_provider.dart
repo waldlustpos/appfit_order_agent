@@ -1945,6 +1945,8 @@ class Order extends _$Order {
     // 3. 외부 서비스 정지
     // _firestoreSyncService.stop(); // Removed
     _orderQueueService.stop();
+    // 출력 큐(영수증/라벨/사운드) 정리 — 다음 사용자 세션에 이전 출력이 흘러가지 않도록 보장
+    _outputQueueService.clear();
 
     // 4. AudioPlayer 정리
     // Sentry APPFIT-ORDER-AGENT-N: stop/dispose 가 PlatformException 으로 터져도
