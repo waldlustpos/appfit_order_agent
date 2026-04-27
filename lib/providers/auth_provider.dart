@@ -6,6 +6,7 @@ import 'package:appfit_order_agent/utils/logger.dart';
 import '../services/appfit/appfit_providers.dart'; // appFitTokenManagerProvider
 import '../services/api_service.dart';
 import '../services/platform_service.dart'; // logToFile, LogTag 사용 위해 추가
+import '../services/secure_storage_service.dart'; // 로그아웃 cleanup용
 
 import 'package:appfit_core/appfit_core.dart'
     as appfit_core; // AppFitConfig (패키지)
@@ -98,28 +99,23 @@ class Auth extends _$Auth {
         // Service alias used from api_service.dart
         final appFitApiService = ref.read(apiServiceProvider);
 
+        // getProjectInfo()는 복호화된 projectId/apiKey를 반환합니다.
+        // apiKey는 즉시 connect()에 사용하며, 프로젝트는 별도로 보관하지 않습니다.
+        // (영구 저장은 패키지 내부의 saveProjectCredentials가 담당)
+        final String projectId;
+        final String apiKey;
         try {
-          await appFitApiService.getProjectInfo();
+          final projectInfo = await appFitApiService.getProjectInfo();
+          projectId = projectInfo.projectId;
+          apiKey = projectInfo.apiKey;
           logToFile(
               tag: LogTag.API,
               message: '[Auth] V2 Project Info Validation Success');
-
-          // (확인용) 저장된 API Key 유효성 검증
-          // final isValid =
-          //     await ref.read(appFitTokenManagerProvider).validateApiKey();
-          // if (!isValid) {
-          //   logger.w('[Auth] API Key 유효성 검증 실패 (로그인은 진행)');
-          // } else {
-          //   logger.i('[Auth] API Key 유효성 검증 완료');
-          // }
-
           logToFile(
               tag: LogTag.API,
               message: '[Auth] V2 Store Info Validation Success');
         } catch (e, s) {
           logger.e('[Auth] V2 Data Fetch Failed', error: e, stackTrace: s);
-          // 데이터 조회 실패 시 로그만 남기고 일단 진행할지, 실패 처리할지 결정 필요
-          // 현재는 테스트 단계이므로 실패로 처리하여 로그 확인 유도
           state = state.copyWith(
               connectionStatus: ConnectionStatus.disconnected,
               errorMessage: '데이터 조회 실패: $e');
@@ -128,11 +124,6 @@ class Auth extends _$Auth {
 
         // V2: AppFit WebSocket 연결 시작
         if (connectSocket) {
-          // H2 회피: getProjectInfo()의 saveProjectCredentials 와 동일한
-          // FlutterSecureStorage 인스턴스(AppFitTokenManager._storage)에서 read
-          final tm = ref.read(appFitTokenManagerProvider);
-          final projectId = await tm.getStoredProjectId() ?? '';
-          final apiKey = await tm.getStoredApiKey() ?? '';
           final aesKey = AppEnv.aesKey;
 
           logToFile(
@@ -196,11 +187,41 @@ class Auth extends _$Auth {
     }
   }
 
-  void logout() {
-    // 주의: 이 Provider의 의존성이 변경되는 시점에 다른 Provider를 읽으면 Riverpod assertion이 발생할 수 있음
-    // 실제 정리는 UI 계층(HomeScreen)과 OrderProvider.cleanupOnLogout에서 수행하도록 위임
-    // AuthState는 SocketState 변경 감지를 통해 자동으로 업데이트됨
-    // state = AuthState(...); // 필요 시 초기 상태로 명시적 리셋
+  /// 로그아웃 — credentials/토큰/소켓을 모두 정리하는 단일 진입점
+  ///
+  /// UI 계층은 이 메서드만 호출. 영업 상태 변경/OrderProvider cleanup/네비게이션
+  /// 같은 UI 관련 작업은 호출자(예: HomeScreen)가 담당.
+  ///
+  /// 주의: `Auth.build()`가 `appFitNotifierServiceProvider`를 watch하므로,
+  /// `disconnect()` 호출 후에는 dependency 변경으로 `ref.read()` 사용이 차단된다.
+  /// → 모든 provider를 disconnect 호출 전에 미리 read해 둔다.
+  Future<void> logout() async {
+    try {
+      // ⭐ 모든 의존성을 dependency 변경 전에 미리 캐시
+      final notifier = ref.read(appFitNotifierServiceProvider.notifier);
+      final tokenManager = ref.read(appFitTokenManagerProvider);
+      final preferenceService = ref.read(preferenceServiceProvider);
+      final secureStorage = SecureStorageService();
+
+      // 1. WebSocket 연결 종료 (이 시점부터 Auth dependency가 outdated 될 수 있음)
+      notifier.disconnect();
+
+      // 2. JWT 토큰 / 비밀번호 삭제 (캐시된 tokenManager 사용 — ref 미접근)
+      await tokenManager.clearToken();
+      await tokenManager.clearPassword();
+
+      // 3. SecureStorage의 projectId/apiKey cleanup
+      //    (값을 read하지 않고 키 이름으로 delete만 수행 — core 보안 원칙 준수)
+      await secureStorage.delete(SecureStorageService.appFitProjectId);
+      await secureStorage.delete(SecureStorageService.appFitProjectApiKey);
+
+      // 4. 로그인 정보(SharedPreferences) 정리 (캐시된 preferenceService 사용)
+      await preferenceService.clearLoginInfo();
+
+      logToFile(tag: LogTag.SYSTEM, message: '[Auth] 로그아웃 cleanup 완료');
+    } catch (e, s) {
+      logger.e('[Auth] 로그아웃 처리 중 오류', error: e, stackTrace: s);
+    }
   }
 
   /// 환경 변경 시 호출 — WebSocket 연결만 해제 (앱 재시작 없이 로그인 화면으로 이동)
@@ -211,16 +232,21 @@ class Auth extends _$Auth {
   Future<void> reconnect() async {
     logger.i('[Auth] 수동/라이프사이클 재연결 요청');
     try {
-      final tm = ref.read(appFitTokenManagerProvider);
-      final projectId = await tm.getStoredProjectId() ?? '';
-      final apiKey = await tm.getStoredApiKey() ?? '';
       final aesKey = AppEnv.aesKey;
       final storeId = ref.read(preferenceServiceProvider).getId() ?? '';
 
-      if (storeId.isNotEmpty &&
-          projectId.isNotEmpty &&
-          apiKey.isNotEmpty &&
-          aesKey.isNotEmpty) {
+      if (storeId.isEmpty || aesKey.isEmpty) {
+        logger.w('[Auth] 재연결 실패: storeId/aesKey 없음');
+        return;
+      }
+
+      // apiKey는 프로젝트가 보관하지 않으므로, getProjectInfo()를 다시 호출해
+      // 신선한 projectId/apiKey를 받아 connect에 사용한다.
+      final projectInfo = await ref.read(apiServiceProvider).getProjectInfo();
+      final projectId = projectInfo.projectId;
+      final apiKey = projectInfo.apiKey;
+
+      if (projectId.isNotEmpty && apiKey.isNotEmpty) {
         await ref.read(appFitNotifierServiceProvider.notifier).connect(
               shopCode: storeId,
               projectId: projectId,

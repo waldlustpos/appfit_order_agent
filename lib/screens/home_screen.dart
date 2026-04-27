@@ -14,8 +14,6 @@ import 'dart:async'; // StreamSubscription 사용 위해 추가
 import 'dart:io'; // Platform 사용 위해 추가
 import '../services/local_server_service.dart';
 import '../services/platform_service.dart';
-import '../services/secure_storage_service.dart';
-import '../services/appfit/appfit_providers.dart' as appfit_providers;
 import '../services/platform_bridge_service.dart'; // PlatformBridgeService 사용 위해 추가
 
 import 'package:appfit_order_agent/services/overlay_service.dart';
@@ -354,7 +352,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     if (shouldLogout == null || !shouldLogout) return;
 
     try {
-      final preferenceService = PreferenceService();
       final apiService = ref.read(apiServiceProvider);
       final socketNotifier = ref.read(appFitNotifierServiceProvider.notifier);
       final storeId = ref.read(storeProvider).value?.storeId ?? '';
@@ -376,15 +373,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         logger.i('[HomeScreen] 로그아웃: 로컬 서버 중지 완료');
       }
 
-      // JWT 토큰 및 프로젝트 크리덴셜 삭제
-      await ref.read(appfit_providers.appFitTokenManagerProvider).clearToken();
-      await ref
-          .read(appfit_providers.appFitTokenManagerProvider)
-          .clearPassword();
-      final secureStorage = SecureStorageService();
-      await secureStorage.delete(SecureStorageService.appFitProjectId);
-      await secureStorage.delete(SecureStorageService.appFitProjectApiKey);
-      await preferenceService.clearLoginInfo();
+      // credentials/JWT/소켓 cleanup은 Auth.logout() 단일 진입점에 위임
+      await ref.read(authProvider.notifier).logout();
 
       // KDS 모드일 때는 별도 정리 불필요 (dispose에서 자동 처리됨)
 

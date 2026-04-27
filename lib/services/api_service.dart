@@ -47,8 +47,12 @@ class ApiService {
   // Dio get _dio => _ref.read(appFitDioProvider);
 
   /// 프로젝트 정보 조회
-  /// 프로젝트 정보 조회
-  Future<Map<String, dynamic>> getProjectInfo() async {
+  ///
+  /// 응답에서 복호화된 projectId/apiKey를 반환합니다.
+  /// apiKey는 호출 직후 즉시 사용(예: WebSocket connect)되며, 영구 저장은
+  /// 패키지 내부의 [AppFitTokenManager.saveProjectCredentials]가 담당합니다.
+  Future<({String projectId, String apiKey, Map<String, dynamic> data})>
+      getProjectInfo() async {
     try {
       final dio = _ref.read(appFitDioProvider);
       // getProjectInfo는 Project ID 헤더가 필요 없음
@@ -84,12 +88,7 @@ class ApiService {
         );
         logger.i(AppFitConfig.getConfigSummary());
 
-        // Legacy 호환성을 위해 SecureStorageService에도 저장 (필요 시 제거 가능)
-        // final secureStorage = SecureStorageService();
-        // await secureStorage.write(SecureStorageService.appFitProjectId, projectId);
-        // ...
-
-        return data;
+        return (projectId: projectId, apiKey: finalApiKey, data: data);
       } else {
         throw Exception('프로젝트 정보 조회 실패: ${response.statusCode}');
       }
