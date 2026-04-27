@@ -410,18 +410,6 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
           },
         );
 
-    // KDS 픽업 버튼 — kSub 배경 특수 스타일
-    ButtonStyle kdsPickupStyle() => AppStyles.primaryButton(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.s32,
-            vertical: AppSpacing.s12,
-          ),
-          minimumSize: const Size(120, 44),
-          elevation: 2,
-        ).copyWith(
-          backgroundColor: const WidgetStatePropertyAll(AppStyles.kSub),
-        );
-
     // 완료/취소 탭: 닫기 단일 버튼
     if (widget.isFromCompletedOrCancelled) {
       return (secondary: [], primary: closeButton(isMainAction: true));
@@ -452,7 +440,6 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
           text: t.order_detail.btn_pickup_request,
           isMainAction: true,
           onPressed: requestPickup,
-          styleOverride: kdsPickupStyle(),
         ),
       );
     }
@@ -714,7 +701,6 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
             text: t.order_detail.btn_pickup_request,
             isMainAction: true,
             onPressed: requestPickup,
-            styleOverride: kdsPickupStyle(),
           ),
         );
       }
