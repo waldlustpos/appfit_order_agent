@@ -161,6 +161,7 @@ class _KdsOrderCardState extends ConsumerState<KdsOrderCard> {
   }
 
   void _updateScrollButtonVisibility() {
+    if (!mounted) return;
     final controller = _internalScrollController;
     final notifier = ref.read(kdsScrollButtonStatesProvider.notifier);
 

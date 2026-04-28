@@ -54,24 +54,22 @@ class KdsScrollUpButtonWidget extends ConsumerWidget {
                 onTap: canScrollUp
                     ? () {
                         final controller = scrollControllers[orderId];
-                        if (controller != null && controller.hasClients) {
-                          // 부드러운 애니메이션으로 맨 위로 스크롤
-                          controller
-                              .animateTo(
-                            0.0,
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeInOut,
-                          )
-                              .then((_) {
-                            // 애니메이션 완료 후 스크롤 위치 저장
-                            ref
-                                .read(kdsScrollPositionsProvider.notifier)
-                                .saveScrollPosition(orderId, 0.0);
-
-                            // 스크롤 버튼 가시성 업데이트
-                            updateScrollButtonVisibility(orderId);
-                          });
+                        if (controller == null || !controller.hasClients) {
+                          return;
                         }
+                        // ref가 dispose된 후 .then() 실행을 대비해 notifier를 사전 캐시
+                        final positionsNotifier =
+                            ref.read(kdsScrollPositionsProvider.notifier);
+                        controller
+                            .animateTo(
+                          0.0,
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                        )
+                            .then((_) {
+                          positionsNotifier.saveScrollPosition(orderId, 0.0);
+                          updateScrollButtonVisibility(orderId);
+                        });
                       }
                     : null,
                 child: Center(
@@ -106,7 +104,8 @@ class KdsScrollDownButtonWidget extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final canScrollDown =
-        ref.watch(kdsScrollButtonStatesProvider)[orderId]?.canScrollDown ?? false;
+        ref.watch(kdsScrollButtonStatesProvider)[orderId]?.canScrollDown ??
+            false;
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 0),
@@ -140,25 +139,24 @@ class KdsScrollDownButtonWidget extends ConsumerWidget {
                 onTap: canScrollDown
                     ? () {
                         final controller = scrollControllers[orderId];
-                        if (controller != null && controller.hasClients) {
-                          // 부드러운 애니메이션으로 맨 아래로 스크롤
-                          final maxExtent = controller.position.maxScrollExtent;
-                          controller
-                              .animateTo(
-                            maxExtent,
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeInOut,
-                          )
-                              .then((_) {
-                            // 애니메이션 완료 후 스크롤 위치 저장
-                            ref
-                                .read(kdsScrollPositionsProvider.notifier)
-                                .saveScrollPosition(orderId, maxExtent);
-
-                            // 스크롤 버튼 가시성 업데이트
-                            updateScrollButtonVisibility(orderId);
-                          });
+                        if (controller == null || !controller.hasClients) {
+                          return;
                         }
+                        final maxExtent = controller.position.maxScrollExtent;
+                        // ref가 dispose된 후 .then() 실행을 대비해 notifier를 사전 캐시
+                        final positionsNotifier =
+                            ref.read(kdsScrollPositionsProvider.notifier);
+                        controller
+                            .animateTo(
+                          maxExtent,
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                        )
+                            .then((_) {
+                          positionsNotifier.saveScrollPosition(
+                              orderId, maxExtent);
+                          updateScrollButtonVisibility(orderId);
+                        });
                       }
                     : null,
                 child: Center(
