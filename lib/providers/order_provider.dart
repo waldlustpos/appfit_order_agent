@@ -60,6 +60,14 @@ class Order extends _$Order {
   // 동일 orderId 에 대한 추가 자동접수 시도를 차단한다. 소켓 폭증, 폴링↔소켓 동시 발화,
   // refreshOrders 재진입 사이의 race window 를 좁히는 마지막 가드.
   final Set<String> _autoAcceptingOrderIds = <String>{};
+  // 사용자가 수동으로 취소/완료한 주문 → 처리 시각.
+  // 폴링/refreshOrders 응답이 서버 replication lag 으로 해당 주문을 아직 살아있는
+  // 상태(NEW/PREPARING 등)로 돌려줘도 부활(재추가)을 차단한다. CANCELLED 는
+  // _resolveMergedStatus 가 터미널로 보호하지만, READY→DONE 등 비-CANCELLED
+  // 종결 시나리오에서는 서버 stale 응답이 PREPARING 으로 돌아올 수 있어 별도 보호 필요.
+  // TTL 120초 = 폴링 1사이클(60초) × 2 (DID 의 _recentRemovals 와 동일 정책).
+  final Map<String, DateTime> _recentRemovals = <String, DateTime>{};
+  static const Duration _recentRemovalTtl = Duration(seconds: 120);
   bool _isAudioPlayerDisposed = false; // AudioPlayer dispose 상태 추적
   String _lastKnownOrderSequence = "0";
   List<OrderModel> _unfilteredOrders = []; // 필터링되지 않은 전체 주문 목록
@@ -835,6 +843,23 @@ class Order extends _$Order {
           await _apiService.getOrders(storeId, startDate: date, endDate: date);
       logger.d('[refreshOrders] API 목록 조회 완료: ${basicOrders.length}건');
 
+      // 1-1. replication lag 대응: 최근 종결(DONE/CANCELLED) 처리한 주문이
+      // stale 응답으로 살아있는 상태로 돌아오면 머지 단계에서 사전 필터링.
+      // _resolveMergedStatus 가 다운그레이드는 막지만, 로컬 state 에서 이미 사라진
+      // 주문이 server 응답만으로 부활하는 경로는 별도 가드가 필요.
+      final now = DateTime.now();
+      _recentRemovals.removeWhere(
+        (_, ts) => now.difference(ts) > _recentRemovalTtl,
+      );
+      final removedIds = _recentRemovals.keys.toSet();
+      final filteredBasicOrders = removedIds.isEmpty
+          ? basicOrders
+          : basicOrders.where((o) => !removedIds.contains(o.orderId)).toList();
+      if (filteredBasicOrders.length != basicOrders.length) {
+        logger.w(
+            '[refreshOrders] 서버 부활 차단(최근 DONE/CANCELLED): ${basicOrders.length - filteredBasicOrders.length}건');
+      }
+
       // 2. 기존 캐시나 상태에서 상세 정보 복원 및 병합
       // 빠른 검색을 위해 현재 state.orders를 Map으로 인덱싱
       final existingOrderMap = <String, OrderModel>{
@@ -842,7 +867,7 @@ class Order extends _$Order {
       };
 
       final mergedOrders = <OrderModel>[];
-      for (final basicOrder in basicOrders) {
+      for (final basicOrder in filteredBasicOrders) {
         // 캐시 / 로컬 state 확인
         final cached = _orderDetailCache.get(basicOrder.orderId);
         final existing = existingOrderMap[basicOrder.orderId];
@@ -999,6 +1024,8 @@ class Order extends _$Order {
 
       final success = await _apiService.cancelOrder(orderId);
       if (success) {
+        // replication lag 대응: 폴링이 stale active 응답으로 부활시키는 것을 차단.
+        _recentRemovals[orderId] = DateTime.now();
         // Firestore 상태 업데이트 (Removed)
         // final firestoreService = ref.read(firestoreStatusServiceProvider); ...
 
@@ -1457,6 +1484,12 @@ class Order extends _$Order {
       logger.d('API 호출 결과 - 성공: $success, orderId: $orderId');
 
       if (success) {
+        // 종결 상태 전이는 replication lag 대응 캐시에 등록.
+        // 폴링이 stale 응답으로 active 상태를 돌려줘도 부활을 차단한다.
+        if (newStatus == OrderStatus.DONE ||
+            newStatus == OrderStatus.CANCELLED) {
+          _recentRemovals[orderId] = DateTime.now();
+        }
         // Find the order in the *current state* to update it
         final index = state.orders.indexWhere((o) => o.orderId == orderId);
         final statusCode = '';
@@ -1605,7 +1638,20 @@ class Order extends _$Order {
         ref.read(appFitNotifierServiceProvider).isConnected;
     bool latencyDetected = false;
 
+    // replication lag 대응 — _recentRemovals 만료 청소 후 부활 차단 ID 셋 준비.
+    final pollNow = DateTime.now();
+    _recentRemovals.removeWhere(
+      (_, ts) => pollNow.difference(ts) > _recentRemovalTtl,
+    );
+    final removedIds = _recentRemovals.keys.toSet();
+
     for (final order in newOrders) {
+      // 0. 최근 종결(DONE/CANCELLED) 처리한 주문이 stale 응답으로 부활하는 경우 차단.
+      if (removedIds.contains(order.orderId)) {
+        logger.w('[Polling] 서버 부활 차단(최근 DONE/CANCELLED): ${order.orderId}');
+        continue;
+      }
+
       // 1. 글로벌 캐시 확인 (소켓 등 이미 같은 (id, status) 로 처리된 주문인지 확인)
       if (_processedOrderCache.containsOrderStatus(
           order.orderId, order.status)) {
@@ -1996,6 +2042,7 @@ class Order extends _$Order {
     _unfilteredOrders.clear();
     _processedOrderCache.clear();
     _autoAcceptingOrderIds.clear();
+    _recentRemovals.clear();
     _lastKnownOrderSequence = "0";
 
     // 6. UI 상태 초기화

@@ -61,11 +61,11 @@ packages:
     dependency: "direct main"
     description:
       path: appfit_core
-      ref: "v1.0.6"
-      resolved-ref: "635683ca0f69684f7226f177df1dc832b0c9ca5d"
+      ref: "v1.0.7"
+      resolved-ref: c7c501e87741a74ce3926e62a0733e3a2152a61d
       url: "https://github.com/ratm10/appifit_agent_core.git"
     source: git
-    version: "1.0.6"
+    version: "1.0.7"
   archive:
     dependency: "direct main"
     description:
