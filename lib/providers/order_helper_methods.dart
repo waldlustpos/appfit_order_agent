@@ -16,6 +16,15 @@ class OrderHelperMethods {
     return order.source == 'WALD_KIOSK';
   }
 
+  /// KDS 모드에서는 신규(NEW) 주문 처리를 하지 않는다.
+  ///
+  /// KDS는 PREPARING 이후 단계만 다루므로:
+  /// - 소켓 `ORDER_CREATED` 이벤트는 무시
+  /// - 폴링 응답의 NEW 상태 주문은 자동접수 시도하지 않고 스킵
+  ///
+  /// 정책이 바뀌면(예: KDS 라우팅 도입) 이 한 곳만 수정한다.
+  static bool shouldIgnoreNewOrderInKdsMode(bool isKdsMode) => isKdsMode;
+
   /// 주문을 UI에 표시할지 여부 확인 (모든 주문 통일 처리)
   bool shouldShowOrder(OrderModel order, bool isKioskOrderVisible) {
     // 오늘 날짜가 아닌 주문은 표시하지 않음
@@ -67,8 +76,7 @@ class OrderHelperMethods {
     if (order.status == OrderStatus.NEW &&
         isKioskOrder(order) &&
         !isKioskOrderSoundEnabled) {
-      logger.d(
-          '[Notify] 키오스크 주문 출력/알람 OFF로 스킵: ${order.orderNo}');
+      logger.d('[Notify] 키오스크 주문 출력/알람 OFF로 스킵: ${order.orderNo}');
       return false;
     }
 

@@ -56,6 +56,10 @@ class Order extends _$Order {
   AudioPlayer _audioPlayer = AudioPlayer();
   final OrderDetailCache _orderDetailCache = OrderDetailCache();
   final ProcessedOrderCache _processedOrderCache = ProcessedOrderCache();
+  // 자동접수 in-flight 락. updateOrderStatus 호출이 비동기로 분리되는 시점부터 응답 도착(or 예외)까지
+  // 동일 orderId 에 대한 추가 자동접수 시도를 차단한다. 소켓 폭증, 폴링↔소켓 동시 발화,
+  // refreshOrders 재진입 사이의 race window 를 좁히는 마지막 가드.
+  final Set<String> _autoAcceptingOrderIds = <String>{};
   bool _isAudioPlayerDisposed = false; // AudioPlayer dispose 상태 추적
   String _lastKnownOrderSequence = "0";
   List<OrderModel> _unfilteredOrders = []; // 필터링되지 않은 전체 주문 목록
@@ -587,6 +591,12 @@ class Order extends _$Order {
     }
 
     if (shouldAutoAccept) {
+      // in-flight 락: 동일 orderId 자동접수 microtask 가 진행 중이면 추가 진입 차단.
+      if (_autoAcceptingOrderIds.contains(order.orderId)) {
+        logger.d('$modeText: 자동 접수 in-flight 중복 진입 차단: ${order.orderId}');
+        return;
+      }
+      _autoAcceptingOrderIds.add(order.orderId);
       logger.d('$modeText: 자동 접수 진행: ${order.orderId}');
       // 사용자 피드백을 위해 블링크는 즉시 반영 (UI는 NEW 상태로 유지)
 
@@ -642,6 +652,8 @@ class Order extends _$Order {
         // updateOrderStatus 가 rethrow 한 ApiException 이 unhandled 로 터지며 앱이 죽지 않도록 흡수.
         logger.w('$modeText: 자동접수 체인 오류(무시): ${order.orderId}',
             error: error, stackTrace: stackTrace);
+      }).whenComplete(() {
+        _autoAcceptingOrderIds.remove(order.orderId);
       });
 
       return; // 자동접수 경로에서는 추가 알림 처리 불필요
@@ -720,6 +732,13 @@ class Order extends _$Order {
               '[Order Processing] NEW 자동접수 스킵 - 로컬 상태=${currentInState.status}: ${order.orderId}');
           continue;
         }
+        // in-flight 락: 동일 orderId 자동접수 microtask 가 진행 중이면 추가 진입 차단.
+        if (_autoAcceptingOrderIds.contains(order.orderId)) {
+          logger.d(
+              '[Order Processing] 자동 접수 in-flight 중복 진입 차단: ${order.orderId}');
+          continue;
+        }
+        _autoAcceptingOrderIds.add(order.orderId);
         logger.d('[Order Processing] NEW 주문 자동접수: ${order.orderId}');
         // rethrow 된 ApiException 이 unhandled async exception 으로 터지며 앱이 죽는 것을 방지.
         Future.microtask(
@@ -731,6 +750,8 @@ class Order extends _$Order {
             stackTrace: stackTrace,
           );
           return false;
+        }).whenComplete(() {
+          _autoAcceptingOrderIds.remove(order.orderId);
         });
       }
     }
@@ -1230,15 +1251,13 @@ class Order extends _$Order {
 
   // 외부 서비스용 얇은 래퍼들 - QueueManager로 위임
   void queueOrderExternal(OrderModel order) {
-    // 캐시 확인 (중복 방지) - 상태 변경은 허용하기 위해 ID+Status 조합 키 사용
-    final cacheKey = '${order.orderId}_${order.status}';
-
-    if (_processedOrderCache.contains(cacheKey)) {
+    // (orderId, status) 조합 단위로 중복 enqueue 차단. 상태 전이는 통과.
+    if (_processedOrderCache.containsOrderStatus(order.orderId, order.status)) {
       logger.d(
-          '[OrderProvider] Order $cacheKey already processed (Cache Hit). Skipping queue.');
+          '[OrderProvider] Order ${order.orderId}_${order.status} already processed (Cache Hit). Skipping queue.');
       return;
     }
-    _processedOrderCache.add(cacheKey);
+    _processedOrderCache.addOrderStatus(order.orderId, order.status);
     _queueManager.queueOrder(order);
   }
 
@@ -1587,8 +1606,9 @@ class Order extends _$Order {
     bool latencyDetected = false;
 
     for (final order in newOrders) {
-      // 1. 글로벌 캐시 확인 (소켓 등 이미 처리된 주문인지 확인)
-      if (_processedOrderCache.contains(order.orderId)) {
+      // 1. 글로벌 캐시 확인 (소켓 등 이미 같은 (id, status) 로 처리된 주문인지 확인)
+      if (_processedOrderCache.containsOrderStatus(
+          order.orderId, order.status)) {
         // 이미 처리된 주문은 로그만 남기고 스킵 (너무 많으면 로그 생략 가능)
         continue;
       }
@@ -1613,8 +1633,9 @@ class Order extends _$Order {
 
       // 즉시 상태 반영이 필요한 주문 처리 (NEW->ACCEPTED 자동 접수 등)
       if (order.status == OrderStatus.NEW) {
-        // KDS 모드에서는 NEW에 대해 아무 처리도 하지 않음 (전체 탭에서만 보이도록)
-        if (ref.read(kdsModeProvider)) {
+        // KDS NEW 차단 정책 — OrderHelperMethods.shouldIgnoreNewOrderInKdsMode 와 동일 기준.
+        if (OrderHelperMethods.shouldIgnoreNewOrderInKdsMode(
+            ref.read(kdsModeProvider))) {
           continue;
         }
 
@@ -1637,6 +1658,12 @@ class Order extends _$Order {
         // 자동 접수 조건 확인 (설정 기반)
         final bool shouldAutoAccept = state.isAutoReceipt;
         if (shouldAutoAccept) {
+          // in-flight 락: 동일 orderId 자동접수 microtask 가 진행 중이면 추가 진입 차단.
+          if (_autoAcceptingOrderIds.contains(order.orderId)) {
+            logger.d('[Polling] 자동 접수 in-flight 중복 진입 차단: ${order.orderId}');
+            continue;
+          }
+          _autoAcceptingOrderIds.add(order.orderId);
           logger.d('새로고침으로 받은 주문 자동 접수 시작: ${order.orderId}');
 
           // 1) 즉시 UI 상태 업데이트 (ACCEPTED 상태로 변경)
@@ -1697,6 +1724,8 @@ class Order extends _$Order {
             // updateOrderStatus 의 ApiException rethrow 로 unhandled async 가 나지 않도록 흡수.
             logger.w('새로고침 주문 자동 접수 체인 오류(무시): ${order.orderId}',
                 error: error, stackTrace: stackTrace);
+          }).whenComplete(() {
+            _autoAcceptingOrderIds.remove(order.orderId);
           });
 
           // 큐 관리는 QueueManager에서 처리됨
@@ -1966,6 +1995,7 @@ class Order extends _$Order {
     // 5. 인메모리 캐시 초기화
     _unfilteredOrders.clear();
     _processedOrderCache.clear();
+    _autoAcceptingOrderIds.clear();
     _lastKnownOrderSequence = "0";
 
     // 6. UI 상태 초기화

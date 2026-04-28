@@ -1,9 +1,17 @@
 import 'package:appfit_order_agent/utils/logger.dart';
 
-/// 소켓 이벤트 중복 처리를 방지하기 위한 유틸리티 클래스
+/// 클라이언트 자가 PUT 직후 echo 로 돌아오는 소켓 이벤트를 1회성 차단하는 싱글톤.
 ///
-/// 자신이 요청한 API에 의한 소켓 이벤트는 무시하고,
-/// 다른 기기에서 발생한 이벤트만 처리하도록 돕습니다.
+/// **키 포맷**: `'${orderId}_${eventType}'` (eventType = appfit_core.OrderEventType.value)
+/// **TTL**: 10초. **소비**: 1회성 — `shouldIgnore` 가 true 를 반환하면 즉시 제거.
+///
+/// **목적**: API 호출(예: updateOrderStatus PUT) 직후 같은 매장의 소켓 채널로 우리가
+/// 만든 이벤트가 echo 되어 돌아온다. 이를 처리하면 자기 자신의 변경을 또 처리해 race 가
+/// 발생하므로, 이 윈도우 동안만 차단한다. 다른 기기에서 발생한 같은 이벤트는 그대로 처리.
+///
+/// ProcessedOrderCache 와의 차이:
+/// - ProcessedOrderCache 는 **소스 무관 (orderId, status) enqueue 중복** 차단(30분, 키=status, 다회 hit).
+/// - SocketEventSuppressor 는 **자가 PUT 의 echo** 차단(10초, 키=eventType, 1회성 소비).
 class SocketEventSuppressor {
   static final SocketEventSuppressor _instance =
       SocketEventSuppressor._internal();

@@ -9,6 +9,7 @@ import '../services/appfit/appfit_providers.dart';
 import '../services/api_service.dart';
 import 'package:appfit_core/appfit_core.dart' as appfit_core;
 import 'package:appfit_order_agent/utils/socket_event_suppressor.dart';
+import 'order_helper_methods.dart';
 
 /// 소켓 관련 기능을 관리하는 클래스
 /// 소켓 연결, 구독, 알림 처리 등을 담당합니다.
@@ -242,22 +243,28 @@ class OrderSocketManager {
     }
   }
 
-  /// KDS에서 무시할 이벤트 타입인지 확인 (ORDER_CREATE는 KDS에서 무시)
+  /// KDS에서 무시할 이벤트 타입인지 확인 (ORDER_CREATED 는 KDS에서 무시).
+  /// KDS NEW 차단 정책은 OrderHelperMethods.shouldIgnoreNewOrderInKdsMode 에 응축되어 있음.
   bool _shouldIgnoreEvent(String eventType, bool isKdsMode) {
-    return isKdsMode && eventType == appfit_core.OrderEventType.orderCreated.value;
+    if (eventType != appfit_core.OrderEventType.orderCreated.value) {
+      return false;
+    }
+    return OrderHelperMethods.shouldIgnoreNewOrderInKdsMode(isKdsMode);
   }
 
   /// KDS "타 기기 이벤트 무시" 설정 적용 (ORDER_ACCEPTED는 항상 처리)
   bool _shouldIgnoreKdsOtherDeviceEvent(String eventType) {
     final ignore =
         ref.read(preferenceServiceProvider).getIgnoreOtherDeviceTasksKds();
-    return ignore && eventType != appfit_core.OrderEventType.orderAccepted.value;
+    return ignore &&
+        eventType != appfit_core.OrderEventType.orderAccepted.value;
   }
 
   /// 상세 조회 필요 여부: 일반모드=ORDER_CREATED, KDS=ORDER_ACCEPTED
   bool _shouldFetchDetail(String eventType, bool isKdsMode, bool hasDetail) {
     if (!hasDetail) return true;
-    if (!isKdsMode) return eventType == appfit_core.OrderEventType.orderCreated.value;
+    if (!isKdsMode)
+      return eventType == appfit_core.OrderEventType.orderCreated.value;
     // KDS: ORDER_ACCEPTED는 항상 최신 API 조회, 나머지는 캐시 기반 업데이트
     return eventType == appfit_core.OrderEventType.orderAccepted.value;
   }
@@ -273,7 +280,8 @@ class OrderSocketManager {
     } else if (eventType == appfit_core.OrderEventType.orderAccepted.value) {
       newStatus = OrderStatus.PREPARING;
       statusCode = '2007';
-    } else if (eventType == appfit_core.OrderEventType.orderPickupRequested.value) {
+    } else if (eventType ==
+        appfit_core.OrderEventType.orderPickupRequested.value) {
       newStatus = OrderStatus.READY;
       statusCode = '2009'; // 픽업 요청 -> 준비 완료
     } else if (eventType == appfit_core.OrderEventType.orderDone.value) {
