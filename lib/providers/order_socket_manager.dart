@@ -9,7 +9,6 @@ import '../services/appfit/appfit_providers.dart';
 import '../services/api_service.dart';
 import 'package:appfit_core/appfit_core.dart' as appfit_core;
 import 'package:appfit_order_agent/utils/socket_event_suppressor.dart';
-import 'order_helper_methods.dart';
 
 /// 소켓 관련 기능을 관리하는 클래스
 /// 소켓 연결, 구독, 알림 처리 등을 담당합니다.
@@ -102,162 +101,166 @@ class OrderSocketManager {
     });
   }
 
-  /// AppFit 이벤트 처리
+  /// 도메인 정책: KDS 모드 분기 + 타 기기 이벤트 무시 설정.
+  /// `appfit_core` SocketEventDispatcher 의 shouldIgnore 콜백으로 주입된다.
+  bool _shouldIgnoreByDomainPolicy(
+      appfit_core.OrderEventType type, appfit_core.SocketEventPayload _) {
+    final isKdsMode = ref.read(kdsModeProvider);
+
+    // 1. KDS 모드에서 NEW(ORDER_CREATED) 차단 — appfit_core 정책 진입점.
+    if (type == appfit_core.OrderEventType.orderCreated &&
+        appfit_core.OrderEventIgnorePolicy.ignoreNewOrderInKdsMode(isKdsMode)) {
+      return true;
+    }
+
+    // 2. KDS "타 기기 이벤트 무시" 설정 (ORDER_ACCEPTED 는 항상 처리).
+    if (isKdsMode &&
+        type != appfit_core.OrderEventType.orderAccepted &&
+        ref.read(preferenceServiceProvider).getIgnoreOtherDeviceTasksKds()) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /// AppFit 이벤트 처리.
+  ///
+  /// 1) 자가 PUT echo 차단 (`SocketEventSuppressor`, 1회성 소비)
+  /// 2) `SocketEventDispatcher` 로 페이로드 파싱·shopCode·정책 ignore 분류
+  /// 3) `accepted` 만 도메인 후속(상세 조회 / 캐시 분기 / `_processNewOrder`) 진행
   void _handleAppFitEvent(Map<String, dynamic> data) async {
     try {
-      final event = appfit_core.SocketEventPayload.fromSocketMessage(data);
-
-      if (event.rawPayload.isEmpty) {
-        logger.w('[AppFit Event] Payload가 없습니다: $data');
+      // 1. 자가 PUT echo 차단 — eventType 키 1회성 소비. dispatcher 진입 전에 처리.
+      final preEventType = (data['eventType'] as String?) ?? '';
+      final prePayload = (data['payload'] as Map<String, dynamic>?) ?? {};
+      String? preOrderId = prePayload['orderNo']?.toString();
+      if (preOrderId == null || preOrderId.isEmpty) {
+        preOrderId = prePayload['orderId']?.toString();
+      }
+      if (preOrderId != null &&
+          preOrderId.isNotEmpty &&
+          preEventType.isNotEmpty &&
+          SocketEventSuppressor().shouldIgnore(preOrderId, preEventType)) {
         return;
       }
 
-      if (event.eventTypeRaw == null) {
-        logger.w('[AppFit Event] eventType이 없습니다: $data');
+      // 2. dispatcher classify — 파싱·페이로드·shopCode·정책 단일 진입점.
+      final dispatcher = appfit_core.SocketEventDispatcher(
+        resolveStoreId: () => ref.read(preferenceServiceProvider).getId(),
+        shouldIgnore: _shouldIgnoreByDomainPolicy,
+      );
+      final outcome = dispatcher.classify(data);
+
+      if (!outcome.isAccepted) {
+        // 분류 결과별 로그만 남기고 종료. 도메인 후속 미진행.
+        switch (outcome.kind) {
+          case appfit_core.SocketDispatchKind.invalidPayload:
+            logger.w('[AppFit Event] 무효 페이로드: ${outcome.reason}');
+            break;
+          case appfit_core.SocketDispatchKind.unknownEventType:
+            logger.d('[AppFit Event] 미처리 이벤트 타입: ${outcome.reason}');
+            break;
+          case appfit_core.SocketDispatchKind.ignoredByShopCode:
+            logger.d('[AppFit Event] ${outcome.reason}');
+            break;
+          case appfit_core.SocketDispatchKind.ignoredByPolicy:
+            logger.d('[AppFit Event] 정책 무시: ${outcome.reason}');
+            break;
+          case appfit_core.SocketDispatchKind.accepted:
+            // 도달 불가
+            break;
+        }
         return;
       }
-      final eventType = event.eventTypeRaw!;
 
-      if (!event.hasOrderId) {
-        logger.w('[AppFit Event] orderNo 또는 orderId가 없습니다: $data');
-        return;
-      }
-      final orderId = event.orderId!;
+      final payload = outcome.payload!;
+      final orderId = payload.orderId!;
+      final eventType = payload.eventTypeRaw!;
+      final eventEnum = payload.eventType!;
 
-      logger.d('[AppFit Event] 수신타입: $eventType, OrderId: $orderId');
+      logger.i('[AppFit] 주문 실시간 알림 수신 ($eventType): $orderId');
 
-      // 자가 발생 이벤트 무시 체크
-      if (SocketEventSuppressor().shouldIgnore(orderId, eventType)) {
-        return;
-      }
-
-      final storeId = ref.read(preferenceServiceProvider).getId();
-      final eventShopCode = event.shopCode;
-
-      // shopCode가 제공된 경우 현재 매장과 일치하는지 확인
-      if (eventShopCode != null &&
-          storeId != null &&
-          eventShopCode.toUpperCase() != storeId.toUpperCase()) {
-        logger.d(
-            '[AppFit Event] 다른 매장의 이벤트입니다. (Current: $storeId, Event: $eventShopCode)');
-        return;
-      }
-
-      // API 호출 시 사용할 shopCode 결정
-      final targetShopCode = eventShopCode ?? storeId;
+      final isKdsMode = ref.read(kdsModeProvider);
+      final targetShopCode =
+          payload.shopCode ?? ref.read(preferenceServiceProvider).getId();
       if (targetShopCode == null) {
         logger.w('[AppFit Event] shopCode를 특정할 수 없습니다.');
         return;
       }
 
-      // 주문 생성, 취소, 상태 변경 이벤트 처리
-      if (eventType == appfit_core.OrderEventType.orderCreated.value ||
-          eventType == appfit_core.OrderEventType.orderCancelled.value ||
-          eventType == appfit_core.OrderEventType.orderAccepted.value ||
-          eventType == appfit_core.OrderEventType.orderPickupRequested.value ||
-          eventType == appfit_core.OrderEventType.orderDone.value) {
-        logger.i('[AppFit] 주문 실시간 알림 수신 ($eventType): $orderId');
+      // 처리 가능한 이벤트 타입 화이트리스트 (도메인 책임).
+      const handled = <appfit_core.OrderEventType>{
+        appfit_core.OrderEventType.orderCreated,
+        appfit_core.OrderEventType.orderCancelled,
+        appfit_core.OrderEventType.orderAccepted,
+        appfit_core.OrderEventType.orderPickupRequested,
+        appfit_core.OrderEventType.orderDone,
+      };
+      if (!handled.contains(eventEnum)) {
+        logger.d('[AppFit Event] 처리되지 않는 이벤트 타입: $eventType');
+        return;
+      }
 
-        final isKdsMode = ref.read(kdsModeProvider);
+      // 3. 상세 조회 여부 결정
+      final hasDetail =
+          ref.read(orderProvider.notifier).hasDetailCache(orderId);
+      final shouldFetchDetail =
+          _shouldFetchDetail(eventType, isKdsMode, hasDetail);
 
-        // 1. KDS에서 ORDER_CREATE 무시
-        if (_shouldIgnoreEvent(eventType, isKdsMode)) {
-          logger.d('[AppFit] KDS 모드: orderCreated 이벤트 무시 - $orderId');
-          return;
+      if (shouldFetchDetail) {
+        try {
+          var orderModel = await ref
+              .read(apiServiceProvider)
+              .getOrder(orderId, storeId: targetShopCode);
+
+          // [FIX] API 상태가 소켓 이벤트보다 늦게 갱신될 수 있으므로,
+          // 이벤트 타입에 따라 강제로 상태를 보정합니다.
+          orderModel = _enforceStatusFromEvent(orderModel, eventType);
+
+          // 주문 처리 (큐 추가, 상태 업데이트, 알림/출력 등 공통 로직)
+          _processNewOrder(orderModel);
+        } catch (e, s) {
+          logger.e('[AppFit] 주문 상세 조회 실패 ($orderId): $e');
         }
-
-        // 2. KDS 타 기기 이벤트 무시 설정
-        if (isKdsMode && _shouldIgnoreKdsOtherDeviceEvent(eventType)) {
-          logger.i('[AppFit] KDS 모드: 타 기기 이벤트($eventType) 무시 - $orderId');
-          return;
-        }
-
-        // 3. 상세 조회 여부 결정
-        final hasDetail =
-            ref.read(orderProvider.notifier).hasDetailCache(orderId);
-        final shouldFetchDetail =
-            _shouldFetchDetail(eventType, isKdsMode, hasDetail);
-
-        if (shouldFetchDetail) {
-          try {
-            var orderModel = await ref
-                .read(apiServiceProvider)
-                .getOrder(orderId, storeId: targetShopCode);
-
-            // [FIX] API 상태가 소켓 이벤트보다 늦게 갱신될 수 있으므로,
-            // 이벤트 타입에 따라 강제로 상태를 보정합니다.
-            orderModel = _enforceStatusFromEvent(orderModel, eventType);
-
-            // 주문 처리 (큐 추가, 상태 업데이트, 알림/출력 등 공통 로직)
-            _processNewOrder(orderModel);
-          } catch (e, s) {
-            logger.e('[AppFit] 주문 상세 조회 실패 ($orderId): $e');
-          }
+      } else {
+        logger.d('[AppFit] 상세 조회 생략, 로컬 상태 업데이트 수행 ($eventType)');
+        final localOrder =
+            ref.read(orderProvider.notifier).getCachedOrderDetail(orderId);
+        if (localOrder != null) {
+          final updatedOrder =
+              _enforceStatusFromEvent(localOrder, eventType).copyWith(
+            updateTime: DateTime.now(),
+          );
+          _processNewOrder(updatedOrder);
         } else {
-          logger.d('[AppFit] 상세 조회 생략, 로컬 상태 업데이트 수행 ($eventType)');
-          // 로컬 상태 기반 업데이트
-          final localOrder =
-              ref.read(orderProvider.notifier).getCachedOrderDetail(orderId);
-          if (localOrder != null) {
+          // 캐시 미스 시 - state.orders에서 주문 찾아서 상태만 갱신
+          final stateOrder =
+              ref.read(orderProvider.notifier).getOrderFromState(orderId);
+          if (stateOrder != null) {
             final updatedOrder =
-                _enforceStatusFromEvent(localOrder, eventType).copyWith(
+                _enforceStatusFromEvent(stateOrder, eventType).copyWith(
               updateTime: DateTime.now(),
             );
-
-            // 큐 처리를 통해 일관된 UI/알림 흐름 타도록 함
             _processNewOrder(updatedOrder);
           } else {
-            // 캐시 미스 시 - state.orders에서 주문 찾아서 상태만 갱신
-            final stateOrder =
-                ref.read(orderProvider.notifier).getOrderFromState(orderId);
-            if (stateOrder != null) {
-              final updatedOrder =
-                  _enforceStatusFromEvent(stateOrder, eventType).copyWith(
-                updateTime: DateTime.now(),
-              );
-              _processNewOrder(updatedOrder);
-            } else {
-              // 혹시라도 로컬 오더가 null이면 (위에서 hasDetail 체크했지만 동시성 이슈 등 방어)
-              // 재귀적으로 API 호출 시도하지 않고 로그 남기고 종료 (무한 루프 방지) or API 호출
-              logger.w(
-                  '[AppFit] 로컬 오더 찾을 수 없음 (unexpected), API 호출 시도. ID: $orderId');
-              try {
-                var orderModel = await ref
-                    .read(apiServiceProvider)
-                    .getOrder(orderId, storeId: targetShopCode);
-
-                orderModel = _enforceStatusFromEvent(orderModel, eventType);
-
-                _processNewOrder(orderModel);
-              } catch (e, s) {
-                logger.e('[AppFit] Fallback 주문 상세 조회 실패: $e');
-              }
+            // 동시성 이슈 등 예외적 상황: API fallback 1회 시도.
+            logger.w(
+                '[AppFit] 로컬 오더 찾을 수 없음 (unexpected), API 호출 시도. ID: $orderId');
+            try {
+              var orderModel = await ref
+                  .read(apiServiceProvider)
+                  .getOrder(orderId, storeId: targetShopCode);
+              orderModel = _enforceStatusFromEvent(orderModel, eventType);
+              _processNewOrder(orderModel);
+            } catch (e, s) {
+              logger.e('[AppFit] Fallback 주문 상세 조회 실패: $e');
             }
           }
         }
-      } else {
-        logger.d('[AppFit Event] 처리되지 않는 이벤트 타입: $eventType');
       }
     } catch (e, s) {
       logger.e('[AppFit] 이벤트 처리 오류', error: e, stackTrace: s);
     }
-  }
-
-  /// KDS에서 무시할 이벤트 타입인지 확인 (ORDER_CREATED 는 KDS에서 무시).
-  /// KDS NEW 차단 정책은 OrderHelperMethods.shouldIgnoreNewOrderInKdsMode 에 응축되어 있음.
-  bool _shouldIgnoreEvent(String eventType, bool isKdsMode) {
-    if (eventType != appfit_core.OrderEventType.orderCreated.value) {
-      return false;
-    }
-    return OrderHelperMethods.shouldIgnoreNewOrderInKdsMode(isKdsMode);
-  }
-
-  /// KDS "타 기기 이벤트 무시" 설정 적용 (ORDER_ACCEPTED는 항상 처리)
-  bool _shouldIgnoreKdsOtherDeviceEvent(String eventType) {
-    final ignore =
-        ref.read(preferenceServiceProvider).getIgnoreOtherDeviceTasksKds();
-    return ignore &&
-        eventType != appfit_core.OrderEventType.orderAccepted.value;
   }
 
   /// 상세 조회 필요 여부: 일반모드=ORDER_CREATED, KDS=ORDER_ACCEPTED

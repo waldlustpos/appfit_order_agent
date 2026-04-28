@@ -1,4 +1,3 @@
-import 'package:appfit_core/appfit_core.dart' as core;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/order_model.dart';
 import '../core/orders/cache/order_detail_cache.dart';
@@ -16,13 +15,6 @@ class OrderHelperMethods {
   bool isKioskOrder(OrderModel order) {
     return order.source == 'WALD_KIOSK';
   }
-
-  /// KDS 모드에서는 신규(NEW) 주문 처리를 하지 않는다.
-  ///
-  /// 정책 본체는 `appfit_core` 의 [core.OrderEventIgnorePolicy] 에 응축되어 있으며,
-  /// 이 메서드는 호출 편의를 위한 도메인 진입점이다. 양 앱이 동일 정책을 공유한다.
-  static bool shouldIgnoreNewOrderInKdsMode(bool isKdsMode) =>
-      core.OrderEventIgnorePolicy.ignoreNewOrderInKdsMode(isKdsMode);
 
   /// 주문을 UI에 표시할지 여부 확인 (모든 주문 통일 처리)
   bool shouldShowOrder(OrderModel order, bool isKioskOrderVisible) {

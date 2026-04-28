@@ -23,15 +23,21 @@ tools: Read, Glob, Grep, Bash
 - `order_cache_manager.dart` — 주문 상세 캐시(1h, 200건 LRU)
 - `order_settings_manager.dart` — 알람/볼륨/자동접수 설정
 - `order_state_manager.dart` — activeOrderCount, 주문 병합
-- `order_helper_methods.dart` — `shouldShowOrder` / `shouldNotifyForOrder` (키오스크 노출/알람 분기), `shouldIgnoreNewOrderInKdsMode` (KDS NEW 차단 단일 정책)
+- `order_helper_methods.dart` — `shouldShowOrder` / `shouldNotifyForOrder` (키오스크 노출/알람 분기). KDS NEW 차단은 `appfit_core.OrderEventIgnorePolicy.ignoreNewOrderInKdsMode` 직접 호출 (래퍼 제거됨)
 
 **부수 효과** (`lib/core/orders/`):
 - `sound_service.dart`, `blink_service.dart`, `output_service.dart`, `alert_manager.dart`, `order_queue_service.dart`
 
 **캐시 3종** (`lib/core/orders/cache/`):
-- `ProcessedOrderCache` — 30분, 500건. 키 = `${orderId}_${status}`. **`containsOrderStatus` / `addOrderStatus` API만 사용** (소켓·폴링 양 경로 동일 키)
+- `ProcessedOrderCache` — 도메인 래퍼. 내부적으로 `appfit_core.ProcessedOrderCache` 위임. 키 = `${orderId}_${OrderStatus}`. **`containsOrderStatus` / `addOrderStatus` API만 사용** (소켓·폴링 양 경로 동일 키)
 - `OrderDetailCache` — 1h, 200건 LRU
 - `PrintedOrderCache` — 출력 이력 (라벨/영수증 중복 출력 방지)
+
+**appfit_core (v1.0.7) 공유 인프라** (`package:appfit_core/appfit_core.dart`):
+- `SocketEventDispatcher` — 소켓 raw → 파싱·페이로드·shopCode·정책 분류 → `SocketDispatchOutcome`. `_handleAppFitEvent` 진입점
+- `OrderEventIgnorePolicy` — KDS NEW 차단 / 디스플레이 전용 차단 단일 정책
+- `ProcessedOrderCache` (제너릭 키) — 자체 래퍼가 위임
+- `BatchMergeBuffer` — 시간 윈도우 + 플러시 타이머 (DID 가 사용, order_agent 는 OrderQueueManager 자체 구현 유지)
 
 **기타**: `lib/services/output_queue_service.dart` — 영수증/라벨/사운드 큐 (로그아웃 시 `clear()`)
 
@@ -57,8 +63,9 @@ tools: Read, Glob, Grep, Bash
    - 글로벌 캐시 `containsOrderStatus`
    - 배치 내 중복 (Set)
    - 상태 다운그레이드 방지 (로컬 state 비교)
-3. KDS NEW 차단 — `OrderHelperMethods.shouldIgnoreNewOrderInKdsMode` 가 소켓(`OrderSocketManager._shouldIgnoreEvent`)과 폴링(`_processPollingNewOrders`) 양쪽에서 호출되는지 확인 (단일 정책)
+3. KDS NEW 차단 — `appfit_core.OrderEventIgnorePolicy.ignoreNewOrderInKdsMode` 가 소켓(`OrderSocketManager._shouldIgnoreByDomainPolicy`, dispatcher 콜백)과 폴링(`_processPollingNewOrders`) 양쪽에서 호출되는지 확인 (DID `OrderSocketListener` 와 동일 정책)
 4. `SocketEventSuppressor` 자가 이벤트 필터(키=`${orderId}_${eventType}`, 10초 1회성)와 `ProcessedOrderCache`(키=`${orderId}_${status}`, 30분) 의 layer 차이 인지
+5. `SocketEventDispatcher.classify` 5 outcome (`accepted`/`invalidPayload`/`unknownEventType`/`ignoredByShopCode`/`ignoredByPolicy`) 분기를 호출자가 모두 처리하는지 확인 — `accepted` 만 도메인 후속 진행
 
 ## 3. 충돌·취약 포인트 체크리스트
 
@@ -69,7 +76,8 @@ tools: Read, Glob, Grep, Bash
 - [ ] AudioPlayer dispose 추적 플래그(`_isAudioPlayerDisposed`)가 모든 stop/dispose 호출에 가드?
 - [ ] 정렬 기준이 `orderedAt` (DateTime) — 과거 `shopOrderNo` (String) 코드 잔재 없음?
 - [ ] 키오스크 분기 — `shouldShowOrder` / `shouldNotifyForOrder` 양쪽에 일관 적용?
-- [ ] KDS NEW 차단 — 소켓·폴링 두 곳 모두 `OrderHelperMethods.shouldIgnoreNewOrderInKdsMode` 호출?
+- [ ] KDS NEW 차단 — 소켓(dispatcher 콜백)·폴링 두 곳 모두 `appfit_core.OrderEventIgnorePolicy.ignoreNewOrderInKdsMode` 직접 호출 (도메인 래퍼 잔존 없음)?
+- [ ] `SocketEventDispatcher.classify` 사용 여부 — `_handleAppFitEvent` 가 raw 페이로드 검증을 직접 하지 않고 dispatcher 에 위임?
 
 ## 4. 출력 형식
 
