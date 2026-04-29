@@ -119,6 +119,7 @@ lib/config/app_env.dart
 
 # VS Code
 .vscode/
+*.code-workspace
 
 # 릴리즈 서명 키 정보 (보안)
 android/key.properties
