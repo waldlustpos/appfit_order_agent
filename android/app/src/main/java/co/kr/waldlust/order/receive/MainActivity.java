@@ -175,8 +175,7 @@ public class MainActivity extends FlutterActivity {
         initPrinters();
 
         // 타브랜드 로고 준비 필요
-        // bitmapLogoForPrint = BitmapFactory.decodeResource(this.getResources(),
-        // R.drawable.logo);
+        bitmapLogoForPrint = BitmapFactory.decodeResource(this.getResources(), R.drawable.logo);
 
         // Show dual monitor if device is D3 MINI -> 현재 매머드만 지원
 
@@ -223,6 +222,7 @@ public class MainActivity extends FlutterActivity {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (requestCode == START_SCAN && data != null) {
             Bundle bundle = data.getExtras();

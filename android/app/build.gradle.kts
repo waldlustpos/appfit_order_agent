@@ -1,18 +1,35 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
+    // Flutter Gradle Plugin은 Android/Kotlin 플러그인 뒤에 적용해야 함.
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// pubspec.yaml -> Flutter CLI가 local.properties에 versionCode/versionName 주입
+val localProperties = Properties().apply {
+    val f = rootProject.file("local.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+
+val flutterVersionCode: Int = (localProperties.getProperty("flutter.versionCode") ?: "1").toInt()
+val flutterVersionName: String = localProperties.getProperty("flutter.versionName") ?: "1.0"
+
+// 릴리즈 키스토어 설정
+val keystoreProperties = Properties().apply {
+    val f = rootProject.file("key.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+
 android {
-    namespace = "co.kr.waldlust.order.appfit_order_agent"
-    compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    namespace = "co.kr.waldlust.order.receive"
+    compileSdk = 36
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
@@ -20,25 +37,57 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "co.kr.waldlust.order.appfit_order_agent"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
+        applicationId = "co.kr.waldlust.order.receive"
+        versionCode = flutterVersionCode
+        versionName = flutterVersionName
+
+        // Android 7 (API 24) 이상 지원
+        minSdk = 24
+        targetSdk = 35
+    }
+
+    signingConfigs {
+        create("release") {
+            keyAlias = keystoreProperties.getProperty("keyAlias")
+            keyPassword = keystoreProperties.getProperty("keyPassword")
+            val storeFilePath = keystoreProperties.getProperty("storeFile")
+            storeFile = if (storeFilePath != null) file(storeFilePath) else null
+            storePassword = keystoreProperties.getProperty("storePassword")
+        }
     }
 
     buildTypes {
-        release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+        getByName("debug") {
+            signingConfig = signingConfigs.getByName("release")
+        }
+        getByName("release") {
+            signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro")
         }
     }
 }
 
 flutter {
     source = "../.."
+}
+
+// 우리 앱 모듈의 javac에 -Xlint:-options 추가 (third-party 플러그인의 obsolete 경고 무관 안전장치)
+tasks.withType<JavaCompile>().configureEach {
+    options.compilerArgs.addAll(listOf("-Xlint:-options"))
+}
+
+dependencies {
+    implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.jar"))))
+    implementation("com.android.volley:volley:1.2.1")
+    implementation("com.sunmi:printerlibrary:1.0.23")
+    implementation("com.journeyapps:zxing-android-embedded:4.3.0")
+    implementation("androidx.cardview:cardview:1.0.0")
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    implementation(files("libs/com.posbank.charset.jar"))
+    implementation(files("libs/com.posbank.hardware.serial.jar"))
+    implementation(files("libs/com.posbank.printer.jar"))
+    implementation(files("libs/com.posbank.util.jar"))
+    implementation(files("libs/autoreplyprint.aar"))
 }
