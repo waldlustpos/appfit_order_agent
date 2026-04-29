@@ -804,7 +804,8 @@ class Order extends _$Order {
   // 중복 호출 방지를 위한 플래그
   bool _isRefreshing = false;
 
-  Future<void> refreshOrders({String? date}) async {
+  Future<void> refreshOrders(
+      {String? date, bool isManualRefresh = false}) async {
     // 기본 검증
     if (_isLoggedOut) {
       logger.d('[refreshOrders] 로그아웃 상태이므로 건너뜀');
@@ -818,6 +819,9 @@ class Order extends _$Order {
     date = todayDateString();
     logger.d('[refreshOrders] 시작 (날짜: $date)');
     _isRefreshing = true;
+    if (isManualRefresh) {
+      state = state.copyWith(isManualRefreshing: true);
+    }
     // 폴링에 의한 새로고침 시 이미 주문이 표시된 상태라면 isLoading을 설정하지 않음 (불필요한 rebuild 방지)
     final isInitialLoad = state.orders.isEmpty;
     if (isInitialLoad) {
@@ -967,6 +971,9 @@ class Order extends _$Order {
       state = state.copyWith(isLoading: false, error: e.toString());
     } finally {
       _isRefreshing = false; // 완료 시 플래그 해제
+      if (isManualRefresh) {
+        state = state.copyWith(isManualRefreshing: false);
+      }
     }
   }
 

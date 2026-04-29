@@ -618,7 +618,7 @@ public class SunmiPrintHelper {
 
             // 메모 출력 (ordrMemo)
             String memo = jsonOrder.optString("ordrMemo", "");
-            if (!memo.isEmpty()) {
+            if (!memo.isEmpty() && !memo.equals("null")) {
             sunmiPrinterService.printText(" \n", null);
                 sunmiPrinterService.setAlignment(1, null); // 가운데 정렬
                 sunmiPrinterService.printTextWithFont(memo + "\n", null, receiptFontSize, null);
@@ -642,6 +642,10 @@ public class SunmiPrintHelper {
             // sunmiPrinterService.printTextWithFont("주문해주셔서 감사합니다.\n", null, receiptFontSize, null);
 
             // 여백 및 용지 출력
+            if(MainActivity.bitmapLogoForPrint != null)sunmiPrinterService.printBitmap(MainActivity.bitmapLogoForPrint, null);
+            sunmiPrinterService.printText(" \n", null);
+            sunmiPrinterService.printText(" \n", null);
+            sunmiPrinterService.printText(" \n", null);
 
             // 용지 자동 배출 또는 커팅
             try {
@@ -834,7 +838,7 @@ public class SunmiPrintHelper {
 
             // 메모 출력
             String memo = jsonOrder.optString("ordrMemo", "");
-            if (!memo.isEmpty()) {
+            if (!memo.isEmpty() && !memo.equals("null")) {
             sunmiPrinterService.setAlignment(1, null);
                 sunmiPrinterService.printTextWithFont(memo + "\n", null, receiptFontSize, null);
             sunmiPrinterService.setAlignment(0, null);

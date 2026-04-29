@@ -489,6 +489,7 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
               // 끊지 않는다. 로딩 중이면 오버레이만 덮어 표시한다.
               final showLoadingOverlay =
                   orderState.isLoading && orderState.orders.isEmpty;
+              final isManualRefreshing = orderState.isManualRefreshing;
               final orders = orderState.orders;
               final filteredOrders = orders;
 
@@ -703,6 +704,13 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
                           ),
                         ),
                       ),
+                    ),
+                  if (isManualRefreshing)
+                    const Positioned(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      child: LinearProgressIndicator(),
                     ),
                 ],
               );

@@ -21,8 +21,10 @@ class OrderTimerManager {
   StreamSubscription<Map<String, dynamic>>? _messageStreamSubscription;
 
   // 폴링 간격 상수 (appfit_core 공용 상수 참조)
-  static const int socketConnectedIntervalSeconds = AppFitSyncIntervals.connectedSeconds;
-  static const int socketDisconnectedIntervalSeconds = AppFitSyncIntervals.disconnectedSeconds;
+  static const int socketConnectedIntervalSeconds =
+      5; //AppFitSyncIntervals.connectedSeconds;
+  static const int socketDisconnectedIntervalSeconds =
+      AppFitSyncIntervals.disconnectedSeconds;
 
   // 설정
   int _currentPollingIntervalSeconds = socketConnectedIntervalSeconds;
