@@ -486,10 +486,12 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
           child: Builder(
             builder: (context) {
               // PageView/_pageController 를 항상 유지해 탭과 페이지의 동기화를
-              // 끊지 않는다. 로딩 중이면 오버레이만 덮어 표시한다.
+              // 끊지 않는다.
+              // 오버레이는 앱 시작/재로그인 직후 첫 로드에서만 노출.
+              // 사용자가 누른 새로고침은 앱바 버튼 자체의 로딩 인디케이터로 충분하므로
+              // 중앙 오버레이를 띄우지 않는다. 폴링도 조용히 갱신.
               final showLoadingOverlay =
                   orderState.isLoading && orderState.orders.isEmpty;
-              final isManualRefreshing = orderState.isManualRefreshing;
               final orders = orderState.orders;
               final filteredOrders = orders;
 
@@ -584,61 +586,61 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
               final visibleCancelledOrders =
                   cancelledOrders.take(visibleCount).toList();
 
-              return Stack(
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // 탭 바 (이미 계산된 카운트 사용)
-                      DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          border: const Border(
-                            bottom: BorderSide(
-                              color: Colors.transparent, // 구분선 삭제 요청에 따라 투명 처리
-                            ),
-                          ),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.only(
-                              right: 12, left: 8, top: 4, bottom: 4),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              _buildTabBarWithCounts(
-                                allCount,
-                                pendingCount,
-                                pickupCount,
-                                completedCount,
-                                cancelledCount,
-                              ),
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  if (currentTabIndex == 0) ...[
-                                    if (!isToday) ...[
-                                      _buildHistoryCountWidget(),
-                                      const SizedBox(width: 8),
-                                    ],
-                                    _buildDateSelectorWidget(),
-                                    const SizedBox(width: 8),
-                                    _buildTodaySearchButton(),
-                                    const SizedBox(width: 8),
-                                  ],
-                                  _buildBatchCompleteButton(),
-                                  if (currentTabIndex == 2)
-                                    const SizedBox(width: 8),
-                                  _buildSortButton(),
-                                ],
-                              ),
-                            ],
-                          ),
+                  // 탭 바 (이미 계산된 카운트 사용)
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      border: const Border(
+                        bottom: BorderSide(
+                          color: Colors.transparent, // 구분선 삭제 요청에 따라 투명 처리
                         ),
                       ),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.only(
+                          right: 12, left: 8, top: 4, bottom: 4),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          _buildTabBarWithCounts(
+                            allCount,
+                            pendingCount,
+                            pickupCount,
+                            completedCount,
+                            cancelledCount,
+                          ),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (currentTabIndex == 0) ...[
+                                if (!isToday) ...[
+                                  _buildHistoryCountWidget(),
+                                  const SizedBox(width: 8),
+                                ],
+                                _buildDateSelectorWidget(),
+                                const SizedBox(width: 8),
+                                _buildTodaySearchButton(),
+                                const SizedBox(width: 8),
+                              ],
+                              _buildBatchCompleteButton(),
+                              if (currentTabIndex == 2)
+                                const SizedBox(width: 8),
+                              _buildSortButton(),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
 
-                      // 탭 내용 (이미 계산된 목록 사용 - 추가 Consumer 없음)
-                      Expanded(
-                        child: Padding(
+                  // 탭 내용 (이미 계산된 목록 사용 - 추가 Consumer 없음)
+                  Expanded(
+                    child: Stack(
+                      children: [
+                        Padding(
                           padding: const EdgeInsets.all(0),
                           child: PageView(
                             key: const PageStorageKey('kds_page_view'),
@@ -686,32 +688,25 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
                             ],
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  if (showLoadingOverlay)
-                    const Positioned.fill(
-                      child: ColoredBox(
-                        color: Colors.white,
-                        child: Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              AppLoadingIndicator(size: 32),
-                              SizedBox(height: 16),
-                              Text('주문 정보를 불러오는 중...'),
-                            ],
+                        if (showLoadingOverlay)
+                          const Positioned.fill(
+                            child: ColoredBox(
+                              color: Colors.white,
+                              child: Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    AppLoadingIndicator(size: 32),
+                                    SizedBox(height: 16),
+                                    Text('주문 정보를 불러오는 중...'),
+                                  ],
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
+                      ],
                     ),
-                  if (isManualRefreshing)
-                    const Positioned(
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      child: LinearProgressIndicator(),
-                    ),
+                  ),
                 ],
               );
             },

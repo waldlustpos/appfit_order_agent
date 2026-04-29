@@ -8,7 +8,6 @@ class OrderState {
   final int activeOrderCount; // 활성 주문 건수 (NEW, ACCEPTED)
   final bool isAutoReceipt; // 자동 접수 설정
   final int visibleOrderCount; // [NEW] KDS 모드에서 표시할 주문 개수 (Pagination)
-  final bool isManualRefreshing; // 앱바 새로고침 버튼으로 수동 새로고침 중 여부
 
   const OrderState({
     required this.orders,
@@ -17,7 +16,6 @@ class OrderState {
     this.activeOrderCount = 0,
     this.isAutoReceipt = false,
     this.visibleOrderCount = 12, // 초기값 12개 (FHD 화면 스크롤 확보용)
-    this.isManualRefreshing = false,
   });
 
   OrderState copyWith({
@@ -27,7 +25,6 @@ class OrderState {
     int? activeOrderCount,
     bool? isAutoReceipt,
     int? visibleOrderCount,
-    bool? isManualRefreshing,
   }) {
     return OrderState(
       orders: orders ?? this.orders,
@@ -36,7 +33,6 @@ class OrderState {
       activeOrderCount: activeOrderCount ?? this.activeOrderCount,
       isAutoReceipt: isAutoReceipt ?? this.isAutoReceipt,
       visibleOrderCount: visibleOrderCount ?? this.visibleOrderCount,
-      isManualRefreshing: isManualRefreshing ?? this.isManualRefreshing,
     );
   }
 

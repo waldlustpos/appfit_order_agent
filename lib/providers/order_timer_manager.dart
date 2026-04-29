@@ -22,7 +22,7 @@ class OrderTimerManager {
 
   // 폴링 간격 상수 (appfit_core 공용 상수 참조)
   static const int socketConnectedIntervalSeconds =
-      5; //AppFitSyncIntervals.connectedSeconds;
+      AppFitSyncIntervals.connectedSeconds;
   static const int socketDisconnectedIntervalSeconds =
       AppFitSyncIntervals.disconnectedSeconds;
 

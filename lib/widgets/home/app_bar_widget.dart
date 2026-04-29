@@ -246,7 +246,7 @@ class _HomeAppBarWidgetState extends ConsumerState<HomeAppBarWidget> {
       _isRefreshing = true;
     });
 
-    ref.read(orderProvider.notifier).refreshOrders(isManualRefresh: true);
+    ref.read(orderProvider.notifier).refreshOrders();
     logToFile(tag: LogTag.UI_ACTION, message: '새로고침버튼 터치');
 
     // 1.5초 후에 다시 새로고침 가능하도록 설정
