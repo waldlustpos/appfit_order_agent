@@ -67,10 +67,6 @@ flutter test test/<파일_경로>
 - 업데이트 진행 UI: `lib/widgets/update/update_progress_dialog.dart`
 - 체크/다운로드/재시작 로직: `WindowsUpdateService` (`lib/services/windows_update_service.dart`)
 
-### 무시되는 산출물
-
-`kokonut_order_agent_windows.zip`, `version.json`, `.sentry-native/dist`는 `.gitignore`로 제외돼 있어 커밋되지 않습니다.
-
 ## 환경 설정
 
 빌드 타임 시크릿은 `--dart-define-from-file=.env`로 주입 (파일은 커밋하지 않음):
