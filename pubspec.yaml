@@ -97,6 +97,12 @@ dependencies:
   # Native Feature Migration
   # flutter_overlay_window: ^0.5.0 # Removed for Revert
   window_manager: ^0.4.3
+  screen_retriever: ^0.2.0
+  tray_manager: ^0.2.4
+  launch_at_startup: ^0.5.1
+  win32: ^5.5.4
+  ffi: ^2.1.0
+  serial_port_win32: ^1.2.8
   android_intent_plus: ^6.0.0
 dev_dependencies:
   sentry_dart_plugin: ^3.2.1
@@ -120,6 +126,10 @@ flutter_launcher_icons:
   min_sdk_android: 24
   adaptive_icon_background: "#fb3e7e"
   adaptive_icon_foreground: "assets/icons/app_icon.png"
+  windows:
+    generate: true
+    image_path: "assets/icons/app_icon.png"
+    icon_size: 256
 
 # The following section is specific to Flutter packages.
 flutter:

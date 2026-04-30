@@ -790,4 +790,22 @@ class PreferenceService {
 
   /// 현재 저장된 매장 ID가 TPCP(일본 특화) 매장인지 반환.
   bool isTpcpStore() => isTPCPStoreId(getId());
+
+  // ── Windows 전용 프린터 설정 ────────────────────────────────────────────────
+
+  static const String _keyWindowsPrinterName = 'APPFIT_WIN_PRINTER_NAME';
+  static const String _keyComPortName = 'APPFIT_COM_PORT_NAME';
+  static const String _keyComPortBaudRate = 'APPFIT_COM_PORT_BAUD_RATE';
+
+  String? getWindowsPrinterName() => _prefs.getString(_keyWindowsPrinterName);
+  Future<void> setWindowsPrinterName(String name) async =>
+      _prefs.setString(_keyWindowsPrinterName, name);
+
+  String? getComPortName() => _prefs.getString(_keyComPortName);
+  Future<void> setComPortName(String name) async =>
+      _prefs.setString(_keyComPortName, name);
+
+  int getComPortBaudRate() => _prefs.getInt(_keyComPortBaudRate) ?? 9600;
+  Future<void> setComPortBaudRate(int baudRate) async =>
+      _prefs.setInt(_keyComPortBaudRate, baudRate);
 }

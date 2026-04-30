@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +10,8 @@ import '../constants/app_styles.dart';
 import '../services/platform_service.dart';
 import '../services/local_server_service.dart';
 import '../services/preference_service.dart';
+import '../services/windows_update_service.dart';
+import '../widgets/update/update_progress_dialog.dart';
 import '../widgets/common/common_dialog.dart';
 import '../services/appfit/appfit_providers.dart' as appfit_providers;
 import 'package:appfit_order_agent/i18n/strings.g.dart';
@@ -200,12 +204,35 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (!mounted) return;
     setState(() => _isCheckingUpdate = true);
     try {
-      final otaManager = OtaUpdateManager();
-      final info = await otaManager.checkForUpdate(
-        versionUrl: OtaConfig.versionUrl,
-        downloadUrl: OtaConfig.downloadUrl,
-      );
-      if (mounted) setState(() => _updateInfo = info);
+      if (Platform.isWindows) {
+        final winInfo = await WindowsUpdateService().checkForUpdate();
+        if (!mounted) return;
+        if (winInfo != null && winInfo.hasUpdate) {
+          await showDialog<void>(
+            context: context,
+            barrierDismissible: false,
+            builder: (_) => const UpdateProgressDialog(),
+          );
+        }
+        if (mounted) {
+          setState(() {
+            _updateInfo = UpdateInfo(
+              currentVersion: winInfo?.currentVersion ?? 0,
+              latestVersion: winInfo?.latestVersion ?? 0,
+              downloadUrl: winInfo?.downloadUrl ?? '',
+              hasUpdate: winInfo?.hasUpdate ?? false,
+            );
+          });
+        }
+        return;
+      } else {
+        final otaManager = OtaUpdateManager();
+        final info = await otaManager.checkForUpdate(
+          versionUrl: OtaConfig.versionUrl,
+          downloadUrl: OtaConfig.downloadUrl,
+        );
+        if (mounted) setState(() => _updateInfo = info);
+      }
     } catch (_) {
       // 버전 확인 실패 — 무시
     } finally {

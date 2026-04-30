@@ -333,11 +333,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       logger.w('Error hiding overlay during exit', error: e, stackTrace: s);
     }
 
-    // 2. 앱 종료
-    SystemNavigator.pop();
-
     // KDS 모드 초기화
     ref.read(kdsModeProvider.notifier).setKdsMode(false);
+
+    // 2. 앱 종료 — Windows는 SystemNavigator.pop()으로 프로세스가 종료되지 않으므로 exit(0) 사용
+    if (Platform.isWindows) {
+      exit(0);
+    }
+    SystemNavigator.pop();
   }
 
   Future<void> _handleLogout() async {

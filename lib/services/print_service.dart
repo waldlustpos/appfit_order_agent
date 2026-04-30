@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter/services.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
+import 'package:appfit_order_agent/services/windows_print_service.dart';
 import '../models/order_model.dart';
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -182,6 +185,11 @@ class PrintService {
           tag: LogTag.PLATFORM,
           message:
               '${type == 'order' ? '주문서출력' : '영수증출력'}: displayNum=${order.displayNum}\n--------------------------------------------------------------------------------------------------------------\n');
+
+      if (Platform.isWindows) {
+        return await WindowsPrintService()
+            .printOrderFromJson(orderJson, isCancelReceipt);
+      }
 
       await platform.invokeMethod('printOrder', {
         'orderJson': orderJson,

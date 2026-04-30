@@ -10,13 +10,18 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/services/preference_service.dart';
+import 'package:appfit_order_agent/services/windows_bubble_service.dart';
+import 'package:appfit_order_agent/utils/app_startup_updater.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/widgets/windows_bubble_overlay.dart';
 import 'package:appfit_core/appfit_core.dart'; // AppFit Core 추가
 import 'firebase_options.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/settings_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:launch_at_startup/launch_at_startup.dart';
+import 'package:window_manager/window_manager.dart';
 
 import 'config/app_env.dart'; // AppEnv 추가
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -30,6 +35,20 @@ import 'constants/brand_theme.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Windows: 플로팅 버블 UX용 window_manager 초기화.
+  if (Platform.isWindows) {
+    try {
+      await windowManager.ensureInitialized();
+      await WindowsBubbleService.instance.init();
+      LaunchAtStartup.instance.setup(
+        appName: 'AppfitOrderAgent',
+        appPath: Platform.resolvedExecutable,
+      );
+    } catch (e, s) {
+      logger.e('Windows 초기화 실패', error: e, stackTrace: s);
+    }
+  }
+
   // 한국어 복수형 resolver 설정 (한국어는 복수형 구분 없음)
   LocaleSettings.setPluralResolver(
     locale: AppLocale.ko,
@@ -39,11 +58,13 @@ void main() async {
         other ?? zero ?? '',
   );
 
-  // 화면 방향을 가로(Landscape)로 고정
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.landscapeLeft,
-    DeviceOrientation.landscapeRight,
-  ]);
+  // 화면 방향을 가로(Landscape)로 고정 (모바일 전용)
+  if (Platform.isAndroid || Platform.isIOS) {
+    await SystemChrome.setPreferredOrientations([
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
+  }
 
   // 저장된 환경 설정 읽기 (AppFitConfig.configure 이전에 초기화 필요)
   final preferenceServiceForEnv = PreferenceService();
@@ -104,12 +125,22 @@ void main() async {
     logger.w('[Main] SENTRY_DSN is missing. Monitoring disabled.');
   }
 
+  // Windows: 앱 시작 시 OTA 자가 업데이트 체크 (로그인 이전).
+  // 업데이트 설치 시 exit(0) 되므로 아래 runApp 이 실행되지 않는다.
+  if (Platform.isWindows) {
+    await runStartupUpdateFlow();
+  }
+
   try {
-    // Firebase 초기화
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-    logger.i('Firebase 초기화 완료');
+    // Firebase 초기화 (Windows 는 firebase_options.dart 에 Windows 항목 없음 — skip)
+    if (!Platform.isWindows) {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+      logger.i('Firebase 초기화 완료');
+    } else {
+      logger.i('Windows 플랫폼 — Firebase 초기화 skip');
+    }
 
     // PreferenceService 초기화 (V2 마이그레이션 포함)
     final preferenceService = PreferenceService();
@@ -121,11 +152,13 @@ void main() async {
     AppStyles.applyBrand(savedBrand);
     logger.i('[Main] 브랜드 테마 적용: ${savedBrand.id}');
 
-    // 저장된 시스템 회전 설정 복원 (ON 상태일 때만 — 권한 필요 없는 기본값은 호출 불필요)
-    final savedRotation = preferenceService.getIsRotated180();
-    if (savedRotation) {
-      await PlatformService.setSystemRotation(true);
-      logger.i('시스템 회전 설정 복원: 180도');
+    // 저장된 시스템 회전 설정 복원 (Android 전용)
+    if (!Platform.isWindows) {
+      final savedRotation = preferenceService.getIsRotated180();
+      if (savedRotation) {
+        await PlatformService.setSystemRotation(true);
+        logger.i('시스템 회전 설정 복원: 180도');
+      }
     }
 
     // 앱 실행
@@ -165,6 +198,10 @@ Future<OrderAgentMonitoringContext> _buildMonitoringContext() async {
       final info = await deviceInfo.iosInfo;
       deviceModel = info.model;
       deviceManufacturer = 'Apple';
+    } else if (Platform.isWindows) {
+      final info = await deviceInfo.windowsInfo;
+      deviceModel = info.computerName;
+      deviceManufacturer = 'Microsoft';
     }
   } catch (e, s) {
     logger.d('Failed to get device info: $e');
@@ -327,6 +364,7 @@ ThemeData _buildTheme() {
     pageTransitionsTheme: const PageTransitionsTheme(
       builders: {
         TargetPlatform.android: ZoomPageTransitionsBuilder(),
+        TargetPlatform.windows: FadeUpwardsPageTransitionsBuilder(),
       },
     ),
   );
@@ -342,9 +380,43 @@ class MyApp extends ConsumerWidget {
     // 화면 반전 상태 감지 (설정 화면 토글 UI 동기화용)
     ref.watch(rotationNotifierProvider);
 
+    // Windows 버블 모드 처리.
+    // _buildMainApp 을 ValueListenableBuilder 의 child 로 전달해 한 번만 빌드,
+    // isBubbleMode 변경 시 MaterialApp 을 재생성하지 않고 Visibility 로
+    // 숨김/표시만 전환 → Navigator 상태(로그인 후 홈) 보존.
+    if (Platform.isWindows) {
+      return ValueListenableBuilder<bool>(
+        valueListenable: WindowsBubbleService.instance.isBubbleMode,
+        builder: (context, isBubble, child) {
+          return Directionality(
+            textDirection: TextDirection.ltr,
+            child: Stack(
+              children: [
+                Visibility(
+                  visible: !isBubble,
+                  maintainState: true,
+                  child: child!,
+                ),
+                if (isBubble)
+                  const MaterialApp(
+                    debugShowCheckedModeBanner: false,
+                    home: WindowsBubbleOverlay(),
+                  ),
+              ],
+            ),
+          );
+        },
+        child: _buildMainApp(locale),
+      );
+    }
+
+    return _buildMainApp(locale);
+  }
+
+  Widget _buildMainApp(AppLocale locale) {
     return TranslationProvider(
       child: MaterialApp(
-        title: '코코넛 주문 에이전트',
+        title: 'Appfit 주문 에이전트',
         // i18n 설정
         locale: locale.flutterLocale,
         supportedLocales: AppLocaleUtils.supportedLocales,

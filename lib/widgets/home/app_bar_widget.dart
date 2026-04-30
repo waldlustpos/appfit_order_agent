@@ -1,8 +1,11 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'dart:async';
+import 'package:window_manager/window_manager.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import '../../constants/app_styles.dart';
@@ -263,7 +266,7 @@ class _HomeAppBarWidgetState extends ConsumerState<HomeAppBarWidget> {
   Widget build(BuildContext context) {
     final isKdsMode = ref.watch(kdsModeProvider);
     final socketStatus = ref.watch(appFitNotifierServiceProvider);
-    return AppBar(
+    final appBar = AppBar(
       elevation: 0,
       scrolledUnderElevation: 0,
       leading: IconButton(
@@ -286,6 +289,18 @@ class _HomeAppBarWidgetState extends ConsumerState<HomeAppBarWidget> {
               ),
             ),
     );
+
+    // Windows frameless 창: 앱바 전체를 드래그 핸들로 감싼다.
+    // translucent behavior라 자식(IconButton 등)의 onTap은 그대로 작동하고,
+    // 드래그 시 windowManager.startDragging()이 호출된다.
+    if (Platform.isWindows) {
+      return GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onPanStart: (_) => windowManager.startDragging(),
+        child: appBar,
+      );
+    }
+    return appBar;
   }
 
   Widget _buildTitle(

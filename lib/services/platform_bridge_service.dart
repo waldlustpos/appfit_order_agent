@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/services.dart';
+import 'package:appfit_order_agent/services/windows_bubble_service.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -32,8 +33,8 @@ class PlatformBridgeService {
         // 3. 네이티브 백그라운드 이동 요청
         await _channel.invokeMethod('moveToBackground');
       } else if (Platform.isWindows) {
-        logger.d('[PlatformBridge] Windows: 창 최소화 요청');
-        await windowManager.minimize();
+        logger.d('[PlatformBridge] Windows: 버블 모드 진입 요청');
+        await WindowsBubbleService.instance.enterBubbleMode();
       } else {
         logger.w('[PlatformBridge] 지원하지 않는 플랫폼입니다.');
       }
@@ -49,9 +50,14 @@ class PlatformBridgeService {
         logger.d('[PlatformBridge] Android: 앱 포그라운드 전환 요청');
         await _channel.invokeMethod('bringToFront');
       } else if (Platform.isWindows) {
-        logger.d('[PlatformBridge] Windows: 창 복원 및 포커스 요청');
-        await windowManager.restore();
-        await windowManager.focus();
+        logger.d('[PlatformBridge] Windows: 버블 모드 종료 또는 창 복원 요청');
+        if (WindowsBubbleService.instance.isBubbleMode.value) {
+          await WindowsBubbleService.instance.exitBubbleMode();
+        } else {
+          final visible = await windowManager.isVisible();
+          if (!visible) await windowManager.show();
+          await windowManager.focus();
+        }
       }
     } catch (e, s) {
       logger.e('[PlatformBridge] 앱 포그라운드 전환 실패', error: e, stackTrace: s);
@@ -67,6 +73,9 @@ class PlatformBridgeService {
       } catch (e, s) {
         logger.e('[PlatformBridge] 오버레이 메시지 전송 실패', error: e, stackTrace: s);
       }
+    } else if (Platform.isWindows) {
+      logger.d('[PlatformBridge] Windows: 버블 점멸 시작');
+      WindowsBubbleService.instance.startBlinking();
     }
   }
 

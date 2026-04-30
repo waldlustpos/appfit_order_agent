@@ -1,10 +1,37 @@
+import 'dart:io';
+
 import 'package:flutter/services.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:appfit_order_agent/services/platform_bridge_service.dart';
 import 'package:appfit_order_agent/services/overlay_service.dart';
+import 'package:launch_at_startup/launch_at_startup.dart';
 
-const platform =
-    MethodChannel('co.kr.waldlust.order.receive.appfit_order_agent');
+const _kAppfitChannelName =
+    'co.kr.waldlust.order.receive.appfit_order_agent';
+
+/// Windows 에서 Android MethodChannel 호출이 MissingPluginException 을 던지지
+/// 않도록 모든 메서드를 null 반환 no-op 으로 대체한다.
+class _WindowsNoopMethodChannel extends MethodChannel {
+  const _WindowsNoopMethodChannel(super.name);
+
+  @override
+  Future<T?> invokeMethod<T>(String method, [dynamic arguments]) async =>
+      null;
+
+  @override
+  Future<List<T>> invokeListMethod<T>(String method,
+          [dynamic arguments]) async =>
+      <T>[];
+
+  @override
+  Future<Map<K, V>> invokeMapMethod<K, V>(String method,
+          [dynamic arguments]) async =>
+      <K, V>{};
+}
+
+final MethodChannel platform = Platform.isWindows
+    ? const _WindowsNoopMethodChannel(_kAppfitChannelName)
+    : const MethodChannel(_kAppfitChannelName);
 
 enum LogTag {
   UI_ACTION,
@@ -262,7 +289,26 @@ class PlatformService {
   }
 
   // 부팅 시 자동 실행 설정/해제
+  // Windows: launch_at_startup 패키지로 HKCU\...\Run 레지스트리 직접 갱신.
+  // Android: native MethodChannel(setAutoStartup) 경로 유지.
   static Future<bool> setAutoStartup(bool enable) async {
+    if (Platform.isWindows) {
+      try {
+        if (enable) {
+          await LaunchAtStartup.instance.enable();
+        } else {
+          await LaunchAtStartup.instance.disable();
+        }
+        logToFile(
+          tag: LogTag.SYSTEM,
+          message: 'Windows 부팅 자동 실행 ${enable ? '활성화' : '비활성화'} 완료',
+        );
+        return true;
+      } catch (e, s) {
+        logger.e('Windows 자동 실행 레지스트리 변경 오류', error: e, stackTrace: s);
+        return false;
+      }
+    }
     try {
       final result = await platform.invokeMethod('setAutoStartup', {
         'enable': enable,

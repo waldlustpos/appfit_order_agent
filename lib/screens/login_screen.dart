@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:window_manager/window_manager.dart';
 import '../widgets/common/app_loading_indicator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
@@ -277,6 +278,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
   /// 업데이트 체크
   Future<void> _checkForUpdate() async {
+    // Windows 는 앱 시작 시 runStartupUpdateFlow() 로 OTA 체크 완료.
+    // flutter_downloader 는 Android/iOS 전용이므로 Windows 에서 skip.
+    if (Platform.isWindows) {
+      await _performAutoLogin();
+      return;
+    }
     try {
       // 기기 정보 로깅
       String manufacturer = 'unknown';
@@ -1096,6 +1103,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               ),
             ),
           ),
+
+          // Windows frameless 창: 앱바가 없으므로 상단 40px을 투명 드래그 핸들로 배치.
+          // translucent 동작이라 하위 위젯의 탭은 그대로 전달된다.
+          if (Platform.isWindows)
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              height: 40,
+              child: GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onPanStart: (_) => windowManager.startDragging(),
+              ),
+            ),
         ],
       ),
     );
