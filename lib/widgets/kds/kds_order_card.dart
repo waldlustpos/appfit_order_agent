@@ -349,11 +349,18 @@ class _KdsOrderCardState extends ConsumerState<KdsOrderCard> {
                   ConstrainedBox(
                     // headerFooterReserve가 totalCardHeight를 초과하면 음수가 되어
                     // ConstrainedBox 어쌔션에 걸리거나 카드가 사일런트하게 사라진다.
-                    // 최소 60px는 메뉴 영역에 보장한다.
+                    // 최소 60px는 메뉴 영역에 보장하되, totalCardHeight 자체가
+                    // 60 미만인 transient(예: 윈도우 size 변경 직후)에는 lower를
+                    // upper로 cap해 clamp(lower>upper) ArgumentError를 막는다.
                     constraints: BoxConstraints(
-                      maxHeight:
-                          (totalCardHeight - KdsCardMetrics.headerFooterReserve)
-                              .clamp(60.0, totalCardHeight),
+                      maxHeight: () {
+                        final upper =
+                            totalCardHeight > 0 ? totalCardHeight : 0.0;
+                        final lower = upper < 60.0 ? upper : 60.0;
+                        return (totalCardHeight -
+                                KdsCardMetrics.headerFooterReserve)
+                            .clamp(lower, upper);
+                      }(),
                     ),
                     child: Stack(
                       children: [
