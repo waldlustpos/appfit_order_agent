@@ -10,6 +10,7 @@ import 'package:appfit_order_agent/providers/providers.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import '../../constants/app_styles.dart';
 import '../../services/platform_service.dart';
+import '../../services/windows_bubble_service.dart';
 import '../custom_switch.dart';
 import '../../widgets/common/common_dialog.dart';
 import '../../widgets/common/app_icon_action.dart';
@@ -297,6 +298,8 @@ class _HomeAppBarWidgetState extends ConsumerState<HomeAppBarWidget> {
       return GestureDetector(
         behavior: HitTestBehavior.translucent,
         onPanStart: (_) => windowManager.startDragging(),
+        onDoubleTap: () =>
+            WindowsBubbleService.instance.restoreToDefaultPosition(),
         child: appBar,
       );
     }

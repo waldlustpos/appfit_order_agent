@@ -10,6 +10,7 @@ import 'package:appfit_order_agent/models/store_model.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import '../utils/logger.dart';
 import '../services/platform_service.dart';
+import '../services/windows_bubble_service.dart';
 import '../services/preference_service.dart';
 import '../services/migration/v2_migration_service.dart';
 import '../services/appfit/appfit_providers.dart' as appfit_providers;
@@ -1198,6 +1199,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               child: GestureDetector(
                 behavior: HitTestBehavior.translucent,
                 onPanStart: (_) => windowManager.startDragging(),
+                onDoubleTap: () =>
+                    WindowsBubbleService.instance.restoreToDefaultPosition(),
               ),
             ),
         ],

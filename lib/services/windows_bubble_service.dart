@@ -340,6 +340,16 @@ class WindowsBubbleService with WindowListener, TrayListener {
     _transitioning = true;
 
     try {
+      // 시스템 최소화 경로(작업표시줄 클릭 / Win+D)에서는 창이 이미 minimize
+      // 상태로 들어온다. 이 상태에서 hide → show 사이클을 돌면 minimize 잔존
+      // 상태로 인해 복귀 시 창이 보이지 않는다(작업표시줄 아이콘만 생김).
+      // 먼저 normal로 복원하고 hide.
+      try {
+        if (await windowManager.isMinimized()) {
+          await windowManager.restore();
+        }
+      } catch (_) {}
+
       try {
         _originalSize = await windowManager.getSize();
         _originalPosition = await windowManager.getPosition();
@@ -434,6 +444,15 @@ class WindowsBubbleService with WindowListener, TrayListener {
       //    노출되는 걸 방지.
       await WidgetsBinding.instance.endOfFrame;
 
+      // 4-1) 안전망: 이전 사이클에서 minimize 상태가 잔존해 있으면 show가 작업
+      //      표시줄 아이콘만 만들고 창은 보이지 않을 수 있다. restore로 normal
+      //      상태를 보장.
+      try {
+        if (await windowManager.isMinimized()) {
+          await windowManager.restore();
+        }
+      } catch (_) {}
+
       // 5) 원본 창 표시 + 포커스.
       await windowManager.show();
       await windowManager.focus();
@@ -507,7 +526,27 @@ class WindowsBubbleService with WindowListener, TrayListener {
     }
   }
 
+  /// 타이틀바 더블클릭 → 화면 중앙으로 창 이동.
+  Future<void> restoreToDefaultPosition() async {
+    if (!Platform.isWindows) return;
+    if (isBubbleMode.value || _transitioning) return;
+    try {
+      await windowManager.center();
+      _originalPosition = await windowManager.getPosition();
+    } catch (e, s) {
+      logger.w('창 위치 복귀 실패', error: e, stackTrace: s);
+    }
+  }
+
   // ---- WindowListener ----
+
+  @override
+  void onWindowMinimize() {
+    // 작업표시줄 아이콘 클릭 / Win+D / 시스템 메뉴 등으로 최소화한 경우에도
+    // 커스텀 최소화 버튼과 동일한 결과(트레이 + 버블 + 점멸 알림)가 되도록 라우팅.
+    if (isBubbleMode.value || _transitioning) return;
+    unawaited(enterBubbleMode());
+  }
 
   @override
   void onWindowMoved() {
