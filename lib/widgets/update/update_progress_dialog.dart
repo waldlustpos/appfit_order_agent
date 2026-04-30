@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../constants/app_styles.dart';
 import '../../models/update_info.dart';
+import '../../services/platform_service.dart';
 import '../../services/windows_update_service.dart';
 
 enum _UiStage { checking, prompt, downloading, installing, error, noUpdate }
@@ -39,6 +40,16 @@ class _UpdateProgressDialogState extends State<UpdateProgressDialog> {
       Navigator.of(context).pop();
       return;
     }
+
+    // 직전에 업데이트를 적용했는데도 current < latest 라면 빌드 파이프라인
+    // (version_windows.txt vs pubspec.yaml vs 서버 JSON) 어딘가가 어긋난 상태.
+    // 재발 진단을 위해 즉시 로그로 남긴다.
+    logToFile(
+      tag: LogTag.SYSTEM,
+      message:
+          '업데이트 다이얼로그 prompt: current=${info.currentVersion}, '
+          'latest=${info.latestVersion} → 사용자에게 노출',
+    );
 
     setState(() {
       _stage = _UiStage.prompt;
