@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 // import 'package:flutter_dotenv/flutter_dotenv.dart'; // Removed
 import '../config/app_env.dart'; // AppEnv 추가
@@ -163,6 +164,21 @@ class Auth extends _$Auth {
       } catch (e, s) {
         String errorMsg = e.toString().replaceAll('Exception: ', '');
 
+        // DioException이 포함된 경우 type/error/host 등 진단 정보 수집
+        // (token_manager.dart는 Exception('로그인 API 오류: ${e.message}')로
+        //  rethrow하므로, 원본 DioException을 얻으려면 stackTrace 흐름이 아닌
+        //  현재 호출 위치에서 별도로 잡지 못한다. 따라서 여기서는 가능한 한
+        //  많은 컨텍스트를 함께 기록한다.)
+        final baseUrl = appfit_core.AppFitConfig.baseUrl;
+        DioException? dioErr;
+        if (e is DioException) dioErr = e;
+        final diag = dioErr == null
+            ? 'baseUrl=$baseUrl runtimeType=${e.runtimeType}'
+            : 'baseUrl=$baseUrl type=${dioErr.type} '
+                'msg=${dioErr.message} '
+                'inner=${dioErr.error?.runtimeType}:${dioErr.error} '
+                'status=${dioErr.response?.statusCode}';
+
         // 네트워크 관련 에러인 경우 추가 매핑
         if (errorMsg.contains('Connection') || errorMsg.contains('Network')) {
           errorMsg = '네트워크 연결 상태를 확인해주세요.';
@@ -171,7 +187,9 @@ class Auth extends _$Auth {
           errorMsg = '아이디 또는 비밀번호가 일치하지 않습니다.';
         }
 
-        logToFile(tag: LogTag.ERROR, message: '[Auth] V2 Login Failed: $e');
+        logToFile(
+            tag: LogTag.ERROR,
+            message: '[Auth] V2 Login Failed: $e | diag=$diag');
         state = state.copyWith(
             connectionStatus: ConnectionStatus.disconnected,
             errorMessage: errorMsg);
