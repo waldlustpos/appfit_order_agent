@@ -1,4 +1,4 @@
-###############################################################################
+﻿###############################################################################
 # Flutter Windows Release 빌드 후 Lightsail(EC2) 서버에 ZIP 업로드 및
 # Windows 버전 JSON 자동 업데이트 스크립트 (PowerShell)
 #
@@ -76,7 +76,11 @@ if ($needReconfigure) {
 
 # 1) Flutter Windows Release 빌드
 Write-Host "==== 1) Flutter build windows --release ===="
-flutter build windows --release
+if (-not (Test-Path ".env")) {
+    Write-Error "[오류] .env 파일이 없습니다. APPFIT_AES_KEY가 빌드에 주입되지 않으면 로그인 API가 실패합니다."
+    exit 1
+}
+flutter build windows --release --dart-define-from-file=.env
 if ($LASTEXITCODE -ne 0) { Write-Error "[오류] Flutter Windows 빌드 실패!"; exit 1 }
 
 if (-not (Test-Path $BUILD_OUTPUT) -or -not (Get-ChildItem $BUILD_OUTPUT -ErrorAction SilentlyContinue)) {

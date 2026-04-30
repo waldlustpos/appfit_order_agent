@@ -1,4 +1,4 @@
-###############################################################################
+﻿###############################################################################
 # Build the Flutter Windows Release output and wrap it with Inno Setup 6
 # to produce a Setup.exe installer.
 #
@@ -91,7 +91,11 @@ if ($needReconfigure) {
 
 # 2) Flutter Windows Release build
 Write-Host "==== 1) flutter build windows --release ===="
-flutter build windows --release
+if (-not (Test-Path ".env")) {
+    Write-Error "[ERROR] .env not found at repo root. APPFIT_AES_KEY must be injected at build time."
+    exit 1
+}
+flutter build windows --release --dart-define-from-file=.env
 if ($LASTEXITCODE -ne 0) { Write-Error "[ERROR] Flutter Windows build failed"; exit 1 }
 
 if (-not (Test-Path $BUILD_OUTPUT) -or -not (Get-ChildItem $BUILD_OUTPUT -ErrorAction SilentlyContinue)) {
