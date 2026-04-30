@@ -53,6 +53,19 @@ if (-not (Test-Path $CACHE_FILE)) {
         Write-Host "[INFO] CMAKE_INSTALL_PREFIX 불일치 ($currentPrefix) - reconfigure"
         $needReconfigure = $true
     }
+
+    # generator platform 불일치 감지: -A x64 로 재구성하려는데
+    # 기존 캐시가 다른 플랫폼(none/Win32 등)으로 잡혀 있으면 빌드가 실패한다.
+    if (-not $needReconfigure) {
+        $platformLine = (Select-String -Path $CACHE_FILE -Pattern "^CMAKE_GENERATOR_PLATFORM:" -ErrorAction SilentlyContinue).Line
+        $currentPlatform = if ($platformLine) {
+            ($platformLine -replace "^CMAKE_GENERATOR_PLATFORM:[^=]*=", "").Trim()
+        } else { "" }
+        if ($currentPlatform -ne "x64") {
+            Write-Host "[INFO] CMAKE_GENERATOR_PLATFORM 불일치 ('$currentPlatform' != 'x64') - reconfigure"
+            $needReconfigure = $true
+        }
+    }
 }
 
 if ($needReconfigure) {
@@ -67,8 +80,24 @@ if ($needReconfigure) {
         }
     }
 
+    # ephemeral(generated_config.cmake, .plugin_symlinks) 생성 보장 - cmake보다 먼저 호출되어야 함
+    $ephemeralDir = Join-Path $WINDOWS_SRC "flutter\ephemeral"
+    $generatedConfig = Join-Path $ephemeralDir "generated_config.cmake"
+    if (-not (Test-Path $generatedConfig)) {
+        Write-Host "[INFO] flutter ephemeral 생성: flutter pub get + flutter build windows --config-only"
+        flutter pub get
+        if ($LASTEXITCODE -ne 0) { Write-Error "[오류] flutter pub get 실패!"; exit 1 }
+        flutter build windows --config-only
+        if ($LASTEXITCODE -ne 0) { Write-Error "[오류] flutter build windows --config-only 실패!"; exit 1 }
+    }
+
+    # 플랫폼/generator 불일치를 막기 위해 기존 cmake 산출물 제거 후 재구성
+    if (Test-Path $CACHE_FILE) { Remove-Item $CACHE_FILE -Force }
+    $cmakeFilesDir = Join-Path $BUILD_DIR "CMakeFiles"
+    if (Test-Path $cmakeFilesDir) { Remove-Item $cmakeFilesDir -Recurse -Force }
+
     New-Item -ItemType Directory -Force -Path $BUILD_DIR | Out-Null
-    & $cmake -S $WINDOWS_SRC -B $BUILD_DIR -DCMAKE_INSTALL_PREFIX="$INSTALL_PREFIX" -DCMAKE_BUILD_TYPE=Release 2>&1
+    & $cmake -S $WINDOWS_SRC -B $BUILD_DIR -A x64 -DCMAKE_INSTALL_PREFIX="$INSTALL_PREFIX" -DCMAKE_BUILD_TYPE=Release 2>&1
     if ($LASTEXITCODE -ne 0) { Write-Error "cmake reconfigure 실패"; exit 1 }
     Write-Host "[OK] cmake reconfigure 완료"
     Write-Host ""
@@ -80,7 +109,24 @@ if (-not (Test-Path ".env")) {
     Write-Error "[오류] .env 파일이 없습니다. APPFIT_AES_KEY가 빌드에 주입되지 않으면 로그인 API가 실패합니다."
     exit 1
 }
-flutter build windows --release --dart-define-from-file=.env
+# Windows 전용 버전 로드 (pubspec.yaml과 분리 — version_windows.txt가 정본)
+if (-not (Test-Path "version_windows.txt")) {
+    Write-Error "[오류] version_windows.txt 파일이 없습니다. 예: 1.0.0+1"
+    exit 1
+}
+$WinVersionLine = (Get-Content "version_windows.txt" | Where-Object { $_ -match '^[0-9]' } | Select-Object -First 1).Trim()
+if ($WinVersionLine -notmatch '^[0-9]+\.[0-9]+\.[0-9]+\+[0-9]+$') {
+    Write-Error "[오류] version_windows.txt 형식이 잘못됨: '$WinVersionLine' (기대: x.y.z+n)"
+    exit 1
+}
+$WinBuildName   = $WinVersionLine.Split('+')[0]
+$WinBuildNumber = $WinVersionLine.Split('+')[1]
+Write-Host "[INFO] Windows 버전: $WinBuildName ($WinBuildNumber)"
+
+flutter build windows --release `
+    --dart-define-from-file=.env `
+    --build-name="$WinBuildName" `
+    --build-number="$WinBuildNumber"
 if ($LASTEXITCODE -ne 0) { Write-Error "[오류] Flutter Windows 빌드 실패!"; exit 1 }
 
 if (-not (Test-Path $BUILD_OUTPUT) -or -not (Get-ChildItem $BUILD_OUTPUT -ErrorAction SilentlyContinue)) {
@@ -177,18 +223,9 @@ $scpDest = "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/"
 if ($LASTEXITCODE -ne 0) { Write-Error "[오류] scp ZIP 업로드 실패!"; exit 1 }
 Write-Host "[INFO] ZIP 업로드 완료"
 
-# 4) pubspec.yaml에서 빌드 번호 추출
-Write-Host "==== 4) Extract build number from pubspec.yaml ===="
-$versionLine = (Select-String -Path "pubspec.yaml" -Pattern "^version:").Line
-if (-not $versionLine) {
-    Write-Error "[오류] pubspec.yaml에서 version 항목을 찾을 수 없습니다!"
-    exit 1
-}
-$buildNumber = ($versionLine -replace ".*\+(\d+).*", '$1').Trim()
-if (-not $buildNumber) {
-    Write-Error "[오류] 빌드 번호 추출 실패!"
-    exit 1
-}
+# 4) Windows 빌드 번호 (version_windows.txt 정본 사용)
+Write-Host "==== 4) Use build number from version_windows.txt ===="
+$buildNumber = $WinBuildNumber
 Write-Host "빌드 번호: $buildNumber"
 
 # 5) Windows 버전 JSON 생성 및 서버 업로드

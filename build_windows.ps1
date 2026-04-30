@@ -24,7 +24,24 @@ if (-not (Test-Path ".env")) {
     Write-Host "❌ .env 파일이 없습니다. APPFIT_AES_KEY가 빌드에 주입되지 않으면 로그인 API가 실패합니다." -ForegroundColor Red
     exit 1
 }
-flutter build windows --release --dart-define-from-file=.env
+# Windows 전용 버전 로드 (pubspec.yaml과 분리 관리 — version_windows.txt가 정본)
+if (-not (Test-Path "version_windows.txt")) {
+    Write-Host "❌ version_windows.txt 파일이 없습니다. 예: 1.0.0+1" -ForegroundColor Red
+    exit 1
+}
+$WinVersionLine = (Get-Content "version_windows.txt" | Where-Object { $_ -match '^[0-9]' } | Select-Object -First 1).Trim()
+if ($WinVersionLine -notmatch '^[0-9]+\.[0-9]+\.[0-9]+\+[0-9]+$') {
+    Write-Host "❌ version_windows.txt 형식이 잘못됨: '$WinVersionLine' (기대: x.y.z+n)" -ForegroundColor Red
+    exit 1
+}
+$WinBuildName   = $WinVersionLine.Split('+')[0]
+$WinBuildNumber = $WinVersionLine.Split('+')[1]
+Write-Host "🏷  Windows 버전: $WinBuildName ($WinBuildNumber)" -ForegroundColor Cyan
+
+flutter build windows --release `
+    --dart-define-from-file=.env `
+    --build-name="$WinBuildName" `
+    --build-number="$WinBuildNumber"
 
 # Flutter 3.29+ 는 x64 하위 폴더에 산출물을 둔다
 $buildOutput = "build\windows\x64\runner\Release"
