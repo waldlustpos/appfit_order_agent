@@ -20,7 +20,11 @@ if (-not $flutter) {
 
 # 빌드 실행
 Write-Host "📦 Windows Release 빌드 중..." -ForegroundColor Cyan
-flutter build windows --release
+if (-not (Test-Path ".env")) {
+    Write-Host "❌ .env 파일이 없습니다. APPFIT_AES_KEY가 빌드에 주입되지 않으면 로그인 API가 실패합니다." -ForegroundColor Red
+    exit 1
+}
+flutter build windows --release --dart-define-from-file=.env
 
 # Flutter 3.29+ 는 x64 하위 폴더에 산출물을 둔다
 $buildOutput = "build\windows\x64\runner\Release"

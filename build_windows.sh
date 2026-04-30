@@ -16,7 +16,28 @@ fi
 
 # 빌드 실행
 echo "📦 Windows Release 빌드 중..."
-flutter build windows --release
+if [ ! -f ".env" ]; then
+    echo "❌ .env 파일이 없습니다. APPFIT_AES_KEY가 빌드에 주입되지 않으면 로그인 API가 실패합니다."
+    exit 1
+fi
+# Windows 전용 버전 로드 (pubspec.yaml과 분리 관리)
+if [ ! -f "version_windows.txt" ]; then
+    echo "❌ version_windows.txt 파일이 없습니다. 예: 1.0.0+1"
+    exit 1
+fi
+WIN_VERSION_LINE=$(grep -E '^[0-9]' version_windows.txt | head -n1)
+if [[ ! "$WIN_VERSION_LINE" =~ ^[0-9]+\.[0-9]+\.[0-9]+\+[0-9]+$ ]]; then
+    echo "❌ version_windows.txt 형식이 잘못됨: '$WIN_VERSION_LINE' (기대: x.y.z+n)"
+    exit 1
+fi
+WIN_BUILD_NAME="${WIN_VERSION_LINE%+*}"
+WIN_BUILD_NUMBER="${WIN_VERSION_LINE#*+}"
+echo "🏷  Windows 버전: $WIN_BUILD_NAME ($WIN_BUILD_NUMBER)"
+
+flutter build windows --release \
+    --dart-define-from-file=.env \
+    --build-name="$WIN_BUILD_NAME" \
+    --build-number="$WIN_BUILD_NUMBER"
 
 BUILD_OUTPUT="build/windows/x64/runner/Release"
 
