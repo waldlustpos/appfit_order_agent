@@ -17,6 +17,7 @@ import '../services/secure_storage_service.dart';
 import '../providers/auth_provider.dart';
 import '../providers/store_provider.dart';
 
+import '../widgets/common/app_icon_action.dart';
 import '../widgets/common/common_dialog.dart';
 import '../widgets/common/brand_logo.dart';
 import '../constants/app_styles.dart';
@@ -896,6 +897,80 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     );
   }
 
+  Widget _buildExitButton(BuildContext context) {
+    final t = Translations.of(context);
+    return AppIconAction(
+      icon: Icons.power_settings_new,
+      color: Colors.white,
+      tooltip: t.app_bar.exit_app,
+      onPressed: () {
+        logToFile(
+          tag: LogTag.UI_ACTION,
+          message: '로그인 화면 앱 종료 버튼 터치',
+        );
+        _showExitConfirmationDialog(context);
+      },
+    );
+  }
+
+  Future<void> _showExitConfirmationDialog(BuildContext context) async {
+    final t = Translations.of(context);
+    final shouldExit = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogCtx) => AlertDialog(
+        title: Text(t.app_bar.exit_app, style: AppTextStyles.title),
+        titlePadding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.s24,
+          vertical: AppSpacing.s24,
+        ),
+        contentPadding: const EdgeInsets.fromLTRB(
+          AppSpacing.s24,
+          AppSpacing.s16,
+          AppSpacing.s24,
+          0,
+        ),
+        content: SizedBox(
+          width: 400,
+          height: 80,
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(t.app_bar.exit_app_desc, style: AppTextStyles.body),
+          ),
+        ),
+        actionsPadding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.s24,
+          vertical: AppSpacing.s24,
+        ),
+        actions: [
+          ElevatedButton(
+            style: AppStyles.outlinedButton(minimumSize: const Size(100, 45)),
+            onPressed: () => Navigator.of(dialogCtx).pop(false),
+            child: Text(t.common.cancel),
+          ),
+          ElevatedButton(
+            style: AppStyles.primaryButton(minimumSize: const Size(100, 45)),
+            onPressed: () => Navigator.of(dialogCtx).pop(true),
+            child: Text(t.dialog.exit.confirm),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldExit == true) {
+      logToFile(
+        tag: LogTag.UI_ACTION,
+        message: '로그인 화면 앱 종료 다이얼로그 -> 종료',
+      );
+      await PlatformService.exitApp();
+    } else {
+      logToFile(
+        tag: LogTag.UI_ACTION,
+        message: '로그인 화면 앱 종료 다이얼로그 -> 취소',
+      );
+    }
+  }
+
   Future<void> _showEnvSelectDialog() async {
     final envOptions = ['dev', 'staging', 'live', 'japanLive'];
 
@@ -1088,7 +1163,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             ),
           ),
 
-          // 언어 선택 위젯 + 서버 환경 표시 (우측 상단)
+          // 종료 버튼 + 언어 선택 위젯 + 서버 환경 표시 (우측 상단)
           Positioned(
             top: AppSpacing.s20,
             right: AppSpacing.s20,
@@ -1096,7 +1171,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  _buildLanguageSwitcher(),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      _buildLanguageSwitcher(),
+                      const SizedBox(width: AppSpacing.s4),
+                      _buildExitButton(context),
+                    ],
+                  ),
                   const SizedBox(height: AppSpacing.s4),
                   _buildEnvBadge(),
                 ],

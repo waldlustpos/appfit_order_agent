@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:appfit_order_agent/services/platform_bridge_service.dart';
 import 'package:appfit_order_agent/services/overlay_service.dart';
+import 'package:appfit_order_agent/services/windows_log_file_writer.dart';
 import 'package:launch_at_startup/launch_at_startup.dart';
 
 const _kAppfitChannelName =
@@ -64,6 +65,10 @@ Future<void> logToFile({required LogTag tag, required String message}) async {
 /// 배치 로그를 네이티브 파일로 기록
 Future<void> logBatchToFile({required List<String> messages}) async {
   if (messages.isEmpty) return;
+  if (Platform.isWindows) {
+    await WindowsLogFileWriter.appendLogsToFile(messages);
+    return;
+  }
   try {
     await platform.invokeMethod('logBatchToFile', {'messages': messages});
   } catch (e, s) {
@@ -352,9 +357,23 @@ class PlatformService {
     }
   }
 
+  /// 플랫폼별 앱 종료. Windows는 SystemNavigator.pop()이 프로세스를 종료하지
+  /// 않으므로 exit(0)을 사용한다. 호출 측에서 cleanup을 모두 마친 뒤 마지막에
+  /// 호출할 것.
+  static Future<void> exitApp() async {
+    if (Platform.isWindows) {
+      exit(0);
+    }
+    await SystemNavigator.pop();
+  }
+
   /// 배치 로그 기록 (정적 메서드)
   static Future<void> logBatchToFile(List<String> messages) async {
     if (messages.isEmpty) return;
+    if (Platform.isWindows) {
+      await WindowsLogFileWriter.appendLogsToFile(messages);
+      return;
+    }
     try {
       await platform.invokeMethod('logBatchToFile', {'messages': messages});
     } catch (e, s) {

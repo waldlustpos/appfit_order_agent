@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:appfit_order_agent/screens/membership_screen.dart';
 import 'package:appfit_order_agent/services/preference_service.dart';
@@ -336,11 +335,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     // KDS 모드 초기화
     ref.read(kdsModeProvider.notifier).setKdsMode(false);
 
-    // 2. 앱 종료 — Windows는 SystemNavigator.pop()으로 프로세스가 종료되지 않으므로 exit(0) 사용
-    if (Platform.isWindows) {
-      exit(0);
-    }
-    SystemNavigator.pop();
+    // 2. 앱 종료 (플랫폼별 분기는 PlatformService.exitApp() 가 담당)
+    await PlatformService.exitApp();
   }
 
   Future<void> _handleLogout() async {
