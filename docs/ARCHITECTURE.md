@@ -40,6 +40,10 @@ REST API (폴링)  ───────┘        │
 - **OutputQueueService** — 순차적 출력/인쇄 작업 큐 관리 (로그아웃 시 초기화).
 - **OverlayService** — 플로팅 버블 오버레이 윈도우 제어.
 - **LocalServerService** — 로컬 HTTP 수신용 경량 서버 (외부 트리거 수용).
+- **WindowsBubbleService** (Windows 전용) — KDS 버블 모드(80x80 플로팅 윈도우) 진입/복귀. 본 윈도우 ↔ 버블 윈도우 전환 시 LayoutBuilder가 카드 size 트랜지션을 재생하지 않도록 originalSize를 캐시.
+- **WindowsPrintService** / **ComPortPrintService** (Windows 전용) — Windows ESC/POS 인쇄. COM 포트 직결과 윈도우 스풀러 raw 두 갈래 경로.
+- **WindowsUpdateService** (Windows 전용) — OTA 자동 업데이트 체크/다운로드/재시작. UI는 `lib/widgets/update/update_progress_dialog.dart`.
+- **WindowsLogFileWriter** (Windows 전용) — 시작 시 오래된 로그 파일 자동 삭제.
 - `services/appfit/` — `AppFitProviders`, `KokonutAppFitLogger` 등 `appfit_core` 어댑터.
 - `services/migration/` — `V2MigrationService` / `V2MigrationLogger` (PreferenceService 최초 init 시 실행되는 V2 마이그레이션).
 - `services/monitoring/` — `OrderAgentMonitoringContext` (Sentry 연동), `MonitoringSyncProvider` (사용자/스토어 컨텍스트 동기화).
@@ -63,7 +67,9 @@ REST API (폴링)  ───────┘        │
 - `CryptoUtils` — AES-GCM 암호화/복호화
 - `ApiRoutes` — 중앙화된 API 엔드포인트 경로
 
-## 네이티브 Android 레이어
+## 네이티브 레이어
+
+### Android
 
 Java 소스 위치: `android/app/src/main/java/co/kr/waldlust/order/receive/`
 
@@ -73,12 +79,20 @@ Java 소스 위치: `android/app/src/main/java/co/kr/waldlust/order/receive/`
 - `overlay/FloatingBubbleService.java` — 플로팅 오버레이 윈도우
 - `AutoStartReceiver.java` — 부팅 시 자동 시작
 
+### Windows
+
+C++ 소스 위치: `windows/runner/` (`flutter_window.cpp`, `main.cpp`, `CMakeLists.txt`)
+
+- 단일 인스턴스 뮤텍스: `Global\AppfitOrderAgent_SingleInstance_Mutex`. `windows/runner/main.cpp`의 `kSingleInstanceMutexName` 상수와 `installer/appfit_order_agent.iss`의 `AppMutex`가 **반드시 일치**해야 함 (불일치 시 인스톨러의 single-instance 종료 로직과 런타임 가드가 어긋남).
+- 빌드 산출물: `build/windows/x64/runner/Release/`
+- VC++ 런타임 DLL(`vcruntime140.dll`, `vcruntime140_1.dll`, `msvcp140.dll`)은 빌드 스크립트가 자동 번들링하므로 대상 PC에 Visual C++ Redistributable이 없어도 동작.
+
 ## UI 구조
 
 가로 전용 단일 모드 토글(`HomeScreen` ↔ `KdsScreen`):
 
 1. **일반 모드** (`HomeScreen`) — 주문 현황, 주문 내역, 상품 관리, 멤버십으로 구성된 탭 뷰
-2. **KDS 모드** (`KdsScreen`) — 상태별 탭(신규/진행/픽업/완료/취소)을 가진 주방 디스플레이 그리드, 자동 스크롤, 카드 기반 레이아웃
+2. **KDS 모드** (`KdsScreen`) — 상태별 탭(신규/진행/픽업/완료/취소)을 가진 주방 디스플레이 그리드, 자동 스크롤, 카드 기반 레이아웃. Windows에서는 **버블 모드(80x80 플로팅 윈도우)**로 토글 가능하며, 본 윈도우 ↔ 버블 윈도우 전환 시 카드 사이즈 트랜지션을 막기 위해 originalSize를 캐시(`WindowsBubbleService`).
 
 기타 화면 (`lib/screens/`):
 
@@ -107,7 +121,7 @@ Java 소스 위치: `android/app/src/main/java/co/kr/waldlust/order/receive/`
 
 - **모델**: `lib/models/`에 수동 작성된 클래스 (freezed 아님), 수동 `fromJson`/`toJson`. `OrderModel`이 핵심 데이터 객체.
 - **Enum**: `lib/models/enums/` — `OrderStatus`, `OrderAction` 등.
-- **Order Provider 분해**: `Order` 프로바이더(`order_provider.dart`)는 매니저 클래스(`OrderSocketManager`, `OrderTimerManager`, `OrderQueueManager`, `OrderCacheManager`, `OrderSettingsManager`, `OrderStateManager`)에 위임하여 메인 프로바이더를 가볍게 유지.
+- **Order Provider 분해**: `Order` 프로바이더(`order_provider.dart`)는 매니저 클래스(`OrderSocketManager`, `OrderTimerManager`, `OrderQueueManager`, `OrderCacheManager`, `OrderSettingsManager`, `OrderStateManager`)에 위임하여 메인 프로바이더를 가볍게 유지. `OrderSocketManager`는 `appfit_core` v1.0.8의 `SocketEventDispatcher` / `RecentRemovalsCache` / `OrderEventIgnorePolicy`로 위임하여 WebSocket 이벤트 라우팅과 자동접수 race / 상태 다운그레이드 방지를 일원화.
 - **캐싱**: `lib/core/orders/cache/` — 주문 상세, 출력 완료, 처리 완료, 액션 중복 방지를 위한 인메모리 캐시.
 - **알림음/점멸/출력**: `lib/core/orders/` — `SoundService`, `BlinkService`, `OutputService`, `AlertManager`가 알림 부수 효과 처리.
 - **모니터링**: `OrderAgentMonitoringContext`가 `appfit_core`의 `MonitoringContext`를 구현하여 Sentry 초기화·오류 캡처·breadcrumb를 단일 진입점에서 처리. `MonitoringSyncProvider`가 사용자/스토어 변경 시 컨텍스트를 동기화.
