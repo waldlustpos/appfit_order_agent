@@ -83,7 +83,6 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
                 Integer autoReplyMode = call.argument("autoReplyMode");
                 Boolean useFeedToTear = call.argument("useFeedToTear");
                 Boolean useBackToPrint = call.argument("useBackToPrint");
-                Boolean useStatusPolling = call.argument("useStatusPolling");
                 Boolean useCalibrate = call.argument("useCalibrate");
                 String orderNo = call.argument("orderNo");
                 Integer labelIndex = call.argument("labelIndex");
@@ -91,10 +90,10 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
 
                 if (imageBytes != null && imageBytes.length > 0) {
                     final Bitmap bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length);
-                    final int finalAutoReplyMode = autoReplyMode != null ? autoReplyMode : 0;
+                    // autoReplyMode 기본 1: SDK PrintedEvent ACK 활성. preference_service.dart 와 일치.
+                    final int finalAutoReplyMode = autoReplyMode != null ? autoReplyMode : 1;
                     final boolean finalUseFeedToTear = useFeedToTear != null ? useFeedToTear : true;
                     final boolean finalUseBackToPrint = useBackToPrint != null ? useBackToPrint : true;
-                    final boolean finalUseStatusPolling = useStatusPolling != null ? useStatusPolling : false;
                     final boolean finalUseCalibrate = useCalibrate != null ? useCalibrate : false;
                     final String finalOrderNo = orderNo != null ? orderNo : "-";
                     final int finalLabelIndex = labelIndex != null ? labelIndex : 1;
@@ -106,7 +105,6 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
                                 finalAutoReplyMode,
                                 finalUseFeedToTear,
                                 finalUseBackToPrint,
-                                finalUseStatusPolling,
                                 finalUseCalibrate,
                                 finalOrderNo,
                                 finalLabelIndex,

@@ -115,6 +115,16 @@ class OutputService {
         return;
       }
 
+      // 진단 로그: 멀티 라벨 race 분석용. 진입 시점에 메뉴/총수량/캡처된 인스턴스 식별자 한 줄.
+      final int entryTotalLabels =
+          orderToPrint.menus.fold(0, (sum, m) => sum + m.qty);
+      logToFile(
+          tag: LogTag.PLATFORM,
+          message:
+              '[OutputService] printOrderLabels 진입 displayNum=${orderToPrint.displayNum}'
+              ' menus=${orderToPrint.menus.length} totalLabels=$entryTotalLabels'
+              ' identity=${identityHashCode(orderToPrint)} reprint=$isReprint');
+
       logger.i('[OutputService] 라벨 출력 시작: ${orderToPrint.orderNo}');
       final printService = ref.read(printServiceProvider);
       final printDelay =
@@ -204,6 +214,7 @@ class OutputService {
         // 해당 메뉴 수량만큼 반복 출력 (순번별로 이미지 생성)
         for (int i = 0; i < menu.qty; i++) {
           final labelIndex = menuStartIndex[identityHashCode(menu)]! + i + 1;
+          final genStart = DateTime.now();
           final imageBytes = await LabelPainter.generateLabelImage(
             menuName: menu.itemName,
             options: filteredOptions,
@@ -218,12 +229,18 @@ class OutputService {
             orderIndex: labelIndex,
             orderTotal: totalLabels,
           );
+          final genMs = DateTime.now().difference(genStart).inMilliseconds;
+          final printStart = DateTime.now();
           await printService.printLabel(imageBytes,
               orderNo: orderToPrint.displayNum,
               labelIndex: labelIndex,
               totalLabels: totalLabels);
-          logger.d(
-              '[OutputService] 라벨 출력(${menu.itemName}): $labelIndex/$totalLabels');
+          final printMs = DateTime.now().difference(printStart).inMilliseconds;
+          logToFile(
+              tag: LogTag.PLATFORM,
+              message:
+                  '[OutputService] 라벨 [$labelIndex/$totalLabels] ${menu.itemName}'
+                  ' gen=${genMs}ms print=${printMs}ms bytes=${imageBytes.length}');
           // 연속 출력 시 프린터 버퍼 안정화를 위한 딜레이
           if (i < menu.qty - 1) {
             await Future.delayed(Duration(milliseconds: printDelay));

@@ -37,7 +37,6 @@ class SettingsRightPanel extends ConsumerStatefulWidget {
     required this.labelAutoReplyMode,
     required this.labelUseFeedToTear,
     required this.labelUseBackToPrint,
-    required this.labelUseStatusPolling,
     required this.labelUseCalibrate,
     required this.labelPrintDelay,
     // 콜백
@@ -58,7 +57,6 @@ class SettingsRightPanel extends ConsumerStatefulWidget {
     required this.onAutoReplyModeChanged,
     required this.onFeedToTearChanged,
     required this.onBackToPrintChanged,
-    required this.onStatusPollingChanged,
     required this.onCalibrateChanged,
     required this.onPrintDelayChanged,
   });
@@ -82,7 +80,6 @@ class SettingsRightPanel extends ConsumerStatefulWidget {
   final int labelAutoReplyMode;
   final bool labelUseFeedToTear;
   final bool labelUseBackToPrint;
-  final bool labelUseStatusPolling;
   final bool labelUseCalibrate;
   final int labelPrintDelay;
 
@@ -103,7 +100,6 @@ class SettingsRightPanel extends ConsumerStatefulWidget {
   final void Function(int) onAutoReplyModeChanged;
   final void Function(bool) onFeedToTearChanged;
   final void Function(bool) onBackToPrintChanged;
-  final void Function(bool) onStatusPollingChanged;
   final void Function(bool) onCalibrateChanged;
   final void Function(int) onPrintDelayChanged;
 
@@ -592,13 +588,11 @@ class _SettingsRightPanelState extends ConsumerState<SettingsRightPanel> {
                 labelAutoReplyMode: widget.labelAutoReplyMode,
                 labelUseFeedToTear: widget.labelUseFeedToTear,
                 labelUseBackToPrint: widget.labelUseBackToPrint,
-                labelUseStatusPolling: widget.labelUseStatusPolling,
                 labelUseCalibrate: widget.labelUseCalibrate,
                 labelPrintDelay: widget.labelPrintDelay,
                 onAutoReplyModeChanged: widget.onAutoReplyModeChanged,
                 onFeedToTearChanged: widget.onFeedToTearChanged,
                 onBackToPrintChanged: widget.onBackToPrintChanged,
-                onStatusPollingChanged: widget.onStatusPollingChanged,
                 onCalibrateChanged: widget.onCalibrateChanged,
                 onPrintDelayChanged: widget.onPrintDelayChanged,
               ),

@@ -56,8 +56,6 @@ class PreferenceService {
       "KOKONUT_LABEL_USE_FEED_TO_TEAR"; // bool (기본 true)
   static const String KEY_LABEL_USE_BACK_TO_PRINT =
       "KOKONUT_LABEL_USE_BACK_TO_PRINT"; // bool (기본 true)
-  static const String KEY_LABEL_USE_STATUS_POLLING =
-      "KOKONUT_LABEL_USE_STATUS_POLLING"; // bool (기본 false)
   static const String KEY_LABEL_USE_CALIBRATE =
       "KOKONUT_LABEL_USE_CALIBRATE"; // bool (기본 false)
   static const String KEY_LABEL_PRINT_DELAY =
@@ -478,15 +476,15 @@ class PreferenceService {
       _prefs.getBool(KEY_USE_LABEL_PRINTER) ?? false; // Default false
 
   // 라벨프린터 테스트 모드 getters
-  int getLabelAutoReplyMode() => _prefs.getInt(KEY_LABEL_AUTO_REPLY_MODE) ?? 0;
+  // autoReplyMode=1: SDK 양방향 통신 활성. PrintedEvent ACK 콜백을 받기 위한 전제.
+  int getLabelAutoReplyMode() => _prefs.getInt(KEY_LABEL_AUTO_REPLY_MODE) ?? 1;
   bool getLabelUseFeedToTear() =>
       _prefs.getBool(KEY_LABEL_USE_FEED_TO_TEAR) ?? true;
   bool getLabelUseBackToPrint() =>
       _prefs.getBool(KEY_LABEL_USE_BACK_TO_PRINT) ?? true;
-  bool getLabelUseStatusPolling() =>
-      _prefs.getBool(KEY_LABEL_USE_STATUS_POLLING) ?? false;
   bool getLabelUseCalibrate() =>
       _prefs.getBool(KEY_LABEL_USE_CALIBRATE) ?? false;
+
   int getLabelPrintDelay() => _prefs.getInt(KEY_LABEL_PRINT_DELAY) ?? 300;
 
   /// 라벨 필터 모드 (0: 전체, 1: 와플만, 2: 와플제외)
@@ -564,10 +562,6 @@ class PreferenceService {
 
   Future<void> setLabelUseBackToPrint(bool value) async {
     await _prefs.setBool(KEY_LABEL_USE_BACK_TO_PRINT, value);
-  }
-
-  Future<void> setLabelUseStatusPolling(bool value) async {
-    await _prefs.setBool(KEY_LABEL_USE_STATUS_POLLING, value);
   }
 
   Future<void> setLabelUseCalibrate(bool value) async {

@@ -26,13 +26,11 @@ class SettingsDeveloperOptions extends ConsumerWidget {
     required this.labelAutoReplyMode,
     required this.labelUseFeedToTear,
     required this.labelUseBackToPrint,
-    required this.labelUseStatusPolling,
     required this.labelUseCalibrate,
     required this.labelPrintDelay,
     required this.onAutoReplyModeChanged,
     required this.onFeedToTearChanged,
     required this.onBackToPrintChanged,
-    required this.onStatusPollingChanged,
     required this.onCalibrateChanged,
     required this.onPrintDelayChanged,
   });
@@ -45,13 +43,11 @@ class SettingsDeveloperOptions extends ConsumerWidget {
   final int labelAutoReplyMode;
   final bool labelUseFeedToTear;
   final bool labelUseBackToPrint;
-  final bool labelUseStatusPolling;
   final bool labelUseCalibrate;
   final int labelPrintDelay;
   final void Function(int) onAutoReplyModeChanged;
   final void Function(bool) onFeedToTearChanged;
   final void Function(bool) onBackToPrintChanged;
-  final void Function(bool) onStatusPollingChanged;
   final void Function(bool) onCalibrateChanged;
   final void Function(int) onPrintDelayChanged;
 
@@ -135,13 +131,11 @@ class SettingsDeveloperOptions extends ConsumerWidget {
           labelAutoReplyMode: labelAutoReplyMode,
           labelUseFeedToTear: labelUseFeedToTear,
           labelUseBackToPrint: labelUseBackToPrint,
-          labelUseStatusPolling: labelUseStatusPolling,
           labelUseCalibrate: labelUseCalibrate,
           labelPrintDelay: labelPrintDelay,
           onAutoReplyModeChanged: onAutoReplyModeChanged,
           onFeedToTearChanged: onFeedToTearChanged,
           onBackToPrintChanged: onBackToPrintChanged,
-          onStatusPollingChanged: onStatusPollingChanged,
           onCalibrateChanged: onCalibrateChanged,
           onPrintDelayChanged: onPrintDelayChanged,
         ),

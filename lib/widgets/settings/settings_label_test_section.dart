@@ -1,6 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../constants/app_styles.dart';
+import '../../models/menu_option_model.dart';
+import '../../models/order_menu_model.dart';
+import '../../models/order_model.dart';
 import '../../providers/providers.dart';
 import '../../services/platform_service.dart';
 import '../../services/print_service.dart';
@@ -16,13 +21,11 @@ class SettingsLabelTestSection extends ConsumerStatefulWidget {
     required this.labelAutoReplyMode,
     required this.labelUseFeedToTear,
     required this.labelUseBackToPrint,
-    required this.labelUseStatusPolling,
     required this.labelUseCalibrate,
     required this.labelPrintDelay,
     required this.onAutoReplyModeChanged,
     required this.onFeedToTearChanged,
     required this.onBackToPrintChanged,
-    required this.onStatusPollingChanged,
     required this.onCalibrateChanged,
     required this.onPrintDelayChanged,
   });
@@ -30,14 +33,12 @@ class SettingsLabelTestSection extends ConsumerStatefulWidget {
   final int labelAutoReplyMode;
   final bool labelUseFeedToTear;
   final bool labelUseBackToPrint;
-  final bool labelUseStatusPolling;
   final bool labelUseCalibrate;
   final int labelPrintDelay;
 
   final void Function(int) onAutoReplyModeChanged;
   final void Function(bool) onFeedToTearChanged;
   final void Function(bool) onBackToPrintChanged;
-  final void Function(bool) onStatusPollingChanged;
   final void Function(bool) onCalibrateChanged;
   final void Function(int) onPrintDelayChanged;
 
@@ -49,6 +50,159 @@ class SettingsLabelTestSection extends ConsumerStatefulWidget {
 class _SettingsLabelTestSectionState
     extends ConsumerState<SettingsLabelTestSection> {
   bool _isExpanded = false;
+
+  // 부하 테스트 진행 상태
+  bool _isStressRunning = false;
+  int _stressIteration = 0;
+  int _stressTotal = 0;
+  Timer? _stressTimer;
+
+  @override
+  void dispose() {
+    _stressTimer?.cancel();
+    super.dispose();
+  }
+
+  /// 사고 재현용 부하 테스트.
+  /// `mock 2-라인 OrderModel` 을 [iterations] 회 출력. 각 회차당 라벨 2장.
+  /// 운영 서버에 영향 없음 (자동접수 흐름을 우회하고 OutputService.printOrderLabels 직접 호출).
+  Future<void> _runStressTest(
+      {int iterations = 100, int gapSeconds = 8}) async {
+    if (_isStressRunning) return;
+
+    final printService = ref.read(printServiceProvider);
+    final status = ref.read(printerStatusProvider);
+    if (!status.isLabelConnected) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('라벨 프린터가 연결되어 있지 않습니다.')),
+        );
+      }
+      return;
+    }
+
+    setState(() {
+      _isStressRunning = true;
+      _stressIteration = 0;
+      _stressTotal = iterations;
+    });
+
+    final orderProviderRef = ref.read(orderProvider.notifier);
+    final config = 'iter=$iterations gap=${gapSeconds}s'
+        ' autoReply=${widget.labelAutoReplyMode}'
+        ' delay=${widget.labelPrintDelay}ms';
+
+    logToFile(
+        tag: LogTag.PLATFORM,
+        message: '[StressTest] ====== 라벨 부하 테스트 시작 ======');
+    logToFile(tag: LogTag.PLATFORM, message: '[StressTest] [CONFIG] $config');
+
+    try {
+      for (int i = 1; i <= iterations; i++) {
+        if (!mounted || !_isStressRunning) break;
+        setState(() => _stressIteration = i);
+
+        final iterSw = Stopwatch()..start();
+        final mockOrder = _buildMockOrder(i);
+
+        logToFile(
+            tag: LogTag.PLATFORM,
+            message:
+                '[StressTest] [$i/$iterations] 시작 displayNum=${mockOrder.shopOrderNo} 라인=2');
+
+        // 라벨 2장 직접 출력 (자동접수/큐 우회 — 라벨 프린터 race 만 측정)
+        await orderProviderRef.printOrderLabels(mockOrder);
+
+        logToFile(
+            tag: LogTag.PLATFORM,
+            message:
+                '[StressTest] [$i/$iterations] 완료 (${iterSw.elapsedMilliseconds}ms)');
+
+        if (i < iterations) {
+          await Future.delayed(Duration(seconds: gapSeconds));
+        }
+      }
+      logToFile(
+          tag: LogTag.PLATFORM,
+          message:
+              '[StressTest] ====== 라벨 부하 테스트 종료 (사용 안된 prinService=$printService) ======');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('부하 테스트 완료 ($iterations회)')),
+        );
+      }
+    } catch (e, s) {
+      logToFile(tag: LogTag.ERROR, message: '[StressTest] 실행 오류: $e\n$s');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('부하 테스트 오류: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isStressRunning = false);
+      }
+    }
+  }
+
+  void _stopStressTest() {
+    if (!_isStressRunning) return;
+    setState(() => _isStressRunning = false);
+    logToFile(tag: LogTag.PLATFORM, message: '[StressTest] 사용자 중단 요청');
+  }
+
+  /// 2-line mock OrderModel (バニララテ + カフェラテ, qty=1+1) — #958 사고 패턴 재현.
+  OrderModel _buildMockOrder(int seq) {
+    final now = DateTime.now();
+    final orderNo = 'STRESS_${now.millisecondsSinceEpoch}_$seq';
+    final displayNo = '9${seq.toString().padLeft(3, '0')}';
+
+    return OrderModel(
+      orderNo: orderNo,
+      shopOrderNo: displayNo,
+      displayOrderNo: displayNo,
+      orderStatus: '',
+      orderedAt: now,
+      totalAmount: 0,
+      status: OrderStatus.PREPARING,
+      storeId: 'STRESS',
+      userId: 'STRESS',
+      ordererName: 'STRESS',
+      orderCount: '2',
+      paymentAmount: 0,
+      discountAmount: 0,
+      paymentType: 'CARD',
+      paymentCode: '',
+      menus: [
+        OrderMenuModel(
+          orderNo: orderNo,
+          shopItemId: 'STRESS_A',
+          qty: 1,
+          itemName: 'バニララテ',
+          itemPrice: 0,
+          totalAmount: 0,
+          discPrc: 0,
+          vatPrc: 0,
+          options: const <MenuOptionModel>[],
+        ),
+        OrderMenuModel(
+          orderNo: orderNo,
+          shopItemId: 'STRESS_B',
+          qty: 1,
+          itemName: 'カフェラテ',
+          itemPrice: 0,
+          totalAmount: 0,
+          discPrc: 0,
+          vatPrc: 0,
+          options: const <MenuOptionModel>[],
+        ),
+      ],
+      orderType: 'T',
+      kdsOrderType: 1,
+      kioskId: '',
+      isDetailLoaded: true,
+    );
+  }
 
   Future<void> _printLabelTest() async {
     final printService = ref.read(printServiceProvider);
@@ -66,7 +220,6 @@ class _SettingsLabelTestSectionState
     final config = 'autoReply=${widget.labelAutoReplyMode}'
         ' feedToTear=${widget.labelUseFeedToTear}'
         ' backToPrint=${widget.labelUseBackToPrint}'
-        ' polling=${widget.labelUseStatusPolling}'
         ' calibrate=${widget.labelUseCalibrate}'
         ' delay=${widget.labelPrintDelay}ms';
 
@@ -157,12 +310,12 @@ class _SettingsLabelTestSectionState
                 children: [
                   _buildRow(
                     label: 'AutoReply 모드',
-                    description: '양방향 통신 (0=비활성, 1=활성)',
+                    description: '양방향 통신 (1=ACK 기반, 권장 기본값)',
                     child: DropdownButton<int>(
                       value: widget.labelAutoReplyMode,
                       items: const [
                         DropdownMenuItem(value: 0, child: Text('0 (비활성)')),
-                        DropdownMenuItem(value: 1, child: Text('1 (활성)')),
+                        DropdownMenuItem(value: 1, child: Text('1 (ACK 기반)')),
                       ],
                       onChanged: (v) {
                         if (v == null) return;
@@ -186,15 +339,6 @@ class _SettingsLabelTestSectionState
                     child: _switch(
                       widget.labelUseBackToPrint,
                       widget.onBackToPrintChanged,
-                    ),
-                  ),
-                  const Divider(height: 1),
-                  _buildRow(
-                    label: '상태 폴링',
-                    description: '인쇄 완료 확인 후 다음 장',
-                    child: _switch(
-                      widget.labelUseStatusPolling,
-                      widget.onStatusPollingChanged,
                     ),
                   ),
                   const Divider(height: 1),
@@ -266,6 +410,28 @@ class _SettingsLabelTestSectionState
                       label: const Text('테스트 출력 (3장)'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.deepOrange,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.s24,
+                          vertical: AppSpacing.s12,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.s12),
+                  Center(
+                    child: ElevatedButton.icon(
+                      onPressed: _isStressRunning
+                          ? _stopStressTest
+                          : () => _runStressTest(),
+                      icon: Icon(_isStressRunning ? Icons.stop : Icons.repeat,
+                          size: 18),
+                      label: Text(_isStressRunning
+                          ? '중단 ($_stressIteration/$_stressTotal)'
+                          : '부하 테스트 (100회 × 2장)'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor:
+                            _isStressRunning ? Colors.redAccent : Colors.indigo,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(
                           horizontal: AppSpacing.s24,

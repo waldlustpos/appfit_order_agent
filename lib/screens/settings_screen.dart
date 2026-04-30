@@ -40,10 +40,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _isUseBuiltinPrinter = true;
   bool _isTpcpStore = false;
 
-  int _labelAutoReplyMode = 0;
+  int _labelAutoReplyMode = 1;
   bool _labelUseFeedToTear = true;
   bool _labelUseBackToPrint = true;
-  bool _labelUseStatusPolling = false;
   bool _labelUseCalibrate = false;
   int _labelPrintDelay = 300;
   int _labelFilterMode = 0;
@@ -94,7 +93,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _labelAutoReplyMode = _preferenceService.getLabelAutoReplyMode();
       _labelUseFeedToTear = _preferenceService.getLabelUseFeedToTear();
       _labelUseBackToPrint = _preferenceService.getLabelUseBackToPrint();
-      _labelUseStatusPolling = _preferenceService.getLabelUseStatusPolling();
       _labelUseCalibrate = _preferenceService.getLabelUseCalibrate();
       _labelPrintDelay = _preferenceService.getLabelPrintDelay();
       _labelFilterMode = _preferenceService.getLabelFilterMode();
@@ -128,7 +126,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await _preferenceService.setLabelAutoReplyMode(_labelAutoReplyMode);
       await _preferenceService.setLabelUseFeedToTear(_labelUseFeedToTear);
       await _preferenceService.setLabelUseBackToPrint(_labelUseBackToPrint);
-      await _preferenceService.setLabelUseStatusPolling(_labelUseStatusPolling);
       await _preferenceService.setLabelUseCalibrate(_labelUseCalibrate);
       await _preferenceService.setLabelPrintDelay(_labelPrintDelay);
       await _preferenceService.setLabelFilterMode(_labelFilterMode);
@@ -449,7 +446,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               labelAutoReplyMode: _labelAutoReplyMode,
               labelUseFeedToTear: _labelUseFeedToTear,
               labelUseBackToPrint: _labelUseBackToPrint,
-              labelUseStatusPolling: _labelUseStatusPolling,
               labelUseCalibrate: _labelUseCalibrate,
               labelPrintDelay: _labelPrintDelay,
               onVolumeChanged: (v) => setState(() => _notificationVolume = v),
@@ -498,8 +494,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   _setAndSave(() => _labelUseFeedToTear = v),
               onBackToPrintChanged: (v) =>
                   _setAndSave(() => _labelUseBackToPrint = v),
-              onStatusPollingChanged: (v) =>
-                  _setAndSave(() => _labelUseStatusPolling = v),
               onCalibrateChanged: (v) =>
                   _setAndSave(() => _labelUseCalibrate = v),
               onPrintDelayChanged: (v) =>

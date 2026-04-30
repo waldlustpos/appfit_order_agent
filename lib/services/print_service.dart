@@ -61,8 +61,6 @@ class PrintService {
       bool isLabelConnected = false;
 
       if (devices.isNotEmpty) {
-
-
         for (var device in devices) {
           final vendorId = device['vendorId'];
           final productId = device['productId'];
@@ -98,12 +96,12 @@ class PrintService {
             identification = ' [외부 영수증 프린터 식별됨]';
           }
 
-          if(identification.isNotEmpty) {
+          if (identification.isNotEmpty) {
             logToFile(
-            tag: LogTag.PLATFORM,
-            message:
-                ' - ${device['productName'] ?? 'Unknown'} ($manufacturer): VID=$vendorId, PID=$productId$identification',
-          );
+              tag: LogTag.PLATFORM,
+              message:
+                  ' - ${device['productName'] ?? 'Unknown'} ($manufacturer): VID=$vendorId, PID=$productId$identification',
+            );
           }
         }
       } else {
@@ -205,7 +203,8 @@ class PrintService {
     }
   }
 
-  Future<void> printLabel(Uint8List imageBytes, {String orderNo = '-', int labelIndex = 1, int totalLabels = 1}) async {
+  Future<void> printLabel(Uint8List imageBytes,
+      {String orderNo = '-', int labelIndex = 1, int totalLabels = 1}) async {
     try {
       if (_cachedExternalPrinter == null) {
         _loadPrinterSettings();
@@ -223,7 +222,6 @@ class PrintService {
         'autoReplyMode': _preferenceService.getLabelAutoReplyMode(),
         'useFeedToTear': _preferenceService.getLabelUseFeedToTear(),
         'useBackToPrint': _preferenceService.getLabelUseBackToPrint(),
-        'useStatusPolling': _preferenceService.getLabelUseStatusPolling(),
         'useCalibrate': _preferenceService.getLabelUseCalibrate(),
         'orderNo': orderNo,
         'labelIndex': labelIndex,
