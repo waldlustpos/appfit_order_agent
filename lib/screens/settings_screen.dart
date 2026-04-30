@@ -206,14 +206,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     try {
       if (Platform.isWindows) {
         final winInfo = await WindowsUpdateService().checkForUpdate();
-        if (!mounted) return;
-        if (winInfo != null && winInfo.hasUpdate) {
-          await showDialog<void>(
-            context: context,
-            barrierDismissible: false,
-            builder: (_) => const UpdateProgressDialog(),
-          );
-        }
         if (mounted) {
           setState(() {
             _updateInfo = UpdateInfo(
@@ -224,7 +216,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             );
           });
         }
-        return;
       } else {
         final otaManager = OtaUpdateManager();
         final info = await otaManager.checkForUpdate(
@@ -242,6 +233,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Future<void> _performUpdateFromSettings() async {
     if (_updateInfo == null || !mounted) return;
+    if (Platform.isWindows) {
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const UpdateProgressDialog(),
+      );
+      return;
+    }
     final otaManager = OtaUpdateManager();
     await CommonDialog.showUpdateProgressDialog(
       context: context,
