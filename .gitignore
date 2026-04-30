@@ -125,3 +125,11 @@ lib/config/app_env.dart
 android/key.properties
 
 sentry.properties
+
+# ----------------------------------------------------------------------------
+# Windows Build Artifacts
+# ----------------------------------------------------------------------------
+appfit_order_agent_windows.zip
+appfit_order_agent_windows_version.json
+.sentry-native/
+dist/
