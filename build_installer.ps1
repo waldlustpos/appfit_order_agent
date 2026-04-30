@@ -95,7 +95,25 @@ if (-not (Test-Path ".env")) {
     Write-Error "[ERROR] .env not found at repo root. APPFIT_AES_KEY must be injected at build time."
     exit 1
 }
-flutter build windows --release --dart-define-from-file=.env
+
+# Windows 전용 버전 로드 (pubspec.yaml과 분리 — version_windows.txt가 정본)
+if (-not (Test-Path "version_windows.txt")) {
+    Write-Error "[ERROR] version_windows.txt not found. e.g. 1.0.0+1"
+    exit 1
+}
+$WinVersionLine = (Get-Content "version_windows.txt" | Where-Object { $_ -match '^[0-9]' } | Select-Object -First 1).Trim()
+if ($WinVersionLine -notmatch '^[0-9]+\.[0-9]+\.[0-9]+\+[0-9]+$') {
+    Write-Error "[ERROR] version_windows.txt format invalid: '$WinVersionLine' (expected: x.y.z+n)"
+    exit 1
+}
+$WinBuildName   = $WinVersionLine.Split('+')[0]
+$WinBuildNumber = $WinVersionLine.Split('+')[1]
+Write-Host "[INFO] Windows 버전: $WinBuildName ($WinBuildNumber)"
+
+flutter build windows --release `
+    --dart-define-from-file=.env `
+    --build-name="$WinBuildName" `
+    --build-number="$WinBuildNumber"
 if ($LASTEXITCODE -ne 0) { Write-Error "[ERROR] Flutter Windows build failed"; exit 1 }
 
 if (-not (Test-Path $BUILD_OUTPUT) -or -not (Get-ChildItem $BUILD_OUTPUT -ErrorAction SilentlyContinue)) {
@@ -162,18 +180,9 @@ if ($missing.Count -gt 0) {
     Write-Host "[WARN] Missing DLLs: $($missing -join ', ')"
 }
 
-# 4) Extract semver from pubspec.yaml (for installer display)
-Write-Host "==== 3) Extract semver from pubspec.yaml ===="
-$versionLine = (Select-String -Path "pubspec.yaml" -Pattern "^version:").Line
-if (-not $versionLine) {
-    Write-Error "[ERROR] No version entry in pubspec.yaml"
-    exit 1
-}
-$semver = ($versionLine -replace "^version:\s*", "" -replace "\+.*$", "").Trim()
-if (-not $semver) {
-    Write-Error "[ERROR] Failed to extract semver"
-    exit 1
-}
+# 4) Use semver from version_windows.txt (정본)
+Write-Host "==== 3) Use semver from version_windows.txt ===="
+$semver = $WinBuildName
 Write-Host "[INFO] semver: $semver"
 
 # 5) Prepare dist directory
