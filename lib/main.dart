@@ -396,19 +396,37 @@ class MyApp extends ConsumerWidget {
       return ValueListenableBuilder<bool>(
         valueListenable: WindowsBubbleService.instance.isBubbleMode,
         builder: (context, isBubble, child) {
+          // 메인 앱은 항상 일반 모드 창 크기(originalSize)로 layout. 버블 모드
+          // 진입 시 윈도우가 80x80으로 줄어들어도 Positioned가 child의 layout
+          // 영역을 originalSize로 lock해서, KDS 카드 그리드의 LayoutBuilder /
+          // MediaQuery가 size 변화를 보지 않는다. 이게 없으면 AnimatedContainer
+          // (cardSizeAnimDuration)가 height 트랜지션을 재생해 "카드 펼쳐짐"
+          // 애니메이션이 복귀 시 반복된다.
+          final lockedSize = WindowsBubbleService.instance.originalSize;
           return Directionality(
             textDirection: TextDirection.ltr,
             child: Stack(
+              clipBehavior: Clip.hardEdge,
               children: [
-                Visibility(
-                  visible: !isBubble,
-                  maintainState: true,
-                  child: child!,
+                Positioned(
+                  left: 0,
+                  top: 0,
+                  width: lockedSize.width,
+                  height: lockedSize.height,
+                  child: Visibility(
+                    visible: !isBubble,
+                    maintainState: true,
+                    maintainAnimation: true,
+                    maintainSize: true,
+                    child: child!,
+                  ),
                 ),
                 if (isBubble)
-                  const MaterialApp(
-                    debugShowCheckedModeBanner: false,
-                    home: WindowsBubbleOverlay(),
+                  const Positioned.fill(
+                    child: MaterialApp(
+                      debugShowCheckedModeBanner: false,
+                      home: WindowsBubbleOverlay(),
+                    ),
                   ),
               ],
             ),

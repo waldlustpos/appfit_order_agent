@@ -46,6 +46,11 @@ class WindowsBubbleService with WindowListener, TrayListener {
 
   Size _originalSize = _defaultWindowSize;
   Offset? _originalPosition;
+
+  /// 일반 모드 창 크기. main.dart에서 메인 앱 child를 size-lock하는 데 사용.
+  /// 버블 모드 동안 윈도우가 80x80으로 줄어도 child가 이 사이즈로 layout되어
+  /// KDS 카드의 AnimatedContainer가 height 변화를 인식하지 않게 한다.
+  Size get originalSize => _originalSize;
   Timer? _blinkTimer;
   bool _blinkState = true;
   bool _initialized = false;
