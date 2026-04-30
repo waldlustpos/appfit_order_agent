@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/services.dart';
@@ -11,6 +12,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/services/preference_service.dart';
 import 'package:appfit_order_agent/services/windows_bubble_service.dart';
+import 'package:appfit_order_agent/services/windows_log_file_writer.dart';
 import 'package:appfit_order_agent/utils/app_startup_updater.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:appfit_order_agent/widgets/windows_bubble_overlay.dart';
@@ -44,6 +46,7 @@ void main() async {
         appName: 'AppfitOrderAgent',
         appPath: Platform.resolvedExecutable,
       );
+      unawaited(WindowsLogFileWriter.deleteOldLogs());
     } catch (e, s) {
       logger.e('Windows 초기화 실패', error: e, stackTrace: s);
     }
