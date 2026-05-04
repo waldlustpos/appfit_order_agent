@@ -38,7 +38,6 @@ class SettingsRightPanel extends ConsumerStatefulWidget {
     required this.labelUseFeedToTear,
     required this.labelUseBackToPrint,
     required this.labelUseCalibrate,
-    required this.labelPrintDelay,
     // 콜백
     required this.onVolumeChanged,
     required this.onVolumeChangeEnd,
@@ -58,7 +57,6 @@ class SettingsRightPanel extends ConsumerStatefulWidget {
     required this.onFeedToTearChanged,
     required this.onBackToPrintChanged,
     required this.onCalibrateChanged,
-    required this.onPrintDelayChanged,
   });
 
   final bool isKdsMode;
@@ -81,7 +79,6 @@ class SettingsRightPanel extends ConsumerStatefulWidget {
   final bool labelUseFeedToTear;
   final bool labelUseBackToPrint;
   final bool labelUseCalibrate;
-  final int labelPrintDelay;
 
   final void Function(int) onVolumeChanged;
   final void Function(double) onVolumeChangeEnd;
@@ -101,7 +98,6 @@ class SettingsRightPanel extends ConsumerStatefulWidget {
   final void Function(bool) onFeedToTearChanged;
   final void Function(bool) onBackToPrintChanged;
   final void Function(bool) onCalibrateChanged;
-  final void Function(int) onPrintDelayChanged;
 
   @override
   ConsumerState<SettingsRightPanel> createState() => _SettingsRightPanelState();
@@ -589,12 +585,10 @@ class _SettingsRightPanelState extends ConsumerState<SettingsRightPanel> {
                 labelUseFeedToTear: widget.labelUseFeedToTear,
                 labelUseBackToPrint: widget.labelUseBackToPrint,
                 labelUseCalibrate: widget.labelUseCalibrate,
-                labelPrintDelay: widget.labelPrintDelay,
                 onAutoReplyModeChanged: widget.onAutoReplyModeChanged,
                 onFeedToTearChanged: widget.onFeedToTearChanged,
                 onBackToPrintChanged: widget.onBackToPrintChanged,
                 onCalibrateChanged: widget.onCalibrateChanged,
-                onPrintDelayChanged: widget.onPrintDelayChanged,
               ),
             const SizedBox(height: AppSpacing.s16),
           ],

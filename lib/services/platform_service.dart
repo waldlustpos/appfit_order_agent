@@ -7,8 +7,7 @@ import 'package:appfit_order_agent/services/overlay_service.dart';
 import 'package:appfit_order_agent/services/windows_log_file_writer.dart';
 import 'package:launch_at_startup/launch_at_startup.dart';
 
-const _kAppfitChannelName =
-    'co.kr.waldlust.order.receive.appfit_order_agent';
+const _kAppfitChannelName = 'co.kr.waldlust.order.receive.appfit_order_agent';
 
 /// Windows 에서 Android MethodChannel 호출이 MissingPluginException 을 던지지
 /// 않도록 모든 메서드를 null 반환 no-op 으로 대체한다.
@@ -16,8 +15,7 @@ class _WindowsNoopMethodChannel extends MethodChannel {
   const _WindowsNoopMethodChannel(super.name);
 
   @override
-  Future<T?> invokeMethod<T>(String method, [dynamic arguments]) async =>
-      null;
+  Future<T?> invokeMethod<T>(String method, [dynamic arguments]) async => null;
 
   @override
   Future<List<T>> invokeListMethod<T>(String method,

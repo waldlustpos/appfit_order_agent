@@ -1,9 +1,12 @@
+import 'dart:typed_data';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:appfit_order_agent/models/order_model.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
 import 'package:appfit_order_agent/providers/product_provider.dart'; // [NEW] 상품 목록 연동
 import 'package:appfit_order_agent/services/platform_service.dart';
+import 'package:appfit_order_agent/services/print_service.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:appfit_order_agent/core/orders/sound_service.dart';
 import 'package:appfit_order_agent/utils/print/label_painter.dart';
@@ -127,8 +130,6 @@ class OutputService {
 
       logger.i('[OutputService] 라벨 출력 시작: ${orderToPrint.orderNo}');
       final printService = ref.read(printServiceProvider);
-      final printDelay =
-          ref.read(preferenceServiceProvider).getLabelPrintDelay();
 
       // 전체 상품 목록 로드 (완성된 모델 대기)
       final allProducts = await ref.read(productProvider.future);
@@ -172,6 +173,10 @@ class OutputService {
         menuStartIndex[identityHashCode(menu)] = runningIndex;
         runningIndex += menu.qty;
       }
+
+      // 누락 카운터 — 한 주문 내에서 자동 재시도(1회) 마저 실패한 라벨 추적
+      int failedLabels = 0;
+      final List<int> failedIndices = [];
 
       for (final menu in menusToprint) {
         // 서브 정보 추출 (원두, 온도, 사이즈)
@@ -230,29 +235,73 @@ class OutputService {
             orderTotal: totalLabels,
           );
           final genMs = DateTime.now().difference(genStart).inMilliseconds;
+
+          // samplelabel 표준 흐름: CP_Pos_QueryPrintResult 가 인쇄 완료까지 동기 블로킹.
+          // Java 측이 PAPERNOFETCH 무한 대기로 사용자 떼기까지 누락 0 보장 — 여기서는
+          // ERROR/포트오류/연결끊김 같은 다른 종류 실패만 1회 자동 재시도.
           final printStart = DateTime.now();
-          await printService.printLabel(imageBytes,
-              orderNo: orderToPrint.displayNum,
-              labelIndex: labelIndex,
-              totalLabels: totalLabels);
+          final ok = await _printLabelWithRetry(
+            printService: printService,
+            imageBytes: imageBytes,
+            orderNo: orderToPrint.displayNum,
+            labelIndex: labelIndex,
+            totalLabels: totalLabels,
+          );
           final printMs = DateTime.now().difference(printStart).inMilliseconds;
           logToFile(
-              tag: LogTag.PLATFORM,
+              tag: ok ? LogTag.PLATFORM : LogTag.WARNING,
               message:
                   '[OutputService] 라벨 [$labelIndex/$totalLabels] ${menu.itemName}'
-                  ' gen=${genMs}ms print=${printMs}ms bytes=${imageBytes.length}');
-          // 연속 출력 시 프린터 버퍼 안정화를 위한 딜레이
-          if (i < menu.qty - 1) {
-            await Future.delayed(Duration(milliseconds: printDelay));
+                  ' gen=${genMs}ms print=${printMs}ms bytes=${imageBytes.length}'
+                  ' result=${ok ? "성공" : "실패"}');
+          if (!ok) {
+            failedLabels++;
+            failedIndices.add(labelIndex);
           }
         }
-        // 다음 메뉴 출력 전 딜레이
-        await Future.delayed(Duration(milliseconds: printDelay));
+      }
+
+      if (failedLabels > 0) {
+        logToFile(
+            tag: LogTag.WARNING,
+            message:
+                '[OutputService] 주문 ${orderToPrint.displayNum} 라벨 $failedLabels장 누락'
+                ' 인덱스=$failedIndices');
       }
     } catch (e, s) {
       logger.e('[OutputService] 라벨 출력 중 오류 발생: ${order.orderNo}',
           error: e, stackTrace: s);
     }
+  }
+
+  /// printLabel 1회 시도 → 실패 시 1.5초 delay 후 1회 재시도. 총 최대 2회.
+  /// Java 측 PAPERNOFETCH 무한 대기는 여기 retry 도달 안 함 (Java 안에서 처리됨).
+  /// 이 헬퍼는 ERROR/포트 손상/연결 끊김 같은 다른 종류 실패의 안전망.
+  Future<bool> _printLabelWithRetry({
+    required PrintService printService,
+    required Uint8List imageBytes,
+    required String orderNo,
+    required int labelIndex,
+    required int totalLabels,
+  }) async {
+    final ok1 = await printService.printLabel(imageBytes,
+        orderNo: orderNo, labelIndex: labelIndex, totalLabels: totalLabels);
+    if (ok1 == true) return true;
+
+    logToFile(
+        tag: LogTag.WARNING,
+        message:
+            '[OutputService] 라벨 [$labelIndex/$totalLabels] 1차 실패 → 1.5초 후 재시도');
+    await Future.delayed(const Duration(milliseconds: 1500));
+
+    final ok2 = await printService.printLabel(imageBytes,
+        orderNo: orderNo, labelIndex: labelIndex, totalLabels: totalLabels);
+    if (ok2 != true) {
+      logToFile(
+          tag: LogTag.ERROR,
+          message: '[OutputService] 라벨 [$labelIndex/$totalLabels] 재시도 실패 — 누락');
+    }
+    return ok2 == true;
   }
 
   Future<void> printCancelReceiptById({

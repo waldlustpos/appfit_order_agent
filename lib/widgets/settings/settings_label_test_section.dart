@@ -7,6 +7,7 @@ import '../../models/menu_option_model.dart';
 import '../../models/order_menu_model.dart';
 import '../../models/order_model.dart';
 import '../../providers/providers.dart';
+import '../../services/output_queue_service.dart';
 import '../../services/platform_service.dart';
 import '../../services/print_service.dart';
 import '../../utils/print/label_painter.dart';
@@ -22,25 +23,21 @@ class SettingsLabelTestSection extends ConsumerStatefulWidget {
     required this.labelUseFeedToTear,
     required this.labelUseBackToPrint,
     required this.labelUseCalibrate,
-    required this.labelPrintDelay,
     required this.onAutoReplyModeChanged,
     required this.onFeedToTearChanged,
     required this.onBackToPrintChanged,
     required this.onCalibrateChanged,
-    required this.onPrintDelayChanged,
   });
 
   final int labelAutoReplyMode;
   final bool labelUseFeedToTear;
   final bool labelUseBackToPrint;
   final bool labelUseCalibrate;
-  final int labelPrintDelay;
 
   final void Function(int) onAutoReplyModeChanged;
   final void Function(bool) onFeedToTearChanged;
   final void Function(bool) onBackToPrintChanged;
   final void Function(bool) onCalibrateChanged;
-  final void Function(int) onPrintDelayChanged;
 
   @override
   ConsumerState<SettingsLabelTestSection> createState() =>
@@ -89,8 +86,7 @@ class _SettingsLabelTestSectionState
 
     final orderProviderRef = ref.read(orderProvider.notifier);
     final config = 'iter=$iterations gap=${gapSeconds}s'
-        ' autoReply=${widget.labelAutoReplyMode}'
-        ' delay=${widget.labelPrintDelay}ms';
+        ' autoReply=${widget.labelAutoReplyMode}';
 
     logToFile(
         tag: LogTag.PLATFORM,
@@ -204,6 +200,72 @@ class _SettingsLabelTestSectionState
     );
   }
 
+  /// 라벨 재출력 큐 시뮬레이션. 3-라벨 mock 주문 (qty 3) 을 [outputQueueService.addReprint]
+  /// 에 그대로 투입 → 실제 주문 상세 팝업의 [라벨 재출력] 버튼과 동일 경로로 흐름.
+  Future<void> _simulateLabelReprint() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final status = ref.read(printerStatusProvider);
+    if (!status.isLabelConnected) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('라벨 프린터가 연결되어 있지 않습니다.')),
+      );
+      return;
+    }
+
+    final mockOrder = _build3LabelMockOrder();
+    logToFile(
+        tag: LogTag.UI_ACTION,
+        message:
+            '[ReprintSim] mock 재출력 큐 투입 displayNum=${mockOrder.shopOrderNo} qty=3');
+    ref.read(outputQueueServiceProvider).addReprint(mockOrder);
+    messenger.showSnackBar(
+      const SnackBar(content: Text('재출력 시뮬 (3장) 큐 투입')),
+    );
+  }
+
+  /// 단일 메뉴 qty=3 mock 주문. 재출력 시뮬레이션 전용.
+  OrderModel _build3LabelMockOrder() {
+    final now = DateTime.now();
+    final orderNo = 'REPRINT_SIM_${now.millisecondsSinceEpoch}';
+    final displayNo =
+        '8${(now.millisecondsSinceEpoch % 1000).toString().padLeft(3, '0')}';
+
+    return OrderModel(
+      orderNo: orderNo,
+      shopOrderNo: displayNo,
+      displayOrderNo: displayNo,
+      orderStatus: '',
+      orderedAt: now,
+      totalAmount: 0,
+      status: OrderStatus.PREPARING,
+      storeId: 'REPRINT_SIM',
+      userId: 'REPRINT_SIM',
+      ordererName: 'REPRINT_SIM',
+      orderCount: '3',
+      paymentAmount: 0,
+      discountAmount: 0,
+      paymentType: 'CARD',
+      paymentCode: '',
+      menus: [
+        OrderMenuModel(
+          orderNo: orderNo,
+          shopItemId: 'REPRINT_SIM_A',
+          qty: 3,
+          itemName: '재출력 테스트',
+          itemPrice: 0,
+          totalAmount: 0,
+          discPrc: 0,
+          vatPrc: 0,
+          options: const <MenuOptionModel>[],
+        ),
+      ],
+      orderType: 'T',
+      kdsOrderType: 1,
+      kioskId: '',
+      isDetailLoaded: true,
+    );
+  }
+
   Future<void> _printLabelTest() async {
     final printService = ref.read(printServiceProvider);
     final status = ref.read(printerStatusProvider);
@@ -220,8 +282,7 @@ class _SettingsLabelTestSectionState
     final config = 'autoReply=${widget.labelAutoReplyMode}'
         ' feedToTear=${widget.labelUseFeedToTear}'
         ' backToPrint=${widget.labelUseBackToPrint}'
-        ' calibrate=${widget.labelUseCalibrate}'
-        ' delay=${widget.labelPrintDelay}ms';
+        ' calibrate=${widget.labelUseCalibrate}';
 
     logToFile(
         tag: LogTag.PLATFORM,
@@ -249,13 +310,6 @@ class _SettingsLabelTestSectionState
             tag: LogTag.PLATFORM,
             message:
                 '[LabelTest] [$i/3] printLabel 완료 (${labelSw.elapsedMilliseconds}ms)');
-        if (i < 3) {
-          logToFile(
-              tag: LogTag.PLATFORM,
-              message:
-                  '[LabelTest] [$i/3] 다음 장 대기 ${widget.labelPrintDelay}ms...');
-          await Future.delayed(Duration(milliseconds: widget.labelPrintDelay));
-        }
       }
       sw.stop();
       logToFile(
@@ -350,58 +404,6 @@ class _SettingsLabelTestSectionState
                       widget.onCalibrateChanged,
                     ),
                   ),
-                  const Divider(height: 1),
-                  Padding(
-                    padding:
-                        const EdgeInsets.symmetric(vertical: AppSpacing.s8),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    '출력 간 딜레이',
-                                    style: AppTextStyles.bodySm.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                      color: AppStyles.gray9,
-                                    ),
-                                  ),
-                                  Text(
-                                    '라벨 간 대기 시간 (ms)',
-                                    style: AppTextStyles.caption.copyWith(
-                                      color: AppStyles.gray6,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Text(
-                              '${widget.labelPrintDelay}ms',
-                              style: AppTextStyles.body.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.deepOrange,
-                              ),
-                            ),
-                          ],
-                        ),
-                        Slider(
-                          value: widget.labelPrintDelay.toDouble(),
-                          min: 300,
-                          max: 10000,
-                          divisions: 97,
-                          activeColor: Colors.deepOrange,
-                          label: '${widget.labelPrintDelay}ms',
-                          onChanged: (v) =>
-                              widget.onPrintDelayChanged(v.round()),
-                          onChangeEnd: (_) {},
-                        ),
-                      ],
-                    ),
-                  ),
                   const SizedBox(height: AppSpacing.s12),
                   Center(
                     child: ElevatedButton.icon(
@@ -432,6 +434,22 @@ class _SettingsLabelTestSectionState
                       style: ElevatedButton.styleFrom(
                         backgroundColor:
                             _isStressRunning ? Colors.redAccent : Colors.indigo,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.s24,
+                          vertical: AppSpacing.s12,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.s12),
+                  Center(
+                    child: ElevatedButton.icon(
+                      onPressed: _simulateLabelReprint,
+                      icon: const Icon(Icons.refresh, size: 18),
+                      label: const Text('재출력 시뮬레이션 (qty=3 mock — 큐 경유)'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blueGrey.shade700,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(
                           horizontal: AppSpacing.s24,

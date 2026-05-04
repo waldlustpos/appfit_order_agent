@@ -203,7 +203,12 @@ class PrintService {
     }
   }
 
-  Future<void> printLabel(Uint8List imageBytes,
+  /// 라벨 한 장 인쇄. 네이티브 [LabelPrinter.printBitmap] 의 boolean 결과를 그대로 반환.
+  /// false 반환 시 호출자가 재시도/누락 로깅 결정.
+  ///
+  /// rethrow 대신 `return false` 로 처리: 한 라벨 실패가 OutputService 의 catch 블록을
+  /// 트리거해 같은 주문의 나머지 라벨까지 막는 것을 방지하기 위함. 실패는 반환값으로 표현.
+  Future<bool> printLabel(Uint8List imageBytes,
       {String orderNo = '-', int labelIndex = 1, int totalLabels = 1}) async {
     try {
       if (_cachedExternalPrinter == null) {
@@ -214,10 +219,10 @@ class PrintService {
 
       if (!useLabel) {
         logger.w('Label printer is disabled in settings.');
-        return;
+        return false;
       }
 
-      await platform.invokeMethod('printLabel', {
+      final result = await platform.invokeMethod<bool>('printLabel', {
         'imageBytes': imageBytes,
         'autoReplyMode': _preferenceService.getLabelAutoReplyMode(),
         'useFeedToTear': _preferenceService.getLabelUseFeedToTear(),
@@ -227,9 +232,10 @@ class PrintService {
         'labelIndex': labelIndex,
         'totalLabels': totalLabels,
       });
+      return result ?? false;
     } on PlatformException catch (e, s) {
       logger.e('Failed to print label', error: e, stackTrace: s);
-      rethrow;
+      return false;
     }
   }
 

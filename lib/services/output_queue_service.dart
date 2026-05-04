@@ -53,13 +53,22 @@ class OutputQueueService {
         .d('[OutputQueue] NEW 작업 추가: ${order.orderId} (대기열: ${_queue.length})');
   }
 
-  /// 사용자 재출력 요청 추가 (라벨 프린터 USB 경쟁 방지를 위해 동일 큐에 직렬화)
-  /// 동일 orderId 의 ReprintJob 이 이미 대기 중이면 중복 추가를 무시한다.
+  /// 사용자 재출력 요청 추가 (라벨 프린터 USB 경쟁 방지를 위해 동일 큐에 직렬화).
+  /// 동일 orderId 의 ReprintJob 이 이미 대기 중이거나 처리 중이면 중복 추가를 무시한다.
   void addReprint(OrderModel order) {
+    final id = order.orderId;
+    if (_inFlightReprints.contains(id)) {
+      logger.d('[OutputQueue] REPRINT 중복 무시 (이미 진행/대기 중): $id');
+      return;
+    }
+    _inFlightReprints.add(id);
     _queue.add(ReprintJob(order));
     logger.d(
         '[OutputQueue] REPRINT 작업 추가: ${order.orderId} (대기열: ${_queue.length})');
   }
+
+  // 진행 중/대기 중 ReprintJob 의 orderId 추적. _processItem 종료 시 제거.
+  final Set<String> _inFlightReprints = <String>{};
 
   /// 사용자 영수증 재출력 요청 추가 (영수증 + 라벨 동시 재출력, 사운드 없음).
   /// 영수증/라벨 프린터의 USB 자원 경쟁 방지를 위해 동일 큐에 직렬화한다.
@@ -79,7 +88,11 @@ class OutputQueueService {
         logger.d('[OutputQueue] NEW 출력 완료: ${order.orderId}');
       case ReprintJob(order: final order):
         logger.d('[OutputQueue] REPRINT 출력 시작: ${order.orderId}');
-        await outputService.printOrderLabels(order, isReprint: true);
+        try {
+          await outputService.printOrderLabels(order, isReprint: true);
+        } finally {
+          _inFlightReprints.remove(order.orderId);
+        }
         logger.d('[OutputQueue] REPRINT 출력 완료: ${order.orderId}');
       case ReceiptReprintJob(order: final order, isCancelReceipt: final cancel):
         logger.d('[OutputQueue] RECEIPT_REPRINT 출력 시작: ${order.orderId}');
@@ -97,6 +110,7 @@ class OutputQueueService {
   /// 큐 정리 (로그아웃 등)
   void clear() {
     _queue.clear();
+    _inFlightReprints.clear();
     logger.d('[OutputQueue] 큐 정리 완료');
   }
 }

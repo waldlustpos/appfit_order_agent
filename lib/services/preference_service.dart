@@ -58,8 +58,6 @@ class PreferenceService {
       "KOKONUT_LABEL_USE_BACK_TO_PRINT"; // bool (기본 true)
   static const String KEY_LABEL_USE_CALIBRATE =
       "KOKONUT_LABEL_USE_CALIBRATE"; // bool (기본 false)
-  static const String KEY_LABEL_PRINT_DELAY =
-      "KOKONUT_LABEL_PRINT_DELAY"; // int (ms, 기본 300)
   static const String KEY_LABEL_FILTER_MODE =
       "KOKONUT_LABEL_FILTER_MODE"; // int (0: 전체, 1: 와플만, 2: 와플제외)
 
@@ -485,8 +483,6 @@ class PreferenceService {
   bool getLabelUseCalibrate() =>
       _prefs.getBool(KEY_LABEL_USE_CALIBRATE) ?? false;
 
-  int getLabelPrintDelay() => _prefs.getInt(KEY_LABEL_PRINT_DELAY) ?? 300;
-
   /// 라벨 필터 모드 (0: 전체, 1: 와플만, 2: 와플제외)
   int getLabelFilterMode() => _prefs.getInt(KEY_LABEL_FILTER_MODE) ?? 0;
 
@@ -566,10 +562,6 @@ class PreferenceService {
 
   Future<void> setLabelUseCalibrate(bool value) async {
     await _prefs.setBool(KEY_LABEL_USE_CALIBRATE, value);
-  }
-
-  Future<void> setLabelPrintDelay(int value) async {
-    await _prefs.setInt(KEY_LABEL_PRINT_DELAY, value);
   }
 
   Future<void> setLabelFilterMode(int value) async {

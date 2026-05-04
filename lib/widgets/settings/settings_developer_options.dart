@@ -27,12 +27,10 @@ class SettingsDeveloperOptions extends ConsumerWidget {
     required this.labelUseFeedToTear,
     required this.labelUseBackToPrint,
     required this.labelUseCalibrate,
-    required this.labelPrintDelay,
     required this.onAutoReplyModeChanged,
     required this.onFeedToTearChanged,
     required this.onBackToPrintChanged,
     required this.onCalibrateChanged,
-    required this.onPrintDelayChanged,
   });
 
   final bool forceSocketReconnect;
@@ -44,12 +42,10 @@ class SettingsDeveloperOptions extends ConsumerWidget {
   final bool labelUseFeedToTear;
   final bool labelUseBackToPrint;
   final bool labelUseCalibrate;
-  final int labelPrintDelay;
   final void Function(int) onAutoReplyModeChanged;
   final void Function(bool) onFeedToTearChanged;
   final void Function(bool) onBackToPrintChanged;
   final void Function(bool) onCalibrateChanged;
-  final void Function(int) onPrintDelayChanged;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -132,12 +128,10 @@ class SettingsDeveloperOptions extends ConsumerWidget {
           labelUseFeedToTear: labelUseFeedToTear,
           labelUseBackToPrint: labelUseBackToPrint,
           labelUseCalibrate: labelUseCalibrate,
-          labelPrintDelay: labelPrintDelay,
           onAutoReplyModeChanged: onAutoReplyModeChanged,
           onFeedToTearChanged: onFeedToTearChanged,
           onBackToPrintChanged: onBackToPrintChanged,
           onCalibrateChanged: onCalibrateChanged,
-          onPrintDelayChanged: onPrintDelayChanged,
         ),
       ],
     );

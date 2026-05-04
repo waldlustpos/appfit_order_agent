@@ -44,7 +44,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _labelUseFeedToTear = true;
   bool _labelUseBackToPrint = true;
   bool _labelUseCalibrate = false;
-  int _labelPrintDelay = 300;
   int _labelFilterMode = 0;
 
   bool _isKioskOrderVisible = false;
@@ -94,7 +93,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _labelUseFeedToTear = _preferenceService.getLabelUseFeedToTear();
       _labelUseBackToPrint = _preferenceService.getLabelUseBackToPrint();
       _labelUseCalibrate = _preferenceService.getLabelUseCalibrate();
-      _labelPrintDelay = _preferenceService.getLabelPrintDelay();
       _labelFilterMode = _preferenceService.getLabelFilterMode();
 
       _isKioskOrderVisible = _preferenceService.getShowKioskOrder();
@@ -127,7 +125,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await _preferenceService.setLabelUseFeedToTear(_labelUseFeedToTear);
       await _preferenceService.setLabelUseBackToPrint(_labelUseBackToPrint);
       await _preferenceService.setLabelUseCalibrate(_labelUseCalibrate);
-      await _preferenceService.setLabelPrintDelay(_labelPrintDelay);
       await _preferenceService.setLabelFilterMode(_labelFilterMode);
       await _preferenceService.setShowKioskOrder(_isKioskOrderVisible);
       await _preferenceService.setKioskPrintAndSound(_isKioskOrderSoundEnabled);
@@ -447,7 +444,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               labelUseFeedToTear: _labelUseFeedToTear,
               labelUseBackToPrint: _labelUseBackToPrint,
               labelUseCalibrate: _labelUseCalibrate,
-              labelPrintDelay: _labelPrintDelay,
               onVolumeChanged: (v) => setState(() => _notificationVolume = v),
               onVolumeChangeEnd: (_) => _saveSettings(),
               onSoundChanged: (v) => _setAndSave(() => _selectedSound = v),
@@ -496,8 +492,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   _setAndSave(() => _labelUseBackToPrint = v),
               onCalibrateChanged: (v) =>
                   _setAndSave(() => _labelUseCalibrate = v),
-              onPrintDelayChanged: (v) =>
-                  _setAndSave(() => _labelPrintDelay = v),
             ),
           ),
         ],
