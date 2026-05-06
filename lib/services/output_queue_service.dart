@@ -57,9 +57,8 @@ class OutputQueueService {
     );
   }
 
-  /// 핵심 라이프사이클 한 줄 — logger.d + 매장 단말 logToFile 동시 기록.
+  /// 핵심 라이프사이클 한 줄 — `[PLATFORM] [Label]` 단일 채널로 기록.
   void _life(String message) {
-    logger.d(message);
     logToFile(tag: LogTag.PLATFORM, message: message);
   }
 

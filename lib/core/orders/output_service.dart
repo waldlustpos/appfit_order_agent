@@ -127,7 +127,6 @@ class OutputService {
       final entryMsg = '[Label] $num 인쇄진입'
           ' (menus=${orderToPrint.menus.length}, labels=$entryTotalLabels'
           '${isReprint ? ', 재출력' : ''})';
-      logger.i(entryMsg);
       logToFile(tag: LogTag.PLATFORM, message: entryMsg);
       final printService = ref.read(printServiceProvider);
 
