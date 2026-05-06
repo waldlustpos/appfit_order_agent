@@ -12,6 +12,7 @@ import 'package:appfit_order_agent/core/orders/sound_service.dart';
 import 'package:appfit_order_agent/utils/print/label_painter.dart';
 import 'package:collection/collection.dart'; // [NEW] firstWhereOrNull 사용
 
+import 'package:appfit_core/appfit_core.dart' show MonitoringService;
 import 'package:appfit_order_agent/constants/order_constants.dart';
 import '../../providers/kds_unified_providers.dart';
 
@@ -262,15 +263,46 @@ class OutputService {
       }
 
       if (failedLabels > 0) {
+        // 운영 critical 사건 — logcat grep '★' 으로 즉시 식별
         logToFile(
-            tag: LogTag.WARNING,
-            message:
-                '[OutputService] 주문 ${orderToPrint.displayNum} 라벨 $failedLabels장 누락'
-                ' 인덱스=$failedIndices');
+            tag: LogTag.ERROR,
+            message: '[OutputService] ★ 주문 ${orderToPrint.displayNum} 라벨 누락'
+                ' $failedLabels/$totalLabels장 인덱스=$failedIndices');
+
+        // Sentry 전송 — 동일 매장 5분 쿨다운(MonitoringService 내장)
+        MonitoringService.instance.captureError(
+          LabelPrintMissingException(
+            orderNo: orderToPrint.orderNo,
+            displayNum: orderToPrint.displayNum,
+            failedCount: failedLabels,
+            totalLabels: totalLabels,
+            failedIndices: failedIndices,
+          ),
+          StackTrace.current,
+          hint: '라벨 누락 — 운영자 [라벨 재출력] 으로 복구 가능',
+          extras: {
+            'orderNo': orderToPrint.orderNo,
+            'displayNum': orderToPrint.displayNum,
+            'failedCount': failedLabels,
+            'totalLabels': totalLabels,
+            'failedIndices': failedIndices.join(','),
+            'isReprint': isReprint,
+          },
+        );
       }
     } catch (e, s) {
       logger.e('[OutputService] 라벨 출력 중 오류 발생: ${order.orderNo}',
           error: e, stackTrace: s);
+      // 라벨 출력 영역의 비정상 예외 (메뉴 로드/필터 등) — Sentry 전송
+      MonitoringService.instance.captureError(
+        e,
+        s,
+        hint: '[OutputService.printOrderLabels] 라벨 출력 영역 예외',
+        extras: {
+          'orderNo': order.orderNo,
+          'displayNum': order.displayNum,
+        },
+      );
     }
   }
 
@@ -360,3 +392,30 @@ final outputAppServiceProvider = Provider<OutputService>((ref) {
   final orderNotifier = ref.read(orderProvider.notifier);
   return OutputService(ref, orderNotifier);
 });
+
+/// 라벨 누락 발생을 Sentry 에 분류 가능하도록 표시하는 마커 예외.
+///
+/// throw 되지 않고 [MonitoringService.captureError] 의 첫 번째 인자로만 사용됨.
+/// 전용 타입을 두는 이유: `captureError` 는 `exception.runtimeType` 으로
+/// 5분 쿨다운 키를 만들므로 ([monitoring_service.dart:188]),
+/// 일반 [Exception] 으로 보내면 다른 종류 예외와 키 충돌이 발생.
+/// 라벨 누락 사건만 별도 카운트되도록 전용 클래스로 분리.
+class LabelPrintMissingException implements Exception {
+  LabelPrintMissingException({
+    required this.orderNo,
+    required this.displayNum,
+    required this.failedCount,
+    required this.totalLabels,
+    required this.failedIndices,
+  });
+
+  final String orderNo;
+  final String displayNum;
+  final int failedCount;
+  final int totalLabels;
+  final List<int> failedIndices;
+
+  @override
+  String toString() => 'LabelPrintMissingException(displayNum=$displayNum,'
+      ' failed=$failedCount/$totalLabels, indices=$failedIndices)';
+}

@@ -44,6 +44,10 @@ public class LabelPrinter {
     private static volatile boolean lastInfoNoPaperCanceled = false;
     private static volatile boolean lastInfoPaperNoFetch = false;
 
+    /** 동일 status 비콘 연속 출력을 막기 위한 dedup 캐시 (-1 = 아직 미로깅). */
+    private static volatile long lastLoggedInfoStatusBits = -1L;
+    private static volatile long lastLoggedErrorStatusBits = -1L;
+
     public static void init(MainActivity activity) {
         sActivity = activity;
         ensureStatusCallbackRegistered();
@@ -291,21 +295,28 @@ public class LabelPrinter {
                 lastInfoNoPaperCanceled = s.INFO_NOPAPERCANCELED();
                 lastInfoPaperNoFetch = s.INFO_PAPERNOFETCH();
 
-                StringBuilder sb = new StringBuilder();
-                sb.append(String.format("printer info status: 0x%04X", infoStatus & 0xFFFFL));
-                if (s.INFO_LABELMODE())       sb.append("[LabelMode]");
-                if (s.INFO_LABELPAPER())      sb.append("[LabelPaper]");
-                if (s.INFO_HAVEDATA())        sb.append("[HaveData]");
-                if (s.INFO_NOPAPERCANCELED()) sb.append("[NoPaperCanceled]");
-                if (s.INFO_PAPERNOFETCH())    sb.append("[Paper NOT Fetch]");
-                if (s.INFO_PRINTIDLE())       sb.append("[PrintIdle]");
-                if (s.INFO_RECVIDLE())        sb.append("[RecvIdle]");
-                sb.append(" phase=").append(decodePhase(s));
-                log(sb.toString());
+                // dedup: 동일 status 비트값 연속이면 로그 skip (idle 비콘 폭주 방지)
+                final long infoMasked = infoStatus & 0xFFFFL;
+                final long errorMasked = errorStatus & 0xFFFFL;
 
-                if (s.ERROR_OCCURED()) {
+                if (infoMasked != lastLoggedInfoStatusBits) {
+                    StringBuilder sb = new StringBuilder();
+                    sb.append(String.format("printer info status: 0x%04X", infoMasked));
+                    if (s.INFO_LABELMODE())       sb.append("[LabelMode]");
+                    if (s.INFO_LABELPAPER())      sb.append("[LabelPaper]");
+                    if (s.INFO_HAVEDATA())        sb.append("[HaveData]");
+                    if (s.INFO_NOPAPERCANCELED()) sb.append("[NoPaperCanceled]");
+                    if (s.INFO_PAPERNOFETCH())    sb.append("[Paper NOT Fetch]");
+                    if (s.INFO_PRINTIDLE())       sb.append("[PrintIdle]");
+                    if (s.INFO_RECVIDLE())        sb.append("[RecvIdle]");
+                    sb.append(" phase=").append(decodePhase(s));
+                    log(sb.toString());
+                    lastLoggedInfoStatusBits = infoMasked;
+                }
+
+                if (s.ERROR_OCCURED() && errorMasked != lastLoggedErrorStatusBits) {
                     StringBuilder eb = new StringBuilder();
-                    eb.append(String.format("printer error status: 0x%04X", errorStatus & 0xFFFFL));
+                    eb.append(String.format("printer error status: 0x%04X", errorMasked));
                     if (s.ERROR_CUTTER())   eb.append("[Cutter]");
                     if (s.ERROR_FLASH())    eb.append("[Flash]");
                     if (s.ERROR_NOPAPER())  eb.append("[NoPaper]");
@@ -314,8 +325,13 @@ public class LabelPrinter {
                     if (s.ERROR_ENGINE())   eb.append("[Engine]");
                     if (s.ERROR_OVERHEAT()) eb.append("[Overheat]");
                     if (s.ERROR_COVERUP())  eb.append("[CoverUp]");
-                    if (s.ERROR_MOTOR())   eb.append("[Motor]");
+                    if (s.ERROR_MOTOR())    eb.append("[Motor]");
                     log(eb.toString());
+                    lastLoggedErrorStatusBits = errorMasked;
+                } else if (!s.ERROR_OCCURED() && lastLoggedErrorStatusBits != 0L
+                        && lastLoggedErrorStatusBits != -1L) {
+                    log("printer error cleared");
+                    lastLoggedErrorStatusBits = 0L;
                 }
             }
         };
@@ -370,5 +386,8 @@ public class LabelPrinter {
             }
             statusCallbackRegistered = false;
         }
+        // dedup 캐시 리셋 — 재오픈 시 첫 비콘부터 다시 로그
+        lastLoggedInfoStatusBits = -1L;
+        lastLoggedErrorStatusBits = -1L;
     }
 }
