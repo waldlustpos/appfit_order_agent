@@ -69,14 +69,14 @@ class OutputService {
                   type: 'order',
                 );
             logger.d(
-                '[OutputService] 주문서 출력 완료: ${order.orderNo} (${i + 1}/$printCount) - 프린터: ${useBuiltin ? "내장" : ""}${useBuiltin && useExternal ? "+" : ""}${useExternal ? "외부" : ""}');
+                '[Label] ${order.displayNum} 주문서 인쇄 (${i + 1}/$printCount, ${useBuiltin ? "내장" : ""}${useBuiltin && useExternal ? "+" : ""}${useExternal ? "외부" : ""})');
           }
         } else {
-          logger.w('[OutputService] 프린터가 설정되지 않아 출력 생략: ${order.orderNo}');
+          logger.w('[Label] ${order.displayNum} 주문서 인쇄 생략 (프린터 미설정)');
         }
 
         if (playSound) {
-          logger.i('[OutputService] 알람소리 재생 (일반 모드)');
+          logger.i('[Label] ${order.displayNum} 알람소리 재생 (일반)');
           await ref.read(soundAppServiceProvider).playNotificationSound();
         }
       }
@@ -87,13 +87,14 @@ class OutputService {
             await _prepareOrderForPrinting(order); // 라벨 출력을 위한 모델 보장
         await printOrderLabels(orderForPrinting);
       } else {
-        logger.d('[OutputService] 라벨 출력 생략됨 (printLabel: false)');
+        logger.d('[Label] ${order.displayNum} 라벨 생략 (printLabel:false)');
       }
-
-      logger.i('[OutputService] 주문 출력 처리 완료: ${order.orderNo}');
     } catch (e, s) {
-      logger.e('[OutputService] 주문 출력 처리 중 오류 발생: ${order.orderNo}',
+      logger.e('[Label] ${order.displayNum} 주문 출력 처리 오류',
           error: e, stackTrace: s);
+      logToFile(
+          tag: LogTag.ERROR,
+          message: '[Label] ${order.displayNum} 주문 출력 처리 오류: $e');
     }
   }
 
@@ -110,26 +111,24 @@ class OutputService {
       if (orderToPrint.menus.isEmpty) {
         logToFile(
             tag: LogTag.PLATFORM,
-            message: '[OutputService] 라벨 출력 전 상세 정보 로드 시도: ${order.orderNo}');
+            message: '[Label] ${order.displayNum} 메뉴 정보 미보유 — 상세 조회 시도');
         orderToPrint = await _prepareOrderForPrinting(order);
       }
 
       if (orderToPrint.menus.isEmpty) {
-        logger.w('[OutputService] 라벨 출력 건너뜀: 메뉴 정보 없음 (${order.orderNo})');
+        logger.w('[Label] ${order.displayNum} 라벨 생략 (메뉴 정보 없음)');
         return;
       }
 
-      // 진단 로그: 멀티 라벨 race 분석용. 진입 시점에 메뉴/총수량/캡처된 인스턴스 식별자 한 줄.
+      // 진입 로그: 운영자 단위 식별 — displayNum + 메뉴/총라벨수 + reprint 플래그.
       final int entryTotalLabels =
           orderToPrint.menus.fold(0, (sum, m) => sum + m.qty);
-      logToFile(
-          tag: LogTag.PLATFORM,
-          message:
-              '[OutputService] printOrderLabels 진입 displayNum=${orderToPrint.displayNum}'
-              ' menus=${orderToPrint.menus.length} totalLabels=$entryTotalLabels'
-              ' identity=${identityHashCode(orderToPrint)} reprint=$isReprint');
-
-      logger.i('[OutputService] 라벨 출력 시작: ${orderToPrint.orderNo}');
+      final num = orderToPrint.displayNum;
+      final entryMsg = '[Label] $num 인쇄진입'
+          ' (menus=${orderToPrint.menus.length}, labels=$entryTotalLabels'
+          '${isReprint ? ', 재출력' : ''})';
+      logger.i(entryMsg);
+      logToFile(tag: LogTag.PLATFORM, message: entryMsg);
       final printService = ref.read(printServiceProvider);
 
       // 전체 상품 목록 로드 (완성된 모델 대기)
@@ -251,10 +250,8 @@ class OutputService {
           final printMs = DateTime.now().difference(printStart).inMilliseconds;
           logToFile(
               tag: ok ? LogTag.PLATFORM : LogTag.WARNING,
-              message:
-                  '[OutputService] 라벨 [$labelIndex/$totalLabels] ${menu.itemName}'
-                  ' gen=${genMs}ms print=${printMs}ms bytes=${imageBytes.length}'
-                  ' result=${ok ? "성공" : "실패"}');
+              message: '[Label] $num $labelIndex/$totalLabels ${menu.itemName}'
+                  ' ${ok ? "출력끝" : "실패"} (gen=${genMs}ms, print=${printMs}ms)');
           if (!ok) {
             failedLabels++;
             failedIndices.add(labelIndex);
@@ -266,8 +263,8 @@ class OutputService {
         // 운영 critical 사건 — logcat grep '★' 으로 즉시 식별
         logToFile(
             tag: LogTag.ERROR,
-            message: '[OutputService] ★ 주문 ${orderToPrint.displayNum} 라벨 누락'
-                ' $failedLabels/$totalLabels장 인덱스=$failedIndices');
+            message:
+                '[Label] $num ★ 누락 $failedLabels/$totalLabels장 인덱스=$failedIndices');
 
         // Sentry 전송 — 동일 매장 5분 쿨다운(MonitoringService 내장)
         MonitoringService.instance.captureError(
@@ -291,8 +288,11 @@ class OutputService {
         );
       }
     } catch (e, s) {
-      logger.e('[OutputService] 라벨 출력 중 오류 발생: ${order.orderNo}',
+      logger.e('[Label] ${order.displayNum} 라벨 출력 영역 예외',
           error: e, stackTrace: s);
+      logToFile(
+          tag: LogTag.ERROR,
+          message: '[Label] ${order.displayNum} 라벨 출력 영역 예외: $e');
       // 라벨 출력 영역의 비정상 예외 (메뉴 로드/필터 등) — Sentry 전송
       MonitoringService.instance.captureError(
         e,
@@ -307,8 +307,15 @@ class OutputService {
   }
 
   /// printLabel 1회 시도 → 실패 시 1.5초 delay 후 1회 재시도. 총 최대 2회.
-  /// Java 측 PAPERNOFETCH 무한 대기는 여기 retry 도달 안 함 (Java 안에서 처리됨).
-  /// 이 헬퍼는 ERROR/포트 손상/연결 끊김 같은 다른 종류 실패의 안전망.
+  ///
+  /// Java 측에서 다음 케이스는 자체 무한 대기로 처리되어 여기로 false 가 오지 않음:
+  ///   • PAPERNOFETCH (사용자가 종이 안 뗌)
+  ///   • paper-out / cover-up / NoPaperCanceled (운영자 용지 교체/커버 닫음 대기)
+  ///
+  /// 따라서 이 헬퍼의 1.5초 재시도는 다음 케이스의 안전망:
+  ///   • USB 포트 단절 / 좀비 (다음 시도 시 재연결 자동 회복)
+  ///   • 펌웨어 일시 ERROR (engine/voltage/cutter 등) — 0.5초 짧은 게이트 통과 후 회복 기대
+  ///   • PagePrint 도중 NoPaper race — 다음 시도 시 진입 게이트가 무한 대기로 흡수
   Future<bool> _printLabelWithRetry({
     required PrintService printService,
     required Uint8List imageBytes,
@@ -322,8 +329,8 @@ class OutputService {
 
     logToFile(
         tag: LogTag.WARNING,
-        message:
-            '[OutputService] 라벨 [$labelIndex/$totalLabels] 1차 실패 → 1.5초 후 재시도');
+        message: '[Label] $orderNo $labelIndex/$totalLabels'
+            ' 1차실패 (paper/cover 외 일시적) → 1.5초 후 재시도');
     await Future.delayed(const Duration(milliseconds: 1500));
 
     final ok2 = await printService.printLabel(imageBytes,
@@ -331,7 +338,7 @@ class OutputService {
     if (ok2 != true) {
       logToFile(
           tag: LogTag.ERROR,
-          message: '[OutputService] 라벨 [$labelIndex/$totalLabels] 재시도 실패 — 누락');
+          message: '[Label] $orderNo $labelIndex/$totalLabels 재시도실패 — 누락');
     }
     return ok2 == true;
   }

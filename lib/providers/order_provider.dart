@@ -527,11 +527,11 @@ class Order extends _$Order {
           // KDS 모드에서 READY(PICKUP_REQUESTED) 상태로 변경될 때 출력 지원
           if (order.status == OrderStatus.READY && ref.read(kdsModeProvider)) {
             // KDS 모드: 픽업 요청됨(READY), 출력 시도: ${order.orderId}
-            // [FIX] READY 상태에서는 영수증만 출력하고 라벨은 출력하지 않음
-            await _outputService.notifyNewOrder(
+            // 영수증만 출력하고 라벨은 출력하지 않음 — 큐 경유로 직렬화.
+            _outputQueueService.add(
               order,
               playSound: false,
-              printLabel: false, // 라벨 출력 방지
+              printLabel: false,
             );
           }
 
@@ -546,9 +546,10 @@ class Order extends _$Order {
                   triggerAppBar: true,
                 );
 
-            // [NEW] KDS 모드: 접수된 주문 유입 시 라벨 자동 출력
+            // KDS 모드: 접수된 주문 유입 시 라벨 자동 출력 — 큐 경유로 주문 단위 직렬화 보장.
+            // 다중 ORDER_UPDATED(PREPARING) 이벤트가 짧은 간격에 도착해도 라벨 인터리빙 방지.
             if (ref.read(preferenceServiceProvider).getUseLabelPrinter()) {
-              _outputService.printOrderLabels(order);
+              _outputQueueService.addLabelOnly(order);
             }
           }
           // 이미 UI 업데이트는 _updateOrderInStateList에서 수행됨
@@ -614,12 +615,11 @@ class Order extends _$Order {
             '$modeText: updateOrderStatus 결과 - 성공: $success, 주문: ${order.orderId}');
         if (success) {
           logger.d('$modeText: 자동 접수 성공: ${order.orderId}');
-          // 접수 성공 시: 프린트 실행 (키오스크 출력/알람 설정 반영)
+          // 접수 성공 시: 프린트 실행 (키오스크 출력/알람 설정 반영) — 큐 경유로 직렬화.
           if (_shouldNotifyForOrder(order)) {
-            logger.d(
-                '$modeText: processOrderOutput 호출 시작 - 주문: ${order.orderId}');
-            await _outputService.notifyNewOrder(order, playSound: false);
-            logger.d('$modeText: processOrderOutput 완료 - 주문: ${order.orderId}');
+            logger
+                .d('$modeText: processOrderOutput 큐 투입 - 주문: ${order.orderId}');
+            _outputQueueService.add(order, playSound: false);
           } else {
             logger.d(
                 '$modeText: 키오스크 출력/알람 OFF로 주문서 출력 스킵 - 주문: ${order.orderId}');
@@ -669,9 +669,9 @@ class Order extends _$Order {
     if (!isKdsMode && _shouldNotifyForOrder(order)) {
       logger.d('NEW 주문 처리(수동): ${order.orderId} - 알람소리는 이미 재생됨');
 
-      // [NEW] 수동 접수 모드에서도 신규 주문 수신 시 라벨 자동 출력
+      // 수동 접수 모드에서도 신규 주문 수신 시 라벨 자동 출력 — 큐 경유로 직렬화.
       if (ref.read(preferenceServiceProvider).getUseLabelPrinter()) {
-        _outputService.printOrderLabels(order);
+        _outputQueueService.addLabelOnly(order);
       }
     }
   }

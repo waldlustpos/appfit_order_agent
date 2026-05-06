@@ -39,14 +39,23 @@ public class LabelPrinter {
     private static volatile boolean lastErrorOccurred = false;
     private static volatile long lastErrorStatusBits = 0L;
     private static volatile long lastErrorTime = 0L;
+    /** 운영자 개입(용지 교체 / 커버 닫음) 으로 회복 가능한 에러 분기용. */
+    private static volatile boolean lastErrorIsNoPaper = false;
+    private static volatile boolean lastErrorIsCoverUp = false;
     private static volatile boolean lastInfoRecvIdle = false;
     private static volatile boolean lastInfoPrintIdle = false;
     private static volatile boolean lastInfoNoPaperCanceled = false;
     private static volatile boolean lastInfoPaperNoFetch = false;
 
-    /** 동일 status 비콘 연속 출력을 막기 위한 dedup 캐시 (-1 = 아직 미로깅). */
-    private static volatile long lastLoggedInfoStatusBits = -1L;
-    private static volatile long lastLoggedErrorStatusBits = -1L;
+    /** 동일 phase 연속 출력을 막기 위한 dedup 캐시 (null = 아직 미로깅). */
+    private static volatile String lastLoggedPhase = null;
+
+    /**
+     * 현재 활성 라벨의 표시 prefix (예: "[0812]" 또는 "[0812 1/7]").
+     * ERROR phase 비콘에 컨텍스트 prefix 로 사용 — 어느 라벨에서 에러가 났는지 식별용.
+     * printBitmap 시작 시 갱신되고, 다음 printBitmap 이 시작되거나 close() 까지 유지된다.
+     */
+    private static volatile String currentOrderTag = null;
 
     public static void init(MainActivity activity) {
         sActivity = activity;
@@ -87,9 +96,13 @@ public class LabelPrinter {
         final int seq = printCount.incrementAndGet();
         long startTime = System.currentTimeMillis();
 
-        String indexSuffix = (totalLabels > 1) ? " " + labelIndex + "/" + totalLabels : "";
-        log("#" + seq + " 출력시작 (주문: " + orderNo + ")" + indexSuffix
-                + " autoReply=" + autoReplyMode);
+        // 운영자 시점의 식별자: 주문번호 + (다중 라벨일 때) 인덱스. 모든 라이프사이클 로그에 prefix.
+        // 예: "[0795]" 또는 "[0795 1/7]"
+        final String orderTag = "[" + orderNo
+                + (totalLabels > 1 ? " " + labelIndex + "/" + totalLabels : "") + "]";
+        // 활성 라벨 컨텍스트 등록 — ERROR phase 비콘에 prefix 로 사용.
+        currentOrderTag = orderTag;
+        log("#" + seq + " " + orderTag + " 출력시작");
 
         try {
             // autoReplyMode 가 변경됐거나 포트가 죽었으면 재연결.
@@ -120,26 +133,63 @@ public class LabelPrinter {
 
                 if (!AutoReplyPrint.INSTANCE.CP_Port_IsOpened(hPrinter)) {
                     long elapsed = System.currentTimeMillis() - startTime;
-                    log("#" + seq + " 출력결과 -> 실패 [연결오류] (" + elapsed + "ms)" + indexSuffix);
+                    log("#" + seq + " " + orderTag + " 실패 [연결오류] (" + elapsed + "ms)");
                     return false;
                 }
             }
 
-            // 1-B-① ERROR 짧은 게이트 — 큐 안 막고 false 반환 (재시도 위임)
-            if (lastErrorOccurred) {
-                long erStart = System.currentTimeMillis();
-                while (lastErrorOccurred
-                        && (System.currentTimeMillis() - erStart) < ERROR_QUICK_GATE_MS) {
-                    try { Thread.sleep(50); } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt(); break;
+            // 1-B-① ERROR 게이트 분기:
+            //   • paper-out / cover-up / NoPaperCanceled 인 경우 → 운영자 개입 신뢰, 무한 대기 후 인쇄 재개
+            //     (PAPERNOFETCH 무한 대기 패턴과 동일. 큐의 후속 항목은 자동 일시정지)
+            //   • 그 외 ERROR (engine/voltage/cutter 등) → 0.5초 짧은 게이트 후 false 반환 (Dart 재시도 위임)
+            if (lastErrorOccurred || lastInfoNoPaperCanceled) {
+                boolean recoverable = lastErrorIsNoPaper || lastErrorIsCoverUp
+                        || lastInfoNoPaperCanceled;
+                if (recoverable) {
+                    long waitStart = System.currentTimeMillis();
+                    long lastNotice = waitStart;
+                    log("#" + seq + " " + orderTag + " 복구대기 (paper/cover, status=0x"
+                            + String.format("%04X", lastErrorStatusBits) + ")");
+                    boolean interrupted = false;
+                    while (lastErrorIsNoPaper || lastErrorIsCoverUp
+                            || lastInfoNoPaperCanceled) {
+                        try {
+                            Thread.sleep(200);
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            interrupted = true;
+                            break;
+                        }
+                        long now = System.currentTimeMillis();
+                        if (now - lastNotice >= 60_000L) {
+                            log("#" + seq + " " + orderTag + " 복구대기중 elapsed="
+                                    + ((now - waitStart) / 1000) + "s");
+                            lastNotice = now;
+                        }
                     }
-                }
-                if (lastErrorOccurred) {
-                    long elapsed = System.currentTimeMillis() - startTime;
-                    log("#" + seq + " 출력결과 -> 실패 [프린터 에러 0x"
-                            + String.format("%04X", lastErrorStatusBits)
-                            + " — 재시도 위임] (" + elapsed + "ms)" + indexSuffix);
-                    return false;
+                    if (interrupted) {
+                        long elapsed = System.currentTimeMillis() - startTime;
+                        log("#" + seq + " " + orderTag + " 실패 [복구대기 인터럽트] ("
+                                + elapsed + "ms)");
+                        return false;
+                    }
+                    long waited = System.currentTimeMillis() - waitStart;
+                    log("#" + seq + " " + orderTag + " 복구감지 wait=" + waited + "ms — 인쇄재개");
+                } else {
+                    long erStart = System.currentTimeMillis();
+                    while (lastErrorOccurred
+                            && (System.currentTimeMillis() - erStart) < ERROR_QUICK_GATE_MS) {
+                        try { Thread.sleep(50); } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt(); break;
+                        }
+                    }
+                    if (lastErrorOccurred) {
+                        long elapsed = System.currentTimeMillis() - startTime;
+                        log("#" + seq + " " + orderTag + " 실패 [프린터 에러 0x"
+                                + String.format("%04X", lastErrorStatusBits)
+                                + " — 재시도 위임] (" + elapsed + "ms)");
+                        return false;
+                    }
                 }
             }
 
@@ -153,14 +203,8 @@ public class LabelPrinter {
                         Thread.currentThread().interrupt(); break;
                     }
                 }
-                long waited = System.currentTimeMillis() - waitStart;
-                if (waited >= 100) {
-                    log("#" + seq + " idle 게이트 통과 wait=" + waited
-                            + "ms recv=" + lastInfoRecvIdle
-                            + " print=" + lastInfoPrintIdle
-                            + " npc=" + lastInfoNoPaperCanceled + indexSuffix);
-                }
-                // timeout 도달했지만 idle 미달성 → 그래도 진행 (QueryPrintResult 가 2차 안전망)
+                // idle 게이트 wait 로그 제거 — 정상 흐름은 100% 무로그.
+                // 1초 이상 대기는 비정상 race 신호이지만 운영자 단순화 우선.
             }
 
             int bitmapWidth = bitmap.getWidth();
@@ -192,23 +236,29 @@ public class LabelPrinter {
 
             // samplelabel `TestFunction.java:282` 의 Test_Pos_QueryPrintResult 와 동일한 호출.
             // 인쇄 완료 또는 timeout 까지 동기 블로킹 → 다음 호출의 진입을 자연 직렬화.
-            long ackStart = System.currentTimeMillis();
+            // ACK 결과는 아래 출력결과 라인에 통합 (정상 흐름은 출력끝 한 줄로 충분).
             boolean printed = AutoReplyPrint.INSTANCE.CP_Pos_QueryPrintResult(
                     hPrinter, QUERY_PRINT_RESULT_TIMEOUT_MS);
-            long ackWait = System.currentTimeMillis() - ackStart;
-            log("#" + seq + " QueryPrintResult -> " + printed + " (" + ackWait + "ms)" + indexSuffix);
 
-            // 1-D 후처리: 용지없음 취소는 진짜 실패 → 재시도 위임
+            // 1-D 후처리: PageBegin/PagePrint 진행 중 NoPaper 가 발생한 race 케이스.
+            // 진입 게이트(1-B-①)가 paper/cover 를 무한 대기로 차단하므로 보통 도달하지
+            // 않지만, idle 게이트 통과 직후 PagePrint 도중 용지가 떨어지는 race 안전망.
+            // false 반환 → Dart 재시도(1.5초) → 다음 진입 시 게이트 무한 대기로 복구.
             if (!printed && lastInfoNoPaperCanceled) {
-                log("#" + seq + " QueryPrintResult -> false [용지없음으로 인쇄 취소됨]" + indexSuffix);
+                log("#" + seq + " " + orderTag + " 실패 [용지없음 race — Dart 재시도 위임]");
                 return false;
             }
 
             // 1-D-① 장시간 방치 누락 방지 — PAPERNOFETCH 풀릴 때까지 무한 대기
             // PagePrint 추가 발사 안 함 (펌웨어 큐에 이미 보관됨, 떼면 자동 인쇄)
+            //
+            // ★ 중복 인쇄 방지: 떼기 감지 후 두 번째 QueryPrintResult 를 호출하지 않는다.
+            // 이전 코드에서 두 번째 호출이 race-prone 으로 false 를 반환하면 Dart 측
+            // _printLabelWithRetry 가 1.5초 후 새 PagePrint 를 발사 → 같은 라벨이 2장
+            // 인쇄되는 사고 발생 (예: 1/7 두 장, 745번 두 장). 떼기 감지 = 펌웨어 인쇄
+            // 완료로 간주하고 USB 포트만 확인 후 즉시 success 반환.
             if (!printed && lastInfoPaperNoFetch) {
-                log("#" + seq + " 사용자 떼기 대기 시작 (PAPERNOFETCH set, buzzer 활성)"
-                        + indexSuffix);
+                log("#" + seq + " " + orderTag + " 떼기대기 (PAPERNOFETCH, buzzer 활성)");
                 long fetchStart = System.currentTimeMillis();
                 long lastNotice = fetchStart;
                 boolean interrupted = false;
@@ -222,32 +272,33 @@ public class LabelPrinter {
                     }
                     long now = System.currentTimeMillis();
                     if (now - lastNotice >= 60_000L) {
-                        log("#" + seq + " 떼기 대기 중 elapsed="
-                                + ((now - fetchStart) / 1000) + "s" + indexSuffix);
+                        log("#" + seq + " " + orderTag + " 떼기대기중 elapsed="
+                                + ((now - fetchStart) / 1000) + "s");
                         lastNotice = now;
                     }
                 }
                 if (interrupted) {
-                    log("#" + seq + " 떼기 대기 인터럽트 — 누락 처리" + indexSuffix);
+                    log("#" + seq + " " + orderTag + " 실패 [떼기대기 인터럽트]");
                     return false;
                 }
                 long fetchWait = System.currentTimeMillis() - fetchStart;
-                log("#" + seq + " 떼기 감지 wait=" + fetchWait
-                        + "ms — 펌웨어 인쇄 시작" + indexSuffix);
-
-                // 사용자 떼는 순간 펌웨어가 큐된 라벨 인쇄 → 다시 ACK 대기
-                printed = AutoReplyPrint.INSTANCE.CP_Pos_QueryPrintResult(
-                        hPrinter, QUERY_PRINT_RESULT_TIMEOUT_MS);
-                log("#" + seq + " 떼기 후 QueryPrintResult -> " + printed + indexSuffix);
+                boolean portOk = AutoReplyPrint.INSTANCE.CP_Port_IsOpened(hPrinter);
+                long elapsed2 = System.currentTimeMillis() - startTime;
+                log("#" + seq + " " + orderTag + " 떼어짐 wait=" + fetchWait
+                        + "ms (" + (portOk ? "출력끝" : "실패")
+                        + ", 총 " + elapsed2 + "ms)");
+                return portOk;
             }
 
             result = printed && AutoReplyPrint.INSTANCE.CP_Port_IsOpened(hPrinter);
             long elapsed = System.currentTimeMillis() - startTime;
-            log("#" + seq + " 출력결과 -> " + (result ? "성공" : "실패") + " (" + elapsed + "ms)" + indexSuffix);
+            log("#" + seq + " " + orderTag + " " + (result ? "출력끝" : "실패")
+                    + " (" + elapsed + "ms)");
 
         } catch (Exception e) {
             long elapsed = System.currentTimeMillis() - startTime;
-            log("#" + seq + " 출력결과 -> 실패 [예외: " + e.getMessage() + "] (" + elapsed + "ms)" + indexSuffix);
+            log("#" + seq + " " + orderTag + " 실패 [예외: " + e.getMessage() + "] ("
+                    + elapsed + "ms)");
             Log.e(TAG, "[ERROR] " + e.getMessage(), e);
         }
 
@@ -290,48 +341,42 @@ public class LabelPrinter {
                     lastErrorStatusBits = errorStatus & 0xFFFFL;
                     lastErrorTime = lastStatusTime;
                 }
+                lastErrorIsNoPaper = s.ERROR_NOPAPER();
+                lastErrorIsCoverUp = s.ERROR_COVERUP();
                 lastInfoRecvIdle = s.INFO_RECVIDLE();
                 lastInfoPrintIdle = s.INFO_PRINTIDLE();
                 lastInfoNoPaperCanceled = s.INFO_NOPAPERCANCELED();
                 lastInfoPaperNoFetch = s.INFO_PAPERNOFETCH();
 
-                // dedup: 동일 status 비트값 연속이면 로그 skip (idle 비콘 폭주 방지)
-                final long infoMasked = infoStatus & 0xFFFFL;
-                final long errorMasked = errorStatus & 0xFFFFL;
-
-                if (infoMasked != lastLoggedInfoStatusBits) {
-                    StringBuilder sb = new StringBuilder();
-                    sb.append(String.format("printer info status: 0x%04X", infoMasked));
-                    if (s.INFO_LABELMODE())       sb.append("[LabelMode]");
-                    if (s.INFO_LABELPAPER())      sb.append("[LabelPaper]");
-                    if (s.INFO_HAVEDATA())        sb.append("[HaveData]");
-                    if (s.INFO_NOPAPERCANCELED()) sb.append("[NoPaperCanceled]");
-                    if (s.INFO_PAPERNOFETCH())    sb.append("[Paper NOT Fetch]");
-                    if (s.INFO_PRINTIDLE())       sb.append("[PrintIdle]");
-                    if (s.INFO_RECVIDLE())        sb.append("[RecvIdle]");
-                    sb.append(" phase=").append(decodePhase(s));
-                    log(sb.toString());
-                    lastLoggedInfoStatusBits = infoMasked;
-                }
-
-                if (s.ERROR_OCCURED() && errorMasked != lastLoggedErrorStatusBits) {
-                    StringBuilder eb = new StringBuilder();
-                    eb.append(String.format("printer error status: 0x%04X", errorMasked));
-                    if (s.ERROR_CUTTER())   eb.append("[Cutter]");
-                    if (s.ERROR_FLASH())    eb.append("[Flash]");
-                    if (s.ERROR_NOPAPER())  eb.append("[NoPaper]");
-                    if (s.ERROR_VOLTAGE())  eb.append("[Voltage]");
-                    if (s.ERROR_MARKER())   eb.append("[Marker]");
-                    if (s.ERROR_ENGINE())   eb.append("[Engine]");
-                    if (s.ERROR_OVERHEAT()) eb.append("[Overheat]");
-                    if (s.ERROR_COVERUP())  eb.append("[CoverUp]");
-                    if (s.ERROR_MOTOR())    eb.append("[Motor]");
-                    log(eb.toString());
-                    lastLoggedErrorStatusBits = errorMasked;
-                } else if (!s.ERROR_OCCURED() && lastLoggedErrorStatusBits != 0L
-                        && lastLoggedErrorStatusBits != -1L) {
-                    log("printer error cleared");
-                    lastLoggedErrorStatusBits = 0L;
+                // ── phase 비콘 로그: ERROR 만 출력, 정상 phase(수신중/인쇄중/대기중 등)는 무음 ──
+                // 정상 phase 는 라벨 라이프사이클 로그(출력중/출력끝)와 PAPERNOFETCH 추적으로
+                // 충분히 식별 가능하므로, 라벨 처리 흐름과 인터리빙되는 노이즈를 제거한다.
+                if (s.ERROR_OCCURED()) {
+                    final String phase = decodePhase(s);
+                    if (!phase.equals(lastLoggedPhase)) {
+                        StringBuilder sb = new StringBuilder();
+                        if (currentOrderTag != null) {
+                            sb.append(currentOrderTag).append(' ');
+                        }
+                        sb.append("phase=").append(phase);
+                        sb.append(String.format(" ERROR=0x%04X", errorStatus & 0xFFFFL));
+                        if (s.ERROR_NOPAPER())  sb.append("[NoPaper]");
+                        if (s.ERROR_COVERUP())  sb.append("[CoverUp]");
+                        if (s.ERROR_OVERHEAT()) sb.append("[Overheat]");
+                        if (s.ERROR_CUTTER())   sb.append("[Cutter]");
+                        if (s.ERROR_FLASH())    sb.append("[Flash]");
+                        if (s.ERROR_VOLTAGE())  sb.append("[Voltage]");
+                        if (s.ERROR_MARKER())   sb.append("[Marker]");
+                        if (s.ERROR_ENGINE())   sb.append("[Engine]");
+                        if (s.ERROR_MOTOR())    sb.append("[Motor]");
+                        log(sb.toString());
+                        lastLoggedPhase = phase;
+                    }
+                } else if (lastLoggedPhase != null) {
+                    // ERROR 해제 — 한 번만 알림
+                    final String tag = currentOrderTag;
+                    log((tag != null ? tag + " " : "") + "ERROR 해제");
+                    lastLoggedPhase = null;
                 }
             }
         };
@@ -387,7 +432,7 @@ public class LabelPrinter {
             statusCallbackRegistered = false;
         }
         // dedup 캐시 리셋 — 재오픈 시 첫 비콘부터 다시 로그
-        lastLoggedInfoStatusBits = -1L;
-        lastLoggedErrorStatusBits = -1L;
+        lastLoggedPhase = null;
+        currentOrderTag = null;
     }
 }
