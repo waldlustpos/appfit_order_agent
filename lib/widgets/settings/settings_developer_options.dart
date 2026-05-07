@@ -31,6 +31,8 @@ class SettingsDeveloperOptions extends ConsumerWidget {
     required this.onFeedToTearChanged,
     required this.onBackToPrintChanged,
     required this.onCalibrateChanged,
+    required this.isParanmanjanTestRunning,
+    required this.onParanmanjanTest,
   });
 
   final bool forceSocketReconnect;
@@ -46,6 +48,8 @@ class SettingsDeveloperOptions extends ConsumerWidget {
   final void Function(bool) onFeedToTearChanged;
   final void Function(bool) onBackToPrintChanged;
   final void Function(bool) onCalibrateChanged;
+  final bool isParanmanjanTestRunning;
+  final VoidCallback onParanmanjanTest;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -120,6 +124,27 @@ class SettingsDeveloperOptions extends ConsumerWidget {
               _bulkTestButton(context, ref, 50),
               _bulkTestButton(context, ref, 100),
             ],
+          ),
+        ),
+        // 파란만잔 브랜드 테스트 (QR 시퀀스 라벨 출력)
+        SettingsItemWidget(
+          title: '파란만잔 브랜드 테스트',
+          description: 'QR 시퀀스 10장을 라벨로 출력합니다.',
+          isVertical: true,
+          trailing: ElevatedButton.icon(
+            onPressed: isParanmanjanTestRunning ? null : onParanmanjanTest,
+            icon: isParanmanjanTestRunning
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.qr_code_2, size: 18),
+            label: Text(
+                isParanmanjanTestRunning ? '출력 중...' : 'QR 테스트 라벨 출력 (10장)'),
+            style: AppStyles.primaryButton().copyWith(
+              backgroundColor: const WidgetStatePropertyAll(Colors.indigo),
+            ),
           ),
         ),
         // 라벨 프린터 고급 설정

@@ -57,6 +57,8 @@ class SettingsRightPanel extends ConsumerStatefulWidget {
     required this.onFeedToTearChanged,
     required this.onBackToPrintChanged,
     required this.onCalibrateChanged,
+    required this.isParanmanjanTestRunning,
+    required this.onParanmanjanTest,
   });
 
   final bool isKdsMode;
@@ -98,6 +100,8 @@ class SettingsRightPanel extends ConsumerStatefulWidget {
   final void Function(bool) onFeedToTearChanged;
   final void Function(bool) onBackToPrintChanged;
   final void Function(bool) onCalibrateChanged;
+  final bool isParanmanjanTestRunning;
+  final VoidCallback onParanmanjanTest;
 
   @override
   ConsumerState<SettingsRightPanel> createState() => _SettingsRightPanelState();
@@ -589,6 +593,8 @@ class _SettingsRightPanelState extends ConsumerState<SettingsRightPanel> {
                 onFeedToTearChanged: widget.onFeedToTearChanged,
                 onBackToPrintChanged: widget.onBackToPrintChanged,
                 onCalibrateChanged: widget.onCalibrateChanged,
+                isParanmanjanTestRunning: widget.isParanmanjanTestRunning,
+                onParanmanjanTest: widget.onParanmanjanTest,
               ),
             const SizedBox(height: AppSpacing.s16),
           ],

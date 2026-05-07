@@ -148,8 +148,16 @@ public class LabelPrinter {
                 if (recoverable) {
                     long waitStart = System.currentTimeMillis();
                     long lastNotice = waitStart;
-                    log("#" + seq + " " + orderTag + " 복구대기 (paper/cover, status=0x"
-                            + String.format("%04X", lastErrorStatusBits) + ")");
+                    // 진입 phase 라벨 — 운영자가 어떤 조치를 해야 하는지 즉시 식별 가능하도록.
+                    // 펌웨어 특성상 paper/cover 비트가 동시에 뜨는 케이스도 커버.
+                    final String entryPhase;
+                    if (lastErrorIsNoPaper && lastErrorIsCoverUp) entryPhase = "용지없음+커버열림";
+                    else if (lastErrorIsNoPaper)               entryPhase = "용지없음";
+                    else if (lastErrorIsCoverUp)               entryPhase = "커버열림";
+                    else if (lastInfoNoPaperCanceled)          entryPhase = "용지없음취소";
+                    else                                       entryPhase = "복구대기";
+                    log("#" + seq + " " + orderTag + " 복구대기 진입 [" + entryPhase
+                            + "] status=0x" + String.format("%04X", lastErrorStatusBits));
                     boolean interrupted = false;
                     while (lastErrorIsNoPaper || lastErrorIsCoverUp
                             || lastInfoNoPaperCanceled) {
@@ -174,7 +182,8 @@ public class LabelPrinter {
                         return false;
                     }
                     long waited = System.currentTimeMillis() - waitStart;
-                    log("#" + seq + " " + orderTag + " 복구감지 wait=" + waited + "ms — 인쇄재개");
+                    log("#" + seq + " " + orderTag + " 복구감지 [" + entryPhase
+                            + " → OK] wait=" + waited + "ms — 인쇄재개");
                 } else {
                     long erStart = System.currentTimeMillis();
                     while (lastErrorOccurred
@@ -373,9 +382,11 @@ public class LabelPrinter {
                         lastLoggedPhase = phase;
                     }
                 } else if (lastLoggedPhase != null) {
-                    // ERROR 해제 — 한 번만 알림
+                    // ERROR 해제 — 한 번만 알림. 어떤 조치(용지 교체/커버 닫음 등) 로 회복됐는지
+                    // 사후 추적이 가능하도록 직전 phase 를 첨부한다.
+                    final String prevPhase = lastLoggedPhase;
                     final String tag = currentOrderTag;
-                    log((tag != null ? tag + " " : "") + "ERROR 해제");
+                    log((tag != null ? tag + " " : "") + "ERROR 해제 (이전: " + prevPhase + ")");
                     lastLoggedPhase = null;
                 }
             }
@@ -396,7 +407,10 @@ public class LabelPrinter {
      */
     private static String decodePhase(AutoReplyPrint.CP_PrinterStatus s) {
         if (s.ERROR_OCCURED()) {
-            if (s.ERROR_NOPAPER()) return "용지없음";
+            // 펌웨어 특성: 커버를 열어도 NoPaper 비트만 set 되고 CoverUp 비트는 안 뜨는
+            // 단말이 있다 (D2s_KDS 등). 비트만으로는 둘을 구별할 수 없으므로 라벨에
+            // 양가성을 노출 — 운영자가 커버 닫힘 + 용지 둘 다 확인하도록.
+            if (s.ERROR_NOPAPER()) return "용지없음/커버열림";
             if (s.ERROR_COVERUP()) return "커버열림";
             if (s.ERROR_OVERHEAT()) return "과열";
             return "에러";

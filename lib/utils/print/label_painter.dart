@@ -17,6 +17,7 @@ class LabelPainter extends CustomPainter {
   final ui.Image? logoImage; // 로고 이미지
   final int? orderIndex; // 현재 라벨 번호 (예: 1)
   final int? orderTotal; // 전체 라벨 수 (예: 10)
+  final bool showDetailQr; // detail 영역 QR 표시 여부
 
   LabelPainter({
     required this.menuName,
@@ -31,6 +32,7 @@ class LabelPainter extends CustomPainter {
     this.logoImage,
     this.orderIndex,
     this.orderTotal,
+    this.showDetailQr = true,
   });
 
   // --- Logo Cache ---
@@ -316,7 +318,7 @@ class LabelPainter extends CustomPainter {
   void _drawDetail(Canvas canvas, Size size, double startY) {
     final paint = Paint()..color = Colors.black;
 
-    final bool hasQr = qrData != null && qrData!.isNotEmpty;
+    final bool hasQr = showDetailQr && qrData != null && qrData!.isNotEmpty;
     const double detailQrSize = 75;
 
     // QR 영역 왼쪽 경계
@@ -454,6 +456,7 @@ class LabelPainter extends CustomPainter {
     String? memo,
     int? orderIndex,
     int? orderTotal,
+    bool showDetailQr = true,
   }) async {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
@@ -486,6 +489,7 @@ class LabelPainter extends CustomPainter {
       logoImage: logo,
       orderIndex: orderIndex,
       orderTotal: orderTotal,
+      showDetailQr: showDetailQr,
     );
 
     painter.paint(canvas, const Size(width, height));

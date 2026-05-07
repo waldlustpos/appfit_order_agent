@@ -3,7 +3,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/utils/print/label_painter.dart';
 import '../providers/providers.dart';
 import '../providers/product_provider.dart';
 import '../constants/app_styles.dart';
@@ -369,6 +371,79 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _saveSettings();
   }
 
+  // ── QR 테스트 라벨 출력 ─────────────────────────────────────────────────
+  static const List<String> _qrTestSequence = [
+    '10|P0001|SI0001|',
+    '101|P0001|SI0001,SI0006|',
+    '102|P0002|SI0001|',
+    '103|P0002|SI0002|',
+    '104|P0003|SI0001|',
+    '105|P0003IS10002|',
+    '106|P0004|S10002|',
+    '107|P0004|SI0002|',
+    '108|P0005|SI0002|',
+    '109|P0005|SI0002|',
+  ];
+
+  bool _isQrTestRunning = false;
+
+  Future<void> _runQrTestSequence() async {
+    if (_isQrTestRunning) return;
+    if (!_isUseLabelPrinter) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('라벨 프린터가 비활성화되어 있습니다.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    setState(() => _isQrTestRunning = true);
+    final printService = ref.read(printServiceProvider);
+    final total = _qrTestSequence.length;
+    final orderTime = DateFormat('MM/dd\nHH:mm:ss').format(DateTime.now());
+    int ok = 0;
+    try {
+      for (int i = 0; i < total; i++) {
+        final qr = _qrTestSequence[i];
+        final imageBytes = await LabelPainter.generateLabelImage(
+          menuName: '아메리카노',
+          options: const ['ICE', '샷추가'],
+          shopOrderNo: qr.split('|').first,
+          orderTime: orderTime,
+          qrData: qr,
+          memo: qr,
+          orderIndex: i + 1,
+          orderTotal: total,
+          showDetailQr: false,
+        );
+        final result = await printService.printLabel(
+          imageBytes,
+          orderNo: 'QRTEST',
+          labelIndex: i + 1,
+          totalLabels: total,
+        );
+        if (result) ok++;
+        logToFile(
+            tag: result ? LogTag.PLATFORM : LogTag.WARNING,
+            message: '[QRTest] ${i + 1}/$total qr="$qr" '
+                '${result ? "출력끝" : "실패"}');
+      }
+    } catch (e, s) {
+      logger.e('[QRTest] 예외', error: e, stackTrace: s);
+    } finally {
+      if (mounted) {
+        setState(() => _isQrTestRunning = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('QR 테스트 완료: $ok/$total 출력'),
+            backgroundColor: ok == total ? Colors.green : Colors.orange,
+          ),
+        );
+      }
+    }
+  }
+
   // ── build ──────────────────────────────────────────────────────────────────
 
   @override
@@ -492,6 +567,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   _setAndSave(() => _labelUseBackToPrint = v),
               onCalibrateChanged: (v) =>
                   _setAndSave(() => _labelUseCalibrate = v),
+              isParanmanjanTestRunning: _isQrTestRunning,
+              onParanmanjanTest: _runQrTestSequence,
             ),
           ),
         ],
