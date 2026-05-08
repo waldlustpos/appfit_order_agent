@@ -104,6 +104,10 @@ android/gradle_build_info.txt
 temp_*.java
 appfit_legacy_backup/
 external/
+docs/
+!docs/FLUTTER_GUIDELINES.md
+!docs/ARCHITECTURE.md
+!docs/BUILD.md
 
 # AppFit Generated
 lib/services/appfit/*.g.dart
