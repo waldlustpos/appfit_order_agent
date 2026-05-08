@@ -1,8 +1,11 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/providers.dart';
 import '../../utils/logger.dart';
 import '../../services/platform_bridge_service.dart';
+import '../../services/windows_bubble_service.dart';
 // import '../../services/platform_service.dart'; // Unused
 import 'sound_service.dart'; // Import SoundService (relative import since same directory)
 
@@ -78,6 +81,17 @@ class AlertManager {
   /// 오버레이 알림 전송 내부 로직
   void _triggerOverlayAlert() {
     try {
+      // Windows 버블 모드는 windowManager.hide()+show()로 동작하기 때문에
+      // Flutter AppLifecycleState 가 resumed 인 상태로 유지된다. 라이프사이클
+      // 가드를 그대로 적용하면 버블 점멸이 시작되지 않으므로, 버블 모드일 때는
+      // 라이프사이클과 무관하게 점멸 트리거를 호출한다.
+      if (Platform.isWindows &&
+          WindowsBubbleService.instance.isBubbleMode.value) {
+        logger.d('[AlertManager] Windows 버블 모드: 점멸 트리거');
+        PlatformBridgeService().notifyOrderToOverlay();
+        return;
+      }
+
       final appLifecycleState = ref.read(appLifecycleObserverProvider);
 
       // 앱이 포그라운드(resumed) 상태가 아닐 때만 오버레이 알림 전송
