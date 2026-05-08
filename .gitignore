@@ -108,6 +108,7 @@ docs/
 !docs/FLUTTER_GUIDELINES.md
 !docs/ARCHITECTURE.md
 !docs/BUILD.md
+!docs/WINDOWS_LABEL_PRINTER_GUIDE.md
 
 # AppFit Generated
 lib/services/appfit/*.g.dart

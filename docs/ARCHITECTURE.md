@@ -110,7 +110,7 @@ ACCEPTED 진입 시 메뉴별 `ordrCnt` 만큼 라벨을 자동 출력. 진입�
                                                           Caysn SDK             autoreplyprint.dll (FFI)
 ```
 
-플랫폼별 비명시 invariant 카탈로그(11+13개)와 진단 시나리오는 [`.claude/agents/label-printer-inspector.md`](../.claude/agents/label-printer-inspector.md) 참조. 핵심 공통 규칙:
+플랫폼별 비명시 invariant 카탈로그(11+17개)와 진단 시나리오는 [`.claude/agents/label-printer-inspector.md`](../.claude/agents/label-printer-inspector.md) 참조. **Windows FFI + 백엔드 단독 이식 가이드**(다른 Flutter 프로젝트 대상): [docs/WINDOWS_LABEL_PRINTER_GUIDE.md](WINDOWS_LABEL_PRINTER_GUIDE.md). 핵심 공통 규칙:
 
 - **`OutputQueueService` 단일 진입점**: 4종 sealed `OutputJob` (`NewOrderJob` / `LabelOnlyJob` / `ReprintJob` / `ReceiptReprintJob`) 모두 `add()` 경유. `lib/widgets/settings/settings_label_test_section.dart` 의 라벨 테스트 위젯만 의도적 우회 (자동접수 흐름 영향 차단).
 - **3-set in-flight 락**: `_inFlightNewOrders` / `_inFlightLabelOnly` / `_inFlightReprints` 양 플랫폼 공통. 짝(`add` ↔ `whenComplete(remove)`) 깨지면 동일 주문 영구 enqueue 차단 또는 다중 enqueue.
