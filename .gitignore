@@ -104,7 +104,6 @@ android/gradle_build_info.txt
 temp_*.java
 appfit_legacy_backup/
 external/
-docs/
 
 # AppFit Generated
 lib/services/appfit/*.g.dart
