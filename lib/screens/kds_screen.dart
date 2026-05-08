@@ -1179,35 +1179,45 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
     final mainGridController =
         ref.read(kdsScrollControllerMapProvider)[_mainGridScrollerId];
 
-    return RawScrollbar(
+    final grid = GridView.builder(
       controller: mainGridController, // Provider에서 가져온 스크롤 컨트롤러 사용
+      padding: const EdgeInsets.all(8.0),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 8,
+        childAspectRatio: 1.0,
+        crossAxisSpacing: 8.0,
+        mainAxisSpacing: 8.0,
+      ),
+      itemCount: orders.length,
+      itemBuilder: (context, index) {
+        final order = orders[index];
+
+        return SizedBox(
+          width: 150,
+          height: 150,
+          child: OrderCardWidget(
+            key: ValueKey('grid_card_${order.orderId}'),
+            order: order,
+            onTap: () => _showOrderDetail(context, order, cardType: null),
+          ),
+        );
+      },
+    );
+
+    // ScrollController 가 ScrollView 와 attach 안 된 상태 (예: 첫 frame 또는
+    // 다이얼로그가 떠서 GridView 가 일시 detach 된 frame) 에서 RawScrollbar 가
+    // _debugCheckHasValidScrollPosition 검증을 trigger 해 throw. attach 된
+    // 상태에서만 Scrollbar wrap 한다. attach 안 된 frame 은 thumb 잠깐 안
+    // 보일 뿐 다음 frame 부터 정상 표시.
+    final hasClients = mainGridController?.hasClients ?? false;
+    if (!hasClients) return grid;
+
+    return RawScrollbar(
+      controller: mainGridController,
       radius: const Radius.circular(10),
       thumbColor: Colors.grey[400],
       fadeDuration: const Duration(milliseconds: 300),
-      child: GridView.builder(
-        controller: mainGridController, // Provider에서 가져온 스크롤 컨트롤러 사용
-        padding: const EdgeInsets.all(8.0),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 8,
-          childAspectRatio: 1.0,
-          crossAxisSpacing: 8.0,
-          mainAxisSpacing: 8.0,
-        ),
-        itemCount: orders.length,
-        itemBuilder: (context, index) {
-          final order = orders[index];
-
-          return SizedBox(
-            width: 150,
-            height: 150,
-            child: OrderCardWidget(
-              key: ValueKey('grid_card_${order.orderId}'),
-              order: order,
-              onTap: () => _showOrderDetail(context, order, cardType: null),
-            ),
-          );
-        },
-      ),
+      child: grid,
     );
   }
 

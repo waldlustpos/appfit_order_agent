@@ -36,8 +36,11 @@ REST API (폴링)  ───────┘        │
 - **PreferenceService** — `SharedPreferences` + `FlutterSecureStorage`를 감싸는 싱글톤. 모든 로컬 설정 관리. 최초 init 시 V2 마이그레이션 실행.
 - **SecureStorageService** — `FlutterSecureStorage` 직접 래퍼. 자격증명·토큰 등 민감 데이터 저장.
 - **PlatformService / PlatformBridgeService** — MethodChannel(`co.kr.waldlust.order.receive.appfit_order_agent`)을 통해 네이티브 Android 호출 (파일 로깅, 화면 회전, 백그라운드 모드, 시스템 UI 제어).
-- **PrintService** — Sunmi 내장 / 외부 / 라벨 프린터로의 인쇄 명령 디스패치.
-- **OutputQueueService** — 순차적 출력/인쇄 작업 큐 관리 (로그아웃 시 초기화).
+- **PrintService** — Sunmi 내장 / 외부 / 라벨 프린터로의 인쇄 명령 디스패치 (Android 경로).
+- **LabelPrinterService** (Windows 전용, `lib/services/label_printer/label_printer_service.dart`) — `autoreplyprint.dll` Dart FFI. 단일 인스턴스(`instance`), 공개 API: `printBitmap` / `warmupOpen` / `calibrateLabel` / `dispose`. `CP_Pos_*` / `CP_Label_*` / `CP_Port_*` 호출 + ACK 콜백 + paperFetch 비콘 폴링(우선)으로 인쇄 완료 판정. main.dart 시작 시 `warmupOpen()` 으로 첫 라벨 지연 제거. (이식 예정 -- contract만 명시)
+- **LabelPrintOrchestrator** (Windows 전용, `lib/services/label_printer/label_print_orchestrator.dart`) — `OutputQueueService` 의 `LabelOnlyJob` / `NewOrderJob` 이 dispatch 하는 Windows 측 실행기. 메뉴 `ordrCnt` 만큼 라벨 N장 확장 + 1회 retry(1.5s) + 최종 실패 시 Sentry `LabelPrintMissingException`. static `_inFlightOrderIds` set 으로 동일 주문 dedup, `clearAllInFlight()` 는 logout 정리 경로에서 호출.
+- **LabelPrintData** (`lib/services/label_printer/label_print_data.dart`) — 모델-중립 DTO. `OrderModel` 을 라벨 N장으로 분해하는 어댑터(`fromOrder`) + 디버그용 `testSample`.
+- **OutputQueueService** — 순차적 출력/인쇄 작업 큐 관리 (로그아웃 시 초기화). 4종 sealed `OutputJob` (`NewOrderJob` / `LabelOnlyJob` / `ReprintJob` / `ReceiptReprintJob`) 양 플랫폼 공통 진입점.
 - **OverlayService** — 플로팅 버블 오버레이 윈도우 제어.
 - **LocalServerService** — 로컬 HTTP 수신용 경량 서버 (외부 트리거 수용).
 - **WindowsBubbleService** (Windows 전용) — KDS 버블 모드(80x80 플로팅 윈도우) 진입/복귀. 본 윈도우 ↔ 버블 윈도우 전환 시 LayoutBuilder가 카드 size 트랜지션을 재생하지 않도록 originalSize를 캐시.
@@ -50,7 +53,7 @@ REST API (폴링)  ───────┘        │
 
 ## 부수 효과: `lib/core/orders/`
 
-- `SoundService`, `BlinkService`, `OutputService` — 신규 주문 시 알림음·점멸·출력 처리
+- `SoundService`, `BlinkService`, `OutputService` — 신규 주문 시 알림음·점멸·출력 처리. `printOrderLabels()` 는 `Platform.isWindows` 분기: Windows 는 `LabelPrintOrchestrator` 경유 FFI, Android 는 기존 `MethodChannel printLabel` 유지. `OutputQueueService` 직렬화 + `_inFlightNewOrders` / `_inFlightLabelOnly` / `_inFlightReprints` 3-set in-flight 락은 양 플랫폼 공통.
 - `AlertManager` — 알림 표시 라이프사이클 통합
 - `OrderQueueService` — 주문 처리 작업 직렬화
 - `cache/` — `OrderDetailCache`, `PrintedOrderCache`, `ProcessedOrderCache`, `ActionCache` (인메모리 캐시로 중복 실행 방지)
@@ -86,6 +89,35 @@ C++ 소스 위치: `windows/runner/` (`flutter_window.cpp`, `main.cpp`, `CMakeLi
 - 단일 인스턴스 뮤텍스: `Global\AppfitOrderAgent_SingleInstance_Mutex`. `windows/runner/main.cpp`의 `kSingleInstanceMutexName` 상수와 `installer/appfit_order_agent.iss`의 `AppMutex`가 **반드시 일치**해야 함 (불일치 시 인스톨러의 single-instance 종료 로직과 런타임 가드가 어긋남).
 - 빌드 산출물: `build/windows/x64/runner/Release/`
 - VC++ 런타임 DLL(`vcruntime140.dll`, `vcruntime140_1.dll`, `msvcp140.dll`)은 빌드 스크립트가 자동 번들링하므로 대상 PC에 Visual C++ Redistributable이 없어도 동작.
+- **라벨 프린터 SDK** (이식 예정): `external/autoreplyprint/win64/` 에 `autoreplyprint.dll` (1.7MB) + `autoreplyprint.h` + `autoreplyprint.lib` 벤더링. `windows/runner/CMakeLists.txt` post-build 단계에서 (1) runner exe 디렉토리로 `copy_if_different` (2) Inno Setup `[Files]` 에 포함되도록 `install(FILES ... DESTINATION ... COMPONENT Runtime)` 디렉티브 등록. DLL 누락 시 빌드 경고 + 런타임 `DynamicLibrary.open()` 실패. Dart 측 로딩은 `lib/services/label_printer/autoreplyprint_bindings.dart` 의 `AutoReplyPrintBindings.tryGet()` 가 단일 인스턴스로 캐시.
+
+## 라벨 프린터 파이프라인
+
+ACCEPTED 진입 시 메뉴별 `ordrCnt` 만큼 라벨을 자동 출력. 진입점은 `OutputQueueService` 로 고정 (Android / Windows 동일).
+
+```
+주문 수신 ──► OrderProvider ──► OutputQueueService.add(NewOrderJob) ──► OutputService
+                                                                            │
+                                                              Platform.isWindows
+                                                              ┌─────────────┴─────────────┐
+                                                              │                           │
+                                                          Android                       Windows
+                                                              │                           │
+                                                  MethodChannel printLabel    LabelPrintOrchestrator
+                                                              │                           │
+                                                       LabelPrinter.java          LabelPrinterService
+                                                              │                           │
+                                                          Caysn SDK             autoreplyprint.dll (FFI)
+```
+
+플랫폼별 비명시 invariant 카탈로그(11+13개)와 진단 시나리오는 [`.claude/agents/label-printer-inspector.md`](../.claude/agents/label-printer-inspector.md) 참조. 핵심 공통 규칙:
+
+- **`OutputQueueService` 단일 진입점**: 4종 sealed `OutputJob` (`NewOrderJob` / `LabelOnlyJob` / `ReprintJob` / `ReceiptReprintJob`) 모두 `add()` 경유. `lib/widgets/settings/settings_label_test_section.dart` 의 라벨 테스트 위젯만 의도적 우회 (자동접수 흐름 영향 차단).
+- **3-set in-flight 락**: `_inFlightNewOrders` / `_inFlightLabelOnly` / `_inFlightReprints` 양 플랫폼 공통. 짝(`add` ↔ `whenComplete(remove)`) 깨지면 동일 주문 영구 enqueue 차단 또는 다중 enqueue.
+- **`autoReplyMode=1` + 인쇄 완료 ACK/비콘 우선**: Android 는 ACK 콜백 정상 동작, Windows 는 일부 펌웨어/SDK 조합에서 ACK 미발화 -> paperFetch 비콘이 주 신호. 두 신호 모두 등록은 race 안전망으로 필수.
+- **paper-out / cover-up = 무한 대기** (운영자 개입 신뢰), **그 외 ERROR = 짧은 게이트 후 retry** (호출자 위임). Windows ERROR 게이트는 0.5초, Android 와 동등.
+- **최종 실패 시 Sentry `LabelPrintMissingException`** 송신 -- production observability 의 일부. Windows 는 `LabelPrintOrchestrator` 의 1.5s retry 후 `failedIndices.isNotEmpty` 시 발화, Android 는 `output_service.dart` `_printLabelWithRetry` 후 발화.
+- **logout 정리**: `OrderProvider.cleanupOnLogout()` 에서 `_outputQueueService.clear()` + `LabelPrintOrchestrator.clearAllInFlight()` 둘 다 호출.
 
 ## UI 구조
 
@@ -124,6 +156,7 @@ C++ 소스 위치: `windows/runner/` (`flutter_window.cpp`, `main.cpp`, `CMakeLi
 - **Order Provider 분해**: `Order` 프로바이더(`order_provider.dart`)는 매니저 클래스(`OrderSocketManager`, `OrderTimerManager`, `OrderQueueManager`, `OrderCacheManager`, `OrderSettingsManager`, `OrderStateManager`)에 위임하여 메인 프로바이더를 가볍게 유지. `OrderSocketManager`는 `appfit_core` v1.0.8의 `SocketEventDispatcher` / `RecentRemovalsCache` / `OrderEventIgnorePolicy`로 위임하여 WebSocket 이벤트 라우팅과 자동접수 race / 상태 다운그레이드 방지를 일원화.
 - **캐싱**: `lib/core/orders/cache/` — 주문 상세, 출력 완료, 처리 완료, 액션 중복 방지를 위한 인메모리 캐시.
 - **알림음/점멸/출력**: `lib/core/orders/` — `SoundService`, `BlinkService`, `OutputService`, `AlertManager`가 알림 부수 효과 처리.
+- **라벨 프린터 플랫폼 분기**: `OutputService.printOrderLabels()` 에서 `Platform.isWindows` 로 갈라짐. Windows = `LabelPrintOrchestrator` -> `LabelPrinterService` (FFI), Android = `MethodChannel printLabel` -> `LabelPrinter.java`. `OutputQueueService` 직렬화 + 3-set in-flight 락 + Sentry `LabelPrintMissingException` 은 양 플랫폼 공통. 자세한 흐름은 [라벨 프린터 파이프라인](#라벨-프린터-파이프라인) 섹션.
 - **모니터링**: `OrderAgentMonitoringContext`가 `appfit_core`의 `MonitoringContext`를 구현하여 Sentry 초기화·오류 캡처·breadcrumb를 단일 진입점에서 처리. `MonitoringSyncProvider`가 사용자/스토어 변경 시 컨텍스트를 동기화.
 - **순차 비동기 큐**: `lib/utils/serial_async_queue.dart`의 `SerialAsyncQueue<T>`로 USB 프린터·TTS 등 공유 자원 경쟁을 방지. `appfit_core`의 동일 클래스(v1.0.6 deprecated)에서 자체 구현으로 이전됨. `OutputQueueService`가 대표 사용처.
 - **인증/세션 정리**: `Auth.logout()`(`lib/providers/auth_provider.dart`)이 credentials/JWT/SecureStorage(projectId·apiKey)/SharedPreferences/WebSocket을 정리하는 **단일 진입점**. UI 계층(예: `HomeScreen`)은 이 메서드만 호출하고 영업 상태 변경·`OrderProvider` cleanup·네비게이션을 담당. `disconnect()` 후 dependency가 outdated되므로 모든 `ref.read()`는 disconnect 호출 전에 미리 캐시. `unauthenticate()`는 환경 변경 시 WebSocket만 끊고 로그인 화면으로 복귀.

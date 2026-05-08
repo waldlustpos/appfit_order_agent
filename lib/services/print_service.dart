@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/services.dart';
+import 'package:appfit_order_agent/services/label_printer/windows/windows_label_printer_backend.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/services/windows_print_service.dart';
 import '../models/order_model.dart';
@@ -37,8 +38,14 @@ class PrintService {
   PrintService(this.ref) : _preferenceService = PreferenceService() {
     // 초기 설정값 로드
     _loadPrinterSettings();
-    // USB 디바이스 확인
-    checkConnection();
+    // USB 디바이스 확인.
+    // Riverpod provider build 도중 ref.read(...).state= 가 동기적으로 실행되면
+    // assertion 위반 (Providers 가 build 중 다른 provider 수정 금지).
+    // Android 흐름은 첫 라인이 await PlatformService.getConnectedUsbDevices()
+    // 라 항상 microtask 로 yield 되어 안전했지만, Windows 분기는 _cachedLabelPrinter
+    // 가 false 거나 backend.isOpen=true 면 첫 await 없이 state 가 갱신될 수 있다.
+    // 다음 microtask 으로 deferred 해서 provider build 종료 후 실행되게 한다.
+    Future.microtask(checkConnection);
   }
 
   // 프린터 설정값 로드
@@ -54,6 +61,48 @@ class PrintService {
 
   // 프린터 연결 상태 관리
   Future<void> checkConnection() async {
+    // Windows: USB enumerate (PlatformService.getConnectedUsbDevices) 가 Android
+    // MethodChannel 전용이라 Windows 에서는 빈 리스트 반환 -> 라벨 프린터를 못
+    // 잡는다. autoreplyprint SDK 의 CP_Port_EnumUsb 가 라벨 프린터를 직접 enumerate
+    // 하므로 backend.warmupOpen 결과를 그대로 사용. 외부 영수증 프린터 (Posbank
+    // 등) 는 본 task 범위 밖이므로 isExternalConnected=false 로 둔다.
+    if (Platform.isWindows) {
+      bool isLabelConnected = false;
+      try {
+        if (_cachedLabelPrinter == true) {
+          final backend = WindowsLabelPrinterBackend.instance;
+          bool open = false;
+          try {
+            open = backend.isOpen;
+          } catch (e, s) {
+            logger.w('[PrintService] backend.isOpen 예외',
+                error: e, stackTrace: s);
+          }
+          if (open) {
+            isLabelConnected = true;
+          } else {
+            final mode = _preferenceService.getLabelAutoReplyMode();
+            isLabelConnected =
+                await backend.warmupOpen(autoReplyMode: mode);
+          }
+        }
+        logToFile(
+            tag: LogTag.PLATFORM,
+            message:
+                '[PrintService] Windows checkConnection: label=$isLabelConnected (cached=$_cachedLabelPrinter)');
+      } catch (e, s) {
+        logger.e('[PrintService] Windows checkConnection 예외',
+            error: e, stackTrace: s);
+        logToFile(
+            tag: LogTag.ERROR,
+            message: '[PrintService] Windows checkConnection 예외: $e');
+      }
+      ref.read(printerStatusProvider.notifier).state = PrinterStatus(
+        isExternalConnected: false,
+        isLabelConnected: isLabelConnected,
+      );
+      return;
+    }
     try {
       final devices = await PlatformService.getConnectedUsbDevices();
 

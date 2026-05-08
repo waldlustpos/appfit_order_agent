@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 // import 'package:flutter_dotenv/flutter_dotenv.dart'; // Removed
 
+import 'package:appfit_order_agent/services/label_printer/windows/windows_label_printer_backend.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/services/preference_service.dart';
 import 'package:appfit_order_agent/services/windows_bubble_service.dart';
@@ -48,6 +49,10 @@ void main() async {
         appPath: Platform.resolvedExecutable,
       );
       unawaited(WindowsLogFileWriter.deleteOldLogs());
+      // 라벨 프린터 NativeCallable / USB 핸들 누수 방어. 앱이 detached 로
+      // 진입할 때 (창 닫기, 시스템 종료, 업데이터 재시작) SDK 콜백을 정리한다.
+      WidgetsBinding.instance
+          .addObserver(_LabelPrinterLifecycleObserver());
     } catch (e, s) {
       logger.e('Windows 초기화 실패', error: e, stackTrace: s);
     }
@@ -154,6 +159,15 @@ void main() async {
     final preferenceService = PreferenceService();
     await preferenceService.init();
     logger.i('PreferenceService 초기화 완료');
+
+    // Windows: 라벨 프린터 사용 ON 이면 시작 시점에 USB 포트를 미리 연다.
+    // 첫 인쇄 지연 제거 + 설정 화면 연결 상태가 즉시 정확히 표시되도록 함.
+    // 실패해도 polling/lazy fallback 이 살아있어 앱 시작을 차단하지 않는다.
+    if (Platform.isWindows && preferenceService.getUseLabelPrinter()) {
+      final mode = preferenceService.getLabelAutoReplyMode();
+      unawaited(WindowsLabelPrinterBackend.instance
+          .warmupOpen(autoReplyMode: mode));
+    }
 
     // 브랜드 테마 적용 — runApp 이전에 AppStyles 의 활성 브랜드를 확정
     final savedBrand = BrandTheme.fromId(preferenceService.getBrandThemeId());
@@ -520,5 +534,22 @@ class EdgeSwipeDetector extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+/// 매장 PC 장기 운영 시 NativeCallable 콜백 누수 방어. Windows 전용으로
+/// main() 에서 한 번만 등록한다.
+class _LabelPrinterLifecycleObserver with WidgetsBindingObserver {
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.detached && Platform.isWindows) {
+      try {
+        WindowsLabelPrinterBackend.instance.dispose();
+        logger.i('WindowsLabelPrinterBackend dispose (lifecycle detached)');
+      } catch (e, s) {
+        logger.w('WindowsLabelPrinterBackend dispose 예외',
+            error: e, stackTrace: s);
+      }
+    }
   }
 }

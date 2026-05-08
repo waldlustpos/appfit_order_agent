@@ -38,3 +38,21 @@ target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
 
 # Run the Flutter tool portions of the build. This must not be removed.
 add_dependencies(${BINARY_NAME} flutter_assemble)
+
+# Bundle autoreplyprint label printer SDK DLL.
+# Copies the DLL next to the runner exe so that LoadLibrary("autoreplyprint.dll")
+# resolves at runtime. The Inno Setup installer recursively copies the runner
+# Release directory, so no additional installer change is required.
+set(AUTOREPLYPRINT_DLL "${PROJECT_SOURCE_DIR}/../../external/autoreplyprint/win64/autoreplyprint.dll")
+if(EXISTS "${AUTOREPLYPRINT_DLL}")
+  add_custom_command(TARGET ${BINARY_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${AUTOREPLYPRINT_DLL}"
+            "$<TARGET_FILE_DIR:${BINARY_NAME}>"
+    COMMENT "Copying autoreplyprint.dll next to runner exe")
+  install(FILES "${AUTOREPLYPRINT_DLL}"
+    DESTINATION "${CMAKE_INSTALL_PREFIX}"
+    COMPONENT Runtime)
+else()
+  message(WARNING "autoreplyprint.dll not found at ${AUTOREPLYPRINT_DLL} -- label printer will fail at runtime.")
+endif()

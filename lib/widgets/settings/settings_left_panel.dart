@@ -425,6 +425,8 @@ class _SettingsLeftPanelState extends ConsumerState<SettingsLeftPanel> {
                     onChanged: (v) {
                       final ps = ref.read(printServiceProvider);
                       ps.updatePrinterSettings(labelPrinter: v);
+                      // checkConnection() 이 Platform.isWindows 분기에서
+                      // backend.warmupOpen() 호출까지 처리하므로 여기서는 단순 호출.
                       if (v) ps.checkConnection();
                       logToFile(
                           tag: LogTag.UI_ACTION, message: '라벨 프린터 사용 변경 -> $v');

@@ -3,13 +3,32 @@ import 'package:appfit_order_agent/constants/app_styles.dart';
 import 'package:appfit_order_agent/models/order_model.dart';
 import 'package:appfit_order_agent/i18n/strings.g.dart';
 
-class OrderInfoPanelWidget extends StatelessWidget {
+class OrderInfoPanelWidget extends StatefulWidget {
   final OrderModel order;
 
   const OrderInfoPanelWidget({
     super.key,
     required this.order,
   });
+
+  @override
+  State<OrderInfoPanelWidget> createState() => _OrderInfoPanelWidgetState();
+}
+
+class _OrderInfoPanelWidgetState extends State<OrderInfoPanelWidget> {
+  // 메모 영역 SingleChildScrollView 와 RawScrollbar 를 attach 하는 전용 controller.
+  // StatelessWidget 이었을 때는 controller 없이 RawScrollbar 가 PrimaryScrollController
+  // 로 fallback -> Windows 에서 자동 attach 안 됨 -> "Scrollbar's ScrollController
+  // has no ScrollPosition attached" 에러 발생. 명시적 controller 로 회피.
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  OrderModel get order => widget.order;
 
   @override
   Widget build(BuildContext context) {
@@ -48,11 +67,9 @@ class OrderInfoPanelWidget extends StatelessWidget {
                   borderRadius: AppRadius.bSm,
                 ),
                 padding: const EdgeInsets.all(AppSpacing.s12),
-                child: RawScrollbar(
-                  thumbVisibility: true,
-                  radius: const Radius.circular(AppRadius.sm),
-                  thickness: AppSpacing.s4,
-                  child: SingleChildScrollView(
+                child: Builder(builder: (context) {
+                  final scrollView = SingleChildScrollView(
+                    controller: _scrollController,
                     child: Text(
                       _editNote(order.note),
                       style: AppTextStyles.bodySm.copyWith(
@@ -61,8 +78,17 @@ class OrderInfoPanelWidget extends StatelessWidget {
                             : AppStyles.gray9,
                       ),
                     ),
-                  ),
-                ),
+                  );
+                  // attach 안 된 첫 frame 은 RawScrollbar 없이 표시.
+                  if (!_scrollController.hasClients) return scrollView;
+                  return RawScrollbar(
+                    thumbVisibility: true,
+                    radius: const Radius.circular(AppRadius.sm),
+                    thickness: AppSpacing.s4,
+                    controller: _scrollController,
+                    child: scrollView,
+                  );
+                }),
               ),
             ),
           ],

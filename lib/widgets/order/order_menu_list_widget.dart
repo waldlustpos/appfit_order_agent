@@ -50,12 +50,8 @@ class OrderMenuListWidget extends StatelessWidget {
             )
           else
             Expanded(
-              child: RawScrollbar(
-                thumbVisibility: true,
-                radius: const Radius.circular(AppRadius.sm),
-                thickness: AppSpacing.s4,
-                controller: scrollController,
-                child: ListView.builder(
+              child: Builder(builder: (context) {
+                final list = ListView.builder(
                   controller: scrollController,
                   itemCount: menus.length,
                   itemBuilder: (context, index) {
@@ -161,8 +157,21 @@ class OrderMenuListWidget extends StatelessWidget {
                       ],
                     );
                   },
-                ),
-              ),
+                );
+                // ScrollController 가 ScrollView 와 attach 안 된 frame 에서는
+                // RawScrollbar 의 thumbVisibility=true 가 _debugScheduleCheckHasValidScrollPosition
+                // 을 schedule -> ScrollPosition 없음 -> throw. 다이얼로그 떴을 때
+                // 또는 list 가 막 mount 된 첫 frame 에서 발생. attach 된 frame
+                // 부터만 RawScrollbar wrap.
+                if (!scrollController.hasClients) return list;
+                return RawScrollbar(
+                  thumbVisibility: true,
+                  radius: const Radius.circular(AppRadius.sm),
+                  thickness: AppSpacing.s4,
+                  controller: scrollController,
+                  child: list,
+                );
+              }),
             ),
         ],
       ),

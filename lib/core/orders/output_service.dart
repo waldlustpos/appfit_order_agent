@@ -9,8 +9,12 @@ import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/services/print_service.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:appfit_order_agent/core/orders/sound_service.dart';
+import 'package:appfit_order_agent/exceptions/label_print_missing_exception.dart';
+import 'package:appfit_order_agent/services/label_printer/label_printer_options.dart';
+import 'package:appfit_order_agent/services/label_printer/windows/windows_label_printer_backend.dart';
 import 'package:appfit_order_agent/utils/print/label_painter.dart';
 import 'package:collection/collection.dart'; // [NEW] firstWhereOrNull 사용
+import 'dart:io' show Platform;
 
 import 'package:appfit_core/appfit_core.dart' show MonitoringService;
 import 'package:appfit_order_agent/constants/order_constants.dart';
@@ -322,9 +326,16 @@ class OutputService {
     required int labelIndex,
     required int totalLabels,
   }) async {
-    final ok1 = await printService.printLabel(imageBytes,
-        orderNo: orderNo, labelIndex: labelIndex, totalLabels: totalLabels);
-    if (ok1 == true) return true;
+    Future<bool> dispatch() => _dispatchPrintLabel(
+          printService: printService,
+          imageBytes: imageBytes,
+          orderNo: orderNo,
+          labelIndex: labelIndex,
+          totalLabels: totalLabels,
+        );
+
+    final ok1 = await dispatch();
+    if (ok1) return true;
 
     logToFile(
         tag: LogTag.WARNING,
@@ -332,14 +343,49 @@ class OutputService {
             ' 1차실패 (paper/cover 외 일시적) → 1.5초 후 재시도');
     await Future.delayed(const Duration(milliseconds: 1500));
 
-    final ok2 = await printService.printLabel(imageBytes,
-        orderNo: orderNo, labelIndex: labelIndex, totalLabels: totalLabels);
-    if (ok2 != true) {
+    final ok2 = await dispatch();
+    if (!ok2) {
       logToFile(
           tag: LogTag.ERROR,
           message: '[Label] $orderNo $labelIndex/$totalLabels 재시도실패 — 누락');
     }
-    return ok2 == true;
+    return ok2;
+  }
+
+  /// SDK 호출 1지점. Platform 별로 다른 backend 사용:
+  /// - Windows: autoreplyprint.dll FFI (CP_Label_DrawImageFromData, PNG bytes)
+  /// - Android: MethodChannel (Caysn AutoReplyPrint Java SDK, PNG bytes)
+  ///
+  /// 양 플랫폼 모두 PNG bytes 입력. 분류/필터/Painter/retry 흐름은 위층에서
+  /// 동일하게 처리하므로 양 플랫폼 라벨 출력 결과는 동등하다.
+  Future<bool> _dispatchPrintLabel({
+    required PrintService printService,
+    required Uint8List imageBytes,
+    required String orderNo,
+    required int labelIndex,
+    required int totalLabels,
+  }) async {
+    if (Platform.isWindows) {
+      final pref = ref.read(preferenceServiceProvider);
+      final options = LabelPrinterOptions(
+        autoReplyMode: pref.getLabelAutoReplyMode(),
+        useFeedToTear: pref.getLabelUseFeedToTear(),
+        useBackToPrint: pref.getLabelUseBackToPrint(),
+        useCalibrate: pref.getLabelUseCalibrate(),
+      );
+      return WindowsLabelPrinterBackend.instance.printPng(
+        pngBytes: imageBytes,
+        width: LabelPainter.width.toInt(),
+        height: LabelPainter.height.toInt(),
+        options: options,
+        orderNo: orderNo,
+        labelIndex: labelIndex,
+        totalLabels: totalLabels,
+      );
+    }
+    final result = await printService.printLabel(imageBytes,
+        orderNo: orderNo, labelIndex: labelIndex, totalLabels: totalLabels);
+    return result == true;
   }
 
   Future<void> printCancelReceiptById({
@@ -406,22 +452,5 @@ final outputAppServiceProvider = Provider<OutputService>((ref) {
 /// 5분 쿨다운 키를 만들므로 ([monitoring_service.dart:188]),
 /// 일반 [Exception] 으로 보내면 다른 종류 예외와 키 충돌이 발생.
 /// 라벨 누락 사건만 별도 카운트되도록 전용 클래스로 분리.
-class LabelPrintMissingException implements Exception {
-  LabelPrintMissingException({
-    required this.orderNo,
-    required this.displayNum,
-    required this.failedCount,
-    required this.totalLabels,
-    required this.failedIndices,
-  });
-
-  final String orderNo;
-  final String displayNum;
-  final int failedCount;
-  final int totalLabels;
-  final List<int> failedIndices;
-
-  @override
-  String toString() => 'LabelPrintMissingException(displayNum=$displayNum,'
-      ' failed=$failedCount/$totalLabels, indices=$failedIndices)';
-}
+// LabelPrintMissingException 은 lib/exceptions/label_print_missing_exception.dart
+// 로 추출되었다. 호출자는 export 또는 직접 import 사용.
