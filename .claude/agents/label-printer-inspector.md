@@ -1,6 +1,6 @@
 ---
 name: label-printer-inspector
-description: OutputQueueService → OutputService → (Android: MethodChannel printLabel → LabelPrinter.java → Caysn SDK | Windows: LabelPrintOrchestrator → LabelPrinterService → autoreplyprint FFI) 데이터 흐름을 진단합니다. 라벨 누락, 중복 인쇄, paper-out/cover-up 정체, ACK timeout, paperFetch 비콘, USB stale handle 디버깅 시 컨텍스트 수집용. "라벨 누락", "라벨 디버깅", "프린터 큐", "ACK 누락", "FFI", "autoreplyprint" 등의 요청에 위임.
+description: OutputQueueService → OutputService → (Android: MethodChannel printLabel → LabelPrinter.java → Caysn SDK | Windows: LabelPrintOrchestrator → LabelPrinterService → autoreplyprint FFI) 데이터 흐름을 진단합니다. 라벨 누락, 중복 인쇄, paper-out/cover-up 정체, 커버열림 stuck 자동 복구(active clear), ACK timeout, paperFetch 비콘, USB stale handle 디버깅 시 컨텍스트 수집용. "라벨 누락", "라벨 디버깅", "프린터 큐", "ACK 누락", "FFI", "autoreplyprint", "커버열림", "noPaperCanceled stuck" 등의 요청에 위임.
 tools: Read, Glob, Grep, Bash
 ---
 
@@ -32,7 +32,7 @@ tools: Read, Glob, Grep, Bash
 
 ### Windows (Dart FFI + autoreplyprint.dll)
 
-> 이식 *예정* 구조의 contract. 코드는 다음 세션에서 도입되지만, 위반 시 즉시 회귀 (동일 라벨 N장, native crash, 큐 정체) 가 발생하므로 작성 시 13개 모두 보존.
+> `b38eefe` 에서 `lib/services/label_printer/windows/` 로 이식 완료. 위반 시 즉시 회귀 (동일 라벨 N장, native crash, 큐 영구 정체) 가 발생하므로 17개 모두 보존.
 
 - **`autoReplyMode=1` + `CP_Printer_AddOnPrinterPrintedEvent` 콜백 둘 다 등록**: 하나라도 빠지면 `CP_Pos_QueryPrintResult` timeout. 단 일부 펌웨어/SDK 조합은 ACK 미발화 (운영 검증에서 ackCount=0 관찰) -- paperFetch 비콘이 주 신호이지만 콜백 등록은 race 안전망으로 필수.
 - **인쇄 완료 신호 우선순위 = paperFetch 비콘 > ACK 콜백**: step9 폴링은 둘 다 검사하되, paperFetch 비콘이 먼저 잡히는 케이스가 압도적. 신호 둘 중 하나만 감시하면 운영 펌웨어에서 timeout 발생.
@@ -47,6 +47,10 @@ tools: Read, Glob, Grep, Bash
 - **`_ensurePortOpen` portClosed 체크 = `portIsOpened==0` OR `portIsConnectionValid==0` (둘 다 검사)**: USB 케이블 분리/재삽입 후 핸들 stale 상태에서 `portIsOpened` 가 여전히 1 을 반환하는 케이스 존재. `portIsConnectionValid==0` 도 OR 조건으로 봐야 자동 reconnect 트리거. Android `needReconnect` 패턴과 동등.
 - **PAPERNOFETCH wait + ERROR 게이트 polling step = 100ms**: Android `Thread.sleep(100)` 동등. 200ms 였을 때 떼기 감지가 라벨당 0~100ms 늦어 부하 테스트에서 사용자 체감 차이 발생. CPU 부하 차이는 미미.
 - **SDK 호출 시간 자체는 zero overhead**: 운영 검증 (5장 부하, 2026-05-08) -- step5/6/8/10 = 0ms, step7 `DrawImageFromPixels` 1.17MB ~78ms. 라벨 사이 텀의 95% 가 펌웨어 인쇄 시간 + 사용자 떼는 시간. **코드 측면 추가 최적화 효과 사실상 0** -- 회귀 진단 시 추적/관찰 우선, 마이크로 최적화 시도 금지.
+- **커버열림(`coverUp`, `errorStatus & 0x80`) = paper-out 등가 무한 대기 분기**: `_waitErrorGate` 의 `(_lastErrorIsNoPaper || _lastErrorIsCoverUp || _lastInfoNoPaperCanceled)` OR 조건에 묶여서 짧은 게이트가 아닌 무한 polling 으로 진입. 커버를 짧은 게이트(0.5초)로 처리하면 운영자가 닫기 전에 false 반환 -> orchestrator 1.5s retry -> 닫혔어도 retry 실패 -> 라벨 누락. Android `LabelPrinter.java` 의 cover-up 무한 대기 분기와 동일 의도.
+- **`sawUserAction` snapshot + `noPaperCanceled` stuck 자동 복구 (active clear)**: 무한 대기 진입 시 `entryCover` / `entryNoPaper` 비트 snapshot. Loop 안에서 비트가 진입 시점과 달라지면 `sawUserAction = true` (운영자가 cover 열거나 닫음 / 용지 교체 등 감지). cover/noPaper 모두 해제됐는데 `noPaperCanceled` 만 stuck 인 케이스 = Windows Caysn 펌웨어가 자동 해제 안 함 (SDK sample ERROR Status 0xCE stuck 동작 동등). `sawUserAction && !cover && !noPaper && elapsed >= 200ms` 조건에서 **1회만** `printerClearError` + `printerClearBuffer` + `posResetPrinter` 3종 호출. 3종 중 일부만 호출하면 비트 미해제 -> 큐 영구 정체. `clearTried` flag 로 중복 호출 차단 (Android 에는 펌웨어가 자동 해제하므로 active clear 자체가 불필요 -- Windows 전용 invariant).
+- **active clear 후 1500ms timeout 강제 break**: ClearError + ClearBuffer + ResetPrinter 3종 호출 후에도 펌웨어가 비트를 host 측 호출로도 안 풀어주는 limitation 안전망. 1500ms 안에 비트가 자연 갱신 안 되면 break -> 다음 PagePrint 시도. 시각적으로 cover 닫혔으면 다음 시도가 합리적이라는 가정. 이 break 가 없으면 펌웨어 한계 케이스에서 큐 영구 정체. timeout 을 5s 이상으로 늘리면 사용자 체감 지연 증가.
+- **PAPERNOFETCH wait 중 USB stale 종료 분기 (`portIsConnectionValid==0`)**: 떼기 대기는 timeout 없는 polling 이지만, **커버 열고 닫는 사이 USB 일시 disconnect** 또는 status 비콘 stream 끊긴 케이스 안전망으로 `portIsConnectionValid==0` 시 wait 종료 -> 다음 호출의 `_ensurePortOpen` 이 reconnect 처리. 이 분기가 없으면 status stream 죽은 상태에서 PAPERNOFETCH 비트가 영구히 1 로 남아 무한 대기. 정상 케이스에서는 펌웨어가 PAPERNOFETCH 자동 해제 (Android 동등) 하므로 이 분기는 발화하지 않음 -- 발화 자체가 USB 케이블/허브 이상 시그널.
 
 ## 진단 시나리오
 
@@ -114,6 +118,21 @@ tools: Read, Glob, Grep, Bash
 1. `_ensurePortOpen` 의 `portIsConnectionValid==0` 체크 OR 조건 검사 (Windows invariant 11) -- `portIsOpened==1` 인 stale handle 자동 reconnect 안 되면 다음 라벨 무한 대기
 2. statusCallback / printedEvent 콜백 USB 재연결 시 재등록 여부
 3. `_inFlightOrderIds` set 에 끼인 orderId 제거 흐름 -- logout 외에도 USB 재삽입 시 정리 필요한지 검토
+
+#### 시나리오 Win-F: 커버열림 후 큐 정체 (자동 복구 회귀)
+
+운영자가 커버 열어 라벨 처리 (걸린 용지 제거 / 라벨 교체 등) 후 닫았는데도 큐가 다시 흐르지 않는 케이스. Windows 전용 (Android 는 펌웨어가 비트 자동 해제).
+
+1. **무한 대기 분기 진입 여부 확인** -- 로그 `종이없음/커버열림 — 무한 대기 진입 (cover=true ...)` 유무. 진입 안 했다면 cover-up 비트가 무한 대기 OR 조건에서 빠진 회귀 (Windows invariant 14 위반) -- 짧은 게이트로 빠져 1.5s retry 실패 패턴.
+2. **`sawUserAction` 감지 여부** -- 진입 후 `cover` / `noPaper` 비트 변화 로그 (`종이없음/커버열림 대기 Ns 경과` 의 비트 값). 진입 시점과 동일한 비트가 계속 떠 있다면 운영자가 실제로 닫지 않았거나 펌웨어 비콘 stream 자체가 끊긴 케이스.
+3. **`noPaperCanceled` stuck 패턴** -- `cover=false noPaper=false noPaperCanceled=true` 로그 -> active clear (`stuck 감지 ... -> ClearError + ClearBuffer + ResetPrinter`) 발화 여부 확인. 발화 안 했다면:
+   - `sawUserAction` 가 false 인지 (비트 변화 캡처 누락 -- 200ms 미만 경과 짧은 transition)
+   - `clearTried` 가 이미 true 인지 (이전 시도 후 stuck -- 1500ms break 분기로 빠졌어야 함)
+   - bindings null / `_hPrinter == nullptr` 분기 (포트 stale)
+4. **active clear 후 비트 stuck** -- `active clear 후에도 비트 stuck ... -> 강제 break` 로그. 이 break 후 다음 PagePrint 가 정상 진행되는지. break 안 되면 1500ms timeout 회귀 (Windows invariant 16 위반) -> 큐 영구 정체.
+5. **PAPERNOFETCH wait 중 USB stale 종료** -- `PAPERNOFETCH wait 중 USB 포트 stale 감지 -> wait 종료, 다음 호출에서 reconnect` 로그. 발화 시 USB 케이블/허브 이상 시그널 -- 운영 환경 USB 회선/포트 위치 점검 권장 (Windows invariant 17 의 정상 케이스 발화 = 0 회).
+6. SDK call 차원 진단: `printerClearError` / `printerClearBuffer` / `posResetPrinter` 3종 모두 호출되었는지 (일부만 호출하면 펌웨어 비트 미해제). 호출 예외 발생 시 각 try-catch 의 warn 로그 확인.
+7. 회귀 의심 1순위: cover-up 비트가 OR 조건에서 빠지거나 (`_waitErrorGate`), `_lastErrorIsCoverUp` flag 갱신이 statusCallback 에서 누락되었는지 (`_onPrinterStatusEvent` 의 `errorStatus & 0x80` 비트 처리).
 
 ## 출력 형식
 
