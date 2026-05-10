@@ -40,6 +40,8 @@ Write-Host "🏷  Windows 버전: $WinBuildName ($WinBuildNumber)" -ForegroundCo
 
 flutter build windows --release `
     --dart-define-from-file=.env `
+    --dart-define=WINDOWS_APP_VERSION="$WinBuildName" `
+    --dart-define=WINDOWS_APP_BUILD="$WinBuildNumber" `
     --build-name="$WinBuildName" `
     --build-number="$WinBuildNumber"
 

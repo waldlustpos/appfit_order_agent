@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -559,14 +561,21 @@ class _SettingsRightPanelState extends ConsumerState<SettingsRightPanel> {
                   child: Padding(
                     padding:
                         const EdgeInsets.symmetric(vertical: AppSpacing.s16),
-                    child: ref.watch(appInfoProvider).whenOrNull(
-                              data: (info) => Text(
-                                'v${info.version} (${info.buildNumber})',
-                                style: AppTextStyles.caption
-                                    .copyWith(color: AppStyles.gray4),
-                              ),
-                            ) ??
-                        const SizedBox.shrink(),
+                    child: Platform.isWindows
+                        ? Text(
+                            'v${const String.fromEnvironment('WINDOWS_APP_VERSION', defaultValue: '0.0.0')} '
+                            '(${const String.fromEnvironment('WINDOWS_APP_BUILD', defaultValue: '0')})',
+                            style: AppTextStyles.caption
+                                .copyWith(color: AppStyles.gray4),
+                          )
+                        : ref.watch(appInfoProvider).whenOrNull(
+                                  data: (info) => Text(
+                                    'v${info.version} (${info.buildNumber})',
+                                    style: AppTextStyles.caption
+                                        .copyWith(color: AppStyles.gray4),
+                                  ),
+                                ) ??
+                            const SizedBox.shrink(),
                   ),
                 ),
               ],
