@@ -14,6 +14,7 @@ import 'settings_section_card.dart';
 import 'settings_item_widget.dart';
 import 'settings_mode_switch.dart';
 import 'settings_connection_status.dart';
+import 'external_printer_sub_settings.dart';
 
 /// 설정화면 좌측 패널 — 기기/언어/프린터 설정.
 class SettingsLeftPanel extends ConsumerStatefulWidget {
@@ -402,15 +403,8 @@ class _SettingsLeftPanelState extends ConsumerState<SettingsLeftPanel> {
                       widget.onUseExternalPrinterChanged(v);
                     },
                   ),
-                  additionalContent: Consumer(
-                    builder: (_, ref, __) {
-                      final status = ref.watch(printerStatusProvider);
-                      return SettingsConnectionStatus(
-                        isConnected: status.isExternalConnected,
-                        onReconnect: () =>
-                            ref.read(printServiceProvider).checkConnection(),
-                      );
-                    },
+                  additionalContent: ExternalPrinterSubSettings(
+                    isUseExternalPrinter: widget.isUseExternalPrinter,
                   ),
                 ),
                 SettingsItemWidget(
