@@ -844,16 +844,20 @@ class Order extends _$Order {
       logger.d('[refreshOrders] API 목록 조회 완료: ${basicOrders.length}건');
 
       // 1-1. replication lag 대응: 최근 종결(DONE/CANCELLED) 처리한 주문이
-      // stale 응답으로 살아있는 상태로 돌아오면 머지 단계에서 사전 필터링.
-      // _resolveMergedStatus 가 다운그레이드는 막지만, 로컬 state 에서 이미 사라진
-      // 주문이 server 응답만으로 부활하는 경로는 별도 가드가 필요.
+      // stale 응답으로 *active 상태*로 돌아오는 경우만 차단.
+      // 서버가 올바르게 종결 상태로 응답한 경우는 유지해야 주문내역에서 보인다.
       final removedIds = _recentRemovals.snapshotIds();
       final filteredBasicOrders = removedIds.isEmpty
           ? basicOrders
-          : basicOrders.where((o) => !removedIds.contains(o.orderId)).toList();
+          : basicOrders.where((o) {
+              if (!removedIds.contains(o.orderId)) return true;
+              // 종결 상태로 정상 응답된 주문은 유지, active 부활만 차단.
+              return o.status == OrderStatus.CANCELLED ||
+                  o.status == OrderStatus.DONE;
+            }).toList();
       if (filteredBasicOrders.length != basicOrders.length) {
         logger.w(
-            '[refreshOrders] 서버 부활 차단(최근 DONE/CANCELLED): ${basicOrders.length - filteredBasicOrders.length}건');
+            '[refreshOrders] 서버 active 부활 차단: ${basicOrders.length - filteredBasicOrders.length}건');
       }
 
       // 2. 기존 캐시나 상태에서 상세 정보 복원 및 병합
@@ -1638,9 +1642,12 @@ class Order extends _$Order {
     final removedIds = _recentRemovals.snapshotIds();
 
     for (final order in newOrders) {
-      // 0. 최근 종결(DONE/CANCELLED) 처리한 주문이 stale 응답으로 부활하는 경우 차단.
-      if (removedIds.contains(order.orderId)) {
-        logger.w('[Polling] 서버 부활 차단(최근 DONE/CANCELLED): ${order.orderId}');
+      // 0. 최근 종결(DONE/CANCELLED) 처리한 주문이 stale 응답으로 *active 상태*로
+      // 부활하는 경우만 차단. 서버가 종결 상태로 응답하면 큐를 통해 정상 반영.
+      if (removedIds.contains(order.orderId) &&
+          order.status != OrderStatus.CANCELLED &&
+          order.status != OrderStatus.DONE) {
+        logger.w('[Polling] 서버 active 부활 차단: ${order.orderId} (${order.status})');
         continue;
       }
 
