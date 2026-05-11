@@ -140,6 +140,10 @@
             "title": "화면 상하 반전",
             "desc": "화면을 180도 회전합니다. OS 회전 설정이 없는 환경에서 사용합니다."
         },
+        "order_type_badge": {
+            "title": "매장/포장 표시",
+            "desc": "주문 상세 헤더에 매장/포장 구분 배지를 표시합니다."
+        },
         "kds_ignore_status": {
             "title": "타 기기 진행상태 알림 무시",
             "desc": "다른 KDS에서 픽업 요청 등 진행상태를 변경해도 내 화면의 주문이 새로고침되지 않습니다. (진행상태 최신화를 수동으로 통제하고 싶을 때 사용)"
@@ -297,7 +301,32 @@
         "amount": "주문금액",
         "discount": "할인금액",
         "payment": "결제금액",
-        "customer_honorific": "{name} 님"
+        "customer_honorific": "{name} 님",
+        "ordered_time_short": "{time} 주문",
+        "payment_method": {
+            "credit_card": "신용카드",
+            "prepaid_card": "선불카드",
+            "naver_pay": "네이버페이",
+            "kakao_pay": "카카오페이",
+            "toss_pay": "토스페이",
+            "apple_pay": "애플페이",
+            "payco": "페이코",
+            "easy_card": "교통카드",
+            "mobile_payment": "모바일 결제",
+            "qr_payment": "QR 결제",
+            "felica_transportation": "Felica 교통",
+            "felica_id": "Felica iD",
+            "felica_quicpay": "Felica QUICPay",
+            "cash": "현금",
+            "service": "서비스"
+        },
+        "discount_type": {
+            "coupon": "쿠폰",
+            "point": "포인트",
+            "gift": "기프트",
+            "partner": "제휴",
+            "membership": "멤버십"
+        }
     },
     "order_detail": {
         "loading": "주문 상세 정보를 불러오는 중...",

@@ -317,7 +317,10 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
                 ),
               ),
               const SizedBox(width: AppSpacing.s16),
-              OrderInfoPanelWidget(order: order),
+              SizedBox(
+                width: 260,
+                child: OrderInfoPanelWidget(order: order),
+              ),
             ],
           ),
         ),
@@ -339,6 +342,8 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
               order.displayNum,
               style: AppTextStyles.display,
             ),
+            if (ref.read(preferenceServiceProvider).getShowOrderTypeBadge())
+              _OrderTypePill(orderType: order.orderType),
             _StatusPill(order: order),
             _SourcePill(source: order.source),
             Text(
@@ -801,6 +806,54 @@ class _SourcePill extends StatelessWidget {
           label: 'KIOSK',
           bg: AppStyles.kSubAlpha,
           fg: AppStyles.kSub,
+        ),
+      _ => null,
+    };
+
+    if (spec == null) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.s12,
+        vertical: AppSpacing.s4,
+      ),
+      decoration: BoxDecoration(
+        color: spec.bg,
+        borderRadius: AppRadius.bSm,
+      ),
+      child: Text(
+        spec.label,
+        style: AppTextStyles.bodySm.copyWith(
+          color: spec.fg,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+// ─── 매장/포장 pill ───────────────────────────────────────────────────────────
+
+class _OrderTypePill extends StatelessWidget {
+  final String orderType;
+
+  const _OrderTypePill({required this.orderType});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Translations.of(context);
+    // IN_SHOP=매장 식사(차분한 그린), TAKE_OUT=포장 픽업(강조 앰버).
+    // _SourcePill 의 kBlue/kSub 와 충돌하지 않는 색 풀에서 선택.
+    final spec = switch (orderType.toUpperCase()) {
+      'IN_SHOP' => (
+          label: t.order.type_dine_in,
+          bg: AppStyles.green100Alpha,
+          fg: AppStyles.green100,
+        ),
+      'TAKE_OUT' => (
+          label: t.order.type_takeout,
+          bg: AppStyles.kAmberAlpha,
+          fg: AppStyles.kAmber,
         ),
       _ => null,
     };

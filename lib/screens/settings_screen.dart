@@ -50,6 +50,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   bool _isKioskOrderVisible = false;
   bool _isKioskOrderSoundEnabled = false;
+  bool _isShowOrderTypeBadge = false;
   bool _isOrderHistoryScroll = true;
   bool _isIgnoreOtherDeviceKds = false;
   bool _forceSocketReconnect = false;
@@ -99,6 +100,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
       _isKioskOrderVisible = _preferenceService.getShowKioskOrder();
       _isKioskOrderSoundEnabled = _preferenceService.getKioskPrintAndSound();
+      _isShowOrderTypeBadge = _preferenceService.getShowOrderTypeBadge();
       _isOrderHistoryScroll = _preferenceService.getOrderHistoryScroll();
       _isIgnoreOtherDeviceKds =
           _preferenceService.getIgnoreOtherDeviceTasksKds();
@@ -130,6 +132,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await _preferenceService.setLabelFilterMode(_labelFilterMode);
       await _preferenceService.setShowKioskOrder(_isKioskOrderVisible);
       await _preferenceService.setKioskPrintAndSound(_isKioskOrderSoundEnabled);
+      await _preferenceService.setShowOrderTypeBadge(_isShowOrderTypeBadge);
       await _preferenceService.setOrderHistoryScroll(_isOrderHistoryScroll);
       await _preferenceService
           .setIgnoreOtherDeviceTasksKds(_isIgnoreOtherDeviceKds);
@@ -468,6 +471,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               isUseLabelPrinter: _isUseLabelPrinter,
               isTpcpStore: _isTpcpStore,
               labelFilterMode: _labelFilterMode,
+              isShowOrderTypeBadge: _isShowOrderTypeBadge,
               onModeSwitch: _handleModeSwitch,
               onRotated180Changed: (v) => setState(() => _isRotated180 = v),
               onAutoStartChanged: (v) => _setAndSave(() => _isAutoStart = v),
@@ -494,6 +498,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   _setAndSave(() => _isUseLabelPrinter = v),
               onLabelFilterModeChanged: (v) =>
                   _setAndSave(() => _labelFilterMode = v),
+              onShowOrderTypeBadgeChanged: (v) =>
+                  _setAndSave(() => _isShowOrderTypeBadge = v),
             ),
           ),
           const SizedBox(width: AppSpacing.s16),

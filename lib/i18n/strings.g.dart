@@ -4,9 +4,9 @@
 /// To regenerate, run: `dart run slang`
 ///
 /// Locales: 3
-/// Strings: 1016 (338 per locale)
+/// Strings: 1085 (361 per locale)
 ///
-/// Built on 2026-04-23 at 00:09 UTC
+/// Built on 2026-05-11 at 04:18 UTC
 
 // coverage:ignore-file
 // ignore_for_file: type=lint
@@ -251,6 +251,7 @@ class _StringsSettingsKo {
 	late final _StringsSettingsThemeKo theme = _StringsSettingsThemeKo._(_root);
 	late final _StringsSettingsCurrencyKo currency = _StringsSettingsCurrencyKo._(_root);
 	late final _StringsSettingsDisplayRotateKo display_rotate = _StringsSettingsDisplayRotateKo._(_root);
+	late final _StringsSettingsOrderTypeBadgeKo order_type_badge = _StringsSettingsOrderTypeBadgeKo._(_root);
 	late final _StringsSettingsKdsIgnoreStatusKo kds_ignore_status = _StringsSettingsKdsIgnoreStatusKo._(_root);
 	late final _StringsSettingsLabelFilterKo label_filter = _StringsSettingsLabelFilterKo._(_root);
 	late final _StringsSettingsDeveloperOptionsKo developer_options = _StringsSettingsDeveloperOptionsKo._(_root);
@@ -400,6 +401,9 @@ class _StringsOrderKo {
 	String get discount => '할인금액';
 	String get payment => '결제금액';
 	String customer_honorific({required Object name}) => '${name} 님';
+	String ordered_time_short({required Object time}) => '${time} 주문';
+	late final _StringsOrderPaymentMethodKo payment_method = _StringsOrderPaymentMethodKo._(_root);
+	late final _StringsOrderDiscountTypeKo discount_type = _StringsOrderDiscountTypeKo._(_root);
 }
 
 // Path: order_detail
@@ -715,6 +719,17 @@ class _StringsSettingsDisplayRotateKo {
 	String get desc => '화면을 180도 회전합니다. OS 회전 설정이 없는 환경에서 사용합니다.';
 }
 
+// Path: settings.order_type_badge
+class _StringsSettingsOrderTypeBadgeKo {
+	_StringsSettingsOrderTypeBadgeKo._(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+	String get title => '매장/포장 표시';
+	String get desc => '주문 상세 헤더에 매장/포장 구분 배지를 표시합니다.';
+}
+
 // Path: settings.kds_ignore_status
 class _StringsSettingsKdsIgnoreStatusKo {
 	_StringsSettingsKdsIgnoreStatusKo._(this._root);
@@ -823,6 +838,44 @@ class _StringsHomeTabsKo {
 	String get order_status => '주문현황';
 	String get order_history => '주문내역';
 	String get product_management => '상품관리';
+	String get membership => '멤버십';
+}
+
+// Path: order.payment_method
+class _StringsOrderPaymentMethodKo {
+	_StringsOrderPaymentMethodKo._(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+	String get credit_card => '신용카드';
+	String get prepaid_card => '선불카드';
+	String get naver_pay => '네이버페이';
+	String get kakao_pay => '카카오페이';
+	String get toss_pay => '토스페이';
+	String get apple_pay => '애플페이';
+	String get payco => '페이코';
+	String get easy_card => '교통카드';
+	String get mobile_payment => '모바일 결제';
+	String get qr_payment => 'QR 결제';
+	String get felica_transportation => 'Felica 교통';
+	String get felica_id => 'Felica iD';
+	String get felica_quicpay => 'Felica QUICPay';
+	String get cash => '현금';
+	String get service => '서비스';
+}
+
+// Path: order.discount_type
+class _StringsOrderDiscountTypeKo {
+	_StringsOrderDiscountTypeKo._(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+	String get coupon => '쿠폰';
+	String get point => '포인트';
+	String get gift => '기프트';
+	String get partner => '제휴';
 	String get membership => '멤버십';
 }
 
@@ -1155,6 +1208,7 @@ class _StringsSettingsEn extends _StringsSettingsKo {
 	@override late final _StringsSettingsThemeEn theme = _StringsSettingsThemeEn._(_root);
 	@override late final _StringsSettingsCurrencyEn currency = _StringsSettingsCurrencyEn._(_root);
 	@override late final _StringsSettingsDisplayRotateEn display_rotate = _StringsSettingsDisplayRotateEn._(_root);
+	@override late final _StringsSettingsOrderTypeBadgeEn order_type_badge = _StringsSettingsOrderTypeBadgeEn._(_root);
 	@override late final _StringsSettingsKdsIgnoreStatusEn kds_ignore_status = _StringsSettingsKdsIgnoreStatusEn._(_root);
 	@override late final _StringsSettingsLabelFilterEn label_filter = _StringsSettingsLabelFilterEn._(_root);
 	@override late final _StringsSettingsDeveloperOptionsEn developer_options = _StringsSettingsDeveloperOptionsEn._(_root);
@@ -1310,6 +1364,9 @@ class _StringsOrderEn extends _StringsOrderKo {
 	@override String get discount => 'Discount';
 	@override String get payment => 'Total Payment';
 	@override String customer_honorific({required Object name}) => '${name}';
+	@override String ordered_time_short({required Object time}) => 'Ordered at ${time}';
+	@override late final _StringsOrderPaymentMethodEn payment_method = _StringsOrderPaymentMethodEn._(_root);
+	@override late final _StringsOrderDiscountTypeEn discount_type = _StringsOrderDiscountTypeEn._(_root);
 }
 
 // Path: order_detail
@@ -1627,6 +1684,17 @@ class _StringsSettingsDisplayRotateEn extends _StringsSettingsDisplayRotateKo {
 	@override String get desc => 'Rotate the screen 180°. Use this when OS rotation settings are unavailable.';
 }
 
+// Path: settings.order_type_badge
+class _StringsSettingsOrderTypeBadgeEn extends _StringsSettingsOrderTypeBadgeKo {
+	_StringsSettingsOrderTypeBadgeEn._(_StringsEn root) : this._root = root, super._(root);
+
+	@override final _StringsEn _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'Show Dine-in / Takeout Badge';
+	@override String get desc => 'Display a dine-in or takeout badge on the order detail header.';
+}
+
 // Path: settings.kds_ignore_status
 class _StringsSettingsKdsIgnoreStatusEn extends _StringsSettingsKdsIgnoreStatusKo {
 	_StringsSettingsKdsIgnoreStatusEn._(_StringsEn root) : this._root = root, super._(root);
@@ -1735,6 +1803,44 @@ class _StringsHomeTabsEn extends _StringsHomeTabsKo {
 	@override String get order_status => 'Status';
 	@override String get order_history => 'History';
 	@override String get product_management => 'Products';
+	@override String get membership => 'Membership';
+}
+
+// Path: order.payment_method
+class _StringsOrderPaymentMethodEn extends _StringsOrderPaymentMethodKo {
+	_StringsOrderPaymentMethodEn._(_StringsEn root) : this._root = root, super._(root);
+
+	@override final _StringsEn _root; // ignore: unused_field
+
+	// Translations
+	@override String get credit_card => 'Credit Card';
+	@override String get prepaid_card => 'Prepaid Card';
+	@override String get naver_pay => 'Naver Pay';
+	@override String get kakao_pay => 'Kakao Pay';
+	@override String get toss_pay => 'Toss Pay';
+	@override String get apple_pay => 'Apple Pay';
+	@override String get payco => 'PAYCO';
+	@override String get easy_card => 'Easy Card';
+	@override String get mobile_payment => 'Mobile Payment';
+	@override String get qr_payment => 'QR Payment';
+	@override String get felica_transportation => 'Felica Transit';
+	@override String get felica_id => 'Felica iD';
+	@override String get felica_quicpay => 'Felica QUICPay';
+	@override String get cash => 'Cash';
+	@override String get service => 'Service';
+}
+
+// Path: order.discount_type
+class _StringsOrderDiscountTypeEn extends _StringsOrderDiscountTypeKo {
+	_StringsOrderDiscountTypeEn._(_StringsEn root) : this._root = root, super._(root);
+
+	@override final _StringsEn _root; // ignore: unused_field
+
+	// Translations
+	@override String get coupon => 'Coupon';
+	@override String get point => 'Point';
+	@override String get gift => 'Gift';
+	@override String get partner => 'Partner';
 	@override String get membership => 'Membership';
 }
 
@@ -2067,6 +2173,7 @@ class _StringsSettingsJa extends _StringsSettingsKo {
 	@override late final _StringsSettingsThemeJa theme = _StringsSettingsThemeJa._(_root);
 	@override late final _StringsSettingsCurrencyJa currency = _StringsSettingsCurrencyJa._(_root);
 	@override late final _StringsSettingsDisplayRotateJa display_rotate = _StringsSettingsDisplayRotateJa._(_root);
+	@override late final _StringsSettingsOrderTypeBadgeJa order_type_badge = _StringsSettingsOrderTypeBadgeJa._(_root);
 	@override late final _StringsSettingsKdsIgnoreStatusJa kds_ignore_status = _StringsSettingsKdsIgnoreStatusJa._(_root);
 	@override late final _StringsSettingsLabelFilterJa label_filter = _StringsSettingsLabelFilterJa._(_root);
 	@override late final _StringsSettingsDeveloperOptionsJa developer_options = _StringsSettingsDeveloperOptionsJa._(_root);
@@ -2216,6 +2323,9 @@ class _StringsOrderJa extends _StringsOrderKo {
 	@override String get discount => '割引金額';
 	@override String get payment => '決済金額';
 	@override String customer_honorific({required Object name}) => '${name}様';
+	@override String ordered_time_short({required Object time}) => '${time} 注文';
+	@override late final _StringsOrderPaymentMethodJa payment_method = _StringsOrderPaymentMethodJa._(_root);
+	@override late final _StringsOrderDiscountTypeJa discount_type = _StringsOrderDiscountTypeJa._(_root);
 }
 
 // Path: order_detail
@@ -2531,6 +2641,17 @@ class _StringsSettingsDisplayRotateJa extends _StringsSettingsDisplayRotateKo {
 	@override String get desc => '画面を180度回転します。OS側に回転設定がない環境で使用します。';
 }
 
+// Path: settings.order_type_badge
+class _StringsSettingsOrderTypeBadgeJa extends _StringsSettingsOrderTypeBadgeKo {
+	_StringsSettingsOrderTypeBadgeJa._(_StringsJa root) : this._root = root, super._(root);
+
+	@override final _StringsJa _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => '店内/持ち帰り表示';
+	@override String get desc => '注文詳細ヘッダーに店内/持ち帰りバッジを表示します。';
+}
+
 // Path: settings.kds_ignore_status
 class _StringsSettingsKdsIgnoreStatusJa extends _StringsSettingsKdsIgnoreStatusKo {
 	_StringsSettingsKdsIgnoreStatusJa._(_StringsJa root) : this._root = root, super._(root);
@@ -2639,6 +2760,44 @@ class _StringsHomeTabsJa extends _StringsHomeTabsKo {
 	@override String get order_status => '注文状況';
 	@override String get order_history => '注文履歴';
 	@override String get product_management => '商品管理';
+	@override String get membership => 'メンバーシップ';
+}
+
+// Path: order.payment_method
+class _StringsOrderPaymentMethodJa extends _StringsOrderPaymentMethodKo {
+	_StringsOrderPaymentMethodJa._(_StringsJa root) : this._root = root, super._(root);
+
+	@override final _StringsJa _root; // ignore: unused_field
+
+	// Translations
+	@override String get credit_card => 'クレジットカード';
+	@override String get prepaid_card => 'プリペイドカード';
+	@override String get naver_pay => 'Naver Pay';
+	@override String get kakao_pay => 'Kakao Pay';
+	@override String get toss_pay => 'Toss Pay';
+	@override String get apple_pay => 'Apple Pay';
+	@override String get payco => 'PAYCO';
+	@override String get easy_card => '電子マネー';
+	@override String get mobile_payment => 'モバイル決済';
+	@override String get qr_payment => 'QR決済';
+	@override String get felica_transportation => 'Felica交通系';
+	@override String get felica_id => 'Felica iD';
+	@override String get felica_quicpay => 'Felica QUICPay';
+	@override String get cash => '現金';
+	@override String get service => 'サービス';
+}
+
+// Path: order.discount_type
+class _StringsOrderDiscountTypeJa extends _StringsOrderDiscountTypeKo {
+	_StringsOrderDiscountTypeJa._(_StringsJa root) : this._root = root, super._(root);
+
+	@override final _StringsJa _root; // ignore: unused_field
+
+	// Translations
+	@override String get coupon => 'クーポン';
+	@override String get point => 'ポイント';
+	@override String get gift => 'ギフト';
+	@override String get partner => '提携';
 	@override String get membership => 'メンバーシップ';
 }
 

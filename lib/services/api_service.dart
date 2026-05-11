@@ -276,6 +276,12 @@ class ApiService {
           kdsOrderType: 0,
           kioskId: '',
           source: data['orderSource'] as String? ?? '',
+          discountTypes: ((data['orderDiscounts'] as List?) ?? const [])
+              .map((e) =>
+                  (e as Map<String, dynamic>)['discountType']?.toString() ?? '')
+              .where((t) => t.isNotEmpty)
+              .toSet()
+              .toList(),
         );
 
         return order;

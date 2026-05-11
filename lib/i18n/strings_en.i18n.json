@@ -140,6 +140,10 @@
             "title": "Flip Display",
             "desc": "Rotate the screen 180°. Use this when OS rotation settings are unavailable."
         },
+        "order_type_badge": {
+            "title": "Show Dine-in / Takeout Badge",
+            "desc": "Display a dine-in or takeout badge on the order detail header."
+        },
         "kds_ignore_status": {
             "title": "Ignore Other Device Status Updates",
             "desc": "Orders on this screen will not refresh when other KDS devices update pickup or progress status. (Use when you want to control status updates manually)"
@@ -303,7 +307,32 @@
         "amount": "Amount",
         "discount": "Discount",
         "payment": "Total Payment",
-        "customer_honorific": "{name}"
+        "customer_honorific": "{name}",
+        "ordered_time_short": "Ordered at {time}",
+        "payment_method": {
+            "credit_card": "Credit Card",
+            "prepaid_card": "Prepaid Card",
+            "naver_pay": "Naver Pay",
+            "kakao_pay": "Kakao Pay",
+            "toss_pay": "Toss Pay",
+            "apple_pay": "Apple Pay",
+            "payco": "PAYCO",
+            "easy_card": "Easy Card",
+            "mobile_payment": "Mobile Payment",
+            "qr_payment": "QR Payment",
+            "felica_transportation": "Felica Transit",
+            "felica_id": "Felica iD",
+            "felica_quicpay": "Felica QUICPay",
+            "cash": "Cash",
+            "service": "Service"
+        },
+        "discount_type": {
+            "coupon": "Coupon",
+            "point": "Point",
+            "gift": "Gift",
+            "partner": "Partner",
+            "membership": "Membership"
+        }
     },
     "order_detail": {
         "loading": "Loading details...",

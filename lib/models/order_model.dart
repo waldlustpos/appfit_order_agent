@@ -39,6 +39,8 @@ class OrderModel {
   final String orderType; // 키오스크 주문 타입 (T, H, C)
   final int kdsOrderType; // KDS에서 사용하는 주문 타입 (1: 간단, 2: 복잡)
   final bool isDetailLoaded; // 상세 정보 로딩 여부
+  final List<String>
+      discountTypes; // orderDiscounts[].discountType distinct (단건 조회에서만 채움)
 
   OrderModel({
     required this.orderNo,
@@ -69,6 +71,7 @@ class OrderModel {
     required this.kioskId,
     String source = '',
     bool? isDetailLoaded,
+    this.discountTypes = const [],
   })  : source = source,
         displayOrderNo = displayOrderNo,
         updateTime = updateTime ?? DateTime.now(),
@@ -83,6 +86,7 @@ class OrderModel {
     final num = int.tryParse(raw);
     return num != null ? num.toString().padLeft(4, '0') : raw;
   }
+
   String get orderId => orderNo;
   List<OrderMenuModel> get orderMenuList => menus;
   // Getter for backward compatibility alias if needed, though we should change all usages
@@ -202,6 +206,9 @@ class OrderModel {
       source: (json['orderSource'] ?? json['source'])?.toString() ?? '',
       isDetailLoaded:
           json['isDetailLoaded'] ?? (menus.isNotEmpty), // JSON에 없으면 메뉴 유무로 판단
+      discountTypes:
+          (json['discountTypes'] as List?)?.map((e) => e.toString()).toList() ??
+              const [],
     );
 
     // KDS 주문 타입 계산
@@ -255,6 +262,7 @@ class OrderModel {
       'orderType': orderType,
       'kdsOrderType': kdsOrderType,
       'isDetailLoaded': isDetailLoaded,
+      'discountTypes': discountTypes,
     };
   }
 
@@ -315,6 +323,7 @@ class OrderModel {
     String? orderType,
     int? kdsOrderType,
     bool? isDetailLoaded,
+    List<String>? discountTypes,
   }) {
     // menus가 변경되면 캐시 초기화
     if (menus != null) {
@@ -349,7 +358,8 @@ class OrderModel {
         source: source ?? this.source,
         orderType: orderType ?? this.orderType,
         kdsOrderType: kdsOrderType ?? this.kdsOrderType,
-        isDetailLoaded: isDetailLoaded ?? this.isDetailLoaded);
+        isDetailLoaded: isDetailLoaded ?? this.isDetailLoaded,
+        discountTypes: discountTypes ?? this.discountTypes);
   }
 
   // 두 주문의 최신 여부 비교

@@ -48,6 +48,8 @@ class PreferenceService {
   static const String KEY_PRINT_COUNT = "KEY_PRINT_COUNT";
   static const String KEY_LOCAL_SERVER_ENABLED = "KEY_LOCAL_SERVER_ENABLED";
   static const String KEY_USE_LABEL_PRINTER = "KOKONUT_USE_LABEL_PRINTER";
+  static const String KEY_SHOW_ORDER_TYPE_BADGE =
+      "KEY_SHOW_ORDER_TYPE_BADGE"; // 주문 상세 헤더의 매장/포장 pill 노출 여부
 
   // 라벨프린터 테스트 모드 설정 키
   static const String KEY_LABEL_AUTO_REPLY_MODE =
@@ -472,6 +474,9 @@ class PreferenceService {
       _prefs.getBool(KEY_USE_EXTERNAL_PRINTER) ?? false; // Default false
   bool getUseLabelPrinter() =>
       _prefs.getBool(KEY_USE_LABEL_PRINTER) ?? false; // Default false
+  bool getShowOrderTypeBadge() =>
+      _prefs.getBool(KEY_SHOW_ORDER_TYPE_BADGE) ??
+      false; // 주문 상세 헤더 매장/포장 pill 노출 (default off)
 
   // 라벨프린터 테스트 모드 getters
   // autoReplyMode=1: SDK 양방향 통신 활성. PrintedEvent ACK 콜백을 받기 위한 전제.
@@ -545,6 +550,10 @@ class PreferenceService {
 
   Future<void> setUseLabelPrinter(bool value) async {
     await _prefs.setBool(KEY_USE_LABEL_PRINTER, value);
+  }
+
+  Future<void> setShowOrderTypeBadge(bool value) async {
+    await _prefs.setBool(KEY_SHOW_ORDER_TYPE_BADGE, value);
   }
 
   // 라벨프린터 테스트 모드 setters

@@ -31,6 +31,7 @@ class SettingsLeftPanel extends ConsumerStatefulWidget {
     required this.isUseLabelPrinter,
     required this.isTpcpStore,
     required this.labelFilterMode,
+    required this.isShowOrderTypeBadge,
     required this.onModeSwitch,
     required this.onRotated180Changed,
     required this.onAutoStartChanged,
@@ -41,6 +42,7 @@ class SettingsLeftPanel extends ConsumerStatefulWidget {
     required this.onUseExternalPrinterChanged,
     required this.onUseLabelPrinterChanged,
     required this.onLabelFilterModeChanged,
+    required this.onShowOrderTypeBadgeChanged,
   });
 
   final bool isKdsMode;
@@ -54,6 +56,7 @@ class SettingsLeftPanel extends ConsumerStatefulWidget {
   final bool isUseLabelPrinter;
   final bool isTpcpStore;
   final int labelFilterMode;
+  final bool isShowOrderTypeBadge;
 
   final VoidCallback onModeSwitch;
   final void Function(bool) onRotated180Changed;
@@ -65,6 +68,7 @@ class SettingsLeftPanel extends ConsumerStatefulWidget {
   final void Function(bool) onUseExternalPrinterChanged;
   final void Function(bool) onUseLabelPrinterChanged;
   final void Function(int) onLabelFilterModeChanged;
+  final void Function(bool) onShowOrderTypeBadgeChanged;
 
   @override
   ConsumerState<SettingsLeftPanel> createState() => _SettingsLeftPanelState();
@@ -261,6 +265,22 @@ class _SettingsLeftPanelState extends ConsumerState<SettingsLeftPanel> {
                     activeColor: AppStyles.kMainColor,
                     inactiveColor: AppStyles.gray4,
                     onChanged: _handleRotationChange,
+                  ),
+                ),
+                SettingsItemWidget(
+                  title: t.settings.order_type_badge.title,
+                  description: t.settings.order_type_badge.desc,
+                  trailing: CustomSwitch(
+                    value: widget.isShowOrderTypeBadge,
+                    activeColor: AppStyles.kMainColor,
+                    inactiveColor: AppStyles.gray4,
+                    activeText: t.settings.auto_start.on,
+                    inactiveText: t.settings.auto_start.off,
+                    onChanged: (v) {
+                      logToFile(
+                          tag: LogTag.UI_ACTION, message: '매장/포장 표시 변경 -> $v');
+                      widget.onShowOrderTypeBadgeChanged(v);
+                    },
                   ),
                 ),
                 SettingsItemWidget(

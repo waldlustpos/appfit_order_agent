@@ -140,6 +140,10 @@
             "title": "画面上下反転",
             "desc": "画面を180度回転します。OS側に回転設定がない環境で使用します。"
         },
+        "order_type_badge": {
+            "title": "店内/持ち帰り表示",
+            "desc": "注文詳細ヘッダーに店内/持ち帰りバッジを表示します。"
+        },
         "kds_ignore_status": {
             "title": "他端末の進行状態通知を無視",
             "desc": "他のKDSでピックアップ要請などの進行状態を変更しても、この画面の注文は更新されません。(進行状態の更新を手動で管理したい場合に使用)"
@@ -297,7 +301,32 @@
         "amount": "注文金額",
         "discount": "割引金額",
         "payment": "決済金額",
-        "customer_honorific": "{name}様"
+        "customer_honorific": "{name}様",
+        "ordered_time_short": "{time} 注文",
+        "payment_method": {
+            "credit_card": "クレジットカード",
+            "prepaid_card": "プリペイドカード",
+            "naver_pay": "Naver Pay",
+            "kakao_pay": "Kakao Pay",
+            "toss_pay": "Toss Pay",
+            "apple_pay": "Apple Pay",
+            "payco": "PAYCO",
+            "easy_card": "電子マネー",
+            "mobile_payment": "モバイル決済",
+            "qr_payment": "QR決済",
+            "felica_transportation": "Felica交通系",
+            "felica_id": "Felica iD",
+            "felica_quicpay": "Felica QUICPay",
+            "cash": "現金",
+            "service": "サービス"
+        },
+        "discount_type": {
+            "coupon": "クーポン",
+            "point": "ポイント",
+            "gift": "ギフト",
+            "partner": "提携",
+            "membership": "メンバーシップ"
+        }
     },
     "order_detail": {
         "loading": "注文詳細情報を読み込んでいます...",
