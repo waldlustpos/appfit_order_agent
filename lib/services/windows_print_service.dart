@@ -193,7 +193,13 @@ class WindowsPrintService {
       ..boldOff()
       ..ln()
       ..setAlign(EscPos.alignLeft)
-      ..textLn(jsonOrder['storeName'] as String? ?? '')
+      ..textLn(jsonOrder['storeName'] as String? ?? '');
+    final storePhone = jsonOrder['storePhone'] as String?;
+    if (storePhone != null && storePhone.isNotEmpty) {
+      b.textLn('TEL      : $storePhone');
+    }
+    // TODO: 사업자번호는 /v0/shop 응답 추가 후 storeBusinessNumber 키로 주입 예정.
+    b
       ..textLn('[일시]   : ${jsonOrder['ordrDtm'] as String? ?? ''}')
       ..textLn(EscPos.separatorLine(48))
       ..text(EscPos.padRight('메뉴', 28))
@@ -252,9 +258,11 @@ class WindowsPrintService {
       ..setAlign(EscPos.alignLeft)
       ..textLn(EscPos.separatorLine(48));
 
-    final orderPrice = jsonOrder['ordrPrc']?.toString() ?? '0';
-    final discountPrice = jsonOrder['discPrc']?.toString() ?? '0';
-    final paymentPrice = jsonOrder['payPrc']?.toString() ?? '0';
+    // OrderModel.toSunmiJson 이 fmt.format(...) 으로 이미 천단위 콤마 포맷된 문자열을
+    // 넣어두므로 그대로 사용. (이전엔 legacy 키 ordrPrc/discPrc/payPrc 를 읽어 항상 '0'.)
+    final orderPrice = jsonOrder['totalAmount']?.toString() ?? '0';
+    final discountPrice = jsonOrder['discountAmount']?.toString() ?? '0';
+    final paymentPrice = jsonOrder['paymentAmount']?.toString() ?? '0';
 
     b
       ..text(EscPos.padRight('주문금액 : ', 38))
@@ -343,9 +351,8 @@ class WindowsPrintService {
   Future<void> _addLogoIfAvailable(EscPosStreamBuilder builder) async {
     try {
       // 캐시가 없으면 로고 PNG 로드
-      if (_cachedLogoImageBytes == null) {
-        _cachedLogoImageBytes = (await rootBundle.load('assets/images/logo.png')).buffer.asUint8List();
-      }
+      _cachedLogoImageBytes ??=
+          (await rootBundle.load('assets/images/logo.png')).buffer.asUint8List();
       if (_cachedLogoImageBytes != null) {
         await builder.addImageRaster(_cachedLogoImageBytes!);
       }

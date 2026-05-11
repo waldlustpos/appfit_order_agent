@@ -107,11 +107,16 @@ class ApiService {
       if (response.statusCode == 200) {
         final data = response.data['data'] as Map<String, dynamic>;
 
-        // AppFit 데이터를 StoreModel로 매핑
+        // AppFit 데이터를 StoreModel로 매핑.
+        // - phone: shopContact (영수증/주문서 헤더 표시용)
+        // - businessNumber: /v0/shop 응답에 아직 없음. 백엔드 추가 후 매핑 예정.
         return StoreModel(
           storeId: data['shopCode'] as String? ?? storeId,
           name: data['name'] as String? ?? 'Unknown',
           isOpen: data['operatingStatus'] == 'OPEN',
+          phone: (data['shopContact'] as String?)?.trim().isNotEmpty == true
+              ? (data['shopContact'] as String).trim()
+              : null,
         );
       } else {
         throw Exception('매장 정보 조회 실패: ${response.statusCode}');

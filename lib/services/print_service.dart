@@ -217,7 +217,15 @@ class PrintService {
 
       final store = ref.read(storeProvider);
       final orderWithStore = order.copyWith(storeName: store.value?.name);
-      final orderJson = jsonEncode(orderWithStore.toSunmiJson());
+      // OrderModel 에는 storePhone 필드를 추가하지 않고 toSunmiJson 출력 맵에 직접
+      // 주입한다. WindowsPrintService.printReceiptFromJson 이 'storePhone' 키를
+      // 읽어 매장명 아래에 TEL 줄로 출력. (사업자번호는 /v0/shop 응답에 미포함.)
+      final orderMap = orderWithStore.toSunmiJson();
+      final storePhone = store.value?.phone;
+      if (storePhone != null && storePhone.isNotEmpty) {
+        orderMap['storePhone'] = storePhone;
+      }
+      final orderJson = jsonEncode(orderMap);
 
       // 캐시된 설정값이 없는 경우에만 로드
       if (_cachedBuiltinPrinter == null || _cachedExternalPrinter == null) {
@@ -244,8 +252,11 @@ class PrintService {
               '${type == 'order' ? '주문서출력' : '영수증출력'}: displayNum=${order.displayNum}\n--------------------------------------------------------------------------------------------------------------\n');
 
       if (Platform.isWindows) {
-        return await WindowsPrintService()
-            .printOrderFromJson(orderJson, isCancelReceipt);
+        final svc = WindowsPrintService();
+        if (type == 'receipt') {
+          return await svc.printReceiptFromJson(orderJson, isCancelReceipt);
+        }
+        return await svc.printOrderFromJson(orderJson, isCancelReceipt);
       }
 
       await platform.invokeMethod('printOrder', {
