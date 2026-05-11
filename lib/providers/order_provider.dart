@@ -844,20 +844,19 @@ class Order extends _$Order {
       logger.d('[refreshOrders] API 목록 조회 완료: ${basicOrders.length}건');
 
       // 1-1. replication lag 대응: 최근 종결(DONE/CANCELLED) 처리한 주문이
-      // stale 응답으로 *active 상태*로 돌아오는 경우만 차단.
-      // 서버가 올바르게 종결 상태로 응답한 경우는 유지해야 주문내역에서 보인다.
+      // stale 응답으로 *active(NEW/PREPARING)* 상태로 돌아오면 머지 단계에서 사전 필터링.
+      // 서버가 CANCELLED/DONE/READY 등 종결 상태로 정상 응답한 경우는 통과시켜야
+      // 취소건이 주문내역 새로고침에서 사라지는 회귀가 발생하지 않는다.
       final removedIds = _recentRemovals.snapshotIds();
       final filteredBasicOrders = removedIds.isEmpty
           ? basicOrders
-          : basicOrders.where((o) {
-              if (!removedIds.contains(o.orderId)) return true;
-              // 종결 상태로 정상 응답된 주문은 유지, active 부활만 차단.
-              return o.status == OrderStatus.CANCELLED ||
-                  o.status == OrderStatus.DONE;
-            }).toList();
+          : basicOrders
+              .where((o) => !(removedIds.contains(o.orderId) &&
+                  _helper.isActiveOrderStatus(o.status)))
+              .toList();
       if (filteredBasicOrders.length != basicOrders.length) {
         logger.w(
-            '[refreshOrders] 서버 active 부활 차단: ${basicOrders.length - filteredBasicOrders.length}건');
+            '[refreshOrders] 서버 부활 차단(최근 DONE/CANCELLED → active 응답): ${basicOrders.length - filteredBasicOrders.length}건');
       }
 
       // 2. 기존 캐시나 상태에서 상세 정보 복원 및 병합
@@ -927,13 +926,9 @@ class Order extends _$Order {
       // 3. 필터링 및 정렬
       final displayOrders = mergedOrders.where(_shouldShowOrder).toList();
 
-      // 전체 정렬 (오래된 주문 우선 - 오름차순)
-      displayOrders.sort((a, b) {
-        final numA = int.tryParse(a.shopOrderNo) ?? 0;
-        final numB = int.tryParse(b.shopOrderNo) ?? 0;
-        if (numA != numB) return numA.compareTo(numB);
-        return a.updateTime.compareTo(b.updateTime);
-      });
+      // 전체 정렬 — 주문시간(orderedAt) 오름차순 (오래된 주문 우선).
+      // shopOrderNo 는 영업일 리셋 등으로 단조 증가가 보장되지 않으므로 사용 금지.
+      displayOrders.sort((a, b) => a.orderedAt.compareTo(b.orderedAt));
 
       // 4. State 업데이트 (1차: 목록만 빠르게 표시)
       state = state.copyWith(
@@ -1563,13 +1558,8 @@ class Order extends _$Order {
       final updatedOrders = List<OrderModel>.from(state.orders);
       updatedOrders[existingIndex] = updatedOrder;
 
-      // 정렬 (오래된 주문이 앞으로/왼쪽으로 오도록 오름차순) - 작업 순서 보장
-      updatedOrders.sort((a, b) {
-        final numA = int.tryParse(a.shopOrderNo) ?? 0;
-        final numB = int.tryParse(b.shopOrderNo) ?? 0;
-        if (numA != numB) return numA.compareTo(numB);
-        return a.updateTime.compareTo(b.updateTime);
-      });
+      // 정렬 — 주문시간(orderedAt) 오름차순 (오래된 주문이 앞/왼쪽).
+      updatedOrders.sort((a, b) => a.orderedAt.compareTo(b.orderedAt));
 
       // UI 즉시 업데이트 (큐 중복 방지를 위해 큐 추가 제거)
       logger.d('UI 즉시 업데이트 및 정렬: ${updatedOrder.orderId}');
@@ -1598,13 +1588,8 @@ class Order extends _$Order {
       // 상태 목록에 없는 경우 목록에 추가 (필터링은 이미 state.orders에 적용되어 있으므로 다시 적용하지 않음)
       final updatedOrders = [updatedOrder, ...state.orders];
 
-      // 정렬 (오래된 주문이 앞으로/왼쪽으로 오도록 오름차순) - 작업 순서 보장
-      updatedOrders.sort((a, b) {
-        final numA = int.tryParse(a.shopOrderNo) ?? 0;
-        final numB = int.tryParse(b.shopOrderNo) ?? 0;
-        if (numA != numB) return numA.compareTo(numB);
-        return a.updateTime.compareTo(b.updateTime);
-      });
+      // 정렬 — 주문시간(orderedAt) 오름차순 (오래된 주문이 앞/왼쪽).
+      updatedOrders.sort((a, b) => a.orderedAt.compareTo(b.orderedAt));
 
       // UI 즉시 업데이트 (큐 중복 방지를 위해 큐 추가 제거)
       logger.d('새 주문 UI 즉시 추가 및 정렬: ${updatedOrder.orderId}');
@@ -1642,12 +1627,13 @@ class Order extends _$Order {
     final removedIds = _recentRemovals.snapshotIds();
 
     for (final order in newOrders) {
-      // 0. 최근 종결(DONE/CANCELLED) 처리한 주문이 stale 응답으로 *active 상태*로
-      // 부활하는 경우만 차단. 서버가 종결 상태로 응답하면 큐를 통해 정상 반영.
+      // 0. 최근 종결(DONE/CANCELLED) 처리한 주문이 stale 응답으로 *active* 상태로
+      // 부활하는 경우만 차단. 서버가 CANCELLED/DONE 등 종결 상태로 응답한 경우는
+      // 정상 동기화 경로이므로 통과시킨다.
       if (removedIds.contains(order.orderId) &&
-          order.status != OrderStatus.CANCELLED &&
-          order.status != OrderStatus.DONE) {
-        logger.w('[Polling] 서버 active 부활 차단: ${order.orderId} (${order.status})');
+          _helper.isActiveOrderStatus(order.status)) {
+        logger.w(
+            '[Polling] 서버 부활 차단(최근 DONE/CANCELLED → active 응답): ${order.orderId} status=${order.status}');
         continue;
       }
 
