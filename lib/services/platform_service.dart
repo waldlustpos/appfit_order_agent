@@ -44,6 +44,7 @@ enum LogTag {
   SYSTEM,
   ERROR,
   WARNING,
+  SOUNDGRAPH,
 }
 
 Future<void> logToFile({required LogTag tag, required String message}) async {

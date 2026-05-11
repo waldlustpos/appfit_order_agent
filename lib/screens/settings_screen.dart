@@ -69,6 +69,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _isCheckingUpdate = false;
   UpdateInfo? _updateInfo;
   String _selectedEnv = PreferenceService().getEnvironment();
+  bool _isSoundGraphEnabled = false;
+  String _soundGraphMarketId = '';
 
   @override
   void initState() {
@@ -113,6 +115,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _isLocalServerRunning = LocalServerService.instance?.isRunning ?? false;
       _isRotated180 = _preferenceService.getIsRotated180();
       _isAutoCheckUpdate = _preferenceService.getAutoCheckUpdate();
+      _isSoundGraphEnabled = _preferenceService.getSoundGraphOn();
+      _soundGraphMarketId = _preferenceService.getSoundGraphMarketId();
     });
   }
 
@@ -141,6 +145,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await _preferenceService.setSoundNum(_alertCount);
       await _preferenceService.setPrintCount(_printCount);
       await _preferenceService.setLocalServerEnabled(_isLocalServerEnabled);
+      await _preferenceService.setSoundGraphOn(_isSoundGraphEnabled);
+      await _preferenceService.setSoundGraphMarketId(_soundGraphMarketId);
 
       ref.read(orderHistoryScrollProvider.notifier).state =
           _isOrderHistoryScroll;
@@ -500,6 +506,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   _setAndSave(() => _labelFilterMode = v),
               onShowOrderTypeBadgeChanged: (v) =>
                   _setAndSave(() => _isShowOrderTypeBadge = v),
+              isSoundGraphEnabled: _isSoundGraphEnabled,
+              soundGraphMarketId: _soundGraphMarketId,
+              onSoundGraphEnabledChanged: (v) =>
+                  _setAndSave(() => _isSoundGraphEnabled = v),
+              onSoundGraphMarketIdChanged: (v) =>
+                  _setAndSave(() => _soundGraphMarketId = v),
             ),
           ),
           const SizedBox(width: AppSpacing.s16),

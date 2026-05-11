@@ -33,6 +33,15 @@ class MenuOptionModel {
     };
   }
 
+  Map<String, dynamic> toJsonForSoundGraph() {
+    return {
+      'optSku': shopOptionId,
+      'optTitle': optionName,
+      'optCnt': qty,
+      'optPrice': (optionPrice * qty).toInt(),
+    };
+  }
+
   @override
   String toString() {
     return 'MenuOptionModel: $shopOptionId : $optionName : $optionPrice : $qty';

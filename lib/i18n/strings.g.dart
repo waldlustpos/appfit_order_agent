@@ -4,9 +4,9 @@
 /// To regenerate, run: `dart run slang`
 ///
 /// Locales: 3
-/// Strings: 1085 (361 per locale)
+/// Strings: 1103 (367 per locale)
 ///
-/// Built on 2026-05-11 at 04:18 UTC
+/// Built on 2026-05-11 at 06:12 UTC
 
 // coverage:ignore-file
 // ignore_for_file: type=lint
@@ -258,6 +258,7 @@ class _StringsSettingsKo {
 	late final _StringsSettingsKioskKo kiosk = _StringsSettingsKioskKo._(_root);
 	late final _StringsSettingsLocalServerKo local_server = _StringsSettingsLocalServerKo._(_root);
 	late final _StringsSettingsConnectionKo connection = _StringsSettingsConnectionKo._(_root);
+	late final _StringsSettingsSoundgraphKo soundgraph = _StringsSettingsSoundgraphKo._(_root);
 	late final _StringsSettingsAppUpdateKo app_update = _StringsSettingsAppUpdateKo._(_root);
 }
 
@@ -810,6 +811,21 @@ class _StringsSettingsConnectionKo {
 	String get reconnect => '재연결';
 }
 
+// Path: settings.soundgraph
+class _StringsSettingsSoundgraphKo {
+	_StringsSettingsSoundgraphKo._(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+	String get title => '사운드그래프 주문전송';
+	String get desc => '주문 접수 시 SoundGraph 로 주문 정보를 전송합니다.';
+	String get market_id_placeholder => 'MARKET ID 입력';
+	String get market_id_dialog_title => 'MARKET ID 입력';
+	String get market_id_dialog_save => '저장';
+	String get market_id_dialog_cancel => '취소';
+}
+
 // Path: settings.app_update
 class _StringsSettingsAppUpdateKo {
 	_StringsSettingsAppUpdateKo._(this._root);
@@ -1215,6 +1231,7 @@ class _StringsSettingsEn extends _StringsSettingsKo {
 	@override late final _StringsSettingsKioskEn kiosk = _StringsSettingsKioskEn._(_root);
 	@override late final _StringsSettingsLocalServerEn local_server = _StringsSettingsLocalServerEn._(_root);
 	@override late final _StringsSettingsConnectionEn connection = _StringsSettingsConnectionEn._(_root);
+	@override late final _StringsSettingsSoundgraphEn soundgraph = _StringsSettingsSoundgraphEn._(_root);
 	@override late final _StringsSettingsAppUpdateEn app_update = _StringsSettingsAppUpdateEn._(_root);
 }
 
@@ -1775,6 +1792,21 @@ class _StringsSettingsConnectionEn extends _StringsSettingsConnectionKo {
 	@override String get reconnect => 'Reconnect';
 }
 
+// Path: settings.soundgraph
+class _StringsSettingsSoundgraphEn extends _StringsSettingsSoundgraphKo {
+	_StringsSettingsSoundgraphEn._(_StringsEn root) : this._root = root, super._(root);
+
+	@override final _StringsEn _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'SoundGraph Order Push';
+	@override String get desc => 'Sends order info to SoundGraph when an order is accepted.';
+	@override String get market_id_placeholder => 'Enter MARKET ID';
+	@override String get market_id_dialog_title => 'Enter MARKET ID';
+	@override String get market_id_dialog_save => 'Save';
+	@override String get market_id_dialog_cancel => 'Cancel';
+}
+
 // Path: settings.app_update
 class _StringsSettingsAppUpdateEn extends _StringsSettingsAppUpdateKo {
 	_StringsSettingsAppUpdateEn._(_StringsEn root) : this._root = root, super._(root);
@@ -2180,6 +2212,7 @@ class _StringsSettingsJa extends _StringsSettingsKo {
 	@override late final _StringsSettingsKioskJa kiosk = _StringsSettingsKioskJa._(_root);
 	@override late final _StringsSettingsLocalServerJa local_server = _StringsSettingsLocalServerJa._(_root);
 	@override late final _StringsSettingsConnectionJa connection = _StringsSettingsConnectionJa._(_root);
+	@override late final _StringsSettingsSoundgraphJa soundgraph = _StringsSettingsSoundgraphJa._(_root);
 	@override late final _StringsSettingsAppUpdateJa app_update = _StringsSettingsAppUpdateJa._(_root);
 }
 
@@ -2730,6 +2763,21 @@ class _StringsSettingsConnectionJa extends _StringsSettingsConnectionKo {
 	@override String get connected => '接続済み';
 	@override String get disconnected => '未接続';
 	@override String get reconnect => '再接続';
+}
+
+// Path: settings.soundgraph
+class _StringsSettingsSoundgraphJa extends _StringsSettingsSoundgraphKo {
+	_StringsSettingsSoundgraphJa._(_StringsJa root) : this._root = root, super._(root);
+
+	@override final _StringsJa _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'SoundGraph 注文送信';
+	@override String get desc => '注文受付時にSoundGraphへ注文情報を送信します。';
+	@override String get market_id_placeholder => 'MARKET IDを入力';
+	@override String get market_id_dialog_title => 'MARKET IDを入力';
+	@override String get market_id_dialog_save => '保存';
+	@override String get market_id_dialog_cancel => 'キャンセル';
 }
 
 // Path: settings.app_update

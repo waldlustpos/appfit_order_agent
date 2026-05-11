@@ -87,6 +87,16 @@ class OrderMenuModel {
     return (itemPrice * qty) + optionsPrice;
   }
 
+  Map<String, dynamic> toJsonForSoundGraph() {
+    return {
+      'skuNo': shopItemId,
+      'menuTitle': itemName,
+      'amount': itemPrice.toInt(),
+      'cnt': qty,
+      'options': options.map((o) => o.toJsonForSoundGraph()).toList(),
+    };
+  }
+
   @override
   String toString() {
     return '$shopItemId:$itemName:$itemPrice:$qty';

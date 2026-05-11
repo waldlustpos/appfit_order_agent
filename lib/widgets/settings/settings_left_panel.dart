@@ -43,6 +43,10 @@ class SettingsLeftPanel extends ConsumerStatefulWidget {
     required this.onUseLabelPrinterChanged,
     required this.onLabelFilterModeChanged,
     required this.onShowOrderTypeBadgeChanged,
+    required this.isSoundGraphEnabled,
+    required this.soundGraphMarketId,
+    required this.onSoundGraphEnabledChanged,
+    required this.onSoundGraphMarketIdChanged,
   });
 
   final bool isKdsMode;
@@ -69,6 +73,10 @@ class SettingsLeftPanel extends ConsumerStatefulWidget {
   final void Function(bool) onUseLabelPrinterChanged;
   final void Function(int) onLabelFilterModeChanged;
   final void Function(bool) onShowOrderTypeBadgeChanged;
+  final bool isSoundGraphEnabled;
+  final String soundGraphMarketId;
+  final void Function(bool) onSoundGraphEnabledChanged;
+  final void Function(String) onSoundGraphMarketIdChanged;
 
   @override
   ConsumerState<SettingsLeftPanel> createState() => _SettingsLeftPanelState();
@@ -486,9 +494,80 @@ class _SettingsLeftPanelState extends ConsumerState<SettingsLeftPanel> {
               ],
             ),
             const SizedBox(height: AppSpacing.s16),
+
+            // ── SoundGraph 설정 카드 ───────────────────────────────────────
+            if (!widget.isKdsMode)
+              SettingsSectionCard(
+                title: t.settings.soundgraph.title,
+                icon: Icons.notifications_active_outlined,
+                children: [
+                  SettingsItemWidget(
+                    title: t.settings.soundgraph.title,
+                    description: t.settings.soundgraph.desc,
+                    showDivider: widget.isSoundGraphEnabled,
+                    trailing: CustomSwitch(
+                      value: widget.isSoundGraphEnabled,
+                      activeColor: AppStyles.kMainColor,
+                      inactiveColor: AppStyles.gray4,
+                      activeText: t.settings.auto_start.on,
+                      inactiveText: t.settings.auto_start.off,
+                      onChanged: (v) {
+                        logToFile(
+                            tag: LogTag.UI_ACTION,
+                            message: 'SoundGraph 주문전송 변경 -> $v');
+                        widget.onSoundGraphEnabledChanged(v);
+                      },
+                    ),
+                  ),
+                  if (widget.isSoundGraphEnabled)
+                    SettingsItemWidget(
+                      title: t.settings.soundgraph.market_id_dialog_title,
+                      description: widget.soundGraphMarketId.isEmpty
+                          ? t.settings.soundgraph.market_id_placeholder
+                          : widget.soundGraphMarketId,
+                      showDivider: false,
+                      trailing: IconButton(
+                        icon: const Icon(Icons.edit_outlined,
+                            color: AppStyles.gray6),
+                        onPressed: () => _showMarketIdDialog(context, t),
+                      ),
+                    ),
+                ],
+              ),
+            const SizedBox(height: AppSpacing.s16),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _showMarketIdDialog(BuildContext context, Translations t) async {
+    final controller = TextEditingController(text: widget.soundGraphMarketId);
+    final result = await showDialog<String>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(t.settings.soundgraph.market_id_dialog_title),
+        content: TextField(
+          controller: controller,
+          decoration: InputDecoration(
+            hintText: t.settings.soundgraph.market_id_placeholder,
+          ),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(t.settings.soundgraph.market_id_dialog_cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            child: Text(t.settings.soundgraph.market_id_dialog_save),
+          ),
+        ],
+      ),
+    );
+    if (result != null) {
+      widget.onSoundGraphMarketIdChanged(result);
+    }
   }
 }

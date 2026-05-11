@@ -186,6 +186,14 @@
             "disconnected": "Disconnected",
             "reconnect": "Reconnect"
         },
+        "soundgraph": {
+            "title": "SoundGraph Order Push",
+            "desc": "Sends order info to SoundGraph when an order is accepted.",
+            "market_id_placeholder": "Enter MARKET ID",
+            "market_id_dialog_title": "Enter MARKET ID",
+            "market_id_dialog_save": "Save",
+            "market_id_dialog_cancel": "Cancel"
+        },
         "app_update": {
             "auto_check_title": "Check for updates on startup",
             "auto_check_desc": "Automatically check for the latest version on app launch.",

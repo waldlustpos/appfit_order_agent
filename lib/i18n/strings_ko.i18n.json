@@ -186,6 +186,14 @@
             "disconnected": "연결 안 됨",
             "reconnect": "재연결"
         },
+        "soundgraph": {
+            "title": "사운드그래프 주문전송",
+            "desc": "주문 접수 시 SoundGraph 로 주문 정보를 전송합니다.",
+            "market_id_placeholder": "MARKET ID 입력",
+            "market_id_dialog_title": "MARKET ID 입력",
+            "market_id_dialog_save": "저장",
+            "market_id_dialog_cancel": "취소"
+        },
         "app_update": {
             "auto_check_title": "시작 시 앱 업데이트 확인",
             "auto_check_desc": "앱 시작 시 자동으로 최신 버전을 확인합니다.",

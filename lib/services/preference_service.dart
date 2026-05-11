@@ -37,6 +37,8 @@ class PreferenceService {
   static const String KEY_KIOSK_PRINT_AND_SOUND = "IS_KIOSK_PRINT_AND_SOUND";
   static const String KEY_USE_PRINT = "KEY_USE_PRINT";
   static const String KEY_PRINTED_ORDERS = "KEY_PRINTED_ORDERS";
+  static const String KEY_SOUNDGRAPH_ON = "KEY_SOUNDGRAPH_ON";
+  static const String KEY_SOUNDGRAPH_MARKETID = "KEY_SOUNDGRAPH_MARKETID";
   static const String KEY_IS_DEV = "IS_DEV";
   static const String KEY_ENVIRONMENT = 'appfit_environment';
 
@@ -446,6 +448,15 @@ class PreferenceService {
   }
 
   int getWaitMin() => _prefs.getInt(KEY_WAIT_MIN) ?? 0;
+  bool getSoundGraphOn() => _prefs.getBool(KEY_SOUNDGRAPH_ON) ?? false;
+  Future<void> setSoundGraphOn(bool value) async =>
+      _prefs.setBool(KEY_SOUNDGRAPH_ON, value);
+
+  String getSoundGraphMarketId() =>
+      _prefs.getString(KEY_SOUNDGRAPH_MARKETID) ?? '';
+  Future<void> setSoundGraphMarketId(String value) async =>
+      _prefs.setString(KEY_SOUNDGRAPH_MARKETID, value);
+
   bool getAutoReceipt() {
     final value = _prefs.getBool(KEY_AUTO_RECEIPT) ?? true;
     logger.i('[PreferenceService] 자동접수 설정 조회: $value');

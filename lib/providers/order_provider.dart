@@ -21,6 +21,7 @@ import 'package:appfit_order_agent/core/orders/blink_service.dart';
 import 'package:appfit_order_agent/core/orders/output_service.dart';
 import 'package:appfit_order_agent/core/orders/order_queue_service.dart';
 import 'package:appfit_order_agent/services/output_queue_service.dart'; // [NEW]
+import 'package:appfit_order_agent/services/soundgraph_service.dart';
 
 import 'package:appfit_order_agent/core/orders/cache/order_detail_cache.dart';
 import 'package:appfit_order_agent/core/orders/cache/processed_order_cache.dart';
@@ -625,6 +626,8 @@ class Order extends _$Order {
                 '$modeText: 키오스크 출력/알람 OFF로 주문서 출력 스킵 - 주문: ${order.orderId}');
           }
 
+          _triggerSoundGraphSend(order);
+
           // 첫 주문 자동접수 성공 시 초기 알람 플래그 비활성화
           if (_shouldPlayInitialAlarm) {
             logger.d('$modeText: 첫 주문 자동접수 성공으로 초기 알람 플래그 비활성화');
@@ -677,6 +680,39 @@ class Order extends _$Order {
   }
 
   // (정리) _processAcceptedKioskOrder: 사용되지 않아 제거
+
+  void _triggerSoundGraphSend(OrderModel order) {
+    final prefs = PreferenceService();
+    if (!prefs.getSoundGraphOn()) return;
+    final marketId = prefs.getSoundGraphMarketId();
+    if (marketId.isEmpty) {
+      logToFile(
+        tag: LogTag.SOUNDGRAPH,
+        message:
+            '[SoundGraph] enabled but marketId empty, skip ${order.orderNo}',
+      );
+      return;
+    }
+    if (order.menus.isEmpty) {
+      logToFile(
+        tag: LogTag.SOUNDGRAPH,
+        message: '[SoundGraph] menus empty, skip ${order.orderNo}',
+      );
+      return;
+    }
+    final payload = order.toJsonForSoundGraph(marketId);
+    ref.read(soundGraphServiceProvider).sendOrder(payload).then((ok) {
+      logToFile(
+        tag: LogTag.SOUNDGRAPH,
+        message: ok
+            ? '[SoundGraph] send OK ${order.orderNo}'
+            : '[SoundGraph] send FAIL ${order.orderNo}',
+      );
+    }).catchError((e, s) {
+      logger.e('[SoundGraph] sendOrder error ${order.orderNo}',
+          error: e, stackTrace: s);
+    });
+  }
 
   // 리팩토링 후:
   int _calculateActiveOrderCount(List<OrderModel> orders) {

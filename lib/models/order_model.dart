@@ -266,6 +266,20 @@ class OrderModel {
     };
   }
 
+  Map<String, dynamic> toJsonForSoundGraph(String marketId) {
+    final orderChannel = paymentCode.toUpperCase().contains('KIOSK') ? 1 : 2;
+    final vibBell = int.tryParse(displayNum) ?? 0;
+    return {
+      'brandId': 'mmth',
+      'marketId': marketId,
+      'orderChannel': orderChannel,
+      'vibBell': vibBell,
+      'orderId': orderNo,
+      'orders': menus.map((m) => m.toJsonForSoundGraph()).toList(),
+      'kioskId': kioskId,
+    };
+  }
+
   /// Sunmi 프린터 전용 JSON. 숫자는 포맷된 문자열, Sunmi 호환 키 포함.
   Map<String, dynamic> toSunmiJson() {
     final fmt = NumberFormat('#,###');

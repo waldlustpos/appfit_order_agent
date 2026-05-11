@@ -186,6 +186,14 @@
             "disconnected": "未接続",
             "reconnect": "再接続"
         },
+        "soundgraph": {
+            "title": "SoundGraph 注文送信",
+            "desc": "注文受付時にSoundGraphへ注文情報を送信します。",
+            "market_id_placeholder": "MARKET IDを入力",
+            "market_id_dialog_title": "MARKET IDを入力",
+            "market_id_dialog_save": "保存",
+            "market_id_dialog_cancel": "キャンセル"
+        },
         "app_update": {
             "auto_check_title": "起動時にアプリ更新を確認",
             "auto_check_desc": "アプリ起動時に自動的に最新バージョンを確認します。",
