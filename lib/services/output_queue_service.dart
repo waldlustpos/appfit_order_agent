@@ -67,18 +67,10 @@ class OutputQueueService {
   /// (WebSocket+폴링 이중 트리거 안전망).
   void add(OrderModel order, {bool playSound = true, bool printLabel = true}) {
     final id = order.orderId;
-    final num = order.displayNum;
-    if (_inFlightNewOrders.contains(id)) {
-      _life('[Label] $num 큐중복무시 (NEW, 진행/대기 중)');
-      return;
-    }
+    if (_inFlightNewOrders.contains(id)) return;
     _inFlightNewOrders.add(id);
     _queue
         .add(NewOrderJob(order, playSound: playSound, printLabel: printLabel));
-    _life('[Label] $num 큐추가 (NEW'
-        '${printLabel ? '' : ', 라벨X'}'
-        '${playSound ? '' : ', 무음'}'
-        ', 대기열: ${_queue.length})');
   }
 
   // 진행 중/대기 중 NewOrderJob 의 orderId 추적. _processItem 종료 시 제거.
@@ -88,14 +80,9 @@ class OutputQueueService {
   /// 동일 orderId 가 이미 진행/대기 중이면 중복 무시.
   void addLabelOnly(OrderModel order) {
     final id = order.orderId;
-    final num = order.displayNum;
-    if (_inFlightLabelOnly.contains(id)) {
-      _life('[Label] $num 큐중복무시 (LABEL_ONLY, 진행/대기 중)');
-      return;
-    }
+    if (_inFlightLabelOnly.contains(id)) return;
     _inFlightLabelOnly.add(id);
     _queue.add(LabelOnlyJob(order));
-    _life('[Label] $num 큐추가 (LABEL_ONLY, 대기열: ${_queue.length})');
   }
 
   // 진행 중/대기 중 LabelOnlyJob 의 orderId 추적.
@@ -105,14 +92,9 @@ class OutputQueueService {
   /// 동일 orderId 의 ReprintJob 이 이미 대기 중이거나 처리 중이면 중복 추가를 무시한다.
   void addReprint(OrderModel order) {
     final id = order.orderId;
-    final num = order.displayNum;
-    if (_inFlightReprints.contains(id)) {
-      _life('[Label] $num 큐중복무시 (REPRINT, 진행/대기 중)');
-      return;
-    }
+    if (_inFlightReprints.contains(id)) return;
     _inFlightReprints.add(id);
     _queue.add(ReprintJob(order));
-    _life('[Label] $num 큐추가 (REPRINT, 대기열: ${_queue.length})');
   }
 
   // 진행 중/대기 중 ReprintJob 의 orderId 추적. _processItem 종료 시 제거.
@@ -123,9 +105,6 @@ class OutputQueueService {
   void addReceiptReprint(OrderModel order) {
     final isCancelled = order.status == OrderStatus.CANCELLED;
     _queue.add(ReceiptReprintJob(order, isCancelReceipt: isCancelled));
-    _life('[Label] ${order.displayNum} 큐추가 (RECEIPT_REPRINT'
-        '${isCancelled ? ', 취소영수증' : ''}'
-        ', 대기열: ${_queue.length})');
   }
 
   Future<void> _processItem(OutputJob job) async {

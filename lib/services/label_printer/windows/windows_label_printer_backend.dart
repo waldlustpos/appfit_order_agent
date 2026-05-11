@@ -21,7 +21,8 @@ import 'autoreplyprint_constants.dart';
 class WindowsLabelPrinterBackend {
   WindowsLabelPrinterBackend._();
 
-  static final WindowsLabelPrinterBackend instance = WindowsLabelPrinterBackend._();
+  static final WindowsLabelPrinterBackend instance =
+      WindowsLabelPrinterBackend._();
 
   // ---------------------------------------------------------------------------
   // SDK 호출 시 사용하는 상수
@@ -165,8 +166,7 @@ class WindowsLabelPrinterBackend {
       completer.complete(result);
       return result;
     } catch (e, s) {
-      logger.e('[LabelPrinter] printPng exception',
-          error: e, stackTrace: s);
+      logger.e('[LabelPrinter] printPng exception', error: e, stackTrace: s);
       completer.complete(false);
       return false;
     } finally {
@@ -195,8 +195,6 @@ class WindowsLabelPrinterBackend {
       return false;
     }
 
-    // 1) 포트 보장.
-    logger.i('$tag step1: ensurePortOpen');
     if (!await _ensurePortOpen(options.autoReplyMode)) {
       logger.w('$tag 포트 오픈 실패');
       return false;
@@ -232,19 +230,12 @@ class WindowsLabelPrinterBackend {
     // 4) 라벨 모드는 한 번 진입하면 포트 close 전까지 유지된다. 매번 호출하면
     //    펌웨어 모드 전환 명령이 매번 송출되어 텀 발생. 첫 진입 시 1회만 호출.
     if (!_labelModeEnabled) {
-      logger.i('$tag step4: CP_Label_EnableLabelMode (first-time)');
       bindings.labelEnableLabelMode(_hPrinter);
       _labelModeEnabled = true;
     }
-    logger.i('$tag step5: CP_Pos_ResetPrinter');
-    final tStep5 = DateTime.now();
     bindings.posResetPrinter(_hPrinter);
-    logger.i(
-        '$tag step5 done: elapsed=${DateTime.now().difference(tStep5).inMilliseconds}ms');
 
     // 5) PageBegin → DrawImageFromData → PagePrint.
-    logger.i('$tag step6: CP_Label_PageBegin ${width}x$height');
-    final tStep6 = DateTime.now();
     final beginRc = bindings.labelPageBegin(
       _hPrinter,
       0,
@@ -253,8 +244,6 @@ class WindowsLabelPrinterBackend {
       height,
       CpLabelRotation.rot0,
     );
-    logger.i(
-        '$tag step6 done: rc=$beginRc elapsed=${DateTime.now().difference(tStep6).inMilliseconds}ms');
     if (beginRc == 0) {
       logger.w('$tag CP_Label_PageBegin 실패');
       return false;
@@ -267,9 +256,6 @@ class WindowsLabelPrinterBackend {
     final pngPtr = malloc.allocate<ffi.Uint8>(pngBytes.length);
     try {
       pngPtr.asTypedList(pngBytes.length).setAll(0, pngBytes);
-      logger.i(
-          '$tag step7: CP_Label_DrawImageFromData (${pngBytes.length}B PNG)');
-      final tStep7 = DateTime.now();
       final drawRc = bindings.labelDrawImageFromData(
         _hPrinter,
         0,
@@ -281,18 +267,12 @@ class WindowsLabelPrinterBackend {
         CpImageBinarization.thresholding,
         CpImageCompression.none,
       );
-      logger.i(
-          '$tag step7 done: rc=$drawRc elapsed=${DateTime.now().difference(tStep7).inMilliseconds}ms');
       if (drawRc == 0) {
         logger.w('$tag CP_Label_DrawImageFromData 실패');
         return false;
       }
 
-      logger.i('$tag step8: CP_Label_PagePrint(1)');
-      final tStep8 = DateTime.now();
       final printRc = bindings.labelPagePrint(_hPrinter, 1);
-      logger.i(
-          '$tag step8 done: rc=$printRc elapsed=${DateTime.now().difference(tStep8).inMilliseconds}ms');
       if (printRc == 0) {
         logger.w('$tag CP_Label_PagePrint 실패');
         return false;
@@ -312,7 +292,6 @@ class WindowsLabelPrinterBackend {
     // 폴링 timeout 까지 신호가 하나도 안 오면 fallback 으로 SDK
     // QueryPrintResult 를 1회 호출 (메모리 invariant: "두 번째 QueryPrintResult
     // 호출 금지" — fallback 은 1차 폴링과 1회만이므로 invariant 보존).
-    logger.i('$tag step9: ACK/beacon poll');
     // 폴링 timeout: 5장 부하 테스트에서 ACK 도착이 PagePrint 후 최대 1.7초까지
     // 지연되는 케이스 관찰됨 (SEQ 1, ACK pageId=0). paperFetch 비콘이 잡히는
     // 정상 케이스는 0~700ms 에 즉시 break 하므로 timeout 을 길게 잡아도 영향
@@ -328,14 +307,9 @@ class WindowsLabelPrinterBackend {
           fastPollTimeoutMs) {
         break;
       }
-      await Future.delayed(
-          const Duration(milliseconds: fastPollIntervalMs));
+      await Future.delayed(const Duration(milliseconds: fastPollIntervalMs));
     }
     bool ackArrived = _printedAckCount > ackBefore;
-    final pollElapsed = DateTime.now().difference(tPoll).inMilliseconds;
-    logger.i(
-        '$tag step9 poll done: ack=$ackArrived paperFetch=$_lastInfoPaperNoFetch '
-        'noPaper=$_lastInfoNoPaperCanceled elapsed=${pollElapsed}ms');
 
     // 용지없음 race - 즉시 실패 (Dart 재시도 위임).
     if (_lastInfoNoPaperCanceled) {
@@ -346,8 +320,6 @@ class WindowsLabelPrinterBackend {
     // 폴링 timeout 인데 신호가 하나도 없으면 fallback QueryPrintResult.
     // SDK 가 콜백/비콘 모두 발화하지 않은 케이스 - 보수적으로 SDK 에 직접 질의.
     if (!ackArrived && !_lastInfoPaperNoFetch) {
-      logger.w('$tag step9 fallback: CP_Pos_QueryPrintResult (isolate)');
-      final tQuery = DateTime.now();
       final handleAddr = _hPrinter.address;
       final queryRc = await Isolate.run<int>(() {
         final innerBindings = AutoReplyPrintBindings.instance;
@@ -356,10 +328,6 @@ class WindowsLabelPrinterBackend {
             innerHandle, _kQueryPrintResultTimeoutMs);
       });
       ackArrived = _printedAckCount > ackBefore;
-      final queryElapsed =
-          DateTime.now().difference(tQuery).inMilliseconds;
-      logger.i('$tag step9 fallback done: rc=$queryRc ack=$ackArrived '
-          'paperFetch=$_lastInfoPaperNoFetch elapsed=${queryElapsed}ms');
       if (queryRc == 0 && !ackArrived && !_lastInfoPaperNoFetch) {
         logger.w('$tag step9 fallback timeout — 인쇄 신호 없음');
         return false;
@@ -372,11 +340,7 @@ class WindowsLabelPrinterBackend {
     }
 
     if (options.useFeedToTear) {
-      logger.i('$tag step10: CP_Label_FeedLabel');
-      final tStep10 = DateTime.now();
       bindings.labelFeedLabel(_hPrinter);
-      logger.i(
-          '$tag step10 done: elapsed=${DateTime.now().difference(tStep10).inMilliseconds}ms');
     }
 
     // PagePrint 후 추가 sleep 없음. 다음 호출의 _waitIdleGate 가 비콘 idle
@@ -410,13 +374,11 @@ class WindowsLabelPrinterBackend {
       if (prev != null) {
         await prev.catchError((_) => false);
       }
-      logger.i('[LabelPrinter] warmupOpen 시작 (autoReply=$autoReplyMode)');
       final ok = await _ensurePortOpen(autoReplyMode);
       if (ok) {
         if (!_printedCallbackRegistered) _registerPrintedCallback();
         if (!_statusCallbackRegistered) _registerStatusCallback();
       }
-      logger.i('[LabelPrinter] warmupOpen 결과 ok=$ok');
       completer.complete(ok);
       return ok;
     } catch (e, s) {
@@ -526,10 +488,7 @@ class WindowsLabelPrinterBackend {
     final buffer = malloc.allocate<ffi.Uint8>(bufSize);
     try {
       final rc = bindings.portEnumUsb(buffer, bufSize, ffi.nullptr);
-      if (rc == 0) {
-        logger.i('[LabelPrinter] CP_Port_EnumUsb rc=0 (빈 결과)');
-        return const [];
-      }
+      if (rc == 0) return const [];
       final bytes = buffer.asTypedList(bufSize);
       final names = <String>[];
       int offset = 0;
@@ -544,11 +503,9 @@ class WindowsLabelPrinterBackend {
         if (name.isNotEmpty) names.add(name);
         offset = end + 1;
       }
-      logger.i('[LabelPrinter] CP_Port_EnumUsb -> $names');
       return names;
     } catch (e, s) {
-      logger.e('[LabelPrinter] CP_Port_EnumUsb 예외',
-          error: e, stackTrace: s);
+      logger.e('[LabelPrinter] CP_Port_EnumUsb 예외', error: e, stackTrace: s);
       return const [];
     } finally {
       malloc.free(buffer);
@@ -557,7 +514,6 @@ class WindowsLabelPrinterBackend {
 
   bool _tryOpenUsb(
       AutoReplyPrintBindings bindings, String name, int autoReplyMode) {
-    logger.i('[LabelPrinter] CP_Port_OpenUsb 시도 -> $name (autoReply=$autoReplyMode)');
     final namePtr = name.toNativeUtf8();
     ffi.Pointer<ffi.Void> handle;
     try {
@@ -579,13 +535,12 @@ class WindowsLabelPrinterBackend {
       // 라벨 모드는 핸들과 결합되므로 핸들이 새로 열리면 다시 진입해야 한다.
       _labelModeEnabled = false;
       _resetStatusBeacon();
-      logger.i('[LabelPrinter] 포트 오픈 성공: $name handle=${handle.address}');
+      logger.i('[LabelPrinter] 포트 오픈 성공: $name');
       return true;
     }
     if (handle.address != 0) {
       bindings.portClose(handle);
     }
-    logger.i('[LabelPrinter] $name 미오픈 (handle=${handle.address})');
     return false;
   }
 
@@ -601,10 +556,8 @@ class WindowsLabelPrinterBackend {
         ffi.nullptr,
       );
       _statusCallbackRegistered = rc != 0;
-      logger.i('[LabelPrinter] status callback 등록 rc=$rc');
     } catch (e, s) {
-      logger.e('[LabelPrinter] status callback 등록 실패',
-          error: e, stackTrace: s);
+      logger.e('[LabelPrinter] status callback 등록 실패', error: e, stackTrace: s);
       _statusCallbackRegistered = false;
     }
   }
@@ -622,7 +575,6 @@ class WindowsLabelPrinterBackend {
         ffi.nullptr,
       );
       _printedCallbackRegistered = rc != 0;
-      logger.i('[LabelPrinter] printed callback 등록 rc=$rc');
     } catch (e, s) {
       logger.e('[LabelPrinter] printed callback 등록 실패',
           error: e, stackTrace: s);
@@ -636,7 +588,6 @@ class WindowsLabelPrinterBackend {
     ffi.Pointer<ffi.Void> ctx,
   ) {
     _printedAckCount++;
-    logger.i('[LabelPrinter] PrintedEvent ACK pageId=$printedPageId count=$_printedAckCount');
   }
 
   void _resetStatusBeacon() {
@@ -659,18 +610,13 @@ class WindowsLabelPrinterBackend {
   ) {
     _lastErrorStatusBits = errorStatus;
     _lastErrorOccurred = errorStatus != 0;
-    _lastErrorIsNoPaper =
-        (errorStatus & CpPrinterErrorBits.noPaper) != 0;
-    _lastErrorIsCoverUp =
-        (errorStatus & CpPrinterErrorBits.coverUp) != 0;
-    _lastInfoRecvIdle =
-        (infoStatus & CpPrinterInfoBits.recvIdle) != 0;
-    _lastInfoPrintIdle =
-        (infoStatus & CpPrinterInfoBits.printIdle) != 0;
+    _lastErrorIsNoPaper = (errorStatus & CpPrinterErrorBits.noPaper) != 0;
+    _lastErrorIsCoverUp = (errorStatus & CpPrinterErrorBits.coverUp) != 0;
+    _lastInfoRecvIdle = (infoStatus & CpPrinterInfoBits.recvIdle) != 0;
+    _lastInfoPrintIdle = (infoStatus & CpPrinterInfoBits.printIdle) != 0;
     _lastInfoNoPaperCanceled =
         (infoStatus & CpPrinterInfoBits.noPaperCanceled) != 0;
-    _lastInfoPaperNoFetch =
-        (infoStatus & CpPrinterInfoBits.paperNoFetch) != 0;
+    _lastInfoPaperNoFetch = (infoStatus & CpPrinterInfoBits.paperNoFetch) != 0;
 
     // ERROR phase 변경 시 1회만 로깅 (Java _loggedErrorPhase 패턴).
     // _currentTag 가 set 되어 있으면 어느 라벨에서 비콘이 떴는지 추적 가능.
@@ -681,9 +627,6 @@ class WindowsLabelPrinterBackend {
       if (loggedBits != 0) {
         logger.w(
             '[LabelPrinter]$prefix error beacon=0x${loggedBits.toRadixString(16)} info=0x${infoStatus.toRadixString(16)}');
-      } else {
-        logger.i(
-            '[LabelPrinter]$prefix error cleared, info=0x${infoStatus.toRadixString(16)}');
       }
     }
   }
@@ -733,20 +676,17 @@ class WindowsLabelPrinterBackend {
             try {
               bindings.printerClearError(_hPrinter);
             } catch (e, s) {
-              logger.w('$tag printerClearError 예외',
-                  error: e, stackTrace: s);
+              logger.w('$tag printerClearError 예외', error: e, stackTrace: s);
             }
             try {
               bindings.printerClearBuffer(_hPrinter);
             } catch (e, s) {
-              logger.w('$tag printerClearBuffer 예외',
-                  error: e, stackTrace: s);
+              logger.w('$tag printerClearBuffer 예외', error: e, stackTrace: s);
             }
             try {
               bindings.posResetPrinter(_hPrinter);
             } catch (e, s) {
-              logger.w('$tag posResetPrinter 예외',
-                  error: e, stackTrace: s);
+              logger.w('$tag posResetPrinter 예외', error: e, stackTrace: s);
             }
             clearTried = true;
             clearTime = elapsed;
@@ -763,8 +703,7 @@ class WindowsLabelPrinterBackend {
               '다음 PagePrint 시도');
           break;
         }
-        await Future.delayed(
-            const Duration(milliseconds: _kPaperWaitStepMs));
+        await Future.delayed(const Duration(milliseconds: _kPaperWaitStepMs));
         elapsed += _kPaperWaitStepMs;
         if (elapsed % _kPaperWaitProgressLogMs == 0) {
           logger.w('$tag 종이없음/커버열림 대기 ${elapsed ~/ 1000}s 경과 '
@@ -782,8 +721,7 @@ class WindowsLabelPrinterBackend {
     // 기타 ERROR — 짧은 게이트 후 false (재시도 루프에서 다시 진입).
     logger.w(
         '$tag 일반 ERROR (bits=0x${_lastErrorStatusBits.toRadixString(16)}) — short gate $_kErrorQuickGateMs ms');
-    await Future.delayed(
-        const Duration(milliseconds: _kErrorQuickGateMs));
+    await Future.delayed(const Duration(milliseconds: _kErrorQuickGateMs));
     return false;
   }
 
@@ -819,7 +757,8 @@ class WindowsLabelPrinterBackend {
       if (bindings != null &&
           _hPrinter != ffi.nullptr &&
           bindings.portIsConnectionValid(_hPrinter) == 0) {
-        logger.w('$tag PAPERNOFETCH wait 중 USB 포트 stale 감지 (elapsed=${elapsed}ms) '
+        logger.w(
+            '$tag PAPERNOFETCH wait 중 USB 포트 stale 감지 (elapsed=${elapsed}ms) '
             '-> wait 종료, 다음 호출에서 reconnect');
         return;
       }
@@ -837,8 +776,7 @@ class WindowsLabelPrinterBackend {
         prevNoPaper = _lastErrorIsNoPaper;
       }
 
-      await Future.delayed(
-          const Duration(milliseconds: _kPaperWaitStepMs));
+      await Future.delayed(const Duration(milliseconds: _kPaperWaitStepMs));
       elapsed += _kPaperWaitStepMs;
       if (elapsed % 1000 == 0 && elapsed > 0) {
         logger.i('$tag PAPERNOFETCH 대기 ${elapsed ~/ 1000}s '

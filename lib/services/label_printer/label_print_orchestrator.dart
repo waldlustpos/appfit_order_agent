@@ -74,8 +74,6 @@ class LabelPrintOrchestrator {
     LabelPrinterOptions options,
     String orderTag,
   ) async {
-    logger.i('[Label][$orderTag ${data.orderIndex}/${data.orderTotal}] '
-        'painter.generateLabelImage 시작');
     final Uint8List png;
     try {
       png = await LabelPainter.generateLabelImage(
@@ -96,8 +94,6 @@ class LabelPrintOrchestrator {
       logger.e('[Label][$orderTag] painter 예외', error: e, stackTrace: s);
       return false;
     }
-    logger.i(
-        '[Label][$orderTag] painter 완료 ${png.length}B, printPng 진입');
 
     final ok1 = await _service.printPng(
       pngBytes: png,

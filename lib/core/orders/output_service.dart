@@ -39,17 +39,7 @@ class OutputService {
 
       if (isKdsMode) {
         if (playSound) {
-          logger.i('[OutputService] 알람소리 재생 (KDS)');
           await ref.read(soundAppServiceProvider).playNotificationSound();
-        }
-
-        final usePrint = ref.read(preferenceServiceProvider).getUsePrint();
-        if (usePrint) {
-          logger.i('[OutputService] KDS 모드: 프린터 사용 설정됨, 주문서 출력 진행');
-          // KDS 모드 주문서 출력 필요 시 여기에 로직 추가 가능
-        } else {
-          logger.i(
-              '[OutputService] KDS 모드: 프린터 사용 안함 설정으로 주문서 출력 생략 (라벨은 독립적으로 동작)');
         }
       } else {
         // 일반 모드: 실제 인쇄 수행 후에만 출력 이력 기록
@@ -57,41 +47,23 @@ class OutputService {
 
         // 설정된 출력 개수만큼 반복 출력 (프린터 설정 고려)
         final printCount = ref.read(preferenceServiceProvider).getPrintCount();
-        final useBuiltin =
-            ref.read(preferenceServiceProvider).getUseBuiltinPrinter();
-        final useExternal =
-            ref.read(preferenceServiceProvider).getUseExternalPrinter();
 
-        // 실제 프린터 개수 계산 (내장 + 외부)
-        final actualPrinterCount = (useBuiltin ? 1 : 0) + (useExternal ? 1 : 0);
-        final totalPrintCount = printCount * actualPrinterCount;
-
-        if (totalPrintCount > 0) {
-          for (int i = 0; i < printCount; i++) {
-            await ref.read(printServiceProvider).printOrderReceipt(
-                  order: orderForPrinting,
-                  type: 'order',
-                );
-            logger.d(
-                '[Label] ${order.displayNum} 주문서 인쇄 (${i + 1}/$printCount, ${useBuiltin ? "내장" : ""}${useBuiltin && useExternal ? "+" : ""}${useExternal ? "외부" : ""})');
-          }
-        } else {
-          logger.w('[Label] ${order.displayNum} 주문서 인쇄 생략 (프린터 미설정)');
+        for (int i = 0; i < printCount; i++) {
+          await ref.read(printServiceProvider).printOrderReceipt(
+                order: orderForPrinting,
+                type: 'order',
+              );
         }
 
         if (playSound) {
-          logger.i('[Label] ${order.displayNum} 알람소리 재생 (일반)');
           await ref.read(soundAppServiceProvider).playNotificationSound();
         }
       }
 
       // 라벨 프린트 - 수동이 아닌 자동 출력 (옵션에 따라) - 모드 무관하게 독립적으로 동작
       if (printLabel) {
-        final orderForPrinting =
-            await _prepareOrderForPrinting(order); // 라벨 출력을 위한 모델 보장
+        final orderForPrinting = await _prepareOrderForPrinting(order);
         await printOrderLabels(orderForPrinting);
-      } else {
-        logger.d('[Label] ${order.displayNum} 라벨 생략 (printLabel:false)');
       }
     } catch (e, s) {
       logger.e('[Label] ${order.displayNum} 주문 출력 처리 오류',
@@ -159,11 +131,7 @@ class OutputService {
             }).toList()
           : orderToPrint.menus;
 
-      if (menusToprint.isEmpty) {
-        logger
-            .d('[OutputService] 라벨 출력 건너뜀: 필터 조건에 맞는 메뉴 없음 (${order.orderNo})');
-        return;
-      }
+      if (menusToprint.isEmpty) return;
 
       // 전체 라벨 수 계산 (필터 무관, 전체 메뉴 수량 합산)
       final int totalLabels =
@@ -427,15 +395,7 @@ class OutputService {
   }
 
   Future<OrderModel> _prepareOrderForPrinting(OrderModel order) async {
-    // 메뉴 목록이 이미 있는 경우 현재 주문 정보 사용
-    if (order.menus.isNotEmpty) {
-      logger.d('[OutputService] Use existing order info: ${order.orderNo}');
-      return order;
-    }
-
-    // 캐시 여부는 orderNotifier.getOrderDetail 내부에서 처리됨
-    logger.d(
-        '[OutputService] Fetching order detail for receipt: ${order.orderNo}');
+    if (order.menus.isNotEmpty) return order;
     return _orderNotifier.getOrderDetail(order.orderNo, order.storeId);
   }
 }
