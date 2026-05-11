@@ -16,7 +16,6 @@ import '../utils/model_parse_utils.dart';
 import '../widgets/order/order_detail_popup.dart';
 import '../widgets/common/common_dialog.dart';
 import '../widgets/common/app_toolbar_button.dart';
-import '../utils/kds_utils.dart' as kds_utils;
 import '../models/order_model.dart';
 import '../widgets/home/order_card_widget.dart';
 import '../i18n/strings.g.dart';
@@ -473,8 +472,14 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
         // 정렬 변경 감지 및 스크롤 위치 초기화
         _detectSortChangeAndResetScroll(sortDirection);
 
-        // 주문 데이터를 직접 watch (Consumer 제거)
-        final orderState = ref.watch(orderProvider);
+        // 전체 watch 대신 필요한 단편만 select.
+        final showLoadingOverlay = ref.watch(
+            orderProvider.select((s) => s.isLoading && s.orders.isEmpty));
+        final visibleCount =
+            ref.watch(orderProvider.select((s) => s.visibleOrderCount));
+
+        // 탭별 필터/정렬/카운트는 kdsTabOrdersProvider 가 처리 (오늘 데이터 기준).
+        final tabOrders = ref.watch(kdsTabOrdersProvider);
 
         // KDS 주문 상태 변화 트래커 활성화 (highlight 로직)
         ref.watch(kdsOrderTrackingProvider);
@@ -490,101 +495,36 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
               // 오버레이는 앱 시작/재로그인 직후 첫 로드에서만 노출.
               // 사용자가 누른 새로고침은 앱바 버튼 자체의 로딩 인디케이터로 충분하므로
               // 중앙 오버레이를 띄우지 않는다. 폴링도 조용히 갱신.
-              final showLoadingOverlay =
-                  orderState.isLoading && orderState.orders.isEmpty;
-              final orders = orderState.orders;
-              final filteredOrders = orders;
 
-              // 상태별 카운트 계산 (안정적 계산)
-              final allCount = filteredOrders.length;
-              final pendingCount = filteredOrders
-                  .where((o) => o.status == OrderStatus.PREPARING)
-                  .length;
-              final pickupCount = filteredOrders
-                  .where((o) => o.status == OrderStatus.READY)
-                  .length;
-              final completedCount = filteredOrders
-                  .where((o) => o.status == OrderStatus.DONE)
-                  .length;
-              final cancelledCount = filteredOrders
-                  .where((o) => o.status == OrderStatus.CANCELLED)
-                  .length;
+              // 카운트는 항상 오늘 데이터(실시간) 기준 — 기존 동작 유지.
+              final allCount = tabOrders.allCount;
+              final pendingCount = tabOrders.pendingCount;
+              final pickupCount = tabOrders.pickupCount;
+              final completedCount = tabOrders.completedCount;
+              final cancelledCount = tabOrders.cancelledCount;
 
-              // 신규 주문 감지: build() 내 ref.listen으로 이전됨 (반복 등록 방지)
-
-              // 전체 탭용 주문 목록 (날짜에 따라 다름)
+              // 전체 탭용 주문 목록: 오늘은 실시간, 과거 날짜는 history provider.
               List<OrderModel> allOrders;
               bool isHistoryLoading = false;
               if (isToday) {
-                // 오늘 날짜: 실시간 주문 데이터 사용
-                allOrders = List<OrderModel>.from(filteredOrders);
+                allOrders = tabOrders.all;
               } else {
-                // 다른 날짜: orderHistoryProvider에서 해당 날짜 데이터 가져오기
-                final historyAsync = ref.watch(orderHistoryProvider);
-                isHistoryLoading = historyAsync.isLoading;
-                allOrders = historyAsync.when(
-                  data: (historyOrders) {
-                    logger
-                        .d('KDS: 과거 날짜 데이터 로드됨 - ${historyOrders.length}개 주문');
-                    return List<OrderModel>.from(historyOrders);
-                  },
-                  loading: () {
-                    logger.d('KDS: 과거 날짜 데이터 로딩 중');
-                    return <OrderModel>[];
-                  },
-                  error: (error, stackTrace) {
-                    logger.d('KDS: 과거 날짜 데이터 로드 오류: $error');
-                    return <OrderModel>[];
-                  },
-                );
+                final history = ref.watch(kdsHistoryAllOrdersProvider);
+                allOrders = history.orders;
+                isHistoryLoading = history.isLoading;
               }
 
               // 진행/완료/취소 탭용 주문 목록 (항상 실시간 데이터 사용)
-              final pendingOrders = filteredOrders
-                  .where((o) => o.status == OrderStatus.PREPARING)
-                  .toList();
-              final pickupOrders = filteredOrders
-                  .where((o) => o.status == OrderStatus.READY)
-                  .toList();
-              final completedOrders = filteredOrders
-                  .where((o) => o.status == OrderStatus.DONE)
-                  .toList();
-              final cancelledOrders = filteredOrders
-                  .where((o) => o.status == OrderStatus.CANCELLED)
-                  .toList();
-
-              // 각 탭별 정렬 방향 적용 (watch로 변경하여 상태 변경 감지)
-              final tabSortDirections = ref.watch(kdsTabSortDirectionsProvider);
-              final allTabSortDirection =
-                  tabSortDirections[0] ?? OrderSortDirection.ASC;
-              final progressTabSortDirection =
-                  tabSortDirections[1] ?? OrderSortDirection.ASC;
-              final pickupTabSortDirection =
-                  tabSortDirections[2] ?? OrderSortDirection.DESC;
-              final completedTabSortDirection =
-                  tabSortDirections[3] ?? OrderSortDirection.DESC;
-              final cancelledTabSortDirection =
-                  tabSortDirections[4] ?? OrderSortDirection.DESC;
-
-              // 각 탭별로 해당하는 정렬 방향 적용
-              kds_utils.sortOrders(allOrders, allTabSortDirection);
-              kds_utils.sortOrders(pendingOrders, progressTabSortDirection);
-              kds_utils.sortOrders(pickupOrders, pickupTabSortDirection);
-              kds_utils.sortOrders(completedOrders, completedTabSortDirection);
-              kds_utils.sortOrders(cancelledOrders, cancelledTabSortDirection);
-
-              // Pagination 적용 (상세 데이터 로딩 최적화 + Progressive Loading)
-              final visibleCount = orderState.visibleOrderCount;
-              // 전체 탭은 GridView.builder를 사용하므로 Pagination(가시 개수 제한) 없이 전체 항목 전달
-              final visibleAllOrders = allOrders.toList();
+              // Pagination: 전체 탭은 GridView.builder 사용으로 제한 없음, 나머지는 take().
+              final visibleAllOrders = allOrders;
               final visiblePendingOrders =
-                  pendingOrders.take(visibleCount).toList();
+                  tabOrders.pending.take(visibleCount).toList();
               final visiblePickupOrders =
-                  pickupOrders.take(visibleCount).toList();
+                  tabOrders.pickup.take(visibleCount).toList();
               final visibleCompletedOrders =
-                  completedOrders.take(visibleCount).toList();
+                  tabOrders.completed.take(visibleCount).toList();
               final visibleCancelledOrders =
-                  cancelledOrders.take(visibleCount).toList();
+                  tabOrders.cancelled.take(visibleCount).toList();
 
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -787,9 +727,10 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
 
   Widget _buildSortButton() {
     final currentTabIndex = ref.watch(kdsTabIndexProvider);
-    final tabSortDirections = ref.watch(kdsTabSortDirectionsProvider);
-    final currentTabSortDirection =
-        tabSortDirections[currentTabIndex] ?? OrderSortDirection.ASC;
+    // 현재 탭의 정렬 방향만 watch — 다른 탭 정렬 변경에는 리빌드되지 않음.
+    final currentTabSortDirection = ref.watch(kdsTabSortDirectionsProvider
+            .select((map) => map[currentTabIndex])) ??
+        OrderSortDirection.ASC;
     return PopupMenuButton<OrderSortDirection>(
       offset: const Offset(0, 40), // 팝업 메뉴 위치 조정
       shape: RoundedRectangleBorder(
@@ -1198,6 +1139,7 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
           child: OrderCardWidget(
             key: ValueKey('grid_card_${order.orderId}'),
             order: order,
+            isKdsMode: true,
             onTap: () => _showOrderDetail(context, order, cardType: null),
           ),
         );

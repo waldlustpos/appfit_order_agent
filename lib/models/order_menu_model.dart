@@ -101,4 +101,32 @@ class OrderMenuModel {
   String toString() {
     return '$shopItemId:$itemName:$itemPrice:$qty';
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is OrderMenuModel &&
+        orderNo == other.orderNo &&
+        shopItemId == other.shopItemId &&
+        qty == other.qty &&
+        itemName == other.itemName &&
+        itemPrice == other.itemPrice &&
+        totalAmount == other.totalAmount &&
+        discPrc == other.discPrc &&
+        vatPrc == other.vatPrc &&
+        options.length == other.options.length;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+        orderNo,
+        shopItemId,
+        qty,
+        itemName,
+        itemPrice,
+        totalAmount,
+        discPrc,
+        vatPrc,
+        options.length,
+      );
 }

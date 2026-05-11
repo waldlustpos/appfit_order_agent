@@ -19,8 +19,8 @@ class KdsScrollUpButtonWidget extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final canScrollUp =
-        ref.watch(kdsScrollButtonStatesProvider)[orderId]?.canScrollUp ?? false;
+    final canScrollUp = ref.watch(kdsScrollButtonStatesProvider
+        .select((map) => map[orderId]?.canScrollUp ?? false));
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 0),
@@ -103,9 +103,8 @@ class KdsScrollDownButtonWidget extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final canScrollDown =
-        ref.watch(kdsScrollButtonStatesProvider)[orderId]?.canScrollDown ??
-            false;
+    final canScrollDown = ref.watch(kdsScrollButtonStatesProvider
+        .select((map) => map[orderId]?.canScrollDown ?? false));
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 0),

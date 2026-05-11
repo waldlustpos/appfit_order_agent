@@ -7,56 +7,69 @@ import '../../providers/providers.dart';
 import '../../utils/model_parse_utils.dart';
 import '../../i18n/strings.g.dart';
 
-class OrderCardWidget extends ConsumerWidget {
+class OrderCardWidget extends ConsumerStatefulWidget {
   final OrderModel order;
   final VoidCallback? onTap;
+  // 호출 진입점에서 명시 전달. KDS 모드 분기에 따라 상세 fetch / select 동작이 갈린다.
+  // 카드 단위 ref.watch(kdsModeProvider) 를 제거해 모드 토글 시 카드 N개 일제 리빌드 방지.
+  final bool isKdsMode;
 
   const OrderCardWidget({
     Key? key,
     required this.order,
     this.onTap,
+    this.isKdsMode = false,
   }) : super(key: key);
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<OrderCardWidget> createState() => _OrderCardWidgetState();
+}
+
+class _OrderCardWidgetState extends ConsumerState<OrderCardWidget> {
+  @override
+  void initState() {
+    super.initState();
+    _maybeFetchDetail(widget.order);
+  }
+
+  @override
+  void didUpdateWidget(OrderCardWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.order.orderId != oldWidget.order.orderId) {
+      _maybeFetchDetail(widget.order);
+    }
+  }
+
+  /// 상세 정보가 없는 경우 1회 로드 트리거. build 중이 아닌 라이프사이클 훅에서 호출한다.
+  void _maybeFetchDetail(OrderModel order) {
+    if (widget.isKdsMode) return;
+    if (order.orderId.isEmpty) return;
+    if (order.orderMenuList.isNotEmpty) return;
+    final isToday = ref.read(selectedDateProvider) == todayDateString();
+    if (!isToday) return;
+    final notifier = ref.read(orderProvider.notifier);
+    if (notifier.isOrderDetailLoading(order.orderId)) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (notifier.isOrderDetailLoading(order.orderId)) return;
+      notifier.fetchOrderDetail(order.orderId);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final order = widget.order;
+    final isKdsMode = widget.isKdsMode;
     final bool isCancelled = order.status == OrderStatus.CANCELLED;
     final bool isDone = order.status == OrderStatus.DONE;
 
-    // KDS 모드 여부 확인
-    final isKdsMode = ref.watch(kdsModeProvider);
-
-    // KDS 모드일 때는 이미 상세 정보를 가지고 있으므로 order를 그대로 사용
-    // 일반 모드일 때는 해당 주문만 선택적으로 구독 (다른 주문 변경 시 리빌드 방지)
+    // KDS 모드일 때는 이미 상세 정보를 가지고 있으므로 order를 그대로 사용.
+    // 일반 모드일 때는 ID 인덱스 기반 family 로 해당 주문만 선택적으로 구독한다
+    // (O(N²) firstWhere 제거 + 다른 주문 변경 시 리빌드 방지).
     final orderToCheck = isKdsMode
         ? order
-        : ref.watch(orderProvider.select(
-            (state) => state.orders.firstWhere(
-              (o) => o.orderId == order.orderId,
-              orElse: () => order,
-            ),
-          ));
+        : (ref.watch(orderByIdProvider(order.orderId)) ?? order);
 
-    // 상세 정보가 없는 경우 상세 정보 로드 시도 (중복 호출 방지)
-    // 오늘 날짜이고 KDS 모드가 아닌 경우에만 상세정보 로드
-    final selectedDate = ref.watch(selectedDateProvider);
-    final isToday = selectedDate == todayDateString();
-
-    if (!isKdsMode &&
-        isToday &&
-        orderToCheck.orderMenuList.isEmpty &&
-        order.orderId.isNotEmpty &&
-        !ref.read(orderProvider.notifier).isOrderDetailLoading(order.orderId)) {
-      // 비동기로 상세 정보 로드 시도 (UI 블로킹 방지)
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!ref
-            .read(orderProvider.notifier)
-            .isOrderDetailLoading(order.orderId)) {
-          ref.read(orderProvider.notifier).fetchOrderDetail(order.orderId);
-        }
-      });
-    }
-
-    // 특정 상품코드 체크 - 한 번만 계산
     // 매장/포장/매장+포장 프리픽스 계산
     final type = orderToCheck.detectSpecialProductType();
     String orderPrefix = '';
@@ -105,8 +118,8 @@ class OrderCardWidget extends ConsumerWidget {
             borderRadius: AppRadius.bLg,
             child: InkWell(
               onTap: () {
-                if (onTap != null) {
-                  onTap!();
+                if (widget.onTap != null) {
+                  widget.onTap!();
                 } else {
                   _showOrderDetailPopup(context);
                 }
@@ -188,7 +201,7 @@ class OrderCardWidget extends ConsumerWidget {
     showDialog(
       barrierDismissible: false,
       context: context,
-      builder: (context) => OrderDetailPopup(order: order),
+      builder: (context) => OrderDetailPopup(order: widget.order),
     );
   }
 }

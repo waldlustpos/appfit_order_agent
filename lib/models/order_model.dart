@@ -1,8 +1,9 @@
-import 'order_menu_model.dart';
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:intl/intl.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import '../utils/kds_utils.dart' as kds_utils;
 import 'enums/order_status.dart';
+import 'order_menu_model.dart';
 
 export 'enums/order_status.dart';
 
@@ -367,7 +368,7 @@ class OrderModel {
         paymentCode: paymentCode ?? this.paymentCode,
         paidAt: paidAt ?? this.paidAt,
         menus: menus ?? this.menus,
-        updateTime: updateTime ?? DateTime.now(),
+        updateTime: updateTime ?? this.updateTime,
         kioskId: kioskId ?? this.kioskId,
         source: source ?? this.source,
         orderType: orderType ?? this.orderType,
@@ -517,6 +518,69 @@ class OrderModel {
         return '';
     }
   }
+
+  // 비교 키에서 제외:
+  //  - userName/storeName: non-final (mutable)
+  //  - _cachedSpecialProductType: 내부 캐시
+  //  - exceptTaxPrice/taxPrice: paymentAmount 파생값
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is OrderModel &&
+        orderNo == other.orderNo &&
+        shopOrderNo == other.shopOrderNo &&
+        displayOrderNo == other.displayOrderNo &&
+        orderStatus == other.orderStatus &&
+        status == other.status &&
+        orderedAt == other.orderedAt &&
+        updateTime == other.updateTime &&
+        totalAmount == other.totalAmount &&
+        paymentAmount == other.paymentAmount &&
+        discountAmount == other.discountAmount &&
+        paymentType == other.paymentType &&
+        paymentCode == other.paymentCode &&
+        paidAt == other.paidAt &&
+        note == other.note &&
+        orderCount == other.orderCount &&
+        ordererName == other.ordererName &&
+        kioskId == other.kioskId &&
+        source == other.source &&
+        orderType == other.orderType &&
+        kdsOrderType == other.kdsOrderType &&
+        isDetailLoaded == other.isDetailLoaded &&
+        storeId == other.storeId &&
+        userId == other.userId &&
+        customerName == other.customerName &&
+        tel == other.tel &&
+        listEquals(discountTypes, other.discountTypes) &&
+        listEquals(menus, other.menus);
+  }
+
+  @override
+  int get hashCode => Object.hash(
+        orderNo,
+        status,
+        orderStatus,
+        updateTime,
+        paymentAmount,
+        discountAmount,
+        orderCount,
+        kdsOrderType,
+        isDetailLoaded,
+        source,
+        Object.hash(
+          paymentType,
+          paymentCode,
+          paidAt,
+          note,
+          ordererName,
+          orderType,
+          storeId,
+          userId,
+          menus.length,
+          discountTypes.length,
+        ),
+      );
 }
 
 // 스페셜 코드 유형 정의

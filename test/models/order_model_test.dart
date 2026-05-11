@@ -1,0 +1,106 @@
+import 'package:appfit_order_agent/models/order_menu_model.dart';
+import 'package:appfit_order_agent/models/order_model.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+OrderMenuModel _menu({String shopItemId = 'sku-1', int qty = 2}) {
+  return OrderMenuModel(
+    orderNo: 'order-1',
+    shopItemId: shopItemId,
+    qty: qty,
+    itemName: '아메리카노',
+    itemPrice: 4500,
+    totalAmount: 4500.0 * qty,
+    discPrc: 0,
+    vatPrc: 0,
+    options: const [],
+  );
+}
+
+OrderModel _build({
+  String orderNo = 'order-1',
+  OrderStatus status = OrderStatus.PREPARING,
+  double paymentAmount = 9000,
+  DateTime? updateTime,
+  List<OrderMenuModel>? menus,
+}) {
+  return OrderModel(
+    orderNo: orderNo,
+    shopOrderNo: '0001',
+    orderStatus: status.name,
+    orderedAt: DateTime.utc(2026, 1, 1, 9, 0),
+    totalAmount: paymentAmount,
+    status: status,
+    storeId: 'store-1',
+    userId: 'user-1',
+    ordererName: '홍길동',
+    orderCount: '2',
+    paymentAmount: paymentAmount,
+    discountAmount: 0,
+    paymentType: 'CARD',
+    paymentCode: 'CARD',
+    menus: menus ?? [_menu()],
+    orderType: 'T',
+    kdsOrderType: 1,
+    kioskId: 'kiosk-1',
+    updateTime: updateTime ?? DateTime.utc(2026, 1, 1, 9, 0),
+  );
+}
+
+void main() {
+  group('OrderModel equality', () {
+    test('동일 필드 → ==', () {
+      expect(_build(), equals(_build()));
+      expect(_build().hashCode, equals(_build().hashCode));
+    });
+
+    test('paymentAmount 변경 → !=', () {
+      expect(
+          _build(paymentAmount: 9000) == _build(paymentAmount: 10000), isFalse);
+    });
+
+    test('status 변경 → !=', () {
+      expect(
+          _build(status: OrderStatus.PREPARING) ==
+              _build(status: OrderStatus.READY),
+          isFalse);
+    });
+
+    test('menus 원소 변경 → !=', () {
+      final a = _build(menus: [_menu(shopItemId: 'a')]);
+      final b = _build(menus: [_menu(shopItemId: 'b')]);
+      expect(a == b, isFalse);
+    });
+
+    test('menus 동일 → ==', () {
+      final a = _build(menus: [_menu(), _menu(shopItemId: 'sku-2')]);
+      final b = _build(menus: [_menu(), _menu(shopItemId: 'sku-2')]);
+      expect(a, equals(b));
+    });
+  });
+
+  group('OrderModel.copyWith updateTime 가드', () {
+    test('copyWith() 단독 호출 시 == 보존 (updateTime 자동 갱신 X)', () {
+      final original = _build(updateTime: DateTime.utc(2026, 1, 1, 9, 0));
+      final copy = original.copyWith();
+      expect(original.updateTime, equals(copy.updateTime));
+      expect(original, equals(copy));
+      expect(original.hashCode, equals(copy.hashCode));
+    });
+
+    test('copyWith(updateTime: ...) 명시 전달 시 갱신됨', () {
+      final original = _build(updateTime: DateTime.utc(2026, 1, 1, 9, 0));
+      final newTime = DateTime.utc(2026, 1, 1, 10, 0);
+      final copy = original.copyWith(updateTime: newTime);
+      expect(copy.updateTime, equals(newTime));
+      expect(original == copy, isFalse);
+    });
+
+    test('copyWith(status: ...) 시 다른 필드 보존', () {
+      final original = _build(status: OrderStatus.PREPARING);
+      final copy = original.copyWith(status: OrderStatus.READY);
+      expect(copy.status, OrderStatus.READY);
+      expect(copy.updateTime, equals(original.updateTime));
+      expect(copy.paymentAmount, equals(original.paymentAmount));
+    });
+  });
+}

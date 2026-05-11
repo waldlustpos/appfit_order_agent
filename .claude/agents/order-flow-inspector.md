@@ -24,6 +24,16 @@ tools: Read, Glob, Grep, Bash
 - **이벤트 dispatcher 사용**: `_handleAppFitEvent`가 raw 페이로드 검증을 직접 하지 않고 `SocketEventDispatcher.classify`에 위임. 5 outcome(`accepted`/`invalidPayload`/`unknownEventType`/`ignoredByShopCode`/`ignoredByPolicy`) 분기를 호출자가 모두 처리하는지 확인.
 - **layer 차이 인지**: `SocketEventSuppressor`(키=`${orderId}_${eventType}`, 10초 1회성, 자가 이벤트 필터)와 `ProcessedOrderCache`(키=`${orderId}_${status}`, 30분, 도메인 처리 중복 방지)는 **다른 layer**. 혼동 금지.
 
+### UI 리빌드 invariant (P0~P3 적용 후 확립)
+
+- **`OrderModel` / `OrderMenuModel` / `OrderState` `==`/`hashCode` 필수**: 수동 작성(freezed 금지). hashCode 키에 **mutable 필드 포함 금지** — `OrderModel.userName`/`storeName`(non-final), `_cachedSpecialProductType`(내부 캐시) 등 제외. 누락 시 Riverpod `select` / `listEquals` / `state ==` 가 모두 identity 폴백 → 폴링 동일 응답에도 화면 전체 리빌드 회귀.
+- **`OrderModel.copyWith(updateTime: ...)` 자동 갱신 금지**: 명시 전달 없으면 `this.updateTime` 유지. `DateTime.now()` 자동 주입은 위 equality 효과를 통째로 무력화한다(`order_model.dart:370`).
+- **카드 위젯 `RepaintBoundary` 필수**: 신규 카드 위젯 추가 시 최외곽 래핑. 일반모드 [order_card_widget.dart:108](lib/widgets/home/order_card_widget.dart#L108) / KDS `_buildSimpleCard`·`_buildScrollableCard` ([kds_order_card.dart](lib/widgets/kds/kds_order_card.dart)) 동일 패턴.
+- **`ref.watch(orderProvider)` 전체 watch 금지**: `select` 또는 컴퓨티드 프로바이더(`orderStatusOrdersProvider`, `kdsTabOrdersProvider`, `orderByIdProvider` 등) 경유. KDS 화면은 `s.isLoading && s.orders.isEmpty` / `s.visibleOrderCount` 두 단편 + `kdsTabOrdersProvider` 만 watch 한다.
+- **Map provider 전체 watch 금지**: `kdsScrollButtonStatesProvider`, `kdsTabSortDirectionsProvider`, `kdsCardAnimationsProvider` 등 Map 타입 provider 는 카드 / 컨트롤 단위 `select((map) => map[id]?.field)` 패턴 필수. 부모가 부분 watch 하더라도 자식이 다시 Map 전체 watch 하지 않는지 점검.
+- **build 중 부수효과 금지**: `WidgetsBinding.instance.addPostFrameCallback` 으로 상세 fetch 등을 등록하는 코드는 `initState` / `didUpdateWidget` / `ref.listen` 으로 이동. 카드 위젯의 `_maybeFetchDetail` 패턴 참조([order_card_widget.dart](lib/widgets/home/order_card_widget.dart)).
+- **`ListView.builder` 아이템 키**: 정렬 / 필터 변경 가능성이 있는 리스트는 `ValueKey(item.id)` 부여. 미적용 시 정렬 변경 후 InkWell 상태 / 애니메이션이 이웃 아이템과 뒤바뀐다.
+
 ## 진단 시나리오
 
 ### 시나리오 A: 자동접수 race / 상태 다운그레이드
@@ -38,6 +48,27 @@ tools: Read, Glob, Grep, Bash
 2. `_processPollingNewOrders` 내 **3중 가드**: 글로벌 캐시 / 배치 내 중복 Set / 상태 다운그레이드 방지
 3. KDS NEW 차단 — `OrderEventIgnorePolicy.ignoreNewOrderInKdsMode`가 양 경로 모두에서 호출되는지
 4. `SocketEventSuppressor` 와 `ProcessedOrderCache` layer 구분 인지
+
+### 시나리오 C: UI 리빌드 회귀 점검
+
+1. **equality 보존 확인**: `OrderModel`, `OrderMenuModel`, `OrderState` 클래스에 `==`/`hashCode` 가 정의돼 있는지 grep:
+   ```
+   grep -n "operator ==" lib/models/order_model.dart lib/models/order_menu_model.dart lib/providers/order_state.dart
+   ```
+   3개 파일 모두에서 매칭이 나와야 함. 새 필드를 추가하면 동등성 키에도 반영했는지 점검(mutable 필드는 제외).
+2. **`copyWith(updateTime)` 가드 확인**: `order_model.dart` 의 `copyWith` 시그니처에서 `updateTime: updateTime ?? this.updateTime` 패턴(또는 동등한 가드). `DateTime.now()` 자동 주입이면 회귀.
+3. **광범위 watch 잔재 grep**:
+   ```
+   grep -rn "ref.watch(orderProvider)" lib/ | grep -v "\.select"
+   ```
+   `lib/widgets/`, `lib/screens/` 잔재 0건이 목표. 매칭이 있다면 `select` 또는 컴퓨티드 프로바이더로 좁힐 수 있는지 평가.
+4. **카드 위젯 `RepaintBoundary` 확인**: `OrderCardWidget` / `KdsOrderCard._buildSimpleCard` / `_buildScrollableCard` 의 build 반환부 최외곽이 `RepaintBoundary` 인지. 신규 카드 위젯이 추가되었다면 동일 패턴 적용 여부.
+5. **build 중 `addPostFrameCallback` 잔재 grep**:
+   ```
+   grep -rn "addPostFrameCallback" lib/widgets/
+   ```
+   `initState`/`didUpdateWidget`/`ref.listen` 안에서의 호출은 허용. ConsumerWidget 의 `build` 직속에서 등록되는 패턴은 회귀.
+6. **`ListView.builder` ValueKey 확인**: 정렬 가능 리스트(`order_section_widget.dart` 등)의 itemBuilder 반환부에 `ValueKey(item.orderId)` 부여 여부.
 
 ## 출력 형식
 

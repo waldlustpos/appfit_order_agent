@@ -14,14 +14,14 @@ class KdsOrderTracking extends _$KdsOrderTracking {
 
   @override
   void build() {
-    // orderProvider를 watch하여 데이터 변경 시마다 build 호출
-    final orderState = ref.watch(orderProvider);
+    // orders 만 select — isLoading 등 무관 필드 변경 시 재실행 방지.
+    final orders = ref.watch(orderProvider.select((s) => s.orders));
 
-    // 초기 로딩 중이거나 데이터가 아직 없는 경우 스킵
-    if (orderState.isLoading && orderState.orders.isEmpty) return;
+    // 데이터가 아직 없는 경우 스킵 (초기 로딩 중도 동일 분기).
+    if (orders.isEmpty) return;
 
     // 변경 사항 추적 및 애니메이션 트리거
-    _trackChanges(orderState.orders);
+    _trackChanges(orders);
   }
 
   void _trackChanges(List<OrderModel> currentOrders) {

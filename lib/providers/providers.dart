@@ -1,4 +1,5 @@
 export 'auth_provider.dart';
+export 'order_computed_providers.dart';
 export 'order_provider.dart';
 export 'store_provider.dart';
 export 'order_history_provider.dart';

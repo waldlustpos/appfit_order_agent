@@ -145,6 +145,61 @@ ACCEPTED 진입 시 메뉴별 `ordrCnt` 만큼 라벨을 자동 출력. 진입�
 
 위젯은 `lib/widgets/` 하위에 기능별로 정리: `home/`, `kds/`, `order/`, `common/`, `product/`, `membership/`, `settings/`.
 
+## UI 리빌드 비용 모델
+
+WebSocket 푸시 / 폴링 / 자정 새로고침으로 주문 상태가 빈번히 갱신되는 환경에서 화면 전체 리빌드를 피하기 위한 규약. 새 모델 / 카드 위젯 / 컴퓨티드 프로바이더 추가 시 아래 원칙을 우선 적용한다.
+
+1. **모델 동등성 규칙** — `lib/models/` 는 freezed 금지(CLAUDE.md). `==`/`hashCode` 는 수동 구현.
+   - hashCode 키에 **mutable 필드 포함 금지** — `final` 아닌 필드(`OrderModel.userName`/`storeName`), 내부 캐시(`_cachedSpecialProductType`) 제외.
+   - 파생 필드(`OrderModel.exceptTaxPrice`/`taxPrice` 같은 `paymentAmount` 파생값)는 키에 넣지 않는다.
+   - 리스트 필드는 `listEquals` 사용(`package:flutter/foundation.dart`). 원소 타입이 `==` 미구현이면 identity 폴백되어 효과 반감 — 원소 모델에도 `==` 정의 필수.
+
+2. **시간 필드 자동 갱신 금지** — `copyWith` 의 `updateTime` 같은 시간 필드는 **명시 전달이 있을 때만 갱신**. `updateTime: updateTime ?? this.updateTime` 패턴. `DateTime.now()` 자동 주입은 `==` 비교를 무력화해 select / listEquals 효과를 모두 잃는다.
+
+3. **`copyWith` early-return 가드** — 모든 인자가 기존값과 동일하면 `this` 그대로 반환. `error` 같이 `null` 로 의도적 reset 이 필요한 필드는 `const _unset = Object();` sentinel 패턴으로 "전달됨" vs "기본값" 을 구분(`OrderState.copyWith` 참고).
+
+4. **리스트 참조 안정성** — 상태 업데이트 시 동일 내용이면 기존 List 참조 유지. `state.copyWith(orders: ...)` 직접 호출보다 헬퍼(`_setOrders`) 경유로 `identical` / `listEquals` 가드 통일.
+
+5. **Riverpod watch 정책**
+   - `ref.watch(orderProvider)` 같은 **전체 watch 금지**. `select` 또는 컴퓨티드 프로바이더(`orderStatusOrdersProvider`, `kdsTabOrdersProvider` 등) 경유.
+   - Map / List 를 watch 하는 자식 위젯은 부모와 같은 provider 를 다시 전체 watch 하지 않는다 — 카드 단위는 `select((map) => map[orderId])` 패턴.
+   - 카드 위젯이 부모로부터 모델 prop 을 받는 대신 `orderByIdProvider(id)` family 로 직접 구독하면 부모 리빌드와 디커플링.
+
+6. **`RepaintBoundary` 정책** — 화면을 N분할하는 카드 / 타일 위젯의 **최외곽**에 적용. 일반모드(`OrderCardWidget`)·KDS(`KdsOrderCard`) 동일.
+
+7. **`ListView.builder` 아이템 키** — 정렬 / 필터 변경 가능성이 있는 리스트는 `ValueKey(item.id)` 부여. 미적용 시 정렬 변경 후 InkWell 상태 / 애니메이션이 이웃 아이템과 뒤바뀜.
+
+8. **build 중 부수효과 금지** — `WidgetsBinding.instance.addPostFrameCallback` 으로 외부 호출(상세 fetch 등) 등록은 `initState` / `didUpdateWidget` / `ref.listen` 으로 이동. build 마다 콜백이 큐잉되어 누적된다.
+
+### 적용된 컴퓨티드 프로바이더 (`lib/providers/order_computed_providers.dart`)
+
+| Provider | 반환 | 캐싱 조건 | 사용처 |
+|---|---|---|---|
+| `orderStatusOrdersProvider` | record (4탭 — `newOrders` / `confirmedOrders` / `pickupedOrders` / `completedOrders`) | `orderProvider.orders` 미변경 시 캐싱(P0 equality) | `OrderStatusScreen` |
+| `kdsTabOrdersProvider` | record (5탭 리스트 + 5탭 카운트) | `orders` + `kdsTabSortDirectionsProvider` 미변경 시 캐싱 | `KdsScreen` 메인 빌드 |
+| `kdsHistoryAllOrdersProvider` | record (`orders`, `isLoading`) | `orderHistoryProvider` + 전체 탭 정렬 방향 미변경 시 캐싱 | 과거 날짜 KDS 전체 탭 |
+| `ordersByIdProvider` | `Map<String, OrderModel>` 인덱스 | `orders` 미변경 시 캐싱 | `orderByIdProvider` 백킹 |
+| `orderByIdProvider` family (autoDispose) | `OrderModel?` | `map[id]` 동일 시 캐싱(P0 OrderModel equality) | 카드 단위 1주문 조회 |
+
+### 카드 위젯 카탈로그
+
+| 위젯 | 파일 | 책임 |
+|---|---|---|
+| `OrderCardWidget` (`ConsumerStatefulWidget`) | [lib/widgets/home/order_card_widget.dart](lib/widgets/home/order_card_widget.dart) | 일반모드 주문 카드. `orderByIdProvider(orderId)` 로 자기 주문만 watch. `initState`/`didUpdateWidget` 에서 상세 fetch. `RepaintBoundary` 적용. `isKdsMode` prop 으로 KDS 전체 탭 그리드(KDS 모드)에서도 재사용. |
+| `KdsOrderCard` (`ConsumerStatefulWidget`) | [lib/widgets/kds/kds_order_card.dart](lib/widgets/kds/kds_order_card.dart) | KDS 5탭 카드. `_buildSimpleCard` / `_buildScrollableCard` 모두 `RepaintBoundary` 적용. 스크롤 버튼 표시는 `kdsScrollButtonStatesProvider.select((map) => map[orderId])`. |
+| `KdsScrollUpButtonWidget` / `KdsScrollDownButtonWidget` | [lib/widgets/kds/kds_scroll_button_widget.dart](lib/widgets/kds/kds_scroll_button_widget.dart) | `kdsScrollButtonStatesProvider.select((map) => map[orderId]?.canScrollUp/Down ?? false)` 로 자기 카드의 스크롤 가능성만 watch. |
+
+### `OrderModel` equality 키 (확정본 — [order_model.dart](lib/models/order_model.dart))
+
+**포함**: `orderNo`, `shopOrderNo`, `displayOrderNo`, `orderStatus`, `status`, `orderedAt`, `updateTime`, `totalAmount`, `paymentAmount`, `discountAmount`, `paymentType`, `paymentCode`, `paidAt`, `note`, `orderCount`, `ordererName`, `kioskId`, `source`, `orderType`, `kdsOrderType`, `isDetailLoaded`, `storeId`, `userId`, `customerName`, `tel`, `discountTypes`(listEquals), `menus`(listEquals).
+
+**제외 — 이유**:
+- `userName`, `storeName` — `final` 아님(mutable).
+- `_cachedSpecialProductType` — 내부 캐시.
+- `exceptTaxPrice`, `taxPrice` — `paymentAmount` 파생값.
+
+`copyWith` 의 `updateTime` 은 명시 전달 없으면 `this.updateTime` 보존(`DateTime.now()` 자동 주입 X).
+
 ## 브랜드 테마
 
 `lib/constants/brand_theme.dart`의 `BrandTheme` enum(예: `appfitDefault`, `mammothCoffee`)이 매장별 색상·로그인 배경·로고를 정의. `main()`에서 `AppStyles.applyBrand(savedBrand)`로 정적 색상 값을 부팅 시 1회 고정합니다. `BrandThemeNotifier`(`lib/providers/brand_theme_provider.dart`)의 `selectTheme()`은 `PreferenceService`에만 저장하며, 색상 교체는 **앱 재시작 후** 반영됩니다(런타임 즉시 변경 X).

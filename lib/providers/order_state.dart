@@ -1,4 +1,8 @@
+import 'package:flutter/foundation.dart' show listEquals;
 import '../models/order_model.dart';
+
+// `error: null` 같이 의도적 reset 을 "전달됨" vs "기본값" 으로 구분하기 위한 sentinel.
+const Object _unset = Object();
 
 // 주문 상태를 나타내는 클래스
 class OrderState {
@@ -18,21 +22,39 @@ class OrderState {
     this.visibleOrderCount = 12, // 초기값 12개 (FHD 화면 스크롤 확보용)
   });
 
+  /// `error` 만 sentinel 패턴(null 명시 reset 허용). 그 외는 기존 nullable 코어 패턴 유지.
+  /// 모든 인자가 동일 값으로 들어오면 `this` 를 그대로 반환해 watcher notify 를 차단.
   OrderState copyWith({
     List<OrderModel>? orders,
     bool? isLoading,
-    String? error,
+    Object? error = _unset,
     int? activeOrderCount,
     bool? isAutoReceipt,
     int? visibleOrderCount,
   }) {
+    final nextOrders = orders ?? this.orders;
+    final nextIsLoading = isLoading ?? this.isLoading;
+    final String? nextError =
+        identical(error, _unset) ? this.error : error as String?;
+    final nextActiveOrderCount = activeOrderCount ?? this.activeOrderCount;
+    final nextIsAutoReceipt = isAutoReceipt ?? this.isAutoReceipt;
+    final nextVisibleOrderCount = visibleOrderCount ?? this.visibleOrderCount;
+
+    final unchanged = identical(nextOrders, this.orders) &&
+        nextIsLoading == this.isLoading &&
+        nextError == this.error &&
+        nextActiveOrderCount == this.activeOrderCount &&
+        nextIsAutoReceipt == this.isAutoReceipt &&
+        nextVisibleOrderCount == this.visibleOrderCount;
+    if (unchanged) return this;
+
     return OrderState(
-      orders: orders ?? this.orders,
-      isLoading: isLoading ?? this.isLoading,
-      error: error ?? this.error,
-      activeOrderCount: activeOrderCount ?? this.activeOrderCount,
-      isAutoReceipt: isAutoReceipt ?? this.isAutoReceipt,
-      visibleOrderCount: visibleOrderCount ?? this.visibleOrderCount,
+      orders: nextOrders,
+      isLoading: nextIsLoading,
+      error: nextError,
+      activeOrderCount: nextActiveOrderCount,
+      isAutoReceipt: nextIsAutoReceipt,
+      visibleOrderCount: nextVisibleOrderCount,
     );
   }
 
@@ -46,4 +68,26 @@ class OrderState {
       visibleOrderCount: 12, // 초기값 12개
     );
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is OrderState &&
+        isLoading == other.isLoading &&
+        error == other.error &&
+        activeOrderCount == other.activeOrderCount &&
+        isAutoReceipt == other.isAutoReceipt &&
+        visibleOrderCount == other.visibleOrderCount &&
+        (identical(orders, other.orders) || listEquals(orders, other.orders));
+  }
+
+  @override
+  int get hashCode => Object.hash(
+        orders.length,
+        isLoading,
+        error,
+        activeOrderCount,
+        isAutoReceipt,
+        visibleOrderCount,
+      );
 }

@@ -89,42 +89,33 @@ class _KdsOrderCardState extends ConsumerState<KdsOrderCard> {
 
     _triggerFetchIfNeeded();
 
-    _internalScrollController = ref
-        .read(kdsScrollControllerMapProvider.notifier)
-        .getExistingController(_orderId);
+    final notifier = ref.read(kdsScrollControllerMapProvider.notifier);
+    _internalScrollController = notifier.getExistingController(_orderId);
 
-    if (_internalScrollController == null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        var controller = ref
-            .read(kdsScrollControllerMapProvider.notifier)
-            .getExistingController(_orderId);
-        controller ??= ref
-            .read(kdsScrollControllerMapProvider.notifier)
-            .getOrCreateController(_orderId);
+    // controller 가 이미 존재하든 새로 생성하든 동일 흐름:
+    //   frame N (PostFrame 1): controller 확보 → setState(필요 시) → addListener
+    //   frame N+1 (PostFrame 2, nested): layout 완료 후 maxScrollExtent 안정 →
+    //     _restoreScrollPosition + _updateScrollButtonVisibility
+    // 카드별 `Future.delayed` 타이머를 PostFrame chain 으로 대체해 race-safe + timer 등록 0.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      var controller = _internalScrollController ??
+          notifier.getExistingController(_orderId) ??
+          notifier.getOrCreateController(_orderId);
+      if (_internalScrollController != controller) {
         if (!mounted) return;
         setState(() {
           _internalScrollController = controller;
         });
-        _internalScrollController?.addListener(_scrollListener);
+      }
+      controller.addListener(_scrollListener);
 
-        Future.delayed(KdsCardMetrics.restoreScrollDelay, () {
-          if (!mounted) return;
-          _restoreScrollPosition();
-          _updateScrollButtonVisibility();
-        });
-      });
-    } else {
-      _internalScrollController?.addListener(_scrollListener);
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        Future.delayed(KdsCardMetrics.restoreScrollDelay, () {
-          if (!mounted) return;
-          _restoreScrollPosition();
-          _updateScrollButtonVisibility();
-        });
+        _restoreScrollPosition();
+        _updateScrollButtonVisibility();
       });
-    }
+    });
   }
 
   @override
@@ -239,56 +230,58 @@ class _KdsOrderCardState extends ConsumerState<KdsOrderCard> {
     final borderColor = animationState?.borderColor ?? AppStyles.gray3;
     final opacity = animationState?.opacity ?? 1.0;
 
-    return AnimatedOpacity(
-      opacity: opacity,
-      duration: KdsCardMetrics.opacityAnimDuration,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.s4),
-        child: AnimatedContainer(
-          duration: KdsCardMetrics.cardSizeAnimDurationShort,
-          width: KdsCardMetrics.cardWidth,
-          constraints: BoxConstraints(
-            minHeight: (height ?? 300) / 2,
-            maxHeight: height ?? 300,
-          ),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: AppRadius.bMd,
-            border: Border.all(color: borderColor, width: 1.0),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  KdsCardHeaderWidget(
-                    order: order,
-                    detailedOrder: order,
-                    cardType: cardType,
-                  ),
-                  const Divider(
-                    color: AppStyles.gray3,
-                    thickness: 1,
-                    height: 1,
-                  ),
-                  KdsMemoWidget(order: order),
-                  Padding(
-                    padding: const EdgeInsets.all(AppSpacing.s8),
-                    child: !order.isDetailLoaded
-                        ? const KdsMenuSkeleton()
-                        : KdsMenuListWidget(
-                            menuList: order.orderMenuList,
-                            order: order,
-                            cardType: cardType,
-                          ),
-                  ),
-                ],
-              ),
-              if (order.isDetailLoaded)
-                _buildBottomButtons(context, order, cardType),
-            ],
+    return RepaintBoundary(
+      child: AnimatedOpacity(
+        opacity: opacity,
+        duration: KdsCardMetrics.opacityAnimDuration,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.s4),
+          child: AnimatedContainer(
+            duration: KdsCardMetrics.cardSizeAnimDurationShort,
+            width: KdsCardMetrics.cardWidth,
+            constraints: BoxConstraints(
+              minHeight: (height ?? 300) / 2,
+              maxHeight: height ?? 300,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: AppRadius.bMd,
+              border: Border.all(color: borderColor, width: 1.0),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    KdsCardHeaderWidget(
+                      order: order,
+                      detailedOrder: order,
+                      cardType: cardType,
+                    ),
+                    const Divider(
+                      color: AppStyles.gray3,
+                      thickness: 1,
+                      height: 1,
+                    ),
+                    KdsMemoWidget(order: order),
+                    Padding(
+                      padding: const EdgeInsets.all(AppSpacing.s8),
+                      child: !order.isDetailLoaded
+                          ? const KdsMenuSkeleton()
+                          : KdsMenuListWidget(
+                              menuList: order.orderMenuList,
+                              order: order,
+                              cardType: cardType,
+                            ),
+                    ),
+                  ],
+                ),
+                if (order.isDetailLoaded)
+                  _buildBottomButtons(context, order, cardType),
+              ],
+            ),
           ),
         ),
       ),
@@ -311,116 +304,119 @@ class _KdsOrderCardState extends ConsumerState<KdsOrderCard> {
     final borderColor = animationState?.borderColor ?? AppStyles.gray3;
     final opacity = animationState?.opacity ?? 1.0;
 
-    return AnimatedOpacity(
-      opacity: opacity,
-      duration: KdsCardMetrics.opacityAnimDuration,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.s4),
-        child: AnimatedContainer(
-          duration: KdsCardMetrics.cardSizeAnimDuration,
-          curve: Curves.easeInOutCubic,
-          width: KdsCardMetrics.cardWidth,
-          constraints: BoxConstraints(
-            minHeight: totalCardHeight / 2,
-            maxHeight: totalCardHeight,
-          ),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: AppRadius.bMd,
-            border: Border.all(color: borderColor, width: 1.0),
-          ),
-          child: Stack(
-            children: [
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  KdsCardHeaderWidget(
-                    order: order,
-                    detailedOrder: order,
-                    cardType: cardType,
-                  ),
-                  const Divider(
-                    color: AppStyles.gray3,
-                    thickness: 1,
-                    height: 1,
-                  ),
-                  KdsMemoWidget(order: order),
-                  ConstrainedBox(
-                    // headerFooterReserve가 totalCardHeight를 초과하면 음수가 되어
-                    // ConstrainedBox 어쌔션에 걸리거나 카드가 사일런트하게 사라진다.
-                    // 최소 60px는 메뉴 영역에 보장하되, totalCardHeight 자체가
-                    // 60 미만인 transient(예: 윈도우 size 변경 직후)에는 lower를
-                    // upper로 cap해 clamp(lower>upper) ArgumentError를 막는다.
-                    constraints: BoxConstraints(
-                      maxHeight: () {
-                        final upper =
-                            totalCardHeight > 0 ? totalCardHeight : 0.0;
-                        final lower = upper < 60.0 ? upper : 60.0;
-                        return (totalCardHeight -
-                                KdsCardMetrics.headerFooterReserve)
-                            .clamp(lower, upper);
-                      }(),
+    return RepaintBoundary(
+      child: AnimatedOpacity(
+        opacity: opacity,
+        duration: KdsCardMetrics.opacityAnimDuration,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.s4),
+          child: AnimatedContainer(
+            duration: KdsCardMetrics.cardSizeAnimDuration,
+            curve: Curves.easeInOutCubic,
+            width: KdsCardMetrics.cardWidth,
+            constraints: BoxConstraints(
+              minHeight: totalCardHeight / 2,
+              maxHeight: totalCardHeight,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: AppRadius.bMd,
+              border: Border.all(color: borderColor, width: 1.0),
+            ),
+            child: Stack(
+              children: [
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    KdsCardHeaderWidget(
+                      order: order,
+                      detailedOrder: order,
+                      cardType: cardType,
                     ),
-                    child: Stack(
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.all(AppSpacing.s8),
-                          child: !order.isDetailLoaded
-                              ? const KdsMenuSkeleton()
-                              : SingleChildScrollView(
-                                  controller: _internalScrollController,
-                                  physics: const BouncingScrollPhysics(),
-                                  child: KdsMenuListWidget(
-                                    menuList: order.orderMenuList,
-                                    order: order,
-                                    cardType: cardType,
+                    const Divider(
+                      color: AppStyles.gray3,
+                      thickness: 1,
+                      height: 1,
+                    ),
+                    KdsMemoWidget(order: order),
+                    ConstrainedBox(
+                      // headerFooterReserve가 totalCardHeight를 초과하면 음수가 되어
+                      // ConstrainedBox 어쌔션에 걸리거나 카드가 사일런트하게 사라진다.
+                      // 최소 60px는 메뉴 영역에 보장하되, totalCardHeight 자체가
+                      // 60 미만인 transient(예: 윈도우 size 변경 직후)에는 lower를
+                      // upper로 cap해 clamp(lower>upper) ArgumentError를 막는다.
+                      constraints: BoxConstraints(
+                        maxHeight: () {
+                          final upper =
+                              totalCardHeight > 0 ? totalCardHeight : 0.0;
+                          final lower = upper < 60.0 ? upper : 60.0;
+                          return (totalCardHeight -
+                                  KdsCardMetrics.headerFooterReserve)
+                              .clamp(lower, upper);
+                        }(),
+                      ),
+                      child: Stack(
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.all(AppSpacing.s8),
+                            child: !order.isDetailLoaded
+                                ? const KdsMenuSkeleton()
+                                : SingleChildScrollView(
+                                    controller: _internalScrollController,
+                                    physics: const BouncingScrollPhysics(),
+                                    child: KdsMenuListWidget(
+                                      menuList: order.orderMenuList,
+                                      order: order,
+                                      cardType: cardType,
+                                    ),
                                   ),
+                          ),
+                          if (canScrollUp || canScrollDown) ...[
+                            if (canScrollUp)
+                              Positioned(
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                child: KdsScrollUpButtonWidget(
+                                  orderId: order.orderId,
+                                  scrollControllers:
+                                      ref.read(kdsScrollControllerMapProvider),
+                                  updateScrollButtonVisibility: (_) =>
+                                      _updateScrollButtonVisibility(),
                                 ),
-                        ),
-                        if (canScrollUp || canScrollDown) ...[
-                          if (canScrollUp)
-                            Positioned(
-                              top: 0,
-                              left: 0,
-                              right: 0,
-                              child: KdsScrollUpButtonWidget(
-                                orderId: order.orderId,
-                                scrollControllers:
-                                    ref.read(kdsScrollControllerMapProvider),
-                                updateScrollButtonVisibility: (_) =>
-                                    _updateScrollButtonVisibility(),
                               ),
-                            ),
-                          if (canScrollDown)
-                            Positioned(
-                              bottom: 0,
-                              left: 0,
-                              right: 0,
-                              child: KdsScrollDownButtonWidget(
-                                orderId: order.orderId,
-                                scrollControllers:
-                                    ref.read(kdsScrollControllerMapProvider),
-                                updateScrollButtonVisibility: (_) =>
-                                    _updateScrollButtonVisibility(),
+                            if (canScrollDown)
+                              Positioned(
+                                bottom: 0,
+                                left: 0,
+                                right: 0,
+                                child: KdsScrollDownButtonWidget(
+                                  orderId: order.orderId,
+                                  scrollControllers:
+                                      ref.read(kdsScrollControllerMapProvider),
+                                  updateScrollButtonVisibility: (_) =>
+                                      _updateScrollButtonVisibility(),
+                                ),
                               ),
-                            ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
-                  ),
-                  if (order.isDetailLoaded)
-                    const SizedBox(height: KdsCardMetrics.bottomButtonReserve),
-                ],
-              ),
-              if (order.isDetailLoaded)
-                Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  child: _buildBottomButtons(context, order, cardType),
+                    if (order.isDetailLoaded)
+                      const SizedBox(
+                          height: KdsCardMetrics.bottomButtonReserve),
+                  ],
                 ),
-            ],
+                if (order.isDetailLoaded)
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: _buildBottomButtons(context, order, cardType),
+                  ),
+              ],
+            ),
           ),
         ),
       ),

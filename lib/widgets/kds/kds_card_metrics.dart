@@ -27,7 +27,4 @@ class KdsCardMetrics {
   static const Duration cardSizeAnimDuration = Duration(milliseconds: 400);
   static const Duration cardSizeAnimDurationShort = Duration(milliseconds: 300);
   static const Duration opacityAnimDuration = Duration(milliseconds: 500);
-
-  /// 스크롤 위치 복원 전 컨트롤러 안정화 대기 시간.
-  static const Duration restoreScrollDelay = Duration(milliseconds: 100);
 }

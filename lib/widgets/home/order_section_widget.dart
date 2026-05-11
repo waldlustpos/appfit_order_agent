@@ -108,13 +108,15 @@ class _OrderSectionWidgetState extends ConsumerState<OrderSectionWidget> {
             itemCount: widget.orders.length,
             itemBuilder: (context, index) {
               const double cardSize = 100.0;
+              final order = widget.orders[index];
               return SizedBox(
+                key: ValueKey(order.orderId),
                 height: cardSize,
                 child: OrderCardWidget(
-                  order: widget.orders[index],
+                  order: order,
                   onTap: () {
                     ref.read(orderProvider.notifier).stopBlinking();
-                    widget.onOrderTap(widget.orders[index]);
+                    widget.onOrderTap(order);
                   },
                 ),
               );
