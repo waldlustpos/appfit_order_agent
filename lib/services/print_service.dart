@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:appfit_order_agent/services/com_port_print_service.dart';
 import 'package:appfit_order_agent/services/label_printer/windows/windows_label_printer_backend.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
+import 'package:appfit_order_agent/services/receipt_escpos_builder.dart';
 import 'package:appfit_order_agent/services/windows_print_service.dart';
 import '../models/order_model.dart';
 import 'dart:convert';
@@ -84,8 +85,7 @@ class PrintService {
             isLabelConnected = true;
           } else {
             final mode = _preferenceService.getLabelAutoReplyMode();
-            isLabelConnected =
-                await backend.warmupOpen(autoReplyMode: mode);
+            isLabelConnected = await backend.warmupOpen(autoReplyMode: mode);
           }
         }
         if (_cachedExternalPrinter == true) {
@@ -259,17 +259,67 @@ class PrintService {
         return await svc.printOrderFromJson(orderJson, isCancelReceipt);
       }
 
-      await platform.invokeMethod('printOrder', {
-        'orderJson': orderJson,
-        'type': type,
-        'isCancel': isCancelReceipt,
-        'useBuiltinPrint': useBuiltin,
-        'useExternalPrint': useExternal
-      });
+      // Android: 내장(Sunmi) 과 외부(Posbank) 가 동시에 켜질 수 있어 두 경로를 분리 호출.
+      // - Sunmi 는 raw bytes 미지원이라 기존 printOrder(orderJson) 경로 유지.
+      // - 외부 영수증 프린터는 Dart ReceiptEscPosBuilder 로 만든 세그먼트 리스트를
+      //   printReceiptSegments 채널로 송신 → Java 가 EUC-KR 변환 후 Posbank Printer 로 송출.
+      //   Windows 와 동일한 단일 빌더를 공유하므로 두 플랫폼 출력물이 항상 일치한다.
+      if (useBuiltin) {
+        try {
+          await platform.invokeMethod('printOrder', {
+            'orderJson': orderJson,
+            'type': type,
+            'isCancel': isCancelReceipt,
+            'useBuiltinPrint': true,
+            'useExternalPrint': false,
+          });
+        } on PlatformException catch (e, s) {
+          logger.e('[PrintService] Sunmi 내장 출력 실패', error: e, stackTrace: s);
+        }
+      }
+      if (useExternal) {
+        try {
+          final logoBytes = await _loadLogoBytes();
+          final segments = type == 'receipt'
+              ? await ReceiptEscPosBuilder.buildReceiptSegments(
+                  jsonOrder: orderMap,
+                  isCancel: isCancelReceipt,
+                  logoImageBytes: logoBytes,
+                )
+              : await ReceiptEscPosBuilder.buildOrderSegments(
+                  jsonOrder: orderMap,
+                  isCancel: isCancelReceipt,
+                  logoImageBytes: logoBytes,
+                );
+          await platform.invokeMethod<bool>('printReceiptSegments', {
+            'segments': segments,
+            'jobName':
+                '${type == 'receipt' ? 'RECEIPT' : 'ORDER'}_${order.displayNum}',
+          });
+        } on PlatformException catch (e, s) {
+          logger.e('[PrintService] 외부 영수증 프린터 출력 실패', error: e, stackTrace: s);
+        }
+      }
       return true;
     } on PlatformException catch (e, s) {
       logger.e('Failed to print order', error: e, stackTrace: s);
       rethrow;
+    }
+  }
+
+  /// 로고 PNG 캐싱 로드. 실패 시 null 반환(로고 없이 출력).
+  /// Windows/Android 양쪽 ReceiptEscPosBuilder 가 동일 비트맵 명령을 출력하도록 공유.
+  static Uint8List? _cachedLogoBytes;
+  Future<Uint8List?> _loadLogoBytes() async {
+    if (_cachedLogoBytes != null) return _cachedLogoBytes;
+    try {
+      _cachedLogoBytes = (await rootBundle.load('assets/images/logo.png'))
+          .buffer
+          .asUint8List();
+      return _cachedLogoBytes;
+    } catch (e) {
+      logger.w('[PrintService] 로고 로드 실패: $e');
+      return null;
     }
   }
 
@@ -311,10 +361,9 @@ class PrintService {
 
   /// 설정 화면 "테스트 출력" 버튼용. 플랫폼별로 분기.
   ///
-  /// - Windows: 저장된 COM 포트/baud rate 로 [ComPortPrintService.printTestPage]
-  ///   호출. COM 포트가 미설정이면 false 반환 (사용자가 먼저 포트를 골라야 함).
-  /// - Android: 더미 테스트 주문 JSON 을 기존 'printOrder' MethodChannel 에 송신해
-  ///   현재 활성 프린터(내장/외부 토글) 기준으로 출력.
+  /// 모든 외부 영수증 프린터 경로(Windows COM / Android Posbank)는 동일한
+  /// [ReceiptEscPosBuilder.buildTestPageBytes] / `buildTestPageSegments` 레이아웃을
+  /// 사용해 출력물이 일치한다. Sunmi 내장은 raw bytes 미지원이라 별도 더미 JSON 경로 유지.
   Future<bool> printTestPage() async {
     if (Platform.isWindows) {
       final comPort = _preferenceService.getComPortName();
@@ -328,46 +377,67 @@ class PrintService {
       );
     }
 
-    // Android: 기존 routing(useBuiltin/useExternal) 활용
+    // Android: 외부(Posbank) / 내장(Sunmi) 경로 분리.
     if (_cachedBuiltinPrinter == null || _cachedExternalPrinter == null) {
       _loadPrinterSettings();
     }
-    final testJson = jsonEncode({
-      'displayOrderNum': 'TEST',
-      'ordrSimpleId': 'TEST',
-      'storeName': '테스트 매장',
-      'ordrDtm': DateTime.now().toString(),
-      'userName': null,
-      'kioskId': null,
-      'ordrMemo': '테스트 출력입니다.',
-      'ordrPrdList': [
-        {
-          'prdNm': '테스트 메뉴',
-          'ordrCnt': 1,
-          'prdPrc': 0,
-          'optPrdList': <Map<String, dynamic>>[],
-        },
-      ],
-      'exceptTaxPrice': '0',
-      'taxPrice': '0',
-      'ordrPrc': '0',
-      'discPrc': '0',
-      'payPrc': '0',
-    });
-    try {
-      await platform.invokeMethod('printOrder', {
-        'orderJson': testJson,
-        'type': 'order',
-        'isCancel': false,
-        'useBuiltinPrint': _cachedBuiltinPrinter ?? false,
-        'useExternalPrint': _cachedExternalPrinter ?? false,
-      });
-      return true;
-    } on PlatformException catch (e, s) {
-      logger.e('[PrintService] Android 테스트 출력 실패',
-          error: e, stackTrace: s);
-      return false;
+    final useBuiltin = _cachedBuiltinPrinter ?? false;
+    final useExternal = _cachedExternalPrinter ?? false;
+
+    if (useExternal) {
+      try {
+        final segments = await ReceiptEscPosBuilder.buildTestPageSegments(
+          comPort: 'USB',
+          baudRate: 0,
+        );
+        await platform.invokeMethod<bool>('printReceiptSegments', {
+          'segments': segments,
+          'jobName': 'TEST',
+        });
+      } on PlatformException catch (e, s) {
+        logger.e('[PrintService] Android 외부 테스트 출력 실패',
+            error: e, stackTrace: s);
+      }
     }
+
+    if (useBuiltin) {
+      // Sunmi 는 raw bytes 미지원이라 더미 JSON 으로 기존 printOrder 경로 호출.
+      final testJson = jsonEncode({
+        'displayOrderNum': 'TEST',
+        'ordrSimpleId': 'TEST',
+        'storeName': '테스트 매장',
+        'ordrDtm': DateTime.now().toString(),
+        'userName': null,
+        'kioskId': null,
+        'ordrMemo': '테스트 출력입니다.',
+        'ordrPrdList': [
+          {
+            'prdNm': '테스트 메뉴',
+            'ordrCnt': 1,
+            'prdPrc': 0,
+            'optPrdList': <Map<String, dynamic>>[],
+          },
+        ],
+        'exceptTaxPrice': '0',
+        'taxPrice': '0',
+        'ordrPrc': '0',
+        'discPrc': '0',
+        'payPrc': '0',
+      });
+      try {
+        await platform.invokeMethod('printOrder', {
+          'orderJson': testJson,
+          'type': 'order',
+          'isCancel': false,
+          'useBuiltinPrint': true,
+          'useExternalPrint': false,
+        });
+      } on PlatformException catch (e, s) {
+        logger.e('[PrintService] Android 내장 테스트 출력 실패',
+            error: e, stackTrace: s);
+      }
+    }
+    return useBuiltin || useExternal;
   }
 
   // 서비스 정리

@@ -185,6 +185,56 @@ public class PrintUtil {
         // }
     }
 
+    /**
+     * Dart side(ReceiptEscPosBuilder) build segment list and pass via
+     * MethodChannel. Each entry is a Map with key "type" = "raw" or "text".
+     * For "raw" the value at key "bytes" is byte[]; for "text" the value at key
+     * "text" is String. We re-encode text as EUC-KR and concatenate, then send
+     * with Posbank executeDirectIO. This keeps a single source of truth for
+     * receipt / order / test-page formatting in Dart across Windows and Android.
+     */
+    public void printSegments(java.util.List<java.util.Map<String, Object>> segments, String jobName) {
+        if (printerList == null || printerList.isEmpty()) {
+            Log.e(TAG, "No Posbank printer connected for printSegments (" + jobName + ")");
+            return;
+        }
+        if (segments == null || segments.isEmpty()) {
+            Log.w(TAG, "printSegments: empty segments (" + jobName + ")");
+            return;
+        }
+
+        try {
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            for (java.util.Map<String, Object> seg : segments) {
+                Object type = seg.get("type");
+                if ("raw".equals(type)) {
+                    Object v = seg.get("bytes");
+                    if (v instanceof byte[]) {
+                        out.write((byte[]) v);
+                    }
+                } else if ("text".equals(type)) {
+                    Object v = seg.get("text");
+                    if (v != null) {
+                        out.write(v.toString().getBytes(CHARSET));
+                    }
+                }
+            }
+            byte[] commands = out.toByteArray();
+            for (Printer p : printerList) {
+                try {
+                    Log.d(TAG, "printSegments(" + jobName + "): " + commands.length + " bytes -> " + p);
+                    p.executeDirectIO(commands);
+                } catch (Exception e) {
+                    Log.e(TAG, "printSegments error on " + p, e);
+                }
+            }
+        } catch (IOException e) {
+            Log.e(TAG, "IO error in printSegments (" + jobName + "): " + e.getMessage());
+        } catch (Exception e) {
+            Log.e(TAG, "General error in printSegments (" + jobName + "): " + e.getMessage());
+        }
+    }
+
     public void printOrderFromJson(String orderJson, boolean isCancel) {
         if (printerList == null || printerList.isEmpty()) {
             Log.e(TAG, "No Posbank printer connected for printing order.");

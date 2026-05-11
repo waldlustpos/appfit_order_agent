@@ -169,7 +169,6 @@ class OutputQueueService {
           type: 'receipt',
           isCancelReceipt: cancel,
         );
-        await outputService.printOrderLabels(order, isReprint: true);
         _life('[Label] $num 큐완료 (RECEIPT_REPRINT)');
     }
   }

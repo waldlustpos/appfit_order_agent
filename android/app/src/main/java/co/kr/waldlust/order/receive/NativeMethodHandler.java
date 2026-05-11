@@ -36,6 +36,9 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
     // 라벨 프린터는 USB 단일 자원 → 단일 스레드 executor 로 직렬화하여 재출력 연타 / 동시 호출의
     // 공백지/지연 이슈를 차단한다.
     private final ExecutorService labelPrintExecutor = Executors.newSingleThreadExecutor();
+    // 영수증/주문서 외부 프린터(Posbank). 라벨과는 별개의 USB 디바이스이지만, 동일 단말에서
+    // 연속 출력 시 executeDirectIO 동시 호출 충돌을 막기 위해 단일 스레드로 직렬화한다.
+    private final ExecutorService receiptPrintExecutor = Executors.newSingleThreadExecutor();
 
     public NativeMethodHandler(MainActivity activity) {
         this.activity = activity;
@@ -115,6 +118,35 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
                     result.error("INVALID_ARGUMENT", "Image bytes are null or empty", null);
                 }
                 break;
+
+            case "printReceiptSegments": {
+                // Dart ReceiptEscPosBuilder.toChannelList() 결과를 받아 Posbank 외부 프린터로 송출.
+                // 텍스트는 EUC-KR 로 변환하여 raw 명령과 단일 byte stream 으로 직렬화 후 executeDirectIO.
+                java.util.List<java.util.Map<String, Object>> segments = call.argument("segments");
+                String jobName = call.argument("jobName");
+                final String finalJobName = jobName != null ? jobName : "RECEIPT";
+                if (segments == null || segments.isEmpty()) {
+                    result.error("INVALID_ARGUMENT", "segments is null or empty", null);
+                    break;
+                }
+                final java.util.List<java.util.Map<String, Object>> finalSegments = segments;
+                receiptPrintExecutor.submit(() -> {
+                    boolean ok = false;
+                    try {
+                        if (MainActivity.printrUtil != null) {
+                            MainActivity.printrUtil.printSegments(finalSegments, finalJobName);
+                            ok = true;
+                        } else {
+                            Log.e(TAG, "printReceiptSegments: PrintUtil is not initialized");
+                        }
+                    } catch (Exception e) {
+                        Log.e(TAG, "printReceiptSegments error", e);
+                    }
+                    final boolean fOk = ok;
+                    new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> result.success(fOk));
+                });
+                break;
+            }
 
             case "printOrder":
                 String orderJson = call.argument("orderJson");

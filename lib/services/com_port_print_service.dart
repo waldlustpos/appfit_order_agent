@@ -3,7 +3,7 @@ import 'dart:typed_data';
 import 'package:serial_port_win32/serial_port_win32.dart';
 
 import '../utils/logger.dart';
-import 'escpos_builder.dart';
+import 'receipt_escpos_builder.dart';
 
 /// Windows COM 포트로 직접 ESC/POS 명령을 전송하는 프린터 서비스.
 /// PR800 같은 시리얼 영수증 프린터용.
@@ -27,7 +27,8 @@ class ComPortPrintService {
       logger.i('[ComPortPrint] Available COM ports: $ports');
       return ports;
     } catch (e, s) {
-      logger.e('[ComPortPrint] Failed to get COM ports', error: e, stackTrace: s);
+      logger.e('[ComPortPrint] Failed to get COM ports',
+          error: e, stackTrace: s);
       return [];
     }
   }
@@ -84,8 +85,8 @@ class ComPortPrintService {
       // - warm path (직전 성공 후 _warmWindow 이내): 150ms.
       //   연속 영수증 출력 등 정상 흐름에서 체감 지연 최소화.
       final lastSend = _lastSuccessfulSendAt;
-      final isWarm = lastSend != null &&
-          DateTime.now().difference(lastSend) < _warmWindow;
+      final isWarm =
+          lastSend != null && DateTime.now().difference(lastSend) < _warmWindow;
       final settle = isWarm ? _settleWarm : _settleCold;
       logger.d(
           '[ComPortPrint] Settle delay: ${settle.inMilliseconds}ms (${isWarm ? 'warm' : 'cold'})');
@@ -94,7 +95,8 @@ class ComPortPrintService {
       // 데이터 전송
       try {
         port.writeBytesFromUint8List(data);
-        logger.i('[ComPortPrint] Successfully sent ${data.length} bytes to $comPort');
+        logger.i(
+            '[ComPortPrint] Successfully sent ${data.length} bytes to $comPort');
         // Drain delay 동적 계산: 8N1 기준 1바이트 = 10비트.
         // 실제 wire 전송 시간 + 200ms 안전 마진.
         // 256B@9600 ≈ 467ms, 1KB@9600 ≈ 1242ms, 1KB@115200 ≈ 287ms.
@@ -104,7 +106,8 @@ class ComPortPrintService {
         _lastSuccessfulSendAt = DateTime.now();
         return true;
       } catch (writeError, writeStack) {
-        logger.e('[ComPortPrint] Write failed', error: writeError, stackTrace: writeStack);
+        logger.e('[ComPortPrint] Write failed',
+            error: writeError, stackTrace: writeStack);
         return false;
       } finally {
         // 포트 닫기
@@ -123,52 +126,18 @@ class ComPortPrintService {
 
   /// 테스트 페이지를 COM 포트로 출력.
   ///
-  /// 영수증 재출력 경로와 동일하게 [EscPosStreamBuilder] 를 사용하여
-  /// CP949 한글 인코딩과 동일한 cut 명령(GS V B 0)을 공유한다.
-  /// PR800 류 프린터에서 cut 명령의 auto-feed 만으로는 print head ↔ cutter
-  /// 거리(~30 mm)를 못 채우는 케이스를 막기 위해 cut 직전에 명시적 LF 를
-  /// 추가하여 출력물이 cutter 너머까지 확실히 밀려 나오도록 한다.
+  /// 출력물은 [ReceiptEscPosBuilder.buildTestPageBytes] 가 만든 동일 레이아웃을
+  /// Android 외부 프린터 경로(MethodChannel `printReceiptSegments`)와 공유한다.
   static Future<bool> printTestPage({
     String comPort = defaultComPort,
     int baudRate = defaultBaudRate,
   }) async {
     try {
-      final now = DateTime.now();
-      final ts =
-          '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} '
-          '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}';
-
-      final b = EscPosStreamBuilder()
-        ..init()
-        ..setAlign(EscPos.alignCenter)
-        ..setSize(EscPos.fontLarge)
-        ..textLn('PRINTER TEST')
-        ..setSize(EscPos.fontNormal)
-        ..ln()
-        ..textLn('AppFit Order Agent')
-        ..textLn('PR800 영수증 프린터')
-        ..ln()
-        ..setAlign(EscPos.alignLeft)
-        ..textLn(EscPos.separatorLine(32))
-        ..textLn('포트  : $comPort')
-        ..textLn('보드  : $baudRate baud')
-        ..textLn('일시  : $ts')
-        ..textLn(EscPos.separatorLine(32))
-        ..ln()
-        ..setAlign(EscPos.alignCenter)
-        ..textLn('한글 ABC 0123 가나다 !@#')
-        ..ln()
-        ..textLn('이 영수증이 보이면 정상')
-        // 종이 절단 위치 확보용 명시적 line feed.
-        ..ln()
-        ..ln()
-        ..ln()
-        ..ln()
-        ..ln()
-        // cut() = [0x1D, 0x56, 0x42, 0x00] (GS V B 0, feed-to-cut + full cut).
-        ..cut();
-
-      return await sendRaw(b.build(), comPort: comPort, baudRate: baudRate);
+      final data = await ReceiptEscPosBuilder.buildTestPageBytes(
+        comPort: comPort,
+        baudRate: baudRate,
+      );
+      return await sendRaw(data, comPort: comPort, baudRate: baudRate);
     } catch (e, s) {
       logger.e('[ComPortPrint] Error printing test page',
           error: e, stackTrace: s);
