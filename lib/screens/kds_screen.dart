@@ -113,11 +113,6 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
       if (_tabController.indexIsChanging) {
         final currentTabIndex = _tabController.index;
 
-        // 중복 선택 감지: 같은 탭을 다시 선택한 경우 스크롤 초기화
-        if (_lastSelectedTabIndex == currentTabIndex) {
-          _resetScrollForTab(currentTabIndex);
-        }
-
         _pageController.jumpToPage(currentTabIndex);
 
         // Provider 상태 변경을 다음 프레임으로 지연
@@ -138,9 +133,6 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
                 'KDS: 탭 변경 - 탭: $currentTabIndex, 정렬: ${tabSortDirection == OrderSortDirection.ASC ? "오래된 주문순" : "최신 주문순"}');
           }
         });
-
-        // 마지막 선택된 탭 인덱스 업데이트
-        _lastSelectedTabIndex = currentTabIndex;
       }
     });
 
@@ -598,32 +590,42 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
                               });
                             },
                             children: [
-                              Padding(
-                                padding: const EdgeInsets.all(8.0),
-                                child: _buildStaticAllTab(
-                                  visibleAllOrders,
-                                  isLoading: isHistoryLoading,
+                              _KdsTabKeepAlive(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(8.0),
+                                  child: _buildStaticAllTab(
+                                    visibleAllOrders,
+                                    isLoading: isHistoryLoading,
+                                  ),
                                 ),
                               ),
-                              Padding(
-                                padding: const EdgeInsets.all(8.0),
-                                child: _buildStaticProgressTab(
-                                    visiblePendingOrders),
+                              _KdsTabKeepAlive(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(8.0),
+                                  child: _buildStaticProgressTab(
+                                      visiblePendingOrders),
+                                ),
                               ),
-                              Padding(
-                                padding: const EdgeInsets.all(8.0),
-                                child:
-                                    _buildStaticPickupTab(visiblePickupOrders),
+                              _KdsTabKeepAlive(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(8.0),
+                                  child: _buildStaticPickupTab(
+                                      visiblePickupOrders),
+                                ),
                               ),
-                              Padding(
-                                padding: const EdgeInsets.all(8.0),
-                                child: _buildStaticCompletedTab(
-                                    visibleCompletedOrders),
+                              _KdsTabKeepAlive(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(8.0),
+                                  child: _buildStaticCompletedTab(
+                                      visibleCompletedOrders),
+                                ),
                               ),
-                              Padding(
-                                padding: const EdgeInsets.all(8.0),
-                                child: _buildStaticCancelledTab(
-                                    visibleCancelledOrders),
+                              _KdsTabKeepAlive(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(8.0),
+                                  child: _buildStaticCancelledTab(
+                                      visibleCancelledOrders),
+                                ),
                               ),
                             ],
                           ),
@@ -1297,5 +1299,26 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
             cardType == CardType.cancelled, // 완료/취소 탭 여부
       ),
     );
+  }
+}
+
+// PageView 자식 State를 유지해 ScrollPosition(탭별 가로 스크롤 offset)을 보존.
+class _KdsTabKeepAlive extends StatefulWidget {
+  final Widget child;
+  const _KdsTabKeepAlive({required this.child});
+
+  @override
+  State<_KdsTabKeepAlive> createState() => _KdsTabKeepAliveState();
+}
+
+class _KdsTabKeepAliveState extends State<_KdsTabKeepAlive>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return widget.child;
   }
 }
