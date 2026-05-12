@@ -384,7 +384,11 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
 
   ({List<Widget> secondary, Widget primary}) _buildActionButtons(
       OrderModel order) {
-    final isSubDisplay = ref.read(preferenceServiceProvider).getSubDisplay();
+    final prefs = ref.read(preferenceServiceProvider);
+    final isSubDisplay = prefs.getSubDisplay();
+    final showReceiptReprint =
+        prefs.getUseBuiltinPrinter() || prefs.getUseExternalPrinter();
+    final showLabelReprint = prefs.getUseLabelPrinter();
 
     Widget closeButton({bool isMainAction = false}) => AsyncActionButton(
           text: t.common.close,
@@ -415,15 +419,27 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
           },
         );
 
-    // 완료/취소 탭: 닫기 단일 버튼
+    // 어떤 화면에서도 설정 플래그(영수증=내장|외부, 라벨)로만 가시성 결정.
+    List<Widget> reprintButtons() => [
+          if (showReceiptReprint) receiptReprintBtn(),
+          if (showLabelReprint) labelReprintBtn(),
+        ];
+
+    // 완료/취소 탭: 닫기 + 재출력
     if (widget.isFromCompletedOrCancelled) {
-      return (secondary: [], primary: closeButton(isMainAction: true));
+      return (
+        secondary: reprintButtons(),
+        primary: closeButton(isMainAction: true),
+      );
     }
 
     // KDS 모드
     if (widget.isFromKds) {
       if (isSubDisplay && widget.isFromAllTab) {
-        return (secondary: [], primary: closeButton(isMainAction: true));
+        return (
+          secondary: reprintButtons(),
+          primary: closeButton(isMainAction: true),
+        );
       }
 
       Future<void> requestPickup() async {
@@ -438,8 +454,7 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
       return (
         secondary: [
           closeButton(),
-          if (ref.read(preferenceServiceProvider).getUseLabelPrinter())
-            labelReprintBtn(),
+          ...reprintButtons(),
         ],
         primary: AsyncActionButton(
           text: t.order_detail.btn_pickup_request,
@@ -649,11 +664,7 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
         '현재 주문 상태: ${order.status}, isFromHistory: $isFromHistory, isSubDisplay: $isSubDisplay');
 
     if (isFromHistory) {
-      final secondaryBtns = [
-        receiptReprintBtn(),
-        if (ref.read(preferenceServiceProvider).getUseLabelPrinter())
-          labelReprintBtn(),
-      ];
+      final secondaryBtns = reprintButtons();
       if (order.status != OrderStatus.CANCELLED) {
         return (
           secondary: secondaryBtns,
@@ -678,9 +689,7 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
     if (order.status == OrderStatus.NEW) {
       return (
         secondary: [
-          receiptReprintBtn(),
-          if (ref.read(preferenceServiceProvider).getUseLabelPrinter())
-            labelReprintBtn(),
+          ...reprintButtons(),
           cancelOrderBtn(),
         ],
         primary: AsyncActionButton(
@@ -698,7 +707,7 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
           !widget.isFromCompletedOrCancelled) {
         return (
           secondary: [
-            receiptReprintBtn(),
+            ...reprintButtons(),
             cancelOrderBtn(),
             completeOrderBtn(),
           ],
@@ -711,9 +720,7 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
       }
       return (
         secondary: [
-          receiptReprintBtn(),
-          if (ref.read(preferenceServiceProvider).getUseLabelPrinter())
-            labelReprintBtn(),
+          ...reprintButtons(),
           cancelOrderBtn(),
           completeOrderBtn(),
         ],
@@ -727,22 +734,14 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
 
     if (order.status == OrderStatus.READY) {
       return (
-        secondary: [
-          receiptReprintBtn(),
-          if (ref.read(preferenceServiceProvider).getUseLabelPrinter())
-            labelReprintBtn(),
-        ],
+        secondary: reprintButtons(),
         primary: completeOrderBtn(isMainAction: true),
       );
     }
 
     // DONE / 기타
     return (
-      secondary: [
-        receiptReprintBtn(),
-        if (ref.read(preferenceServiceProvider).getUseLabelPrinter())
-          labelReprintBtn(),
-      ],
+      secondary: reprintButtons(),
       primary: closeButton(isMainAction: true),
     );
   }
