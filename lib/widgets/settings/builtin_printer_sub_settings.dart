@@ -14,6 +14,10 @@ class BuiltinPrinterSubSettings extends ConsumerStatefulWidget {
     super.key,
     required this.isUseBuiltinPrinter,
     required this.available,
+    required this.printOrder,
+    required this.printReceipt,
+    required this.onPrintOrderChanged,
+    required this.onPrintReceiptChanged,
   });
 
   /// 내장 프린터 토글 ON 여부 (PreferenceService 값과 동일).
@@ -21,6 +25,15 @@ class BuiltinPrinterSubSettings extends ConsumerStatefulWidget {
 
   /// 내장 하드웨어 감지 결과. false 면 토글이 disable 되어 있고 테스트도 불가.
   final bool available;
+
+  /// 매트릭스: 주문서 출력 여부.
+  final bool printOrder;
+
+  /// 매트릭스: 영수증 출력 여부.
+  final bool printReceipt;
+
+  final void Function(bool) onPrintOrderChanged;
+  final void Function(bool) onPrintReceiptChanged;
 
   @override
   ConsumerState<BuiltinPrinterSubSettings> createState() =>
@@ -70,8 +83,45 @@ class _BuiltinPrinterSubSettingsState
         _buildDetectionStatus(),
         if (widget.available) ...[
           const SizedBox(height: AppSpacing.s12),
+          _buildMatrixRow(
+            label: '주문서 출력',
+            value: widget.printOrder,
+            onChanged: widget.onPrintOrderChanged,
+          ),
+          const SizedBox(height: AppSpacing.s8),
+          _buildMatrixRow(
+            label: '영수증 출력',
+            value: widget.printReceipt,
+            onChanged: widget.onPrintReceiptChanged,
+          ),
+          const SizedBox(height: AppSpacing.s12),
           _buildTestPrintRow(),
         ],
+      ],
+    );
+  }
+
+  Widget _buildMatrixRow({
+    required String label,
+    required bool value,
+    required void Function(bool) onChanged,
+  }) {
+    final enabled = widget.available && widget.isUseBuiltinPrinter;
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: AppTextStyles.bodySm.copyWith(
+              color: enabled ? AppStyles.gray9 : AppStyles.gray4,
+            ),
+          ),
+        ),
+        Switch(
+          value: value,
+          onChanged: enabled ? onChanged : null,
+          activeColor: AppStyles.kMainColor,
+        ),
       ],
     );
   }

@@ -40,6 +40,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _isUseExternalPrinter = false;
   bool _isUseLabelPrinter = false;
   bool _isUseBuiltinPrinter = true;
+
+  // 프린터 × 출력물 매트릭스 (내장/외부 × 주문서/영수증)
+  bool _builtinPrintOrder = true;
+  bool _builtinPrintReceipt = true;
+  bool _externalPrintOrder = true;
+  bool _externalPrintReceipt = true;
   bool _isTpcpStore = false;
 
   int _labelAutoReplyMode = 1;
@@ -93,6 +99,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _isUseBuiltinPrinter = _preferenceService.getUseBuiltinPrinter();
       _isUseExternalPrinter = _preferenceService.getUseExternalPrinter();
       _isUseLabelPrinter = _preferenceService.getUseLabelPrinter();
+      _builtinPrintOrder = _preferenceService.getBuiltinPrintOrder();
+      _builtinPrintReceipt = _preferenceService.getBuiltinPrintReceipt();
+      _externalPrintOrder = _preferenceService.getExternalPrintOrder();
+      _externalPrintReceipt = _preferenceService.getExternalPrintReceipt();
       _isTpcpStore = _preferenceService.isTpcpStore();
 
       _labelAutoReplyMode = _preferenceService.getLabelAutoReplyMode();
@@ -131,6 +141,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await _preferenceService.setUseBuiltinPrinter(_isUseBuiltinPrinter);
       await _preferenceService.setUseExternalPrinter(_isUseExternalPrinter);
       await _preferenceService.setUseLabelPrinter(_isUseLabelPrinter);
+      await _preferenceService.setBuiltinPrintOrder(_builtinPrintOrder);
+      await _preferenceService.setBuiltinPrintReceipt(_builtinPrintReceipt);
+      await _preferenceService.setExternalPrintOrder(_externalPrintOrder);
+      await _preferenceService.setExternalPrintReceipt(_externalPrintReceipt);
       await _preferenceService.setLabelAutoReplyMode(_labelAutoReplyMode);
       await _preferenceService.setLabelUseFeedToTear(_labelUseFeedToTear);
       await _preferenceService.setLabelUseBackToPrint(_labelUseBackToPrint);
@@ -500,6 +514,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               isUseBuiltinPrinter: _isUseBuiltinPrinter,
               isUseExternalPrinter: _isUseExternalPrinter,
               isUseLabelPrinter: _isUseLabelPrinter,
+              builtinPrintOrder: _builtinPrintOrder,
+              builtinPrintReceipt: _builtinPrintReceipt,
+              externalPrintOrder: _externalPrintOrder,
+              externalPrintReceipt: _externalPrintReceipt,
               isTpcpStore: _isTpcpStore,
               labelFilterMode: _labelFilterMode,
               isShowOrderTypeBadge: _isShowOrderTypeBadge,
@@ -528,6 +546,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   _setAndSave(() => _isUseExternalPrinter = v),
               onUseLabelPrinterChanged: (v) =>
                   _setAndSave(() => _isUseLabelPrinter = v),
+              onBuiltinPrintOrderChanged: (v) =>
+                  _setAndSave(() => _builtinPrintOrder = v),
+              onBuiltinPrintReceiptChanged: (v) =>
+                  _setAndSave(() => _builtinPrintReceipt = v),
+              onExternalPrintOrderChanged: (v) =>
+                  _setAndSave(() => _externalPrintOrder = v),
+              onExternalPrintReceiptChanged: (v) =>
+                  _setAndSave(() => _externalPrintReceipt = v),
               onLabelFilterModeChanged: (v) =>
                   _setAndSave(() => _labelFilterMode = v),
               onShowOrderTypeBadgeChanged: (v) =>

@@ -52,6 +52,17 @@ class PreferenceService {
   static const String KEY_PRINT_COUNT = "KEY_PRINT_COUNT";
   static const String KEY_LOCAL_SERVER_ENABLED = "KEY_LOCAL_SERVER_ENABLED";
   static const String KEY_USE_LABEL_PRINTER = "KOKONUT_USE_LABEL_PRINTER";
+
+  // 프린터 × 출력물 매트릭스 키 (내장/외부 × 주문서/영수증)
+  static const String KEY_BUILTIN_PRINT_ORDER =
+      "KOKONUT_BUILTIN_PRINT_ORDER"; // 내장 × 주문서 (기본 true)
+  static const String KEY_BUILTIN_PRINT_RECEIPT =
+      "KOKONUT_BUILTIN_PRINT_RECEIPT"; // 내장 × 영수증 (기본 true)
+  static const String KEY_EXTERNAL_PRINT_ORDER =
+      "KOKONUT_EXTERNAL_PRINT_ORDER"; // 외부 × 주문서 (기본 true)
+  static const String KEY_EXTERNAL_PRINT_RECEIPT =
+      "KOKONUT_EXTERNAL_PRINT_RECEIPT"; // 외부 × 영수증 (기본 true)
+
   static const String KEY_SHOW_ORDER_TYPE_BADGE =
       "KEY_SHOW_ORDER_TYPE_BADGE"; // 주문 상세 헤더의 매장/포장 pill 노출 여부
 
@@ -489,6 +500,17 @@ class PreferenceService {
       _prefs.getBool(KEY_USE_EXTERNAL_PRINTER) ?? false; // Default false
   bool getUseLabelPrinter() =>
       _prefs.getBool(KEY_USE_LABEL_PRINTER) ?? false; // Default false
+
+  // 프린터 × 출력물 매트릭스 getters
+  bool getBuiltinPrintOrder() =>
+      _prefs.getBool(KEY_BUILTIN_PRINT_ORDER) ?? true;
+  bool getBuiltinPrintReceipt() =>
+      _prefs.getBool(KEY_BUILTIN_PRINT_RECEIPT) ?? true;
+  bool getExternalPrintOrder() =>
+      _prefs.getBool(KEY_EXTERNAL_PRINT_ORDER) ?? true;
+  bool getExternalPrintReceipt() =>
+      _prefs.getBool(KEY_EXTERNAL_PRINT_RECEIPT) ?? true;
+
   bool getShowOrderTypeBadge() =>
       _prefs.getBool(KEY_SHOW_ORDER_TYPE_BADGE) ??
       false; // 주문 상세 헤더 매장/포장 pill 노출 (default off)
@@ -566,6 +588,16 @@ class PreferenceService {
   Future<void> setUseLabelPrinter(bool value) async {
     await _prefs.setBool(KEY_USE_LABEL_PRINTER, value);
   }
+
+  // 프린터 × 출력물 매트릭스 setters
+  Future<void> setBuiltinPrintOrder(bool value) async =>
+      _prefs.setBool(KEY_BUILTIN_PRINT_ORDER, value);
+  Future<void> setBuiltinPrintReceipt(bool value) async =>
+      _prefs.setBool(KEY_BUILTIN_PRINT_RECEIPT, value);
+  Future<void> setExternalPrintOrder(bool value) async =>
+      _prefs.setBool(KEY_EXTERNAL_PRINT_ORDER, value);
+  Future<void> setExternalPrintReceipt(bool value) async =>
+      _prefs.setBool(KEY_EXTERNAL_PRINT_RECEIPT, value);
 
   Future<void> setShowOrderTypeBadge(bool value) async {
     await _prefs.setBool(KEY_SHOW_ORDER_TYPE_BADGE, value);

@@ -48,6 +48,12 @@ class PrintService {
   bool? _cachedExternalPrinter;
   bool? _cachedLabelPrinter;
 
+  // 프린터 × 출력물 매트릭스 캐시
+  bool? _cachedBuiltinPrintOrder;
+  bool? _cachedBuiltinPrintReceipt;
+  bool? _cachedExternalPrintOrder;
+  bool? _cachedExternalPrintReceipt;
+
   var tag = '프린트';
 
   PrintService(this.ref) : _preferenceService = PreferenceService() {
@@ -108,10 +114,16 @@ class PrintService {
     _cachedBuiltinPrinter = _preferenceService.getUseBuiltinPrinter();
     _cachedExternalPrinter = _preferenceService.getUseExternalPrinter();
     _cachedLabelPrinter = _preferenceService.getUseLabelPrinter();
+    _cachedBuiltinPrintOrder = _preferenceService.getBuiltinPrintOrder();
+    _cachedBuiltinPrintReceipt = _preferenceService.getBuiltinPrintReceipt();
+    _cachedExternalPrintOrder = _preferenceService.getExternalPrintOrder();
+    _cachedExternalPrintReceipt = _preferenceService.getExternalPrintReceipt();
     logToFile(
         tag: LogTag.PLATFORM,
         message:
-            '프린터 설정 업데이트: 내장=${_cachedBuiltinPrinter}, 외부=${_cachedExternalPrinter}, 라벨=${_cachedLabelPrinter}');
+            '프린터 설정 업데이트: 내장=${_cachedBuiltinPrinter}(주문서=$_cachedBuiltinPrintOrder/영수증=$_cachedBuiltinPrintReceipt), '
+            '외부=${_cachedExternalPrinter}(주문서=$_cachedExternalPrintOrder/영수증=$_cachedExternalPrintReceipt), '
+            '라벨=${_cachedLabelPrinter}');
   }
 
   /// 프린터 연결 상태 관리.
@@ -277,20 +289,29 @@ class PrintService {
     bool? builtinPrinter,
     bool? externalPrinter,
     bool? labelPrinter,
+    bool? builtinPrintOrder,
+    bool? builtinPrintReceipt,
+    bool? externalPrintOrder,
+    bool? externalPrintReceipt,
   }) {
-    if (builtinPrinter != null) {
-      _cachedBuiltinPrinter = builtinPrinter;
+    if (builtinPrinter != null) _cachedBuiltinPrinter = builtinPrinter;
+    if (externalPrinter != null) _cachedExternalPrinter = externalPrinter;
+    if (labelPrinter != null) _cachedLabelPrinter = labelPrinter;
+    if (builtinPrintOrder != null) _cachedBuiltinPrintOrder = builtinPrintOrder;
+    if (builtinPrintReceipt != null) {
+      _cachedBuiltinPrintReceipt = builtinPrintReceipt;
     }
-    if (externalPrinter != null) {
-      _cachedExternalPrinter = externalPrinter;
-    }
-    if (labelPrinter != null) {
-      _cachedLabelPrinter = labelPrinter;
+    if (externalPrintOrder != null)
+      _cachedExternalPrintOrder = externalPrintOrder;
+    if (externalPrintReceipt != null) {
+      _cachedExternalPrintReceipt = externalPrintReceipt;
     }
     logToFile(
         tag: LogTag.PLATFORM,
         message:
-            '프린터 설정 수동 업데이트: 내장=${_cachedBuiltinPrinter}, 외부=${_cachedExternalPrinter}, 라벨=${_cachedLabelPrinter}');
+            '프린터 설정 수동 업데이트: 내장=$_cachedBuiltinPrinter(주문서=$_cachedBuiltinPrintOrder/영수증=$_cachedBuiltinPrintReceipt), '
+            '외부=$_cachedExternalPrinter(주문서=$_cachedExternalPrintOrder/영수증=$_cachedExternalPrintReceipt), '
+            '라벨=$_cachedLabelPrinter');
   }
 
   // 주문 정보를 JSON으로 변환하여 네이티브 프린트 기능 호출
@@ -326,18 +347,18 @@ class PrintService {
         _loadPrinterSettings();
       }
 
-      // 영수증 재출력이고 두 프린터가 모두 켜져있는 경우 내부 프린터만 사용
-      // (외부에 동시 출력하면 중복 영수증이 나가므로 한 쪽만 선택. Sunmi 내장이 항상
-      // 연결 보장이 되어있어 우선순위로 둠.)
-      bool useBuiltin = _cachedBuiltinPrinter ?? false;
-      bool useExternal = _cachedExternalPrinter ?? false;
-
-      if (type == 'receipt' && useBuiltin && useExternal) {
-        useExternal = false;
-        logToFile(
-            tag: LogTag.PLATFORM,
-            message: '영수증 재출력: 내부/외부 프린터 모두 켜져있어 내부 프린터만 사용');
-      }
+      // 프린터 × 출력물 매트릭스 적용.
+      // - 취소 영수증(isCancelReceipt=true)은 주문서 매트릭스 사용 (사용자 결정).
+      // - 영수증 재출력 시 두 프린터 동시 ON 강제 OFF 로직 제거 — 매트릭스가 source of truth.
+      final isReceiptCategory = (type == 'receipt') && !isCancelReceipt;
+      final bool useBuiltin = (_cachedBuiltinPrinter ?? false) &&
+          (isReceiptCategory
+              ? (_cachedBuiltinPrintReceipt ?? true)
+              : (_cachedBuiltinPrintOrder ?? true));
+      final bool useExternal = (_cachedExternalPrinter ?? false) &&
+          (isReceiptCategory
+              ? (_cachedExternalPrintReceipt ?? true)
+              : (_cachedExternalPrintOrder ?? true));
 
       logger.d(
           '${type == 'order' ? '주문서출력' : '영수증출력'}: displayNum=${order.displayNum}\n--------------------------------------------------------------------------------------------------------------\n');

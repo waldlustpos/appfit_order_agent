@@ -24,9 +24,22 @@ class ExternalPrinterSubSettings extends ConsumerStatefulWidget {
   const ExternalPrinterSubSettings({
     super.key,
     required this.isUseExternalPrinter,
+    required this.printOrder,
+    required this.printReceipt,
+    required this.onPrintOrderChanged,
+    required this.onPrintReceiptChanged,
   });
 
   final bool isUseExternalPrinter;
+
+  /// 매트릭스: 주문서 출력 여부.
+  final bool printOrder;
+
+  /// 매트릭스: 영수증 출력 여부.
+  final bool printReceipt;
+
+  final void Function(bool) onPrintOrderChanged;
+  final void Function(bool) onPrintReceiptChanged;
 
   @override
   ConsumerState<ExternalPrinterSubSettings> createState() =>
@@ -160,6 +173,20 @@ class _ExternalPrinterSubSettingsState
             await ps.checkConnection(external: true, label: false);
           },
         ),
+        if (widget.isUseExternalPrinter) ...[
+          const SizedBox(height: AppSpacing.s12),
+          _buildMatrixRow(
+            label: '주문서 출력',
+            value: widget.printOrder,
+            onChanged: widget.onPrintOrderChanged,
+          ),
+          const SizedBox(height: AppSpacing.s8),
+          _buildMatrixRow(
+            label: '영수증 출력',
+            value: widget.printReceipt,
+            onChanged: widget.onPrintReceiptChanged,
+          ),
+        ],
         if (widget.isUseExternalPrinter && Platform.isWindows) ...[
           const SizedBox(height: AppSpacing.s12),
           _buildComPortPicker(),
@@ -168,6 +195,32 @@ class _ExternalPrinterSubSettingsState
           const SizedBox(height: AppSpacing.s12),
           _buildTestPrintRow(),
         ],
+      ],
+    );
+  }
+
+  // ── 매트릭스 row (주문서/영수증 출력 여부) ──────────────────────────────────
+  Widget _buildMatrixRow({
+    required String label,
+    required bool value,
+    required void Function(bool) onChanged,
+  }) {
+    final enabled = widget.isUseExternalPrinter;
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: AppTextStyles.bodySm.copyWith(
+              color: enabled ? AppStyles.gray9 : AppStyles.gray4,
+            ),
+          ),
+        ),
+        Switch(
+          value: value,
+          onChanged: enabled ? onChanged : null,
+          activeColor: AppStyles.kMainColor,
+        ),
       ],
     );
   }

@@ -33,6 +33,10 @@ class SettingsLeftPanel extends ConsumerStatefulWidget {
     required this.isUseBuiltinPrinter,
     required this.isUseExternalPrinter,
     required this.isUseLabelPrinter,
+    required this.builtinPrintOrder,
+    required this.builtinPrintReceipt,
+    required this.externalPrintOrder,
+    required this.externalPrintReceipt,
     required this.isTpcpStore,
     required this.labelFilterMode,
     required this.isShowOrderTypeBadge,
@@ -46,6 +50,10 @@ class SettingsLeftPanel extends ConsumerStatefulWidget {
     required this.onUseBuiltinPrinterChanged,
     required this.onUseExternalPrinterChanged,
     required this.onUseLabelPrinterChanged,
+    required this.onBuiltinPrintOrderChanged,
+    required this.onBuiltinPrintReceiptChanged,
+    required this.onExternalPrintOrderChanged,
+    required this.onExternalPrintReceiptChanged,
     required this.onLabelFilterModeChanged,
     required this.onShowOrderTypeBadgeChanged,
     required this.isSoundGraphEnabled,
@@ -64,6 +72,10 @@ class SettingsLeftPanel extends ConsumerStatefulWidget {
   final bool isUseBuiltinPrinter;
   final bool isUseExternalPrinter;
   final bool isUseLabelPrinter;
+  final bool builtinPrintOrder;
+  final bool builtinPrintReceipt;
+  final bool externalPrintOrder;
+  final bool externalPrintReceipt;
   final bool isTpcpStore;
   final int labelFilterMode;
   final bool isShowOrderTypeBadge;
@@ -78,6 +90,10 @@ class SettingsLeftPanel extends ConsumerStatefulWidget {
   final void Function(bool) onUseBuiltinPrinterChanged;
   final void Function(bool) onUseExternalPrinterChanged;
   final void Function(bool) onUseLabelPrinterChanged;
+  final void Function(bool) onBuiltinPrintOrderChanged;
+  final void Function(bool) onBuiltinPrintReceiptChanged;
+  final void Function(bool) onExternalPrintOrderChanged;
+  final void Function(bool) onExternalPrintReceiptChanged;
   final void Function(int) onLabelFilterModeChanged;
   final void Function(bool) onShowOrderTypeBadgeChanged;
   final bool isSoundGraphEnabled;
@@ -456,6 +472,11 @@ class _SettingsLeftPanelState extends ConsumerState<SettingsLeftPanel> {
                     additionalContent: BuiltinPrinterSubSettings(
                       isUseBuiltinPrinter: widget.isUseBuiltinPrinter,
                       available: builtinAvailable,
+                      printOrder: widget.builtinPrintOrder,
+                      printReceipt: widget.builtinPrintReceipt,
+                      onPrintOrderChanged: widget.onBuiltinPrintOrderChanged,
+                      onPrintReceiptChanged:
+                          widget.onBuiltinPrintReceiptChanged,
                     ),
                   );
                 }),
@@ -489,6 +510,10 @@ class _SettingsLeftPanelState extends ConsumerState<SettingsLeftPanel> {
                   ),
                   additionalContent: ExternalPrinterSubSettings(
                     isUseExternalPrinter: widget.isUseExternalPrinter,
+                    printOrder: widget.externalPrintOrder,
+                    printReceipt: widget.externalPrintReceipt,
+                    onPrintOrderChanged: widget.onExternalPrintOrderChanged,
+                    onPrintReceiptChanged: widget.onExternalPrintReceiptChanged,
                   ),
                 ),
                 SettingsItemWidget(
