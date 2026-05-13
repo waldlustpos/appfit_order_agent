@@ -285,17 +285,24 @@ class OrderModel {
   Map<String, dynamic> toSunmiJson() {
     final fmt = NumberFormat('#,###');
     final dtFmt = DateFormat('yyyy-MM-dd HH:mm:ss');
+    final formattedTotalAmount = fmt.format(totalAmount);
+    final formattedPaymentAmount = fmt.format(paymentAmount);
+    final formattedDiscountAmount = fmt.format(discountAmount);
     return {
       ...toJson(),
       'ordrSimpleId': shopOrderNo,
       'ordrDtm': dtFmt.format(orderedAt),
-      'totalAmount': fmt.format(totalAmount),
+      'totalAmount': formattedTotalAmount,
       'ordrMemo': note,
-      'paymentAmount': fmt.format(paymentAmount),
-      'discountAmount': fmt.format(discountAmount),
+      'paymentAmount': formattedPaymentAmount,
+      'discountAmount': formattedDiscountAmount,
       'ordrPrdList': menus.map((menu) => menu.toJson()).toList(),
       'exceptTaxPrice': fmt.format(exceptTaxPrice),
       'taxPrice': fmt.format(taxPrice),
+      // Sunmi Java 호환 키 (SunmiPrintHelper.java 에서 사용)
+      'ordrPrc': formattedTotalAmount,
+      'payPrc': formattedPaymentAmount,
+      'discPrc': formattedDiscountAmount,
     };
   }
 
