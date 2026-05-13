@@ -49,7 +49,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   bool _obscurePassword = true;
   bool _isSaveId = false;
   bool _isAutoLogin = false;
-  bool _isSubDisplay = false;
+  bool _isKdsMode = false;
   String _selectedEnv = 'live';
   int _devTapCount = 0;
   DateTime? _lastDevTap;
@@ -106,7 +106,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       // 로그인 정보 로드
       await _loadSavedLoginInfo();
-      await _loadSubDisplaySetting();
+      await _loadKdsModeSetting();
       await _setWindowSoftInputMode('resize');
 
       // 화면이 표시된 후 권한 요청
@@ -253,7 +253,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   Future<void> _saveLoginInfo() async {
     final preferenceService = PreferenceService();
 
-    logger.i('로그인 정보 저장: _isSubDisplay=$_isSubDisplay');
+    logger.i('로그인 정보 저장: _isKdsMode=$_isKdsMode');
 
     final storeId = _idController.text.trim();
 
@@ -273,7 +273,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
     await preferenceService.setSaveId(_isSaveId);
     await preferenceService.setAutoLogin(_isAutoLogin);
-    await preferenceService.setSubDisplay(_isSubDisplay);
+    await preferenceService.setKdsMode(_isKdsMode);
 
     logger.i('설정 저장 완료');
   }
@@ -398,11 +398,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     }
   }
 
-  Future<void> _loadSubDisplaySetting() async {
+  Future<void> _loadKdsModeSetting() async {
     final preferenceService = PreferenceService();
-    final isSubDisplay = preferenceService.getSubDisplay();
+    final isKdsMode = preferenceService.getKdsMode();
     setState(() {
-      _isSubDisplay = isSubDisplay;
+      _isKdsMode = isKdsMode;
     });
   }
 
@@ -468,10 +468,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           logToFile(
               tag: LogTag.API,
               message:
-                  '로그인성공: $storeId ${storeName ?? ''}, AppVersion: ${appInfo.version} (${appInfo.buildNumber}), 서브디스플레이: $_isSubDisplay');
+                  '로그인성공: $storeId ${storeName ?? ''}, AppVersion: ${appInfo.version} (${appInfo.buildNumber}), KDS모드: $_isKdsMode');
 
           // 1. 네비게이션 및 모드 설정을 먼저 처리 (권한 요청보다 우선)
-          if (_isSubDisplay) {
+          if (_isKdsMode) {
             // KDS 모드 활성화 전에 로컬 서버 중지
             final localServer = LocalServerService.instance;
             if (localServer != null) {
@@ -739,9 +739,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
               // 모드 선택 세그먼티드 탭
               _ModeSegmentedTabs(
-                isSubDisplay: _isSubDisplay,
+                isKdsMode: _isKdsMode,
                 onChanged: (isKds) {
-                  setState(() => _isSubDisplay = isKds);
+                  setState(() => _isKdsMode = isKds);
                 },
               ),
             ],
@@ -1212,11 +1212,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 // ─── 모드 선택 세그먼티드 탭 ────────────────────────────────────────────────
 
 class _ModeSegmentedTabs extends StatelessWidget {
-  final bool isSubDisplay;
+  final bool isKdsMode;
   final void Function(bool isKds) onChanged;
 
   const _ModeSegmentedTabs({
-    required this.isSubDisplay,
+    required this.isKdsMode,
     required this.onChanged,
   });
 
@@ -1235,7 +1235,7 @@ class _ModeSegmentedTabs extends StatelessWidget {
             child: _tab(
               label: t.login.tabs.order,
               icon: Icons.point_of_sale,
-              selected: !isSubDisplay,
+              selected: !isKdsMode,
               onTap: () => onChanged(false),
             ),
           ),
@@ -1243,7 +1243,7 @@ class _ModeSegmentedTabs extends StatelessWidget {
             child: _tab(
               label: t.login.tabs.kitchen,
               icon: Icons.display_settings,
-              selected: isSubDisplay,
+              selected: isKdsMode,
               onTap: () => onChanged(true),
             ),
           ),

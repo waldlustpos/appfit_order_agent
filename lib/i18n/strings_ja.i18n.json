@@ -50,6 +50,7 @@
         "save": "保存",
         "save_success": "設定が保存されました。",
         "save_error": "設定の保存中にエラーが発生しました: {error}",
+        "section_mode": "モード設定",
         "section_general": "一般設定",
         "section_printer": "プリンター設定",
         "section_sound": "通知設定",
@@ -147,6 +148,12 @@
         "kds_ignore_status": {
             "title": "他端末の進行状態通知を無視",
             "desc": "他のKDSでピックアップ要請などの進行状態を変更しても、この画面の注文は更新されません。(進行状態の更新を手動で管理したい場合に使用)"
+        },
+        "kds_accept_orders": {
+            "title": "注文受付",
+            "desc": "KDSモードで注文を直接自動受付処理します。他のメイン注文受付プログラムとの併用にご注意ください。",
+            "confirm_title": "注文受付を有効化",
+            "confirm_content": "KDSで注文の自動受付を直接実行します。\n他のメイン注文受付プログラムとの併用にご注意ください。\n有効にしますか?"
         },
         "label_filter": {
             "title": "ラベル印刷フィルター",

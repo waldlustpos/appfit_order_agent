@@ -53,6 +53,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _isShowOrderTypeBadge = false;
   bool _isOrderHistoryScroll = true;
   bool _isIgnoreOtherDeviceKds = false;
+  bool _isKdsAcceptOrders = false;
   bool _forceSocketReconnect = false;
 
   int _devOptionsTapCount = 0;
@@ -106,6 +107,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _isOrderHistoryScroll = _preferenceService.getOrderHistoryScroll();
       _isIgnoreOtherDeviceKds =
           _preferenceService.getIgnoreOtherDeviceTasksKds();
+      _isKdsAcceptOrders = _preferenceService.getKdsAcceptOrders();
       _forceSocketReconnect = _preferenceService.getForceSocketReconnect();
       _notificationVolume = _preferenceService.getVolume();
       _selectedSound = _preferenceService.getSound();
@@ -140,6 +142,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await _preferenceService.setOrderHistoryScroll(_isOrderHistoryScroll);
       await _preferenceService
           .setIgnoreOtherDeviceTasksKds(_isIgnoreOtherDeviceKds);
+      await _preferenceService.setKdsAcceptOrders(_isKdsAcceptOrders);
       await _preferenceService.setVolume(_notificationVolume);
       await _preferenceService.setSound(_selectedSound);
       await _preferenceService.setSoundNum(_alertCount);
@@ -185,7 +188,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     if (confirm == true) {
       final newMode = !isKdsMode;
-      await _preferenceService.setSubDisplay(newMode);
+      await _preferenceService.setKdsMode(newMode);
       ref.read(kdsModeProvider.notifier).setKdsMode(newMode);
 
       if (newMode) {
@@ -197,10 +200,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       }
 
       if (mounted) {
-        Navigator.pushNamedAndRemoveUntil(context, '/home', (r) => false);
-        Future.delayed(const Duration(milliseconds: 100), () {
-          ref.read(orderProvider.notifier).reloadSettings();
-        });
+        // 모드 전환 후 설정 화면 유지: 홈 라우트 푸시로 스택을 날리지 않는다.
+        // kdsModeProvider 변경으로 설정 화면 하단의 홈 화면은 자동으로 리빌드되며,
+        // orderProvider.reloadSettings() 가 자동접수/폴링/소켓 등을 새 모드로 재구성한다.
+        ref.read(orderProvider.notifier).reloadSettings();
       }
     }
   }
@@ -380,6 +383,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _saveSettings();
   }
 
+  Future<void> _handleKdsAcceptOrdersChanged(bool value) async {
+    if (!value) {
+      _setAndSave(() => _isKdsAcceptOrders = false);
+      await ref.read(orderProvider.notifier).updateKdsAcceptOrders(false);
+      return;
+    }
+
+    final bool? confirm = await CommonDialog.showConfirmDialog(
+      context: context,
+      title: t.settings.kds_accept_orders.confirm_title,
+      content: t.settings.kds_accept_orders.confirm_content,
+      confirmText: t.common.confirm,
+      cancelText: t.common.cancel,
+    );
+
+    if (confirm == true) {
+      _setAndSave(() => _isKdsAcceptOrders = true);
+      await ref.read(orderProvider.notifier).updateKdsAcceptOrders(true);
+    }
+  }
+
   // ── QR 테스트 라벨 출력 ─────────────────────────────────────────────────
   static const List<String> _qrTestSequence = [
     '10|P0001|SI0001|',
@@ -470,6 +494,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               isRotated180: _isRotated180,
               isAutoStart: _isAutoStart,
               isIgnoreOtherDeviceKds: _isIgnoreOtherDeviceKds,
+              isKdsAcceptOrders: _isKdsAcceptOrders,
               isAutoReceipt: _isAutoReceipt,
               isPrintOrder: _isPrintOrder,
               isUseBuiltinPrinter: _isUseBuiltinPrinter,
@@ -483,6 +508,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               onAutoStartChanged: (v) => _setAndSave(() => _isAutoStart = v),
               onIgnoreOtherDeviceKdsChanged: (v) =>
                   _setAndSave(() => _isIgnoreOtherDeviceKds = v),
+              onKdsAcceptOrdersChanged: _handleKdsAcceptOrdersChanged,
               onAutoReceiptChanged: (v) =>
                   _setAndSave(() => _isAutoReceipt = v),
               onPrintOrderChanged: (v) => _setAndSave(() {

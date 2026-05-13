@@ -14,7 +14,6 @@ class OrderSettingsManager {
   int _playCount = 0;
   double _volume = 1.0;
 
-
   // AudioPlayer 상태
   bool _isAudioPlayerDisposed = false;
 
@@ -62,8 +61,6 @@ class OrderSettingsManager {
     }
   }
 
-
-
   /// 자동접수 설정 업데이트
   Future<void> updateAutoReceipt(bool value) async {
     logger.d('updateAutoReceipt 호출 - 새로운 값: $value');
@@ -71,12 +68,18 @@ class OrderSettingsManager {
     logger.d('updateAutoReceipt 완료 - PreferenceService 업데이트됨: $value');
   }
 
+  /// KDS 모드 NEW 주문 자동접수 토글 업데이트
+  Future<void> updateKdsAcceptOrders(bool value) async {
+    logger.d('updateKdsAcceptOrders 호출 - 새로운 값: $value');
+    await _preferenceService.setKdsAcceptOrders(value);
+    logger.d('updateKdsAcceptOrders 완료 - PreferenceService 업데이트됨: $value');
+  }
+
   /// 설정 업데이트 (외부에서 호출)
   void updateSoundSettings() {
     loadSoundSettings();
     logger.d('Sound settings reloaded for OrderSettingsManager.');
   }
-
 
   /// AudioPlayer dispose 상태 설정
   void setAudioPlayerDisposed(bool disposed) {

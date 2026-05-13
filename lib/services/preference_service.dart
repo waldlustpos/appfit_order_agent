@@ -45,7 +45,9 @@ class PreferenceService {
   // New Printer Setting Keys
   static const String KEY_USE_BUILTIN_PRINTER = "KOKONUT_USE_BUILTIN_PRINTER";
   static const String KEY_USE_EXTERNAL_PRINTER = "KOKONUT_USE_EXTERNAL_PRINTER";
-  static const String KEY_IS_SUB_DISPLAY = "KEY_IS_SUB_DISPLAY";
+  // SharedPreferences 키 문자열은 기존 설치 데이터 호환을 위해 "KEY_IS_SUB_DISPLAY" 유지.
+  // 의미상 이 플래그는 KDS 모드(주방 디스플레이)를 지칭한다.
+  static const String KEY_IS_KDS_MODE = "KEY_IS_SUB_DISPLAY";
   static const String KEY_ORDER_HISTORY_SCROLL = "KEY_ORDER_HISTORY_SCROLL";
   static const String KEY_PRINT_COUNT = "KEY_PRINT_COUNT";
   static const String KEY_LOCAL_SERVER_ENABLED = "KEY_LOCAL_SERVER_ENABLED";
@@ -71,6 +73,8 @@ class PreferenceService {
       "KEY_FORCE_SOCKET_RECONNECT"; // 소켓 강제 재접속 (1분마다)
   static const String KEY_IGNORE_OTHER_DEVICE_TASKS_KDS =
       "KEY_IGNORE_OTHER_DEVICE_TASKS_KDS"; // KDS 타 기기 이벤트 무시 설정
+  static const String KEY_KDS_ACCEPT_ORDERS =
+      "KEY_KDS_ACCEPT_ORDERS"; // KDS 모드에서 NEW 주문 직접 자동접수
   static const String KEY_LOCALE = "KEY_LOCALE"; // 언어 설정
   static const String KEY_CURRENCY = "KEY_CURRENCY"; // 화폐단위 설정
   static const String KEY_IS_ROTATED_180 = "KEY_IS_ROTATED_180"; // 화면 상하 반전
@@ -598,14 +602,14 @@ class PreferenceService {
     await _prefs.setBool(KEY_KIOSK_PRINT_AND_SOUND, value);
   }
 
-  // 서브디스플레이 설정
-  Future<void> setSubDisplay(bool value) async {
-    await _prefs.setBool(KEY_IS_SUB_DISPLAY, value);
+  // KDS 모드 설정 저장 (기존 sub-display 플래그와 동일 키 사용)
+  Future<void> setKdsMode(bool value) async {
+    await _prefs.setBool(KEY_IS_KDS_MODE, value);
   }
 
-  // 서브디스플레이 설정 조회
-  bool getSubDisplay() {
-    return _prefs.getBool(KEY_IS_SUB_DISPLAY) ?? false;
+  // KDS 모드 설정 조회
+  bool getKdsMode() {
+    return _prefs.getBool(KEY_IS_KDS_MODE) ?? false;
   }
 
   // 프린터 선택 설정
@@ -737,6 +741,16 @@ class PreferenceService {
   bool getIgnoreOtherDeviceTasksKds() {
     return _prefs.getBool(KEY_IGNORE_OTHER_DEVICE_TASKS_KDS) ??
         false; // 기본값: 비활성화 (기존 동작)
+  }
+
+  // KDS 모드에서 NEW 주문 자동접수 활성화 여부 저장
+  Future<void> setKdsAcceptOrders(bool value) async {
+    await _prefs.setBool(KEY_KDS_ACCEPT_ORDERS, value);
+  }
+
+  // KDS 모드에서 NEW 주문 자동접수 활성화 여부 조회
+  bool getKdsAcceptOrders() {
+    return _prefs.getBool(KEY_KDS_ACCEPT_ORDERS) ?? false;
   }
 
   // 언어 설정 저장

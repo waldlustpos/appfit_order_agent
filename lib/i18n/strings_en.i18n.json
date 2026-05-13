@@ -50,6 +50,7 @@
         "save": "Save",
         "save_success": "Settings saved.",
         "save_error": "Error saving settings: {error}",
+        "section_mode": "Mode",
         "section_general": "General",
         "section_printer": "Printer",
         "section_sound": "Notifications",
@@ -147,6 +148,12 @@
         "kds_ignore_status": {
             "title": "Ignore Other Device Status Updates",
             "desc": "Orders on this screen will not refresh when other KDS devices update pickup or progress status. (Use when you want to control status updates manually)"
+        },
+        "kds_accept_orders": {
+            "title": "Accept Orders",
+            "desc": "Automatically accept incoming orders directly in KDS mode. Make sure you are not running another main order-receiving program in parallel.",
+            "confirm_title": "Enable Order Acceptance",
+            "confirm_content": "KDS will automatically accept incoming orders directly.\nPlease verify that no other main order-receiving program is running in parallel.\nEnable this option?"
         },
         "label_filter": {
             "title": "Label Print Filter",

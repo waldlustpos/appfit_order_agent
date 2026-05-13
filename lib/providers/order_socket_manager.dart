@@ -108,8 +108,11 @@ class OrderSocketManager {
     final isKdsMode = ref.read(kdsModeProvider);
 
     // 1. KDS 모드에서 NEW(ORDER_CREATED) 차단 — appfit_core 정책 진입점.
+    //    KDS 자동접수(KEY_KDS_ACCEPT_ORDERS) 토글이 ON 이면 단독 운영 시나리오로 보고
+    //    NEW 이벤트를 허용한다(자동접수 파이프라인 통과).
     if (type == appfit_core.OrderEventType.orderCreated &&
-        appfit_core.OrderEventIgnorePolicy.ignoreNewOrderInKdsMode(isKdsMode)) {
+        appfit_core.OrderEventIgnorePolicy.ignoreNewOrderInKdsMode(isKdsMode) &&
+        !ref.read(preferenceServiceProvider).getKdsAcceptOrders()) {
       return true;
     }
 
