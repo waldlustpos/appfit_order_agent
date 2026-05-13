@@ -5,11 +5,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../constants/app_styles.dart';
 import '../../providers/providers.dart';
-import '../../services/com_port_print_service.dart';
 import '../../services/platform_service.dart';
 import '../../services/preference_service.dart';
 import '../../services/print_service.dart';
 import 'settings_connection_status.dart';
+
+// Windows COM 포트 enumerate 는 안드로이드 빌드에서 win32 native init (kernel32.dll
+// lookup) 을 트리거하므로 deferred 로 격리 — Windows 분기 안에서만 loadLibrary.
+import '../../services/external_receipt_printer_windows.dart'
+    deferred as win_transport;
 
 /// "외부 프린터 사용" 토글의 additionalContent.
 ///
@@ -32,12 +36,17 @@ class ExternalPrinterSubSettings extends ConsumerStatefulWidget {
 class _ExternalPrinterSubSettingsState
     extends ConsumerState<ExternalPrinterSubSettings> {
   static const List<int> _baudRateOptions = [9600, 19200, 38400, 57600, 115200];
+  // 안드로이드에서 ComPortPrintService 정적 reference 가 발생하면 serial_port_win32
+  // → win32 → kernel32.dll 체인이 로딩돼 dlopen 실패하므로 하드코딩으로 분리.
+  // (Windows 분기 안에서만 deferred 로 호출.)
+  static const String _defaultComPort = 'COM3';
+  static const int _defaultBaudRate = 9600;
 
   final PreferenceService _pref = PreferenceService();
 
   List<String> _comPorts = const [];
-  String _selectedComPort = ComPortPrintService.defaultComPort;
-  int _baudRate = ComPortPrintService.defaultBaudRate;
+  String _selectedComPort = _defaultComPort;
+  int _baudRate = _defaultBaudRate;
   bool _isRefreshing = false;
   String? _testResult;
   bool _isTesting = false;
@@ -46,8 +55,7 @@ class _ExternalPrinterSubSettingsState
   void initState() {
     super.initState();
     _baudRate = _pref.getComPortBaudRate();
-    _selectedComPort =
-        _pref.getComPortName() ?? ComPortPrintService.defaultComPort;
+    _selectedComPort = _pref.getComPortName() ?? _defaultComPort;
     if (Platform.isWindows) {
       // _refreshComPorts 끝에서 printerStatusProvider 를 변경하는 checkConnection()
       // 을 호출한다. 외부 프린터 OFF 등으로 도중 await 가 한 번도 yield 되지
@@ -62,13 +70,12 @@ class _ExternalPrinterSubSettingsState
     if (!Platform.isWindows) return;
     setState(() => _isRefreshing = true);
     try {
-      final ports = ComPortPrintService.getAvailableComPorts();
+      await win_transport.loadLibrary();
+      final ports = win_transport.getAvailableComPorts();
       final saved = _pref.getComPortName();
       final selected = (saved != null && ports.contains(saved))
           ? saved
-          : (ports.isNotEmpty
-              ? ports.first
-              : ComPortPrintService.defaultComPort);
+          : (ports.isNotEmpty ? ports.first : _defaultComPort);
       if (!mounted) return;
       setState(() {
         _comPorts = ports;
@@ -82,9 +89,11 @@ class _ExternalPrinterSubSettingsState
         tag: LogTag.PLATFORM,
         message: 'COM 포트 스캔: ${ports.length}개, 선택=$selected',
       );
-      // 연결상태 표시 갱신 (포트 enumerate 결과 기반)
+      // 연결상태 표시 갱신 (포트 enumerate 결과 기반). 외부만 갱신.
       if (mounted) {
-        await ref.read(printServiceProvider).checkConnection();
+        await ref
+            .read(printServiceProvider)
+            .checkConnection(external: true, label: false);
       }
     } catch (e) {
       if (!mounted) return;
@@ -109,7 +118,9 @@ class _ExternalPrinterSubSettingsState
     );
     bool ok = false;
     try {
-      ok = await ref.read(printServiceProvider).printTestPage();
+      ok = await ref
+          .read(printServiceProvider)
+          .printTestPage(targetExternalOnly: true);
     } catch (e) {
       ok = false;
       if (!mounted) return;
@@ -135,7 +146,19 @@ class _ExternalPrinterSubSettingsState
       children: [
         SettingsConnectionStatus(
           isConnected: status.isExternalConnected,
-          onReconnect: () => ref.read(printServiceProvider).checkConnection(),
+          onReconnect: () async {
+            // Android: UsbReceiptPrinter.discover() 가 한 번 비어있던 상태(권한 거부 /
+            // 늦은 핫플러그)를 회복할 수 있도록 재탐색을 먼저 트리거. Windows 는 COM
+            // 포트 enumerate 만으로 충분.
+            //
+            // label: false 로 호출해 라벨 status 가 외부 재연결로 같이 토글되는
+            // sync 이슈 회피. (라벨은 별도 재연결 버튼이 갱신.)
+            final ps = ref.read(printServiceProvider);
+            if (Platform.isAndroid) {
+              await ps.reconnectExternalPrinter();
+            }
+            await ps.checkConnection(external: true, label: false);
+          },
         ),
         if (widget.isUseExternalPrinter && Platform.isWindows) ...[
           const SizedBox(height: AppSpacing.s12),
@@ -189,9 +212,7 @@ class _ExternalPrinterSubSettingsState
             Padding(
               padding: const EdgeInsets.symmetric(vertical: AppSpacing.s8),
               child: Text(
-                _isRefreshing
-                    ? '검색 중…'
-                    : 'COM 포트를 찾을 수 없습니다. (프린터가 연결되어 있나요?)',
+                _isRefreshing ? '검색 중…' : 'COM 포트를 찾을 수 없습니다. (프린터가 연결되어 있나요?)',
                 style: AppTextStyles.bodySm.copyWith(color: AppStyles.gray6),
               ),
             )
@@ -231,8 +252,10 @@ class _ExternalPrinterSubSettingsState
                       tag: LogTag.UI_ACTION,
                       message: 'COM 포트 선택 -> $value',
                     );
-                    // 선택 직후 연결상태 즉시 반영
-                    ref.read(printServiceProvider).checkConnection();
+                    // 선택 직후 연결상태 즉시 반영 (외부만).
+                    ref
+                        .read(printServiceProvider)
+                        .checkConnection(external: true, label: false);
                   },
                 ),
               ),
@@ -294,7 +317,8 @@ class _ExternalPrinterSubSettingsState
     return Row(
       children: [
         ElevatedButton.icon(
-          onPressed: (_isTesting || isWindowsWithoutPort) ? null : _handleTestPrint,
+          onPressed:
+              (_isTesting || isWindowsWithoutPort) ? null : _handleTestPrint,
           icon: const Icon(Icons.print, size: 18),
           label: const Text('테스트 출력'),
         ),

@@ -85,9 +85,5 @@ dependencies {
     implementation("com.journeyapps:zxing-android-embedded:4.3.0")
     implementation("androidx.cardview:cardview:1.0.0")
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
-    implementation(files("libs/com.posbank.charset.jar"))
-    implementation(files("libs/com.posbank.hardware.serial.jar"))
-    implementation(files("libs/com.posbank.printer.jar"))
-    implementation(files("libs/com.posbank.util.jar"))
     implementation(files("libs/autoreplyprint.aar"))
 }
