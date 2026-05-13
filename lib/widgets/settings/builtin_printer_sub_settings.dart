@@ -86,13 +86,23 @@ class _BuiltinPrinterSubSettingsState
           _buildMatrixRow(
             label: '주문서 출력',
             value: widget.printOrder,
-            onChanged: widget.onPrintOrderChanged,
+            onChanged: (v) {
+              ref
+                  .read(printServiceProvider)
+                  .updatePrinterSettings(builtinPrintOrder: v);
+              widget.onPrintOrderChanged(v);
+            },
           ),
           const SizedBox(height: AppSpacing.s8),
           _buildMatrixRow(
             label: '영수증 출력',
             value: widget.printReceipt,
-            onChanged: widget.onPrintReceiptChanged,
+            onChanged: (v) {
+              ref
+                  .read(printServiceProvider)
+                  .updatePrinterSettings(builtinPrintReceipt: v);
+              widget.onPrintReceiptChanged(v);
+            },
           ),
           const SizedBox(height: AppSpacing.s12),
           _buildTestPrintRow(),

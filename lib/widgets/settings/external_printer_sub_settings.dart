@@ -178,13 +178,23 @@ class _ExternalPrinterSubSettingsState
           _buildMatrixRow(
             label: '주문서 출력',
             value: widget.printOrder,
-            onChanged: widget.onPrintOrderChanged,
+            onChanged: (v) {
+              ref
+                  .read(printServiceProvider)
+                  .updatePrinterSettings(externalPrintOrder: v);
+              widget.onPrintOrderChanged(v);
+            },
           ),
           const SizedBox(height: AppSpacing.s8),
           _buildMatrixRow(
             label: '영수증 출력',
             value: widget.printReceipt,
-            onChanged: widget.onPrintReceiptChanged,
+            onChanged: (v) {
+              ref
+                  .read(printServiceProvider)
+                  .updatePrinterSettings(externalPrintReceipt: v);
+              widget.onPrintReceiptChanged(v);
+            },
           ),
         ],
         if (widget.isUseExternalPrinter && Platform.isWindows) ...[
