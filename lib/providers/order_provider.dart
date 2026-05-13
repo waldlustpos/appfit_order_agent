@@ -61,6 +61,11 @@ class Order extends _$Order {
   // 동일 orderId 에 대한 추가 자동접수 시도를 차단한다. 소켓 폭증, 폴링↔소켓 동시 발화,
   // refreshOrders 재진입 사이의 race window 를 좁히는 마지막 가드.
   final Set<String> _autoAcceptingOrderIds = <String>{};
+  // KDS PREPARING 분기의 알림/출력 dedup 전용. `_processedOrderCache` 는 `queueOrderExternal`
+  // 의 enqueue 중복 차단도 같이 쓰는 키라, 외부 접수로 들어온 첫 PREPARING 이벤트도 캐시 hit
+  // 되어 "자가 자동접수 흔적" 으로 false positive 가 난다. 그래서 자가 자동접수 + KDS
+  // PREPARING 후행 dedup 전용으로 별도 Set 운영.
+  final Set<String> _selfAcceptedOrderIds = <String>{};
   // 사용자가 수동으로 취소/완료한 주문의 부활 차단 캐시.
   // appfit_core.RecentRemovalsCache 위임 — DID 와 동일 추상화. 기본 TTL 120초.
   // 폴링/refreshOrders 응답이 서버 replication lag 으로 해당 주문을 아직 살아있는
@@ -528,26 +533,15 @@ class Order extends _$Order {
         case OrderStatus.READY:
         case OrderStatus.DONE:
         case OrderStatus.CANCELLED:
-          // KDS 모드에서 READY(PICKUP_REQUESTED) 상태로 변경될 때 출력 지원
-          if (order.status == OrderStatus.READY && ref.read(kdsModeProvider)) {
-            // KDS 모드: 픽업 요청됨(READY), 출력 시도: ${order.orderId}
-            // 영수증만 출력하고 라벨은 출력하지 않음 — 큐 경유로 직렬화.
-            _outputQueueService.add(
-              order,
-              playSound: false,
-              printLabel: false,
-            );
-          }
-
           // KDS 모드에서 접수(PREPARING) 상태로 변경될 때만 오버레이 알림
           if (order.status == OrderStatus.PREPARING &&
               ref.read(kdsModeProvider)) {
             // KDS 자동접수 ON 으로 자기 자신이 방금 PREPARING 전환한 주문은
-            // 이미 자동접수 분기에서 _outputQueueService.add() 로 라벨이 출력됐다.
+            // 이미 자동접수 분기에서 _outputQueueService.add() 로 라벨/주문서가 출력됐다.
             // 후행 ORDER_ACCEPTED 이벤트(자가 echo / 외부 동일이벤트)가 이 핸들러를
-            // 또 발화시키지 않도록 PREPARING 캐시 hit 시 알림+라벨 통째 스킵.
-            final alreadyHandled = _processedOrderCache.containsOrderStatus(
-                order.orderId, OrderStatus.PREPARING);
+            // 또 발화시키지 않도록 _selfAcceptedOrderIds hit 시 알림+출력 통째 스킵.
+            final alreadyHandled =
+                _selfAcceptedOrderIds.contains(order.orderId);
             if (alreadyHandled) {
               logger.d(
                   'KDS 모드: ${order.orderId} (PREPARING) 자가 자동접수 흔적 감지 — 알림/라벨 중복 차단');
@@ -560,15 +554,18 @@ class Order extends _$Order {
                     triggerAppBar: true,
                   );
 
-              // KDS 모드: 접수된 주문 유입 시 라벨 자동 출력 — 큐 경유로 주문 단위 직렬화 보장.
-              // 다중 ORDER_UPDATED(PREPARING) 이벤트가 짧은 간격에 도착해도 라벨 인터리빙 방지.
-              if (ref.read(preferenceServiceProvider).getUseLabelPrinter()) {
-                _outputQueueService.addLabelOnly(order);
-              }
-              // 외부 기기가 접수한 PREPARING 을 처음 본 경우에도 캐시에 등록하여
+              // KDS 모드: 접수된 주문 유입 시 주문서 + 라벨 자동 출력 — 큐 경유로 주문 단위 직렬화 보장.
+              // 다중 ORDER_UPDATED(PREPARING) 이벤트가 짧은 간격에 도착해도 인터리빙 방지.
+              // forceOrderReceipt=true: KDS 자동접수 OFF 라도 외부 접수 시점에 주문서 인쇄.
+              // 라벨/주문서 각각의 출력 여부는 PrintService 내부 매트릭스 게이트가 결정.
+              _outputQueueService.add(
+                order,
+                playSound: false,
+                forceOrderReceipt: true,
+              );
+              // 외부 기기가 접수한 PREPARING 을 처음 본 경우에도 dedup Set 에 등록하여
               // 동일 주문에 대한 후행 PREPARING 이벤트가 또 라벨을 찍지 않게 한다.
-              _processedOrderCache.addOrderStatus(
-                  order.orderId, OrderStatus.PREPARING);
+              _selfAcceptedOrderIds.add(order.orderId);
             }
           }
           // 이미 UI 업데이트는 _updateOrderInStateList에서 수행됨
@@ -660,9 +657,11 @@ class Order extends _$Order {
           logger.d('$modeText: 자동 접수 성공: ${order.orderId}');
           // 자가 ORDER_ACCEPTED echo 또는 후행 PREPARING 이벤트가 _processOrderByStatus
           // L555 라벨 핸들러를 또 발화시켜 라벨이 두 장 출력되는 회귀 방지.
-          // 자기 자신이 자동접수한 주문은 PREPARING 캐시에 미리 등록해 라벨 핸들러에서 dedup.
+          // _processedOrderCache: queueOrderExternal 의 enqueue 단계 차단 용도.
+          // _selfAcceptedOrderIds: PREPARING 분기까지 도달한 경우 알림/출력 차단 용도 (별도 키 분리).
           _processedOrderCache.addOrderStatus(
               order.orderId, OrderStatus.PREPARING);
+          _selfAcceptedOrderIds.add(order.orderId);
           // 접수 성공 시: 프린트 실행 (키오스크 출력/알람 설정 반영) — 큐 경유로 직렬화.
           if (_shouldNotifyForOrder(order)) {
             logger
@@ -2171,6 +2170,7 @@ class Order extends _$Order {
     _unfilteredOrders.clear();
     _processedOrderCache.clear();
     _autoAcceptingOrderIds.clear();
+    _selfAcceptedOrderIds.clear();
     _recentRemovals.clear();
     _lastKnownOrderSequence = "0";
 
