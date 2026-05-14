@@ -56,7 +56,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-import co.kr.waldlust.order.receive.util.print.PrintUtil;
+import co.kr.waldlust.order.receive.util.print.UsbReceiptPrinter;
 import co.kr.waldlust.order.receive.util.print.SunmiPrintHelper;
 import co.kr.waldlust.order.receive.overlay.OverlayHelper;
 import io.flutter.embedding.android.FlutterActivity;
@@ -106,7 +106,7 @@ public class MainActivity extends FlutterActivity {
     private static final String KEY_USE_PRINT = "KEY_USE_PRINT";
     private static final String KEY_MAIN_URL = "KEY_MAIN_URL";
     private static final String KEY_IS_KDS_MODE = "IS_KDS_MODE";
-    public static PrintUtil printrUtil;
+    public static UsbReceiptPrinter receiptPrinter;
 
     public static String versionName = "/api/v2";
     public static Bitmap bitmapLogoForPrint = null;
@@ -135,12 +135,12 @@ public class MainActivity extends FlutterActivity {
         setNativeCrashHandler();
         super.onCreate(savedInstanceState);
 
-        // Register USB permission receiver
+        // Register USB permission / detach receiver for the receipt printer.
         usbPermissionReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
                 String action = intent.getAction();
-                if (PrintUtil.PRINTER_USB_PERMISSION.equals(action)) {
+                if (UsbReceiptPrinter.ACTION_USB_PERMISSION.equals(action)) {
                     synchronized (this) {
                         android.hardware.usb.UsbDevice device = intent
                                 .getParcelableExtra(android.hardware.usb.UsbManager.EXTRA_DEVICE);
@@ -148,9 +148,8 @@ public class MainActivity extends FlutterActivity {
                             if (device != null) {
                                 Log.i("MainActivity", "USB permission granted for device: " + device.getDeviceName());
                                 appendLogToFile("USB permission granted for device: " + device.getDeviceName());
-                                // 퍼미션이 승인되면 프린터 재연결 시도
-                                if (printrUtil != null) {
-                                    printrUtil.printerConnect();
+                                if (receiptPrinter != null) {
+                                    receiptPrinter.onPermissionGranted(device);
                                 }
                             }
                         } else {
@@ -160,13 +159,22 @@ public class MainActivity extends FlutterActivity {
                                     + (device != null ? device.getDeviceName() : "unknown"));
                         }
                     }
+                } else if (android.hardware.usb.UsbManager.ACTION_USB_DEVICE_DETACHED.equals(action)) {
+                    android.hardware.usb.UsbDevice device = intent
+                            .getParcelableExtra(android.hardware.usb.UsbManager.EXTRA_DEVICE);
+                    if (device != null && receiptPrinter != null) {
+                        receiptPrinter.onUsbDetached(device);
+                    }
                 }
             }
         };
 
-        IntentFilter usbFilter = new IntentFilter(PrintUtil.PRINTER_USB_PERMISSION);
+        IntentFilter usbFilter = new IntentFilter();
+        usbFilter.addAction(UsbReceiptPrinter.ACTION_USB_PERMISSION);
+        usbFilter.addAction(android.hardware.usb.UsbManager.ACTION_USB_DEVICE_DETACHED);
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(usbPermissionReceiver, usbFilter, Context.RECEIVER_EXPORTED);
+            // 앱 내부 전용 broadcast — RECEIVER_NOT_EXPORTED 로 외부 노출 차단.
+            registerReceiver(usbPermissionReceiver, usbFilter, Context.RECEIVER_NOT_EXPORTED);
         } else {
             registerReceiver(usbPermissionReceiver, usbFilter);
         }
@@ -204,8 +212,8 @@ public class MainActivity extends FlutterActivity {
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
 
-        printrUtil = new PrintUtil(this);
-        printrUtil.loadPrinters();
+        receiptPrinter = new UsbReceiptPrinter(getApplicationContext());
+        receiptPrinter.discover();
 
     }
 
@@ -380,6 +388,11 @@ public class MainActivity extends FlutterActivity {
             unregisterReceiver(usbPermissionReceiver);
         }
 
+        // 외부 영수증 프린터 USB 자원 해제
+        if (receiptPrinter != null) {
+            receiptPrinter.close();
+        }
+
         super.onDestroy(); // 항상 마지막에 호출
     }
 
@@ -390,7 +403,7 @@ public class MainActivity extends FlutterActivity {
         }
         // 라벨 프린터 파일 로깅 초기화
         co.kr.waldlust.order.receive.util.print.LabelPrinter.init(this);
-        // printrUtil is initialized in onCreate or elsewhere
+        // receiptPrinter is initialized in onCreate
     }
 
     public boolean checkPermissions() {

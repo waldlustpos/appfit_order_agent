@@ -61,6 +61,11 @@ class Order extends _$Order {
   // 동일 orderId 에 대한 추가 자동접수 시도를 차단한다. 소켓 폭증, 폴링↔소켓 동시 발화,
   // refreshOrders 재진입 사이의 race window 를 좁히는 마지막 가드.
   final Set<String> _autoAcceptingOrderIds = <String>{};
+  // KDS PREPARING 분기의 알림/출력 dedup 전용. `_processedOrderCache` 는 `queueOrderExternal`
+  // 의 enqueue 중복 차단도 같이 쓰는 키라, 외부 접수로 들어온 첫 PREPARING 이벤트도 캐시 hit
+  // 되어 "자가 자동접수 흔적" 으로 false positive 가 난다. 그래서 자가 자동접수 + KDS
+  // PREPARING 후행 dedup 전용으로 별도 Set 운영.
+  final Set<String> _selfAcceptedOrderIds = <String>{};
   // 사용자가 수동으로 취소/완료한 주문의 부활 차단 캐시.
   // appfit_core.RecentRemovalsCache 위임 — DID 와 동일 추상화. 기본 TTL 120초.
   // 폴링/refreshOrders 응답이 서버 replication lag 으로 해당 주문을 아직 살아있는
@@ -137,8 +142,10 @@ class Order extends _$Order {
 
     // 설정값 로드
     final initialIsAutoReceipt = _preferenceService.getAutoReceipt();
+    final initialIsKdsAcceptOrders = _preferenceService.getKdsAcceptOrders();
 
-    logger.d('OrderProvider 초기화 - 자동접수 설정: $initialIsAutoReceipt');
+    logger.d(
+        'OrderProvider 초기화 - 자동접수: $initialIsAutoReceipt, KDS 자동접수: $initialIsKdsAcceptOrders');
 
     // 설치 유형 감지 및 적절한 초기화 메서드 호출 - 비동기 작업
     Future.microtask(() => _orderDataInitialize());
@@ -242,6 +249,7 @@ class Order extends _$Order {
     // 초기 상태 반환 시 설정값 반영
     return OrderState.initial().copyWith(
       isAutoReceipt: initialIsAutoReceipt,
+      isKdsAcceptOrders: initialIsKdsAcceptOrders,
     );
   }
 
@@ -525,32 +533,39 @@ class Order extends _$Order {
         case OrderStatus.READY:
         case OrderStatus.DONE:
         case OrderStatus.CANCELLED:
-          // KDS 모드에서 READY(PICKUP_REQUESTED) 상태로 변경될 때 출력 지원
-          if (order.status == OrderStatus.READY && ref.read(kdsModeProvider)) {
-            // KDS 모드: 픽업 요청됨(READY), 출력 시도: ${order.orderId}
-            // 영수증만 출력하고 라벨은 출력하지 않음 — 큐 경유로 직렬화.
-            _outputQueueService.add(
-              order,
-              playSound: false,
-              printLabel: false,
-            );
-          }
-
           // KDS 모드에서 접수(PREPARING) 상태로 변경될 때만 오버레이 알림
           if (order.status == OrderStatus.PREPARING &&
               ref.read(kdsModeProvider)) {
-            logger.d(
-                'KDS 모드: 접수된 주문에 대해 알림 발생 (Sound/Overlay/AppBar): ${order.orderId}');
-            ref.read(alertManagerProvider).triggerNewOrderAlert(
-                  playSound: true,
-                  triggerOverlay: true,
-                  triggerAppBar: true,
-                );
+            // KDS 자동접수 ON 으로 자기 자신이 방금 PREPARING 전환한 주문은
+            // 이미 자동접수 분기에서 _outputQueueService.add() 로 라벨/주문서가 출력됐다.
+            // 후행 ORDER_ACCEPTED 이벤트(자가 echo / 외부 동일이벤트)가 이 핸들러를
+            // 또 발화시키지 않도록 _selfAcceptedOrderIds hit 시 알림+출력 통째 스킵.
+            final alreadyHandled =
+                _selfAcceptedOrderIds.contains(order.orderId);
+            if (alreadyHandled) {
+              logger.d(
+                  'KDS 모드: ${order.orderId} (PREPARING) 자가 자동접수 흔적 감지 — 알림/라벨 중복 차단');
+            } else {
+              logger.d(
+                  'KDS 모드: 접수된 주문에 대해 알림 발생 (Sound/Overlay/AppBar): ${order.orderId}');
+              ref.read(alertManagerProvider).triggerNewOrderAlert(
+                    playSound: true,
+                    triggerOverlay: true,
+                    triggerAppBar: true,
+                  );
 
-            // KDS 모드: 접수된 주문 유입 시 라벨 자동 출력 — 큐 경유로 주문 단위 직렬화 보장.
-            // 다중 ORDER_UPDATED(PREPARING) 이벤트가 짧은 간격에 도착해도 라벨 인터리빙 방지.
-            if (ref.read(preferenceServiceProvider).getUseLabelPrinter()) {
-              _outputQueueService.addLabelOnly(order);
+              // KDS 모드: 접수된 주문 유입 시 주문서 + 라벨 자동 출력 — 큐 경유로 주문 단위 직렬화 보장.
+              // 다중 ORDER_UPDATED(PREPARING) 이벤트가 짧은 간격에 도착해도 인터리빙 방지.
+              // forceOrderReceipt=true: KDS 자동접수 OFF 라도 외부 접수 시점에 주문서 인쇄.
+              // 라벨/주문서 각각의 출력 여부는 PrintService 내부 매트릭스 게이트가 결정.
+              _outputQueueService.add(
+                order,
+                playSound: false,
+                forceOrderReceipt: true,
+              );
+              // 외부 기기가 접수한 PREPARING 을 처음 본 경우에도 dedup Set 에 등록하여
+              // 동일 주문에 대한 후행 PREPARING 이벤트가 또 라벨을 찍지 않게 한다.
+              _selfAcceptedOrderIds.add(order.orderId);
             }
           }
           // 이미 UI 업데이트는 _updateOrderInStateList에서 수행됨
@@ -577,17 +592,35 @@ class Order extends _$Order {
     logger.d(
         '$modeText: 자동접수 설정 확인: $shouldAutoAccept, 주문: ${order.orderId}, 초기알람플래그: $_shouldPlayInitialAlarm');
 
-    // KDS 모드에서는 NEW를 자동접수/알람 처리하지 않음 (ACCEPTED 상태에서만 알람 처리)
-    // 단, MOCK_ 테스트 주문은 정상적으로 파이프라인(자동접수 등)을 타도록 예외 처리
-    if (isKdsMode && !order.orderId.startsWith('MOCK_')) {
+    // KDS 모드에서는 기본적으로 NEW를 자동접수/알람 처리하지 않음 (ACCEPTED 상태에서만 알람)
+    // 단, ① MOCK_ 테스트 주문, ② KDS 자동접수 토글(isKdsAcceptOrders)이 ON 인 경우는
+    // 정상적으로 파이프라인(자동접수 등)을 타도록 예외 처리.
+    if (isKdsMode &&
+        !state.isKdsAcceptOrders &&
+        !order.orderId.startsWith('MOCK_')) {
       logger.d('  NEW 주문은 진행탭/알람 대상 아님 (전체 탭에서만 표시)');
       return;
     }
 
-    // NEW 주문 수신 처리 (일반 모드)
+    // 소켓 ↔ 폴링 race 차단(자동접수 완료 후 후행 진입): 동일 orderId 가 이미
+    // 다른 경로에서 자동접수되어 로컬 state 가 PREPARING 이상으로 갱신됐다면
+    // 자동접수+출력 중복(예: 라벨 2장)을 막기 위해 통째로 스킵한다.
+    // 폴링 측에는 동일 가드가 L1745 에 있으며, 소켓 측에도 동일 정신으로 적용.
+    // (in-flight 동시 진입은 아래 _autoAcceptingOrderIds 락에서 차단)
+    final currentInState = state.orders.firstWhere(
+      (o) => o.orderId == order.orderId,
+      orElse: () => order,
+    );
+    if (currentInState.status != OrderStatus.NEW) {
+      logger.d(
+          '$modeText: ${order.orderId} 로컬 상태=${currentInState.status} (이미 자동접수됨) — 소켓 측 중복 진입 차단');
+      return;
+    }
+
+    // NEW 주문 수신 처리 (일반 모드 또는 KDS 자동접수 ON)
     // AlertManager를 통해 소리, 깜빡임, 오버레이 통합 실행
     // playSound: true (소리 재생), triggerOverlay: true (오버레이), triggerAppBar: true (앱바)
-    if (!isKdsMode) {
+    if (!isKdsMode || state.isKdsAcceptOrders) {
       final shouldNotify = _shouldNotifyForOrder(order);
       ref.read(alertManagerProvider).triggerNewOrderAlert(
             playSound: shouldNotify,
@@ -605,6 +638,12 @@ class Order extends _$Order {
         return;
       }
       _autoAcceptingOrderIds.add(order.orderId);
+      // 소켓 ↔ 폴링 race 차단: 폴링 경로(_processPollingNewOrders)의
+      // L1707 _processedOrderCache.containsOrderStatus 가드가 활성화되도록 NEW 키를 등록.
+      // queueOrderExternal 을 거치지 않는 소켓 직진입 케이스(KDS 자동접수 ON)에서
+      // 폴링 후행 enqueue 를 큐 진입 단계에서 차단하기 위함. 자동접수 완료 후 race 는
+      // 위 currentInState.status != NEW 가드가 차단함.
+      _processedOrderCache.addOrderStatus(order.orderId, OrderStatus.NEW);
       logger.d('$modeText: 자동 접수 진행: ${order.orderId}');
       // 사용자 피드백을 위해 블링크는 즉시 반영 (UI는 NEW 상태로 유지)
 
@@ -616,6 +655,13 @@ class Order extends _$Order {
             '$modeText: updateOrderStatus 결과 - 성공: $success, 주문: ${order.orderId}');
         if (success) {
           logger.d('$modeText: 자동 접수 성공: ${order.orderId}');
+          // 자가 ORDER_ACCEPTED echo 또는 후행 PREPARING 이벤트가 _processOrderByStatus
+          // L555 라벨 핸들러를 또 발화시켜 라벨이 두 장 출력되는 회귀 방지.
+          // _processedOrderCache: queueOrderExternal 의 enqueue 단계 차단 용도.
+          // _selfAcceptedOrderIds: PREPARING 분기까지 도달한 경우 알림/출력 차단 용도 (별도 키 분리).
+          _processedOrderCache.addOrderStatus(
+              order.orderId, OrderStatus.PREPARING);
+          _selfAcceptedOrderIds.add(order.orderId);
           // 접수 성공 시: 프린트 실행 (키오스크 출력/알람 설정 반영) — 큐 경유로 직렬화.
           if (_shouldNotifyForOrder(order)) {
             logger
@@ -756,7 +802,8 @@ class Order extends _$Order {
     final isKdsMode = ref.read(kdsModeProvider);
 
     // NEW 주문 처리 (자동접수만 처리, 알람소리는 _processNewOrder에서 처리)
-    if (newOrders.isNotEmpty && !isKdsMode) {
+    // KDS 자동접수(isKdsAcceptOrders) 토글이 ON 이면 KDS 모드에서도 통과시킨다.
+    if (newOrders.isNotEmpty && (!isKdsMode || state.isKdsAcceptOrders)) {
       for (final order in newOrders) {
         if (!state.isAutoReceipt) {
           logger.d(
@@ -781,17 +828,44 @@ class Order extends _$Order {
           continue;
         }
         _autoAcceptingOrderIds.add(order.orderId);
+        // 자기 자신이 자동접수한 주문은 후행 PREPARING 이벤트(자가 echo / 외부 동일이벤트)에서
+        // L555 라벨 핸들러가 재차 라벨을 찍지 않도록 PREPARING 캐시 미리 등록.
+        _processedOrderCache.addOrderStatus(
+            order.orderId, OrderStatus.PREPARING);
         logger.d('[Order Processing] NEW 주문 자동접수: ${order.orderId}');
+
+        // 출력에 쓸 PREPARING 스냅샷 (서버 응답 반영 전이라도 출력 큐는 직렬화됨)
+        final acceptedOrder = order.copyWith(
+          status: OrderStatus.PREPARING,
+          orderStatus: '',
+          updateTime: DateTime.now(),
+        );
+
         // rethrow 된 ApiException 이 unhandled async exception 으로 터지며 앱이 죽는 것을 방지.
         Future.microtask(
           () => updateOrderStatus(order, OrderStatus.PREPARING),
-        ).catchError((error, stackTrace) {
+        ).then((success) async {
+          if (success == true) {
+            logger.d(
+                '[Order Processing] NEW 주문 자동접수 성공 — 출력/알림 트리거: ${order.orderId}');
+            // 라벨/주문서 출력 (큐 직렬화) — 폴링 경로(L1825)와 동일 패턴.
+            _outputQueueService.add(acceptedOrder, playSound: true);
+            // KDS 자동접수 ON 환경에서도 사용자 인지를 위해 알람/오버레이 발생.
+            // (L555 라벨 핸들러는 PREPARING 캐시 등록으로 이미 차단되므로 중복 없음)
+            ref.read(alertManagerProvider).triggerNewOrderAlert(
+                  playSound: true,
+                  triggerOverlay: true,
+                  triggerAppBar: true,
+                );
+          } else {
+            logger.w('[Order Processing] NEW 자동접수 실패: ${order.orderId}');
+          }
+        }).catchError((error, stackTrace) {
           logger.w(
             '[Order Processing] 자동접수 재시도 실패(무시): ${order.orderId}',
             error: error,
             stackTrace: stackTrace,
           );
-          return false;
         }).whenComplete(() {
           _autoAcceptingOrderIds.remove(order.orderId);
         });
@@ -1165,6 +1239,32 @@ class Order extends _$Order {
     await _settingsManager.updateAutoReceipt(value);
     state = state.copyWith(isAutoReceipt: value);
     logger.d('updateAutoReceipt 완료 - 상태 업데이트됨: ${state.isAutoReceipt}');
+  }
+
+  /// KDS 모드 NEW 주문 자동접수 토글 갱신.
+  /// OFF→ON 전환 시:
+  ///   1) 이미 캐시에 적재된 NEW 주문을 즉시 `_processNewOrder` 로 자동접수 파이프라인 투입.
+  ///   2) 토글 OFF 동안 소켓 dispatcher / 폴링 가드에 의해 화면에 들어오지 못한 서버 측 NEW
+  ///      주문을 가져오기 위해 `refreshOrders` 를 한 번 강제 트리거. 가져온 NEW 는
+  ///      `_processNewOrdersWhenRefresh` 경로로 자동접수된다.
+  Future<void> updateKdsAcceptOrders(bool value) async {
+    final previous = state.isKdsAcceptOrders;
+    await _settingsManager.updateKdsAcceptOrders(value);
+    state = state.copyWith(isKdsAcceptOrders: value);
+    logger.d('updateKdsAcceptOrders 완료 - 상태: ${state.isKdsAcceptOrders}');
+
+    if (!previous && value) {
+      final pendingNew =
+          state.orders.where((o) => o.status == OrderStatus.NEW).toList();
+      logger.d('KDS 자동접수 ON 전환 — 캐시 NEW ${pendingNew.length}건 즉시 자동접수 트리거');
+      for (final order in pendingNew) {
+        unawaited(_processNewOrder(order));
+      }
+
+      // 서버에 적재되어 있던 NEW 일괄 가져오기 (OFF 동안 차단되어 state 에 없었던 분).
+      logger.d('KDS 자동접수 ON 전환 — 서버 NEW 동기화를 위해 refreshOrders 호출');
+      unawaited(refreshOrders());
+    }
   }
 
   void updateSoundSettings() {
@@ -1701,8 +1801,11 @@ class Order extends _$Order {
       // 즉시 상태 반영이 필요한 주문 처리 (NEW->ACCEPTED 자동 접수 등)
       if (order.status == OrderStatus.NEW) {
         // KDS NEW 차단 정책 — appfit_core 공통 정책 진입점 (DID 와 동일 호출 형태).
+        // KDS 자동접수(isKdsAcceptOrders) 토글이 ON 이면 단독 운영 시나리오로 보고
+        // 차단 해제 (정책 결합은 호출자 측에서 수행 — appfit_core 시그니처 미변경).
         if (appfit_core.OrderEventIgnorePolicy.ignoreNewOrderInKdsMode(
-            ref.read(kdsModeProvider))) {
+                ref.read(kdsModeProvider)) &&
+            !state.isKdsAcceptOrders) {
           continue;
         }
 
@@ -1759,6 +1862,10 @@ class Order extends _$Order {
               .then((success) async {
             if (success) {
               logger.d('새로고침 주문 자동 접수 성공: ${order.orderId}');
+              // 자기 자신이 자동접수한 주문은 후행 PREPARING 이벤트의 L555 라벨 핸들러에서
+              // 라벨 중복 출력되지 않도록 PREPARING 캐시 미리 등록.
+              _processedOrderCache.addOrderStatus(
+                  order.orderId, OrderStatus.PREPARING);
               // 접수 성공 시: 프린트만 실행 (큐를 통해 처리)
               _outputQueueService.add(acceptedOrder, playSound: true);
 
@@ -2063,6 +2170,7 @@ class Order extends _$Order {
     _unfilteredOrders.clear();
     _processedOrderCache.clear();
     _autoAcceptingOrderIds.clear();
+    _selfAcceptedOrderIds.clear();
     _recentRemovals.clear();
     _lastKnownOrderSequence = "0";
 
@@ -2082,9 +2190,13 @@ class Order extends _$Order {
     // 2. 초기 로딩 완료 플래그 초기화 (모드 전환 시 초기 주문 로딩을 위해)
     _isInitialLoadComplete = false;
 
-    // 3. 자동접수 설정 로드
+    // 3. 자동접수 설정 로드 (메인 + KDS 단독 운영 토글)
     final currentAutoReceipt = _preferenceService.getAutoReceipt();
-    state = state.copyWith(isAutoReceipt: currentAutoReceipt);
+    final currentKdsAcceptOrders = _preferenceService.getKdsAcceptOrders();
+    state = state.copyWith(
+      isAutoReceipt: currentAutoReceipt,
+      isKdsAcceptOrders: currentKdsAcceptOrders,
+    );
 
     // 4. 필수 서비스 재시작
     _settingsManager.reloadAfterLogin();

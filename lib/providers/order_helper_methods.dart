@@ -36,9 +36,17 @@ class OrderHelperMethods {
       return false;
     }
 
-    // KDS 모드일 때는 NEW는 숨기고, 나머지 상태는 표시
+    // KDS 모드일 때는 기본적으로 NEW는 숨기고, 나머지 상태만 표시.
+    // 단, KDS 자동접수(KEY_KDS_ACCEPT_ORDERS) 토글이 ON 이면 NEW 도 표시하여
+    // _processNewOrdersWhenRefresh 등 자동접수 파이프라인에 NEW 가 흘러 들어가도록 한다.
+    // (자동접수 후 즉시 PREPARING 으로 전환되므로 UI 노출은 매우 짧다.)
     final isKdsMode = ref.read(kdsModeProvider);
     if (isKdsMode) {
+      final isKdsAcceptOrders =
+          ref.read(preferenceServiceProvider).getKdsAcceptOrders();
+      if (isKdsAcceptOrders) {
+        return true;
+      }
       final show = order.status != OrderStatus.NEW;
       return show;
     }

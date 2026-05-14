@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../constants/app_styles.dart';
@@ -13,8 +15,9 @@ import 'package:appfit_order_agent/i18n/strings.g.dart';
 import 'settings_section_card.dart';
 import 'settings_item_widget.dart';
 import 'settings_mode_switch.dart';
-import 'settings_connection_status.dart';
+import 'builtin_printer_sub_settings.dart';
 import 'external_printer_sub_settings.dart';
+import 'label_printer_sub_settings.dart';
 
 /// 설정화면 좌측 패널 — 기기/언어/프린터 설정.
 class SettingsLeftPanel extends ConsumerStatefulWidget {
@@ -24,11 +27,16 @@ class SettingsLeftPanel extends ConsumerStatefulWidget {
     required this.isRotated180,
     required this.isAutoStart,
     required this.isIgnoreOtherDeviceKds,
+    required this.isKdsAcceptOrders,
     required this.isAutoReceipt,
     required this.isPrintOrder,
     required this.isUseBuiltinPrinter,
     required this.isUseExternalPrinter,
     required this.isUseLabelPrinter,
+    required this.builtinPrintOrder,
+    required this.builtinPrintReceipt,
+    required this.externalPrintOrder,
+    required this.externalPrintReceipt,
     required this.isTpcpStore,
     required this.labelFilterMode,
     required this.isShowOrderTypeBadge,
@@ -36,11 +44,16 @@ class SettingsLeftPanel extends ConsumerStatefulWidget {
     required this.onRotated180Changed,
     required this.onAutoStartChanged,
     required this.onIgnoreOtherDeviceKdsChanged,
+    required this.onKdsAcceptOrdersChanged,
     required this.onAutoReceiptChanged,
     required this.onPrintOrderChanged,
     required this.onUseBuiltinPrinterChanged,
     required this.onUseExternalPrinterChanged,
     required this.onUseLabelPrinterChanged,
+    required this.onBuiltinPrintOrderChanged,
+    required this.onBuiltinPrintReceiptChanged,
+    required this.onExternalPrintOrderChanged,
+    required this.onExternalPrintReceiptChanged,
     required this.onLabelFilterModeChanged,
     required this.onShowOrderTypeBadgeChanged,
     required this.isSoundGraphEnabled,
@@ -53,11 +66,16 @@ class SettingsLeftPanel extends ConsumerStatefulWidget {
   final bool isRotated180;
   final bool isAutoStart;
   final bool isIgnoreOtherDeviceKds;
+  final bool isKdsAcceptOrders;
   final bool isAutoReceipt;
   final bool isPrintOrder;
   final bool isUseBuiltinPrinter;
   final bool isUseExternalPrinter;
   final bool isUseLabelPrinter;
+  final bool builtinPrintOrder;
+  final bool builtinPrintReceipt;
+  final bool externalPrintOrder;
+  final bool externalPrintReceipt;
   final bool isTpcpStore;
   final int labelFilterMode;
   final bool isShowOrderTypeBadge;
@@ -66,11 +84,16 @@ class SettingsLeftPanel extends ConsumerStatefulWidget {
   final void Function(bool) onRotated180Changed;
   final void Function(bool) onAutoStartChanged;
   final void Function(bool) onIgnoreOtherDeviceKdsChanged;
+  final void Function(bool) onKdsAcceptOrdersChanged;
   final void Function(bool) onAutoReceiptChanged;
   final void Function(bool) onPrintOrderChanged;
   final void Function(bool) onUseBuiltinPrinterChanged;
   final void Function(bool) onUseExternalPrinterChanged;
   final void Function(bool) onUseLabelPrinterChanged;
+  final void Function(bool) onBuiltinPrintOrderChanged;
+  final void Function(bool) onBuiltinPrintReceiptChanged;
+  final void Function(bool) onExternalPrintOrderChanged;
+  final void Function(bool) onExternalPrintReceiptChanged;
   final void Function(int) onLabelFilterModeChanged;
   final void Function(bool) onShowOrderTypeBadgeChanged;
   final bool isSoundGraphEnabled;
@@ -239,11 +262,34 @@ class _SettingsLeftPanelState extends ConsumerState<SettingsLeftPanel> {
           children: [
             // ── 모드 전환 카드 ─────────────────────────────────────────────
             SettingsSectionCard(
+              title: t.settings.section_mode,
+              icon: Icons.dashboard_customize_outlined,
               children: [
                 SettingsModeSwitch(
                   isKdsMode: widget.isKdsMode,
                   onSwitch: widget.onModeSwitch,
                 ),
+                if (widget.isKdsMode) ...[
+                  const SizedBox(height: AppSpacing.s12),
+                  SettingsItemWidget(
+                    title: t.settings.kds_accept_orders.title,
+                    description: t.settings.kds_accept_orders.desc,
+                    showDivider: false,
+                    trailing: CustomSwitch(
+                      value: widget.isKdsAcceptOrders,
+                      activeColor: AppStyles.kMainColor,
+                      inactiveColor: AppStyles.gray4,
+                      activeText: t.settings.auto_start.on,
+                      inactiveText: t.settings.auto_start.off,
+                      onChanged: (v) {
+                        logToFile(
+                            tag: LogTag.UI_ACTION,
+                            message: 'KDS 주문 자동접수 변경 -> $v');
+                        widget.onKdsAcceptOrdersChanged(v);
+                      },
+                    ),
+                  ),
+                ],
               ],
             ),
             const SizedBox(height: AppSpacing.s16),
@@ -253,44 +299,27 @@ class _SettingsLeftPanelState extends ConsumerState<SettingsLeftPanel> {
               title: t.settings.section_general,
               icon: Icons.tune,
               children: [
-                SettingsItemWidget(
-                  title: t.settings.language.title,
-                  description: t.settings.language.desc,
-                  isVertical: true,
-                  trailing: _buildLanguageSwitcher(),
-                ),
-                SettingsItemWidget(
-                  title: t.settings.currency.title,
-                  description: t.settings.currency.desc,
-                  isVertical: true,
-                  trailing: _buildCurrencySwitcher(),
-                ),
-                SettingsItemWidget(
-                  title: t.settings.display_rotate.title,
-                  description: t.settings.display_rotate.desc,
-                  trailing: CustomSwitch(
-                    value: widget.isRotated180,
-                    activeColor: AppStyles.kMainColor,
-                    inactiveColor: AppStyles.gray4,
-                    onChanged: _handleRotationChange,
+                // 1. 픽업 오더 자동 접수 (메인 모드 전용)
+                if (!widget.isKdsMode)
+                  SettingsItemWidget(
+                    title: t.settings.auto_receipt.title,
+                    description: t.settings.auto_receipt.desc,
+                    trailing: CustomSwitch(
+                      value: widget.isAutoReceipt,
+                      activeColor: AppStyles.kMainColor,
+                      inactiveColor: AppStyles.gray4,
+                      activeText: t.settings.auto_start.on,
+                      inactiveText: t.settings.auto_start.off,
+                      onChanged: (v) {
+                        logToFile(
+                            tag: LogTag.UI_ACTION,
+                            message: '픽업 오더 자동 접수 변경 -> $v');
+                        widget.onAutoReceiptChanged(v);
+                        ref.read(orderProvider.notifier).updateAutoReceipt(v);
+                      },
+                    ),
                   ),
-                ),
-                SettingsItemWidget(
-                  title: t.settings.order_type_badge.title,
-                  description: t.settings.order_type_badge.desc,
-                  trailing: CustomSwitch(
-                    value: widget.isShowOrderTypeBadge,
-                    activeColor: AppStyles.kMainColor,
-                    inactiveColor: AppStyles.gray4,
-                    activeText: t.settings.auto_start.on,
-                    inactiveText: t.settings.auto_start.off,
-                    onChanged: (v) {
-                      logToFile(
-                          tag: LogTag.UI_ACTION, message: '매장/포장 표시 변경 -> $v');
-                      widget.onShowOrderTypeBadgeChanged(v);
-                    },
-                  ),
-                ),
+                // 2. PC 시작 시 자동 실행
                 SettingsItemWidget(
                   title: t.settings.auto_start.title,
                   description: widget.isKdsMode
@@ -310,11 +339,28 @@ class _SettingsLeftPanelState extends ConsumerState<SettingsLeftPanel> {
                     },
                   ),
                 ),
+                // 3. 매장/포장 표시
+                SettingsItemWidget(
+                  title: t.settings.order_type_badge.title,
+                  description: t.settings.order_type_badge.desc,
+                  trailing: CustomSwitch(
+                    value: widget.isShowOrderTypeBadge,
+                    activeColor: AppStyles.kMainColor,
+                    inactiveColor: AppStyles.gray4,
+                    activeText: t.settings.auto_start.on,
+                    inactiveText: t.settings.auto_start.off,
+                    onChanged: (v) {
+                      logToFile(
+                          tag: LogTag.UI_ACTION, message: '매장/포장 표시 변경 -> $v');
+                      widget.onShowOrderTypeBadgeChanged(v);
+                    },
+                  ),
+                ),
+                // 4. 타 기기 진행상태 알림 무시 (KDS 모드 전용)
                 if (widget.isKdsMode)
                   SettingsItemWidget(
                     title: t.settings.kds_ignore_status.title,
                     description: t.settings.kds_ignore_status.desc,
-                    showDivider: false,
                     trailing: CustomSwitch(
                       value: widget.isIgnoreOtherDeviceKds,
                       activeColor: AppStyles.kMainColor,
@@ -329,26 +375,32 @@ class _SettingsLeftPanelState extends ConsumerState<SettingsLeftPanel> {
                       },
                     ),
                   ),
-                if (!widget.isKdsMode)
-                  SettingsItemWidget(
-                    title: t.settings.auto_receipt.title,
-                    description: t.settings.auto_receipt.desc,
-                    showDivider: false,
-                    trailing: CustomSwitch(
-                      value: widget.isAutoReceipt,
-                      activeColor: AppStyles.kMainColor,
-                      inactiveColor: AppStyles.gray4,
-                      activeText: t.settings.auto_start.on,
-                      inactiveText: t.settings.auto_start.off,
-                      onChanged: (v) {
-                        logToFile(
-                            tag: LogTag.UI_ACTION,
-                            message: '픽업 오더 자동 접수 변경 -> $v');
-                        widget.onAutoReceiptChanged(v);
-                        ref.read(orderProvider.notifier).updateAutoReceipt(v);
-                      },
-                    ),
+                // 5. 화면 상하 반전
+                SettingsItemWidget(
+                  title: t.settings.display_rotate.title,
+                  description: t.settings.display_rotate.desc,
+                  trailing: CustomSwitch(
+                    value: widget.isRotated180,
+                    activeColor: AppStyles.kMainColor,
+                    inactiveColor: AppStyles.gray4,
+                    onChanged: _handleRotationChange,
                   ),
+                ),
+                // 6. 언어 설정
+                SettingsItemWidget(
+                  title: t.settings.language.title,
+                  description: t.settings.language.desc,
+                  isVertical: true,
+                  trailing: _buildLanguageSwitcher(),
+                ),
+                // 7. 화폐 단위 (마지막)
+                SettingsItemWidget(
+                  title: t.settings.currency.title,
+                  description: t.settings.currency.desc,
+                  isVertical: true,
+                  showDivider: false,
+                  trailing: _buildCurrencySwitcher(),
+                ),
               ],
             ),
             const SizedBox(height: AppSpacing.s16),
@@ -389,28 +441,45 @@ class _SettingsLeftPanelState extends ConsumerState<SettingsLeftPanel> {
                     },
                   ),
                 ),
-                SettingsItemWidget(
-                  title: t.settings.builtin_printer.title,
-                  description: t.settings.builtin_printer.desc,
-                  enabled: widget.isPrintOrder,
-                  trailing: CustomSwitch(
-                    value: widget.isUseBuiltinPrinter,
-                    activeColor: AppStyles.kMainColor,
-                    inactiveColor: AppStyles.gray4,
-                    activeText: t.settings.auto_start.on,
-                    inactiveText: t.settings.auto_start.off,
-                    onChanged: (v) {
-                      if (!widget.isPrintOrder) return;
-                      ref.read(printServiceProvider).updatePrinterSettings(
-                            builtinPrinter: v,
-                          );
-                      logToFile(
-                          tag: LogTag.UI_ACTION,
-                          message: '기기 내장 프린터 사용 변경 -> $v');
-                      widget.onUseBuiltinPrinterChanged(v);
-                    },
-                  ),
-                ),
+                Consumer(builder: (_, ref, __) {
+                  // 내장 프린터 하드웨어 존재 여부. null = 아직 probe 중 → false 취급.
+                  final builtinAvailable =
+                      ref.watch(builtinPrinterAvailableProvider) ?? false;
+                  return SettingsItemWidget(
+                    title: t.settings.builtin_printer.title,
+                    description: t.settings.builtin_printer.desc,
+                    // 인쇄 자체가 OFF 이거나 내장 모듈이 없으면 토글 disable.
+                    enabled: widget.isPrintOrder && builtinAvailable,
+                    trailing: CustomSwitch(
+                      // 미감지 시 강제 OFF 표시.
+                      value:
+                          builtinAvailable ? widget.isUseBuiltinPrinter : false,
+                      activeColor: AppStyles.kMainColor,
+                      inactiveColor: AppStyles.gray4,
+                      activeText: t.settings.auto_start.on,
+                      inactiveText: t.settings.auto_start.off,
+                      onChanged: (v) {
+                        if (!widget.isPrintOrder || !builtinAvailable) return;
+                        ref.read(printServiceProvider).updatePrinterSettings(
+                              builtinPrinter: v,
+                            );
+                        logToFile(
+                            tag: LogTag.UI_ACTION,
+                            message: '기기 내장 프린터 사용 변경 -> $v');
+                        widget.onUseBuiltinPrinterChanged(v);
+                      },
+                    ),
+                    additionalContent: BuiltinPrinterSubSettings(
+                      isUseBuiltinPrinter: widget.isUseBuiltinPrinter,
+                      available: builtinAvailable,
+                      printOrder: widget.builtinPrintOrder,
+                      printReceipt: widget.builtinPrintReceipt,
+                      onPrintOrderChanged: widget.onBuiltinPrintOrderChanged,
+                      onPrintReceiptChanged:
+                          widget.onBuiltinPrintReceiptChanged,
+                    ),
+                  );
+                }),
                 SettingsItemWidget(
                   title: t.settings.external_printer.title,
                   description: t.settings.external_printer.desc,
@@ -425,7 +494,15 @@ class _SettingsLeftPanelState extends ConsumerState<SettingsLeftPanel> {
                       if (!widget.isPrintOrder) return;
                       final ps = ref.read(printServiceProvider);
                       ps.updatePrinterSettings(externalPrinter: v);
-                      if (v) ps.checkConnection();
+                      if (v) {
+                        // Android: Posbank SDK 가 앱 시작 시점에만 한 번 discovery 를
+                        // 돌리므로, 사용자가 토글을 켜는 시점에 명시적으로 재탐색을 시도.
+                        // (USB 권한 dialog 도 이 시점에 표시.)
+                        if (Platform.isAndroid) {
+                          ps.reconnectExternalPrinter();
+                        }
+                        ps.checkConnection();
+                      }
                       logToFile(
                           tag: LogTag.UI_ACTION, message: '외부 프린터 사용 변경 -> $v');
                       widget.onUseExternalPrinterChanged(v);
@@ -433,6 +510,10 @@ class _SettingsLeftPanelState extends ConsumerState<SettingsLeftPanel> {
                   ),
                   additionalContent: ExternalPrinterSubSettings(
                     isUseExternalPrinter: widget.isUseExternalPrinter,
+                    printOrder: widget.externalPrintOrder,
+                    printReceipt: widget.externalPrintReceipt,
+                    onPrintOrderChanged: widget.onExternalPrintOrderChanged,
+                    onPrintReceiptChanged: widget.onExternalPrintReceiptChanged,
                   ),
                 ),
                 SettingsItemWidget(
@@ -447,23 +528,16 @@ class _SettingsLeftPanelState extends ConsumerState<SettingsLeftPanel> {
                     onChanged: (v) {
                       final ps = ref.read(printServiceProvider);
                       ps.updatePrinterSettings(labelPrinter: v);
-                      // checkConnection() 이 Platform.isWindows 분기에서
-                      // backend.warmupOpen() 호출까지 처리하므로 여기서는 단순 호출.
-                      if (v) ps.checkConnection();
+                      // checkConnection 이 Platform.isWindows 분기에서
+                      // backend.warmupOpen 까지 처리. 라벨만 갱신해서 외부 status 토글 회피.
+                      if (v) ps.checkConnection(external: false, label: true);
                       logToFile(
                           tag: LogTag.UI_ACTION, message: '라벨 프린터 사용 변경 -> $v');
                       widget.onUseLabelPrinterChanged(v);
                     },
                   ),
-                  additionalContent: Consumer(
-                    builder: (_, ref, __) {
-                      final status = ref.watch(printerStatusProvider);
-                      return SettingsConnectionStatus(
-                        isConnected: status.isLabelConnected,
-                        onReconnect: () =>
-                            ref.read(printServiceProvider).checkConnection(),
-                      );
-                    },
+                  additionalContent: LabelPrinterSubSettings(
+                    isUseLabelPrinter: widget.isUseLabelPrinter,
                   ),
                   showDivider:
                       !(widget.isUseLabelPrinter && widget.isTpcpStore),

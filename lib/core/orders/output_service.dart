@@ -30,34 +30,34 @@ class OutputService {
     OrderModel order, {
     required bool playSound,
     bool printLabel = true, // [NEW] 라벨 출력 여부 제어
+    bool forceOrderReceipt = false,
   }) async {
     try {
       final isKdsMode = ref.read(kdsModeProvider);
+      // KDS 모드라도 자동접수 ON 일 때는 일반 모드와 동일하게 주문서를 출력해야 한다
+      // (commit 36cfad8 자동접수 파이프라인 확장의 마지막 누락 분기 보강).
+      // forceOrderReceipt: 외부 디바이스가 접수한 PREPARING 이벤트가 KDS 에 도달했을 때
+      // 자동접수 OFF 라도 주문서를 인쇄해야 하는 케이스용.
+      final isKdsAcceptOrders = ref.read(orderProvider).isKdsAcceptOrders;
+      final shouldPrintOrderReceipt =
+          !isKdsMode || isKdsAcceptOrders || forceOrderReceipt;
 
       // 블링크 상태 업데이트 (주문 수 변화 반영)
       _orderNotifier.updateBlinkStateExternal();
 
-      if (isKdsMode) {
-        if (playSound) {
-          await ref.read(soundAppServiceProvider).playNotificationSound();
-        }
-      } else {
-        // 일반 모드: 실제 인쇄 수행 후에만 출력 이력 기록
+      if (shouldPrintOrderReceipt) {
         final orderForPrinting = await _prepareOrderForPrinting(order);
-
-        // 설정된 출력 개수만큼 반복 출력 (프린터 설정 고려)
         final printCount = ref.read(preferenceServiceProvider).getPrintCount();
-
         for (int i = 0; i < printCount; i++) {
           await ref.read(printServiceProvider).printOrderReceipt(
                 order: orderForPrinting,
                 type: 'order',
               );
         }
+      }
 
-        if (playSound) {
-          await ref.read(soundAppServiceProvider).playNotificationSound();
-        }
+      if (playSound) {
+        await ref.read(soundAppServiceProvider).playNotificationSound();
       }
 
       // 라벨 프린트 - 수동이 아닌 자동 출력 (옵션에 따라) - 모드 무관하게 독립적으로 동작

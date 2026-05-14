@@ -67,6 +67,23 @@ public class SunmiPrintHelper {
         return helper;
     }
 
+    /**
+     * Sunmi 내장 프린터 서비스 바인딩이 완료됐는지.
+     * MethodChannel(hasBuiltinPrinter) 가 폴링용으로 사용.
+     */
+    public boolean isReady() {
+        return sunmiPrinterService != null;
+    }
+
+    /**
+     * 이 디바이스에 내장 프린터 하드웨어가 실제로 존재하는지.
+     * checkSunmiPrinterService 가 InnerPrinterManager.hasPrinter() 결과를 sunmiPrinter 에 저장한 뒤 호출 가능.
+     * Sunmi 마운트지만 프린터 모듈이 없는 모델(T1/V1 등)에서는 false.
+     */
+    public boolean hasInnerPrinter() {
+        return sunmiPrinter == FoundSunmiPrinter;
+    }
+
     private InnerPrinterCallback innerPrinterCallback = new InnerPrinterCallback() {
         @Override
         protected void onConnected(SunmiPrinterService service) {

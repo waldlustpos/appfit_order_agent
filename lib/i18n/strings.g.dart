@@ -4,9 +4,9 @@
 /// To regenerate, run: `dart run slang`
 ///
 /// Locales: 3
-/// Strings: 1103 (367 per locale)
+/// Strings: 1118 (372 per locale)
 ///
-/// Built on 2026-05-11 at 06:12 UTC
+/// Built on 2026-05-13 at 02:25 UTC
 
 // coverage:ignore-file
 // ignore_for_file: type=lint
@@ -229,6 +229,7 @@ class _StringsSettingsKo {
 	String get save => '저장';
 	String get save_success => '설정이 저장되었습니다.';
 	String save_error({required Object error}) => '설정 저장 중 오류가 발생했습니다: ${error}';
+	String get section_mode => '모드 설정';
 	String get section_general => '일반 설정';
 	String get section_printer => '프린터 설정';
 	String get section_sound => '알림 설정';
@@ -253,6 +254,7 @@ class _StringsSettingsKo {
 	late final _StringsSettingsDisplayRotateKo display_rotate = _StringsSettingsDisplayRotateKo._(_root);
 	late final _StringsSettingsOrderTypeBadgeKo order_type_badge = _StringsSettingsOrderTypeBadgeKo._(_root);
 	late final _StringsSettingsKdsIgnoreStatusKo kds_ignore_status = _StringsSettingsKdsIgnoreStatusKo._(_root);
+	late final _StringsSettingsKdsAcceptOrdersKo kds_accept_orders = _StringsSettingsKdsAcceptOrdersKo._(_root);
 	late final _StringsSettingsLabelFilterKo label_filter = _StringsSettingsLabelFilterKo._(_root);
 	late final _StringsSettingsDeveloperOptionsKo developer_options = _StringsSettingsDeveloperOptionsKo._(_root);
 	late final _StringsSettingsKioskKo kiosk = _StringsSettingsKioskKo._(_root);
@@ -742,6 +744,19 @@ class _StringsSettingsKdsIgnoreStatusKo {
 	String get desc => '다른 KDS에서 픽업 요청 등 진행상태를 변경해도 내 화면의 주문이 새로고침되지 않습니다. (진행상태 최신화를 수동으로 통제하고 싶을 때 사용)';
 }
 
+// Path: settings.kds_accept_orders
+class _StringsSettingsKdsAcceptOrdersKo {
+	_StringsSettingsKdsAcceptOrdersKo._(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+	String get title => '주문 접수';
+	String get desc => 'KDS모드에서 주문을 직접 자동접수처리 합니다. 다른 메인주문 접수 프로그램과 중복 사용을 확인해주세요';
+	String get confirm_title => '주문 접수 활성화';
+	String get confirm_content => 'KDS에서 직접 주문 자동접수를 수행합니다.\n다른 메인주문 접수 프로그램과의 중복 사용을 확인해주세요.\n활성화 하시겠습니까?';
+}
+
 // Path: settings.label_filter
 class _StringsSettingsLabelFilterKo {
 	_StringsSettingsLabelFilterKo._(this._root);
@@ -1202,6 +1217,7 @@ class _StringsSettingsEn extends _StringsSettingsKo {
 	@override String get save => 'Save';
 	@override String get save_success => 'Settings saved.';
 	@override String save_error({required Object error}) => 'Error saving settings: ${error}';
+	@override String get section_mode => 'Mode';
 	@override String get section_general => 'General';
 	@override String get section_printer => 'Printer';
 	@override String get section_sound => 'Notifications';
@@ -1226,6 +1242,7 @@ class _StringsSettingsEn extends _StringsSettingsKo {
 	@override late final _StringsSettingsDisplayRotateEn display_rotate = _StringsSettingsDisplayRotateEn._(_root);
 	@override late final _StringsSettingsOrderTypeBadgeEn order_type_badge = _StringsSettingsOrderTypeBadgeEn._(_root);
 	@override late final _StringsSettingsKdsIgnoreStatusEn kds_ignore_status = _StringsSettingsKdsIgnoreStatusEn._(_root);
+	@override late final _StringsSettingsKdsAcceptOrdersEn kds_accept_orders = _StringsSettingsKdsAcceptOrdersEn._(_root);
 	@override late final _StringsSettingsLabelFilterEn label_filter = _StringsSettingsLabelFilterEn._(_root);
 	@override late final _StringsSettingsDeveloperOptionsEn developer_options = _StringsSettingsDeveloperOptionsEn._(_root);
 	@override late final _StringsSettingsKioskEn kiosk = _StringsSettingsKioskEn._(_root);
@@ -1723,6 +1740,19 @@ class _StringsSettingsKdsIgnoreStatusEn extends _StringsSettingsKdsIgnoreStatusK
 	@override String get desc => 'Orders on this screen will not refresh when other KDS devices update pickup or progress status. (Use when you want to control status updates manually)';
 }
 
+// Path: settings.kds_accept_orders
+class _StringsSettingsKdsAcceptOrdersEn extends _StringsSettingsKdsAcceptOrdersKo {
+	_StringsSettingsKdsAcceptOrdersEn._(_StringsEn root) : this._root = root, super._(root);
+
+	@override final _StringsEn _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'Accept Orders';
+	@override String get desc => 'Automatically accept incoming orders directly in KDS mode. Make sure you are not running another main order-receiving program in parallel.';
+	@override String get confirm_title => 'Enable Order Acceptance';
+	@override String get confirm_content => 'KDS will automatically accept incoming orders directly.\nPlease verify that no other main order-receiving program is running in parallel.\nEnable this option?';
+}
+
 // Path: settings.label_filter
 class _StringsSettingsLabelFilterEn extends _StringsSettingsLabelFilterKo {
 	_StringsSettingsLabelFilterEn._(_StringsEn root) : this._root = root, super._(root);
@@ -2183,6 +2213,7 @@ class _StringsSettingsJa extends _StringsSettingsKo {
 	@override String get save => '保存';
 	@override String get save_success => '設定が保存されました。';
 	@override String save_error({required Object error}) => '設定の保存中にエラーが発生しました: ${error}';
+	@override String get section_mode => 'モード設定';
 	@override String get section_general => '一般設定';
 	@override String get section_printer => 'プリンター設定';
 	@override String get section_sound => '通知設定';
@@ -2207,6 +2238,7 @@ class _StringsSettingsJa extends _StringsSettingsKo {
 	@override late final _StringsSettingsDisplayRotateJa display_rotate = _StringsSettingsDisplayRotateJa._(_root);
 	@override late final _StringsSettingsOrderTypeBadgeJa order_type_badge = _StringsSettingsOrderTypeBadgeJa._(_root);
 	@override late final _StringsSettingsKdsIgnoreStatusJa kds_ignore_status = _StringsSettingsKdsIgnoreStatusJa._(_root);
+	@override late final _StringsSettingsKdsAcceptOrdersJa kds_accept_orders = _StringsSettingsKdsAcceptOrdersJa._(_root);
 	@override late final _StringsSettingsLabelFilterJa label_filter = _StringsSettingsLabelFilterJa._(_root);
 	@override late final _StringsSettingsDeveloperOptionsJa developer_options = _StringsSettingsDeveloperOptionsJa._(_root);
 	@override late final _StringsSettingsKioskJa kiosk = _StringsSettingsKioskJa._(_root);
@@ -2694,6 +2726,19 @@ class _StringsSettingsKdsIgnoreStatusJa extends _StringsSettingsKdsIgnoreStatusK
 	// Translations
 	@override String get title => '他端末の進行状態通知を無視';
 	@override String get desc => '他のKDSでピックアップ要請などの進行状態を変更しても、この画面の注文は更新されません。(進行状態の更新を手動で管理したい場合に使用)';
+}
+
+// Path: settings.kds_accept_orders
+class _StringsSettingsKdsAcceptOrdersJa extends _StringsSettingsKdsAcceptOrdersKo {
+	_StringsSettingsKdsAcceptOrdersJa._(_StringsJa root) : this._root = root, super._(root);
+
+	@override final _StringsJa _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => '注文受付';
+	@override String get desc => 'KDSモードで注文を直接自動受付処理します。他のメイン注文受付プログラムとの併用にご注意ください。';
+	@override String get confirm_title => '注文受付を有効化';
+	@override String get confirm_content => 'KDSで注文の自動受付を直接実行します。\n他のメイン注文受付プログラムとの併用にご注意ください。\n有効にしますか?';
 }
 
 // Path: settings.label_filter

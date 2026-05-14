@@ -384,7 +384,11 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
 
   ({List<Widget> secondary, Widget primary}) _buildActionButtons(
       OrderModel order) {
-    final isSubDisplay = ref.read(preferenceServiceProvider).getSubDisplay();
+    final prefs = ref.read(preferenceServiceProvider);
+    final isKdsMode = prefs.getKdsMode();
+    final showReceiptReprint =
+        prefs.getUseBuiltinPrinter() || prefs.getUseExternalPrinter();
+    final showLabelReprint = prefs.getUseLabelPrinter();
 
     Widget closeButton({bool isMainAction = false}) => AsyncActionButton(
           text: t.common.close,
@@ -415,38 +419,33 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
           },
         );
 
-    // 완료/취소 탭: 닫기 단일 버튼
+    // 어떤 화면에서도 설정 플래그(영수증=내장|외부, 라벨)로만 가시성 결정.
+    List<Widget> reprintButtons() => [
+          if (showReceiptReprint) receiptReprintBtn(),
+          if (showLabelReprint) labelReprintBtn(),
+        ];
+
+    // 완료/취소 탭: 닫기 + 재출력
     if (widget.isFromCompletedOrCancelled) {
-      return (secondary: [], primary: closeButton(isMainAction: true));
+      return (
+        secondary: reprintButtons(),
+        primary: closeButton(isMainAction: true),
+      );
     }
 
-    // KDS 모드
-    if (widget.isFromKds) {
-      if (isSubDisplay && widget.isFromAllTab) {
-        return (secondary: [], primary: closeButton(isMainAction: true));
+    // KDS 모드(=sub-display) 전체 탭 진입 정책.
+    // - 자동접수 OFF: 기존처럼 조회 전용 (닫기 + 재출력)
+    // - 자동접수 ON: 아래 isFromHistory 분기(L645)로 떨어뜨려 메인 모드 "주문내역" 탭과
+    //   동일하게 주문 취소가 가능하도록 한다.
+    if (widget.isFromKds && isKdsMode && widget.isFromAllTab) {
+      final isKdsAcceptOrders = prefs.getKdsAcceptOrders();
+      if (!isKdsAcceptOrders) {
+        return (
+          secondary: reprintButtons(),
+          primary: closeButton(isMainAction: true),
+        );
       }
-
-      Future<void> requestPickup() async {
-        logToFile(
-            tag: LogTag.UI_ACTION,
-            message:
-                'KDS 픽업 요청 버튼: displayNum=${order.displayNum}, simpleNum=${order.shopOrderNo}, orderId=${order.orderId}');
-        await _handleStatusUpdate(
-            () => _updateOrderStatus(OrderStatus.READY), 'requestPickup');
-      }
-
-      return (
-        secondary: [
-          closeButton(),
-          if (ref.read(preferenceServiceProvider).getUseLabelPrinter())
-            labelReprintBtn(),
-        ],
-        primary: AsyncActionButton(
-          text: t.order_detail.btn_pickup_request,
-          isMainAction: true,
-          onPressed: requestPickup,
-        ),
-      );
+      // 자동접수 ON 케이스는 fall-through → isFromHistory 분기에서 cancel/close 처리.
     }
 
     // 준비 시간 선택 다이얼로그 — await 패턴으로 변환하여
@@ -646,14 +645,10 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
 
     final isFromHistory = widget.isFromHistory;
     logger.d(
-        '현재 주문 상태: ${order.status}, isFromHistory: $isFromHistory, isSubDisplay: $isSubDisplay');
+        '현재 주문 상태: ${order.status}, isFromHistory: $isFromHistory, isKdsMode: $isKdsMode');
 
     if (isFromHistory) {
-      final secondaryBtns = [
-        receiptReprintBtn(),
-        if (ref.read(preferenceServiceProvider).getUseLabelPrinter())
-          labelReprintBtn(),
-      ];
+      final secondaryBtns = reprintButtons();
       if (order.status != OrderStatus.CANCELLED) {
         return (
           secondary: secondaryBtns,
@@ -667,10 +662,10 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
       }
     }
 
-    // 서브디스플레이 + READY
-    if (isSubDisplay && order.status == OrderStatus.READY) {
+    // KDS 모드 + READY: 픽업 탭 상세창. 재출력 버튼 노출.
+    if (isKdsMode && order.status == OrderStatus.READY) {
       return (
-        secondary: [],
+        secondary: reprintButtons(),
         primary: completeOrderBtn(isMainAction: true),
       );
     }
@@ -678,9 +673,7 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
     if (order.status == OrderStatus.NEW) {
       return (
         secondary: [
-          receiptReprintBtn(),
-          if (ref.read(preferenceServiceProvider).getUseLabelPrinter())
-            labelReprintBtn(),
+          ...reprintButtons(),
           cancelOrderBtn(),
         ],
         primary: AsyncActionButton(
@@ -692,16 +685,12 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
     }
 
     if (order.status == OrderStatus.PREPARING) {
-      // KDS 진행탭 전용
+      // KDS 진행탭 전용: 재출력만 노출 (주문취소·주문완료 버튼은 의도적으로 숨김).
       if (widget.isFromKds &&
           !widget.isFromAllTab &&
           !widget.isFromCompletedOrCancelled) {
         return (
-          secondary: [
-            receiptReprintBtn(),
-            cancelOrderBtn(),
-            completeOrderBtn(),
-          ],
+          secondary: reprintButtons(),
           primary: AsyncActionButton(
             text: t.order_detail.btn_pickup_request,
             isMainAction: true,
@@ -711,9 +700,7 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
       }
       return (
         secondary: [
-          receiptReprintBtn(),
-          if (ref.read(preferenceServiceProvider).getUseLabelPrinter())
-            labelReprintBtn(),
+          ...reprintButtons(),
           cancelOrderBtn(),
           completeOrderBtn(),
         ],
@@ -727,22 +714,14 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
 
     if (order.status == OrderStatus.READY) {
       return (
-        secondary: [
-          receiptReprintBtn(),
-          if (ref.read(preferenceServiceProvider).getUseLabelPrinter())
-            labelReprintBtn(),
-        ],
+        secondary: reprintButtons(),
         primary: completeOrderBtn(isMainAction: true),
       );
     }
 
     // DONE / 기타
     return (
-      secondary: [
-        receiptReprintBtn(),
-        if (ref.read(preferenceServiceProvider).getUseLabelPrinter())
-          labelReprintBtn(),
-      ],
+      secondary: reprintButtons(),
       primary: closeButton(isMainAction: true),
     );
   }

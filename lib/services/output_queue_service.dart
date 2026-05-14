@@ -14,11 +14,16 @@ sealed class OutputJob {
 
 /// 신규 주문 자동 출력 (영수증 + 라벨 + 사운드).
 /// [printLabel] false 일 때는 KDS READY(픽업 알림) 처럼 영수증/사운드만 필요한 케이스.
+/// [forceOrderReceipt] true 면 KDS 자동접수 OFF 라도 주문서 출력 진입.
+/// 외부 디바이스 접수로 발생한 PREPARING 이벤트 처리용.
 final class NewOrderJob extends OutputJob {
   const NewOrderJob(super.order,
-      {this.playSound = true, this.printLabel = true});
+      {this.playSound = true,
+      this.printLabel = true,
+      this.forceOrderReceipt = false});
   final bool playSound;
   final bool printLabel;
+  final bool forceOrderReceipt;
 }
 
 /// 사용자 요청 기반 라벨 재출력 (영수증/사운드 없음)
@@ -65,12 +70,17 @@ class OutputQueueService {
   /// 신규 주문 출력 작업 추가.
   /// 동일 orderId 의 NewOrderJob 이 이미 진행/대기 중이면 중복 추가를 무시한다
   /// (WebSocket+폴링 이중 트리거 안전망).
-  void add(OrderModel order, {bool playSound = true, bool printLabel = true}) {
+  void add(OrderModel order,
+      {bool playSound = true,
+      bool printLabel = true,
+      bool forceOrderReceipt = false}) {
     final id = order.orderId;
     if (_inFlightNewOrders.contains(id)) return;
     _inFlightNewOrders.add(id);
-    _queue
-        .add(NewOrderJob(order, playSound: playSound, printLabel: printLabel));
+    _queue.add(NewOrderJob(order,
+        playSound: playSound,
+        printLabel: printLabel,
+        forceOrderReceipt: forceOrderReceipt));
   }
 
   // 진행 중/대기 중 NewOrderJob 의 orderId 추적. _processItem 종료 시 제거.
@@ -114,12 +124,15 @@ class OutputQueueService {
       case NewOrderJob(
           order: final order,
           playSound: final playSound,
-          printLabel: final printLabel
+          printLabel: final printLabel,
+          forceOrderReceipt: final forceOrderReceipt,
         ):
         _life('[Label] $num 큐시작 (NEW)');
         try {
           await outputService.notifyNewOrder(order,
-              playSound: playSound, printLabel: printLabel);
+              playSound: playSound,
+              printLabel: printLabel,
+              forceOrderReceipt: forceOrderReceipt);
         } finally {
           _inFlightNewOrders.remove(order.orderId);
         }

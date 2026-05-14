@@ -10,7 +10,8 @@ class OrderState {
   final bool isLoading;
   final String? error;
   final int activeOrderCount; // 활성 주문 건수 (NEW, ACCEPTED)
-  final bool isAutoReceipt; // 자동 접수 설정
+  final bool isAutoReceipt; // 자동 접수 설정 (메인 모드)
+  final bool isKdsAcceptOrders; // KDS 모드에서 NEW 주문 직접 자동접수 (단독 운영용)
   final int visibleOrderCount; // [NEW] KDS 모드에서 표시할 주문 개수 (Pagination)
 
   const OrderState({
@@ -19,6 +20,7 @@ class OrderState {
     this.error,
     this.activeOrderCount = 0,
     this.isAutoReceipt = false,
+    this.isKdsAcceptOrders = false,
     this.visibleOrderCount = 12, // 초기값 12개 (FHD 화면 스크롤 확보용)
   });
 
@@ -30,6 +32,7 @@ class OrderState {
     Object? error = _unset,
     int? activeOrderCount,
     bool? isAutoReceipt,
+    bool? isKdsAcceptOrders,
     int? visibleOrderCount,
   }) {
     final nextOrders = orders ?? this.orders;
@@ -38,6 +41,7 @@ class OrderState {
         identical(error, _unset) ? this.error : error as String?;
     final nextActiveOrderCount = activeOrderCount ?? this.activeOrderCount;
     final nextIsAutoReceipt = isAutoReceipt ?? this.isAutoReceipt;
+    final nextIsKdsAcceptOrders = isKdsAcceptOrders ?? this.isKdsAcceptOrders;
     final nextVisibleOrderCount = visibleOrderCount ?? this.visibleOrderCount;
 
     final unchanged = identical(nextOrders, this.orders) &&
@@ -45,6 +49,7 @@ class OrderState {
         nextError == this.error &&
         nextActiveOrderCount == this.activeOrderCount &&
         nextIsAutoReceipt == this.isAutoReceipt &&
+        nextIsKdsAcceptOrders == this.isKdsAcceptOrders &&
         nextVisibleOrderCount == this.visibleOrderCount;
     if (unchanged) return this;
 
@@ -54,6 +59,7 @@ class OrderState {
       error: nextError,
       activeOrderCount: nextActiveOrderCount,
       isAutoReceipt: nextIsAutoReceipt,
+      isKdsAcceptOrders: nextIsKdsAcceptOrders,
       visibleOrderCount: nextVisibleOrderCount,
     );
   }
@@ -65,6 +71,7 @@ class OrderState {
       isLoading: false,
       activeOrderCount: 0,
       isAutoReceipt: false,
+      isKdsAcceptOrders: false,
       visibleOrderCount: 12, // 초기값 12개
     );
   }
@@ -77,6 +84,7 @@ class OrderState {
         error == other.error &&
         activeOrderCount == other.activeOrderCount &&
         isAutoReceipt == other.isAutoReceipt &&
+        isKdsAcceptOrders == other.isKdsAcceptOrders &&
         visibleOrderCount == other.visibleOrderCount &&
         (identical(orders, other.orders) || listEquals(orders, other.orders));
   }
@@ -88,6 +96,7 @@ class OrderState {
         error,
         activeOrderCount,
         isAutoReceipt,
+        isKdsAcceptOrders,
         visibleOrderCount,
       );
 }

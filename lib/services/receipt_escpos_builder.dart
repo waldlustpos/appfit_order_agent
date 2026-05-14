@@ -1,14 +1,14 @@
+import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'escpos_builder.dart';
+import 'platform_service.dart';
 
 /// 영수증 / 주문서 / 테스트 페이지의 ESC/POS 문서를 만드는 플랫폼-무관 빌더.
 ///
-/// Windows: [toBytesCp949] 로 직접 송출.
-/// Android: [toChannelList] 로 MethodChannel 에 넘기고 Java 가 EUC-KR 인코딩하여 송출.
-///
-/// 두 경로의 출력물이 동일하도록 명령 시퀀스와 컬럼 폭을 단일 소스에서 결정.
+/// 양 플랫폼(Windows COM/Winspool, Android USB) 모두 [toBytesCp949] 결과를 사용.
+/// Native(Java/Windows) 측에서 추가 인코딩 없이 byte stream 그대로 전송.
 sealed class _Seg {
   const _Seg();
 }
@@ -105,31 +105,56 @@ class ReceiptEscPosBuilder {
     }
   }
 
-  /// 누적된 세그먼트를 EUC-KR(CP949) 바이트 스트림으로 직렬화. Windows 전용.
-  Uint8List toBytesCp949() {
+  /// 누적된 세그먼트를 EUC-KR(CP949) 바이트 스트림으로 직렬화.
+  /// Windows / Android 모두 이 결과를 그대로 USB/COM 으로 송출 → 양 플랫폼 hex 일치.
+  ///
+  /// 플랫폼별 인코딩 전략:
+  /// - Windows: 동기 win32 `WideCharToMultiByte` (codepage 949).
+  /// - Android: native MethodChannel `encodeCp949Batch` (Java `getBytes("EUC-KR")`)
+  ///   로 텍스트 segments 일괄 위탁. Dart 측 win32 의존을 안드로이드에서 트리거하지
+  ///   않기 위한 우회.
+  Future<Uint8List> toBytesCp949() async {
+    // 텍스트 segments 만 모아서 한 번에 인코딩 (배치). 그 후 순서대로 합침.
+    final texts = <String>[];
+    for (final s in _segs) {
+      if (s is _TextSeg) texts.add(s.text);
+    }
+
+    List<Uint8List> encoded;
+    if (texts.isEmpty) {
+      encoded = const [];
+    } else if (Platform.isAndroid) {
+      try {
+        final res = await platform.invokeMethod<List<dynamic>>(
+          'encodeCp949Batch',
+          {'texts': texts},
+        );
+        encoded = res!
+            .map((e) => e is Uint8List ? e : Uint8List.fromList(e as List<int>))
+            .toList(growable: false);
+      } catch (_) {
+        // Native 호출 실패 시 ASCII fallback (한글 깨짐) — 출력은 되게 한다.
+        encoded = texts
+            .map((t) => Uint8List.fromList(
+                t.codeUnits.map((c) => c < 0x80 ? c : 0x3F).toList()))
+            .toList(growable: false);
+      }
+    } else {
+      // Windows: 동기 win32 호출. EscPos.encodeCp949 reference 는 이 분기 안에서만.
+      encoded = texts.map(EscPos.encodeCp949).toList(growable: false);
+    }
+
     final bb = BytesBuilder();
+    int ti = 0;
     for (final s in _segs) {
       switch (s) {
         case _RawSeg(:final bytes):
           bb.add(bytes);
-        case _TextSeg(:final text):
-          bb.add(EscPos.encodeCp949(text));
+        case _TextSeg():
+          bb.add(encoded[ti++]);
       }
     }
     return bb.toBytes();
-  }
-
-  /// MethodChannel 직렬화. Java 가 받아서 'text' 는 EUC-KR 로 변환, 'raw' 는 그대로
-  /// 이어 붙여 단일 byte[] 로 만든 뒤 Posbank Printer.executeDirectIO 로 송출.
-  List<Map<String, Object>> toChannelList() {
-    return _segs.map<Map<String, Object>>((s) {
-      switch (s) {
-        case _RawSeg(:final bytes):
-          return {'type': 'raw', 'bytes': Uint8List.fromList(bytes)};
-        case _TextSeg(:final text):
-          return {'type': 'text', 'text': text};
-      }
-    }).toList(growable: false);
   }
 
   // ---- 패딩 / 라인 폭 헬퍼 (EUC-KR 바이트 휴리스틱 — 한글 2, ASCII 1) ----
@@ -178,19 +203,7 @@ class ReceiptEscPosBuilder {
   }) async {
     final b = ReceiptEscPosBuilder();
     await _appendReceipt(b, jsonOrder, isCancel, width, logoImageBytes);
-    return b.toBytesCp949();
-  }
-
-  /// 영수증 — Android MethodChannel 직렬화.
-  static Future<List<Map<String, Object>>> buildReceiptSegments({
-    required Map<String, dynamic> jsonOrder,
-    required bool isCancel,
-    int width = 48,
-    Uint8List? logoImageBytes,
-  }) async {
-    final b = ReceiptEscPosBuilder();
-    await _appendReceipt(b, jsonOrder, isCancel, width, logoImageBytes);
-    return b.toChannelList();
+    return await b.toBytesCp949();
   }
 
   /// 주문서(ORDER) — 금액 없이 메뉴/수량만.
@@ -202,18 +215,7 @@ class ReceiptEscPosBuilder {
   }) async {
     final b = ReceiptEscPosBuilder();
     await _appendOrder(b, jsonOrder, isCancel, width, logoImageBytes);
-    return b.toBytesCp949();
-  }
-
-  static Future<List<Map<String, Object>>> buildOrderSegments({
-    required Map<String, dynamic> jsonOrder,
-    required bool isCancel,
-    int width = 48,
-    Uint8List? logoImageBytes,
-  }) async {
-    final b = ReceiptEscPosBuilder();
-    await _appendOrder(b, jsonOrder, isCancel, width, logoImageBytes);
-    return b.toChannelList();
+    return await b.toBytesCp949();
   }
 
   /// 설정 UI "테스트 출력" 페이지.
@@ -224,17 +226,7 @@ class ReceiptEscPosBuilder {
   }) async {
     final b = ReceiptEscPosBuilder();
     _appendTestPage(b, comPort, baudRate, width);
-    return b.toBytesCp949();
-  }
-
-  static Future<List<Map<String, Object>>> buildTestPageSegments({
-    String? comPort,
-    int? baudRate,
-    int width = 48,
-  }) async {
-    final b = ReceiptEscPosBuilder();
-    _appendTestPage(b, comPort, baudRate, width);
-    return b.toChannelList();
+    return await b.toBytesCp949();
   }
 
   // ---- 내부 헬퍼 ----

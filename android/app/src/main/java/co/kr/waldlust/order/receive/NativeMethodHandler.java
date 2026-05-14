@@ -24,8 +24,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import co.kr.waldlust.order.receive.overlay.OverlayHelper;
-import co.kr.waldlust.order.receive.util.print.PrintUtil;
 import co.kr.waldlust.order.receive.util.print.SunmiPrintHelper;
+import co.kr.waldlust.order.receive.util.print.UsbReceiptPrinter;
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
 
@@ -36,8 +36,8 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
     // 라벨 프린터는 USB 단일 자원 → 단일 스레드 executor 로 직렬화하여 재출력 연타 / 동시 호출의
     // 공백지/지연 이슈를 차단한다.
     private final ExecutorService labelPrintExecutor = Executors.newSingleThreadExecutor();
-    // 영수증/주문서 외부 프린터(Posbank). 라벨과는 별개의 USB 디바이스이지만, 동일 단말에서
-    // 연속 출력 시 executeDirectIO 동시 호출 충돌을 막기 위해 단일 스레드로 직렬화한다.
+    // 외부 영수증 프린터(범용 USB ESC/POS). 라벨과는 별개의 USB 디바이스이지만, 동일 단말에서
+    // 연속 출력 시 bulkTransfer 동시 호출 충돌을 막기 위해 단일 스레드로 직렬화한다.
     private final ExecutorService receiptPrintExecutor = Executors.newSingleThreadExecutor();
 
     public NativeMethodHandler(MainActivity activity) {
@@ -119,28 +119,130 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
                 }
                 break;
 
-            case "printReceiptSegments": {
-                // Dart ReceiptEscPosBuilder.toChannelList() 결과를 받아 Posbank 외부 프린터로 송출.
-                // 텍스트는 EUC-KR 로 변환하여 raw 명령과 단일 byte stream 으로 직렬화 후 executeDirectIO.
-                java.util.List<java.util.Map<String, Object>> segments = call.argument("segments");
-                String jobName = call.argument("jobName");
-                final String finalJobName = jobName != null ? jobName : "RECEIPT";
-                if (segments == null || segments.isEmpty()) {
-                    result.error("INVALID_ARGUMENT", "segments is null or empty", null);
+            case "reconnectExternalPrinter": {
+                // 외부 영수증 프린터(범용 USB ESC/POS) 재탐색 트리거.
+                // - 앱 첫 실행 시 미연결이었거나, USB 권한 거부 후 다시 켠 케이스,
+                //   또는 사용자가 설정 화면에서 외부 프린터 토글을 ON 한 직후 호출되어
+                //   discovery + permission 흐름을 다시 돌린다.
+                // - idempotent. open 상태든 닫힌 상태든 안전하게 재시도.
+                try {
+                    if (MainActivity.receiptPrinter != null) {
+                        MainActivity.receiptPrinter.discover();
+                        result.success(true);
+                    } else {
+                        Log.e(TAG, "reconnectExternalPrinter: receiptPrinter is not initialized");
+                        result.success(false);
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "reconnectExternalPrinter error", e);
+                    result.success(false);
+                }
+                break;
+            }
+
+            case "isExternalPrinterConnected": {
+                // 외부 영수증 프린터 연결 상태 조회. UsbReceiptPrinter 의 bulkOut endpoint 확보 여부 기반.
+                try {
+                    boolean connected = MainActivity.receiptPrinter != null
+                            && MainActivity.receiptPrinter.isConnected();
+                    result.success(connected);
+                } catch (Exception e) {
+                    Log.e(TAG, "isExternalPrinterConnected error", e);
+                    result.success(false);
+                }
+                break;
+            }
+
+            case "hasBuiltinPrinter": {
+                // Sunmi 내장 프린터 하드웨어 존재 여부.
+                // - 비-Sunmi 단말은 즉시 false.
+                // - Sunmi 단말: initSunmiPrinterService 가 비동기 bindService 라 isReady() 가
+                //   false 일 수 있음 → main thread 의 Handler.postDelayed 로 50ms 간격 폴링
+                //   (최대 1.5초). isReady() true 되면 hasInnerPrinter() 반환, timeout 시 false.
+                if (!activity.isSunmiDevice()) {
+                    result.success(false);
                     break;
                 }
-                final java.util.List<java.util.Map<String, Object>> finalSegments = segments;
+                final SunmiPrintHelper helper = SunmiPrintHelper.getInstance();
+                if (helper.isReady()) {
+                    result.success(helper.hasInnerPrinter());
+                    break;
+                }
+                final java.util.concurrent.atomic.AtomicBoolean replied =
+                        new java.util.concurrent.atomic.AtomicBoolean(false);
+                final android.os.Handler probeHandler =
+                        new android.os.Handler(android.os.Looper.getMainLooper());
+                final int[] tries = {0};
+                final int maxTries = 30; // 50ms × 30 = 1.5s
+                final long intervalMs = 50;
+                Runnable probe = new Runnable() {
+                    @Override
+                    public void run() {
+                        if (replied.get()) return;
+                        if (helper.isReady()) {
+                            if (replied.compareAndSet(false, true)) {
+                                result.success(helper.hasInnerPrinter());
+                            }
+                            return;
+                        }
+                        tries[0]++;
+                        if (tries[0] >= maxTries) {
+                            if (replied.compareAndSet(false, true)) {
+                                Log.w(TAG, "hasBuiltinPrinter: Sunmi service bind timeout");
+                                result.success(false);
+                            }
+                            return;
+                        }
+                        probeHandler.postDelayed(this, intervalMs);
+                    }
+                };
+                probeHandler.postDelayed(probe, intervalMs);
+                break;
+            }
+
+            case "encodeCp949Batch": {
+                // Dart ReceiptEscPosBuilder.toBytesCp949 가 한 영수증의 모든 텍스트 segments 를
+                // 한 번에 위탁. Java String.getBytes("EUC-KR") 는 CP949 호환 출력으로
+                // 기존 Posbank/PrintUtil 경로와 동일한 byte 결과를 보장.
+                // (Dart win32 의존을 안드로이드에서 트리거하지 않기 위한 우회.)
+                java.util.List<String> texts = call.argument("texts");
+                java.util.List<byte[]> out = new java.util.ArrayList<>();
+                if (texts != null) {
+                    for (String t : texts) {
+                        if (t == null) { out.add(new byte[0]); continue; }
+                        try {
+                            out.add(t.getBytes("EUC-KR"));
+                        } catch (java.io.UnsupportedEncodingException e) {
+                            Log.e(TAG, "encodeCp949Batch fallback to default charset for: " + t, e);
+                            out.add(t.getBytes());
+                        }
+                    }
+                }
+                result.success(out);
+                break;
+            }
+
+            case "printReceiptBytes": {
+                // Dart ReceiptEscPosBuilder.toBytesCp949() 결과(byte[])를 받아 외부 프린터 USB bulkTransfer 로 송출.
+                // Windows 경로와 동일한 byte 스트림을 사용 — 양 플랫폼 hex dump 가 일치한다.
+                byte[] data = call.argument("bytes");
+                String jobName = call.argument("jobName");
+                final String finalJobName = jobName != null ? jobName : "RECEIPT";
+                if (data == null || data.length == 0) {
+                    result.error("INVALID_ARGUMENT", "bytes is null or empty", null);
+                    break;
+                }
+                final byte[] finalData = data;
                 receiptPrintExecutor.submit(() -> {
                     boolean ok = false;
                     try {
-                        if (MainActivity.printrUtil != null) {
-                            MainActivity.printrUtil.printSegments(finalSegments, finalJobName);
-                            ok = true;
+                        if (MainActivity.receiptPrinter != null) {
+                            ok = MainActivity.receiptPrinter.writeBytes(finalData, finalJobName);
                         } else {
-                            Log.e(TAG, "printReceiptSegments: PrintUtil is not initialized");
+                            Log.e(TAG, "printReceiptBytes: receiptPrinter is not initialized");
                         }
                     } catch (Exception e) {
-                        Log.e(TAG, "printReceiptSegments error", e);
+                        Log.e(TAG, "printReceiptBytes error", e);
                     }
                     final boolean fOk = ok;
                     new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> result.success(fOk));
@@ -149,10 +251,10 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
             }
 
             case "printOrder":
+                // Sunmi 내장 영수증 프린터 전용 채널. 외부 영수증 프린터는 'printReceiptBytes' 로 분리.
                 String orderJson = call.argument("orderJson");
                 String type = call.argument("type");
                 Boolean isCancel = call.argument("isCancel");
-                Boolean useExternalPrint = call.argument("useExternalPrint");
                 Boolean useBuiltinPrint = call.argument("useBuiltinPrint");
                 if (isCancel == null) {
                     isCancel = false;
@@ -170,22 +272,6 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
                         } else {
                             Log.w(TAG, "Print type is null or unknown: " + type + ". Defaulting to receipt.");
                             SunmiPrintHelper.getInstance().printReceiptFromJson(orderJson, isCancel);
-                        }
-                    }
-
-                    if (Boolean.TRUE.equals(useExternalPrint)) {
-                        if (MainActivity.printrUtil != null) {
-                            if ("order".equals(type)) {
-                                MainActivity.printrUtil.printOrderFromJson(orderJson, isCancel);
-                            } else {
-                                MainActivity.printrUtil.printReceiptFromJson(orderJson, isCancel);
-                            }
-                        } else {
-                            Log.e(TAG, "PrintUtil is not initialized!");
-                            if (!Boolean.TRUE.equals(useBuiltinPrint)) {
-                                result.error("PRINTER_ERROR", "PrintUtil not initialized", null);
-                                return;
-                            }
                         }
                     }
                     result.success(true);

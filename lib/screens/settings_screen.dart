@@ -40,6 +40,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _isUseExternalPrinter = false;
   bool _isUseLabelPrinter = false;
   bool _isUseBuiltinPrinter = true;
+
+  // 프린터 × 출력물 매트릭스 (내장/외부 × 주문서/영수증)
+  bool _builtinPrintOrder = true;
+  bool _builtinPrintReceipt = true;
+  bool _externalPrintOrder = true;
+  bool _externalPrintReceipt = true;
   bool _isTpcpStore = false;
 
   int _labelAutoReplyMode = 1;
@@ -53,6 +59,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _isShowOrderTypeBadge = false;
   bool _isOrderHistoryScroll = true;
   bool _isIgnoreOtherDeviceKds = false;
+  bool _isKdsAcceptOrders = false;
   bool _forceSocketReconnect = false;
 
   int _devOptionsTapCount = 0;
@@ -92,6 +99,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _isUseBuiltinPrinter = _preferenceService.getUseBuiltinPrinter();
       _isUseExternalPrinter = _preferenceService.getUseExternalPrinter();
       _isUseLabelPrinter = _preferenceService.getUseLabelPrinter();
+      _builtinPrintOrder = _preferenceService.getBuiltinPrintOrder();
+      _builtinPrintReceipt = _preferenceService.getBuiltinPrintReceipt();
+      _externalPrintOrder = _preferenceService.getExternalPrintOrder();
+      _externalPrintReceipt = _preferenceService.getExternalPrintReceipt();
       _isTpcpStore = _preferenceService.isTpcpStore();
 
       _labelAutoReplyMode = _preferenceService.getLabelAutoReplyMode();
@@ -106,6 +117,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _isOrderHistoryScroll = _preferenceService.getOrderHistoryScroll();
       _isIgnoreOtherDeviceKds =
           _preferenceService.getIgnoreOtherDeviceTasksKds();
+      _isKdsAcceptOrders = _preferenceService.getKdsAcceptOrders();
       _forceSocketReconnect = _preferenceService.getForceSocketReconnect();
       _notificationVolume = _preferenceService.getVolume();
       _selectedSound = _preferenceService.getSound();
@@ -129,6 +141,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await _preferenceService.setUseBuiltinPrinter(_isUseBuiltinPrinter);
       await _preferenceService.setUseExternalPrinter(_isUseExternalPrinter);
       await _preferenceService.setUseLabelPrinter(_isUseLabelPrinter);
+      await _preferenceService.setBuiltinPrintOrder(_builtinPrintOrder);
+      await _preferenceService.setBuiltinPrintReceipt(_builtinPrintReceipt);
+      await _preferenceService.setExternalPrintOrder(_externalPrintOrder);
+      await _preferenceService.setExternalPrintReceipt(_externalPrintReceipt);
       await _preferenceService.setLabelAutoReplyMode(_labelAutoReplyMode);
       await _preferenceService.setLabelUseFeedToTear(_labelUseFeedToTear);
       await _preferenceService.setLabelUseBackToPrint(_labelUseBackToPrint);
@@ -140,6 +156,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await _preferenceService.setOrderHistoryScroll(_isOrderHistoryScroll);
       await _preferenceService
           .setIgnoreOtherDeviceTasksKds(_isIgnoreOtherDeviceKds);
+      await _preferenceService.setKdsAcceptOrders(_isKdsAcceptOrders);
       await _preferenceService.setVolume(_notificationVolume);
       await _preferenceService.setSound(_selectedSound);
       await _preferenceService.setSoundNum(_alertCount);
@@ -185,7 +202,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     if (confirm == true) {
       final newMode = !isKdsMode;
-      await _preferenceService.setSubDisplay(newMode);
+      await _preferenceService.setKdsMode(newMode);
       ref.read(kdsModeProvider.notifier).setKdsMode(newMode);
 
       if (newMode) {
@@ -197,10 +214,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       }
 
       if (mounted) {
-        Navigator.pushNamedAndRemoveUntil(context, '/home', (r) => false);
-        Future.delayed(const Duration(milliseconds: 100), () {
-          ref.read(orderProvider.notifier).reloadSettings();
-        });
+        // 모드 전환 후 설정 화면 유지: 홈 라우트 푸시로 스택을 날리지 않는다.
+        // kdsModeProvider 변경으로 설정 화면 하단의 홈 화면은 자동으로 리빌드되며,
+        // orderProvider.reloadSettings() 가 자동접수/폴링/소켓 등을 새 모드로 재구성한다.
+        ref.read(orderProvider.notifier).reloadSettings();
       }
     }
   }
@@ -380,6 +397,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _saveSettings();
   }
 
+  Future<void> _handleKdsAcceptOrdersChanged(bool value) async {
+    if (!value) {
+      _setAndSave(() => _isKdsAcceptOrders = false);
+      await ref.read(orderProvider.notifier).updateKdsAcceptOrders(false);
+      return;
+    }
+
+    final bool? confirm = await CommonDialog.showConfirmDialog(
+      context: context,
+      title: t.settings.kds_accept_orders.confirm_title,
+      content: t.settings.kds_accept_orders.confirm_content,
+      confirmText: t.common.confirm,
+      cancelText: t.common.cancel,
+    );
+
+    if (confirm == true) {
+      _setAndSave(() => _isKdsAcceptOrders = true);
+      await ref.read(orderProvider.notifier).updateKdsAcceptOrders(true);
+    }
+  }
+
   // ── QR 테스트 라벨 출력 ─────────────────────────────────────────────────
   static const List<String> _qrTestSequence = [
     '10|P0001|SI0001|',
@@ -470,11 +508,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               isRotated180: _isRotated180,
               isAutoStart: _isAutoStart,
               isIgnoreOtherDeviceKds: _isIgnoreOtherDeviceKds,
+              isKdsAcceptOrders: _isKdsAcceptOrders,
               isAutoReceipt: _isAutoReceipt,
               isPrintOrder: _isPrintOrder,
               isUseBuiltinPrinter: _isUseBuiltinPrinter,
               isUseExternalPrinter: _isUseExternalPrinter,
               isUseLabelPrinter: _isUseLabelPrinter,
+              builtinPrintOrder: _builtinPrintOrder,
+              builtinPrintReceipt: _builtinPrintReceipt,
+              externalPrintOrder: _externalPrintOrder,
+              externalPrintReceipt: _externalPrintReceipt,
               isTpcpStore: _isTpcpStore,
               labelFilterMode: _labelFilterMode,
               isShowOrderTypeBadge: _isShowOrderTypeBadge,
@@ -483,6 +526,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               onAutoStartChanged: (v) => _setAndSave(() => _isAutoStart = v),
               onIgnoreOtherDeviceKdsChanged: (v) =>
                   _setAndSave(() => _isIgnoreOtherDeviceKds = v),
+              onKdsAcceptOrdersChanged: _handleKdsAcceptOrdersChanged,
               onAutoReceiptChanged: (v) =>
                   _setAndSave(() => _isAutoReceipt = v),
               onPrintOrderChanged: (v) => _setAndSave(() {
@@ -502,6 +546,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   _setAndSave(() => _isUseExternalPrinter = v),
               onUseLabelPrinterChanged: (v) =>
                   _setAndSave(() => _isUseLabelPrinter = v),
+              onBuiltinPrintOrderChanged: (v) =>
+                  _setAndSave(() => _builtinPrintOrder = v),
+              onBuiltinPrintReceiptChanged: (v) =>
+                  _setAndSave(() => _builtinPrintReceipt = v),
+              onExternalPrintOrderChanged: (v) =>
+                  _setAndSave(() => _externalPrintOrder = v),
+              onExternalPrintReceiptChanged: (v) =>
+                  _setAndSave(() => _externalPrintReceipt = v),
               onLabelFilterModeChanged: (v) =>
                   _setAndSave(() => _labelFilterMode = v),
               onShowOrderTypeBadgeChanged: (v) =>

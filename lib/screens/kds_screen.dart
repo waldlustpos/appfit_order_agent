@@ -1289,14 +1289,23 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
 
   void _showOrderDetail(BuildContext context, OrderModel order,
       {CardType? cardType}) {
+    // KDS 자동접수(KEY_KDS_ACCEPT_ORDERS) ON + 전체 탭 진입은 일반 모드 "주문내역" 탭과
+    // 동일한 동작(활성 주문→취소만, CANCELLED→닫기)을 따른다. OrderDetailPopup 의 분기
+    // 순서상 isFromHistory 가 상태별 분기보다 먼저 매칭되어 적용된다.
+    // (sub-display + 전체 탭 케이스는 그보다 더 앞 분기에서 처리되므로 영향 없음)
+    final isAllTab = cardType == null;
+    final isKdsAcceptOrders = ref.read(orderProvider).isKdsAcceptOrders;
+    final useHistoryFlow = isAllTab && isKdsAcceptOrders;
+
     showDialog(
       context: context,
       builder: (context) => OrderDetailPopup(
         order: order,
         isFromKds: true, // KDS 모드로 설정
-        isFromAllTab: cardType == null, // 전체 탭 여부 (cardType이 null이면 전체 탭)
+        isFromAllTab: isAllTab, // 전체 탭 여부 (cardType이 null이면 전체 탭)
         isFromCompletedOrCancelled: cardType == CardType.completed ||
             cardType == CardType.cancelled, // 완료/취소 탭 여부
+        isFromHistory: useHistoryFlow,
       ),
     );
   }
