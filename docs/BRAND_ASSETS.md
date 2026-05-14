@@ -4,15 +4,20 @@
 
 ## 1. 자원 분기 구조
 
-- 헬퍼: [lib/utils/brand_assets.dart](../lib/utils/brand_assets.dart)
-- 분기 기준: [`PreferenceService.isMHSTStoreId`](../lib/services/preference_service.dart) / `isTPCPStoreId` — 매장 ID prefix
+- 헬퍼: [lib/utils/brand_assets.dart](../lib/utils/brand_assets.dart) — `enum BrandKey` + `const Map<BrandKey, BrandAssetSet>` lookup.
+- 분기 기준: [`PreferenceService.isMHSTStoreId`](../lib/services/preference_service.dart) / `isTPCPStoreId` — 매장 ID prefix.
 - 캐시 무효화: `label_painter.dart` / `external_receipt_printer.dart` 양쪽이 매 호출마다 `BrandAssets.{label,receipt}LogoPath`를 캐시된 path와 비교 → 다르면 자동 재로드 (lazy invalidation). 별도 후크 불필요.
 
-| 브랜드 | ID prefix | 라벨 로고 | 영수증 로고 |
-|---|---|---|---|
-| tokyoplatz | `TPCP` | `assets/images/brand/tokyoplatz_label_logo.bmp` | (없음 — null 분기) |
-| mammoth | `MHST` | `assets/images/brand/mammoth_label_logo.bmp` | `assets/images/brand/mammoth_receipt_logo.png` |
-| 기타/미로그인 | — | tokyoplatz로 fallback | null |
+자산은 `assets/images/brand/<slug>/` 폴더에 표준 파일명으로 배치한다:
+- `label_logo.bmp` (필수)
+- `receipt_logo.png` (선택 — `hasReceiptLogo: true` 인 브랜드만)
+- `logo.svg` (선택 — brand_theme 화면 로고용)
+
+| 브랜드 | ID prefix | 폴더 | 라벨 로고 | 영수증 로고 |
+|---|---|---|---|---|
+| tokyoplatz | `TPCP` | `tokyoplatz/` | `label_logo.bmp` | (없음 — null 분기) |
+| mammoth | `MHST` | `mammoth/` | `label_logo.bmp` | `receipt_logo.png` |
+| 기타/미로그인 | — | (tokyoplatz로 fallback) | tokyoplatz/label_logo.bmp | null |
 
 영수증 로고가 null이면 ESC/POS 빌더([receipt_escpos_builder.dart](../lib/services/receipt_escpos_builder.dart))의 `if (logoImageBytes != null)` 가드로 자동 skip.
 
@@ -79,7 +84,7 @@ python3 <<'EOF'
 from PIL import Image
 
 SRC = '/path/to/원본_logo.png'
-DST = '/Users/kimsungchun/Documents/GitHub/appfit_order_agent/assets/images/brand/<brand>_label_logo.bmp'
+DST = '/Users/kimsungchun/Documents/GitHub/appfit_order_agent/assets/images/brand/<slug>/label_logo.bmp'
 
 src = Image.open(SRC).convert('RGBA')
 _, _, _, alpha = src.split()
@@ -108,7 +113,7 @@ print(f'black: {black}/{len(pixels)} ({black*100//len(pixels)}%)')
 EOF
 
 # 결과 검증 — tokyo와 동일한 포맷 확인
-file assets/images/brand/<brand>_label_logo.bmp
+file assets/images/brand/<slug>/label_logo.bmp
 # 기대: PC bitmap, Windows 3.x format, 50 x 50 x 1, ..., resolution 3780 x 3780 px/m
 ```
 
@@ -123,14 +128,23 @@ mask_L = alpha.point(lambda x: 255 if x > 128 else 0, mode='L')
 
 ### 4.2 영수증 로고 추가 (선택)
 
-영수증 로고가 필요한 브랜드는 8-bit PNG 그대로 사용 가능. `assets/images/brand/<brand>_receipt_logo.png`로 배치. ESC/POS 빌더가 raster 변환을 알아서 처리한다. 권장 크기 ~ 200~400 px 폭 (실제 ESC/POS 빌더의 다운샘플 로직에서 처리).
+영수증 로고가 필요한 브랜드는 8-bit PNG 그대로 사용 가능. `assets/images/brand/<slug>/receipt_logo.png` 표준 파일명으로 배치. ESC/POS 빌더가 raster 변환을 알아서 처리한다. 권장 크기 ~ 200~400 px 폭 (실제 ESC/POS 빌더의 다운샘플 로직에서 처리).
 
-영수증에 로고를 출력하지 않는 브랜드는 [BrandAssets.receiptLogoPath](../lib/utils/brand_assets.dart)에서 해당 분기를 `null` 반환하면 됨 — 빌더 자체 가드로 자동 skip.
+영수증에 로고를 출력하지 않는 브랜드는 [BrandAssets](../lib/utils/brand_assets.dart) `_brands` Map 항목에서 `hasReceiptLogo` 를 생략(기본 false) — 빌더 자체 가드로 자동 skip.
 
 ### 4.3 코드 변경
 
-1. [lib/services/preference_service.dart](../lib/services/preference_service.dart): `isXXXXStoreId` / `isXxxxStore` 메서드 추가 (tokyo의 `isTPCPStoreId`, mammoth의 `isMHSTStoreId` 패턴 참고)
-2. [lib/utils/brand_assets.dart](../lib/utils/brand_assets.dart): 새 브랜드 상수 + `labelLogoPath` / `receiptLogoPath` 분기 추가
+새 브랜드 추가는 **2~3곳** 만 수정하면 된다.
+
+1. **`pubspec.yaml`** assets 에 새 폴더 등록:
+   ```yaml
+   - assets/images/brand/<slug>/
+   ```
+2. **[lib/services/preference_service.dart](../lib/services/preference_service.dart)** : prefix 헬퍼가 없으면 추가 (`isXXXXStoreId(String? storeId)` static 형태, 기존 `isTPCPStoreId` / `isMHSTStoreId` 패턴 그대로).
+3. **[lib/utils/brand_assets.dart](../lib/utils/brand_assets.dart)** :
+   - `enum BrandKey` 에 새 키 추가
+   - `_brands` Map 에 한 줄 추가: `BrandKey.xxx: BrandAssetSet(folder: '<slug>', hasReceiptLogo: true/false)`
+   - `_resolveBrand()` 안에 prefix 분기 한 줄 추가
 
 ### 4.4 검증
 
@@ -158,4 +172,4 @@ flutter clean && flutter pub get  # 새 asset 인식 위해
   - 1차: 패턴 A 매핑 시도 → 라벨에서 색상 반대로 출력
   - 2차: 패턴 B 역매핑 시도 → 라벨에서 색상 또 반대
   - 3차: 패턴 A로 복귀, 검정 비율 52%(tokyo 65%와 근접) 확인하고 적용 → 성공
-- 영수증: 기존 `assets/images/logo.png`를 `mammoth_receipt_logo.png`로 리네임만 이동
+- 영수증: 기존 `assets/images/logo.png`를 `mammoth/receipt_logo.png`로 리네임만 이동

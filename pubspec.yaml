@@ -146,6 +146,8 @@ flutter:
     - assets/sounds/
     - assets/images/
     - assets/images/brand/
+    - assets/images/brand/tokyoplatz/
+    - assets/images/brand/mammoth/
     - assets/icons/
     # - .env
   fonts:
