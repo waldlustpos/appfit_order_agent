@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 
+import '../utils/brand_assets.dart';
 import '../utils/logger.dart';
 import 'platform_service.dart';
 import 'preference_service.dart';
@@ -20,6 +21,8 @@ import 'external_receipt_printer_windows.dart' deferred as win_transport;
 /// 로 송출. Java 측 EUC-KR 인코딩 로직을 걷어내 양 플랫폼 hex dump 가 1대1로 일치.
 class ExternalReceiptPrinter {
   static Uint8List? _cachedLogoBytes;
+  static String? _cachedLogoPath;
+  static bool _cachedLogoIsNull = false;
   static bool _winTransportLoaded = false;
 
   Future<bool> printOrder(
@@ -150,14 +153,26 @@ class ExternalReceiptPrinter {
   }
 
   Future<Uint8List?> _loadLogoBytes() async {
+    final String? targetPath = BrandAssets.receiptLogoPath;
+    if (_cachedLogoPath != targetPath) {
+      // 브랜드 전환(또는 첫 호출) — 캐시 무효화.
+      _cachedLogoBytes = null;
+      _cachedLogoIsNull = false;
+      _cachedLogoPath = targetPath;
+    }
+    if (targetPath == null) {
+      _cachedLogoIsNull = true;
+      return null;
+    }
     if (_cachedLogoBytes != null) return _cachedLogoBytes;
+    if (_cachedLogoIsNull) return null;
     try {
-      _cachedLogoBytes = (await rootBundle.load('assets/images/logo.png'))
-          .buffer
-          .asUint8List();
+      _cachedLogoBytes =
+          (await rootBundle.load(targetPath)).buffer.asUint8List();
       return _cachedLogoBytes;
     } catch (e) {
-      logger.w('[ExternalReceiptPrinter] 로고 로드 실패, 계속 출력: $e');
+      logger.w('[ExternalReceiptPrinter] 로고 로드 실패 ($targetPath), 계속 출력: $e');
+      _cachedLogoIsNull = true;
       return null;
     }
   }

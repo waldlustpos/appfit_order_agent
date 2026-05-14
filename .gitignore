@@ -109,6 +109,7 @@ docs/
 !docs/ARCHITECTURE.md
 !docs/BUILD.md
 !docs/WINDOWS_LABEL_PRINTER_GUIDE.md
+!docs/BRAND_ASSETS.md
 
 # AppFit Generated
 lib/services/appfit/*.g.dart

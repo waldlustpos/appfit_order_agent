@@ -843,6 +843,15 @@ class PreferenceService {
   /// 현재 저장된 매장 ID가 TPCP(일본 특화) 매장인지 반환.
   bool isTpcpStore() => isTPCPStoreId(getId());
 
+  /// MHST(매머드) 매장 여부를 ID 문자열로 판별하는 정적 유틸리티.
+  static bool isMHSTStoreId(String? storeId) {
+    if (storeId == null || storeId.isEmpty) return false;
+    return storeId.toUpperCase().startsWith('MHST');
+  }
+
+  /// 현재 저장된 매장 ID가 MHST(매머드) 매장인지 반환.
+  bool isMammothStore() => isMHSTStoreId(getId());
+
   // ── Windows 전용 프린터 설정 ────────────────────────────────────────────────
 
   static const String _keyWindowsPrinterName = 'APPFIT_WIN_PRINTER_NAME';

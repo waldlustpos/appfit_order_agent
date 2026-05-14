@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
+import '../brand_assets.dart';
+import '../logger.dart';
+
 class LabelPainter extends CustomPainter {
   final String menuName;
   final List<String> options;
@@ -37,6 +40,7 @@ class LabelPainter extends CustomPainter {
 
   // --- Logo Cache ---
   static ui.Image? _cachedLogo;
+  static String? _cachedLogoPath;
   static bool _logoLoadAttempted = false;
 
   // --- Constants (Layout & Sizes) ---
@@ -444,6 +448,19 @@ class LabelPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 
+  static Future<ui.Image?> _loadLogoImage(String assetPath) async {
+    try {
+      final ByteData data = await rootBundle.load(assetPath);
+      final Uint8List bytes = data.buffer.asUint8List();
+      final Completer<ui.Image> completer = Completer();
+      ui.decodeImageFromList(bytes, (img) => completer.complete(img));
+      return await completer.future;
+    } catch (e) {
+      logger.w('[LabelPainter] failed to load logo asset ($assetPath): $e');
+      return null;
+    }
+  }
+
   static Future<Uint8List> generateLabelImage({
     required String menuName,
     required List<String> options,
@@ -461,18 +478,23 @@ class LabelPainter extends CustomPainter {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
 
+    final String targetPath = BrandAssets.labelLogoPath;
+    if (_cachedLogoPath != targetPath) {
+      // 브랜드 전환(또는 첫 로드) — 캐시 무효화 후 재시도.
+      _cachedLogo = null;
+      _logoLoadAttempted = false;
+      _cachedLogoPath = null;
+    }
     if (!_logoLoadAttempted) {
       _logoLoadAttempted = true;
-      try {
-        const String assetPath = 'assets/images/label_logo.bmp';
-        final ByteData data = await rootBundle.load(assetPath);
-        final Uint8List bytes = data.buffer.asUint8List();
-        final Completer<ui.Image> completer = Completer();
-        ui.decodeImageFromList(bytes, (img) => completer.complete(img));
-        _cachedLogo = await completer.future;
-      } catch (e, s) {
-        debugPrint('Failed to load logo image: $e');
+      _cachedLogo = await _loadLogoImage(targetPath);
+      if (_cachedLogo == null &&
+          targetPath != BrandAssets.labelLogoFallbackPath) {
+        logger.w(
+            '[LabelPainter] primary logo load failed ($targetPath), falling back to tokyoplatz');
+        _cachedLogo = await _loadLogoImage(BrandAssets.labelLogoFallbackPath);
       }
+      _cachedLogoPath = targetPath;
     }
     final ui.Image? logo = _cachedLogo;
 
