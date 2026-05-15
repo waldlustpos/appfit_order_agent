@@ -18,7 +18,7 @@
 - 자세한 명령어·환경설정·다국어 워크플로: [docs/BUILD.md](docs/BUILD.md)
 
 ## 절대 규칙
-
+- **설명은 한국어를 기본으로 함**
 - **생성 파일 직접 수정 금지**: `.g.dart` / `.freezed.dart`는 항상 build_runner 재실행으로 갱신.
 - **모델은 수동 작성**: `lib/models/`는 freezed/json_serializable을 **사용하지 않음**. `fromJson`/`toJson`/`copyWith` 직접 구현. Claude가 freezed로 새 모델을 만들지 말 것.
 - **API 요청 우회 금지**: 모든 REST 호출은 `appfit_core`의 Dio 인터셉터 경유 (자동 인증 헤더 + AES-GCM 암호화). 직접 `http`/`Dio`로 요청하지 말 것.
