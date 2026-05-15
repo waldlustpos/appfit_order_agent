@@ -12,10 +12,12 @@ import 'package:win32/win32.dart';
 /// CP949 는 EUC-KR 슈퍼셋이므로 프린터가 EUC-KR 모드여도 호환된다.
 class EscPos {
   // ---- font size ----
+  // GS ! n 비트 정의는 ESC/POS 표준 그대로 따르되, 이 코드의 운영 환경에서 검증된
+  // 의미 매핑은 kokonut_order_agent_v2 와 동일하다 — fontTall 이 height 2x.
   static const int fontNormal = 0x00;
-  static const int fontLarge = 0x11;
-  static const int fontTall = 0x10;
-  static const int fontWide = 0x01;
+  static const int fontLarge = 0x11; // both 2x
+  static const int fontTall = 0x01; // height 2x only
+  static const int fontWide = 0x10; // width 2x only
 
   // ---- alignment ----
   static const int alignLeft = 0x00;
@@ -130,7 +132,8 @@ class EscPosStreamBuilder {
       final frame = await codec.getNextFrame();
       final image = frame.image;
 
-      final byteData = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+      final byteData =
+          await image.toByteData(format: ui.ImageByteFormat.rawRgba);
       if (byteData == null) return;
 
       final rgba = byteData.buffer.asUint8List();

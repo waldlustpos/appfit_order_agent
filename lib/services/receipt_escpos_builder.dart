@@ -177,7 +177,13 @@ class ReceiptEscPosBuilder {
   }
 
   /// 바이트 길이 기준 우측 공백 padding.
-  static String padRight(String text, int totalWidth) {
+  /// [truncate] 가 true 면 [totalWidth] 를 넘는 텍스트는 ellipsis(`…`) 와 함께 잘라
+  /// 컬럼 폭을 정확히 [totalWidth] 로 맞춘다. 컬럼 정렬을 깨뜨리지 않아야 하는
+  /// 메뉴명/옵션명 같은 가변 길이 셀에 사용.
+  static String padRight(String text, int totalWidth, {bool truncate = false}) {
+    if (truncate && eucKrLen(text) > totalWidth) {
+      text = truncateEucKr(text, totalWidth);
+    }
     final need = totalWidth - eucKrLen(text);
     if (need <= 0) return text;
     return text + ' ' * need;
@@ -188,6 +194,28 @@ class ReceiptEscPosBuilder {
     final need = totalWidth - eucKrLen(text);
     if (need <= 0) return text;
     return ' ' * need + text;
+  }
+
+  /// EUC-KR 바이트 길이가 [maxBytes] 를 넘으면 끝에 `…`(2 byte) 을 붙여 잘라낸다.
+  /// 한글 음절 경계에서만 자르도록 codeUnit 단위로 누적 — 멀티바이트 중간 절단 방지.
+  static String truncateEucKr(String text, int maxBytes) {
+    if (eucKrLen(text) <= maxBytes) return text;
+    const ellipsis = '…';
+    const ellipsisLen = 2; // EUC-KR
+    if (maxBytes <= ellipsisLen) {
+      return maxBytes <= 0 ? '' : ellipsis;
+    }
+    final reserve = maxBytes - ellipsisLen;
+    int used = 0;
+    final buf = StringBuffer();
+    for (final c in text.codeUnits) {
+      final w = c < 0x80 ? 1 : 2;
+      if (used + w > reserve) break;
+      buf.writeCharCode(c);
+      used += w;
+    }
+    buf.write(ellipsis);
+    return buf.toString();
   }
 
   static String separatorLine(int width) => '-' * width;
@@ -295,7 +323,7 @@ class ReceiptEscPosBuilder {
         final amountStr = isCancel ? '-${_priceFmt(total)}' : _priceFmt(total);
 
         b
-          ..text(padRight(menuName, menuW))
+          ..text(padRight(menuName, menuW, truncate: true))
           ..text(padLeft(countStr, countW))
           ..text(padLeft(amountStr, amountW))
           ..ln();
@@ -313,7 +341,7 @@ class ReceiptEscPosBuilder {
                 isCancel ? '-${_priceFmt(optTotal)}' : _priceFmt(optTotal);
 
             b
-              ..text(padRight(' -$optName', menuW))
+              ..text(padRight(' -$optName', menuW, truncate: true))
               ..text(padLeft(optCountStr, countW))
               ..text(padLeft(optAmountStr, amountW))
               ..ln();
@@ -438,8 +466,10 @@ class ReceiptEscPosBuilder {
         final menuCount = (m['ordrCnt'] as num?)?.toInt() ?? 0;
         final countStr = isCancel ? '-$menuCount' : '$menuCount';
 
+        // 주방에서 잘 보이도록 메뉴/옵션 모두 세로 2배로 출력 (kokonut_order_agent_v2 와 동일).
         b
-          ..text(padRight(menuName, menuW))
+          ..setSize(EscPos.fontTall)
+          ..text(padRight(menuName, menuW, truncate: true))
           ..text(padLeft(countStr, countW))
           ..ln();
 
@@ -451,13 +481,15 @@ class ReceiptEscPosBuilder {
             final optCount = (o['optPrdCnt'] as num?)?.toInt() ?? 0;
             final optCountStr = isCancel ? '-$optCount' : '$optCount';
             b
-              ..text(padRight(' -$optName', menuW))
+              ..text(padRight(' -$optName', menuW, truncate: true))
               ..text(padLeft(optCountStr, countW))
               ..ln();
           }
           b.textLn(separatorLine(width));
         }
-        b.ln();
+        b
+          ..setSize(EscPos.fontNormal)
+          ..ln();
       }
     }
 
