@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:appfit_order_agent/services/external_receipt_printer.dart';
 import 'package:appfit_order_agent/services/label_printer/windows/windows_label_printer_backend.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
+import 'package:appfit_order_agent/services/printer_job_queue.dart';
+import 'package:appfit_order_agent/services/printer_transport.dart';
 import 'package:appfit_order_agent/utils/print/label_painter.dart';
 import '../models/order_model.dart';
 import 'dart:convert';
@@ -11,6 +13,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/providers.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import '../services/preference_service.dart';
+
+// Windows transport (WindowsTransport) 는 win32/serial_port_win32 의존성 때문에
+// Android 런타임에서 로드되면 안 된다. external_receipt_printer.dart 가 이미
+// deferred 로 import 하고 있으나 별도 alias 가 필요하므로 본 파일에서도 deferred 로 받음.
+import 'external_receipt_printer_windows.dart' deferred as win_transport;
 
 class PrinterStatus {
   final bool isExternalConnected;
@@ -59,6 +66,9 @@ class PrintService {
   PrintService(this.ref) : _preferenceService = PreferenceService() {
     // 초기 설정값 로드
     _loadPrinterSettings();
+    // 외부 프린터 출력 큐의 transport 와 최종 실패 콜백을 등록.
+    // 큐는 글로벌 싱글턴이므로 PrintService 가 dispose 돼도 transport 는 유지된다.
+    Future.microtask(_initPrinterQueue);
     // USB 디바이스 확인.
     // Riverpod provider build 도중 ref.read(...).state= 가 동기적으로 실행되면
     // assertion 위반 (Providers 가 build 중 다른 provider 수정 금지).
@@ -68,6 +78,32 @@ class PrintService {
     // 다음 microtask 으로 deferred 해서 provider build 종료 후 실행되게 한다.
     Future.microtask(checkConnection);
     Future.microtask(_probeBuiltinPrinter);
+  }
+
+  Future<void> _initPrinterQueue() async {
+    final queue = PrinterJobQueue.instance;
+    if (Platform.isAndroid) {
+      queue.setTransport(const AndroidUsbTransport());
+    } else if (Platform.isWindows) {
+      try {
+        await win_transport.loadLibrary();
+        queue.setTransport(win_transport.WindowsTransport());
+      } catch (e, s) {
+        logger.e('[PrintService] WindowsTransport 로드 실패',
+            error: e, stackTrace: s);
+      }
+    }
+    queue.onFinalFailure = (job, result) {
+      // 3회 backoff 재시도 후에도 success 못 받은 잡. logToFile 로 매장 진단용
+      // 영구 기록 + logger.e 로 Sentry 자동 캡처.
+      logToFile(
+        tag: LogTag.ERROR,
+        message:
+            '[PrinterQueue] FINAL FAILURE id=${job.id} job=${job.jobName} kind=${job.kind} attempts=${job.attempt} result=$result',
+      );
+      logger.e(
+          '[PrinterQueue] 출력 최종 실패 job=${job.jobName} result=$result');
+    };
   }
 
   /// 내장 프린터 하드웨어 감지 (앱 시작 1회).

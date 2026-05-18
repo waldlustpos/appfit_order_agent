@@ -6,11 +6,15 @@ import '../utils/brand_assets.dart';
 import '../utils/logger.dart';
 import 'platform_service.dart';
 import 'preference_service.dart';
+import 'printer_job_queue.dart';
 import 'receipt_escpos_builder.dart';
 
 // Windows 전용 transport (win32 + serial_port_win32 의존).
 // Android 런타임에서는 절대 로드되지 않도록 deferred 로 import — 안 그러면
 // win32 패키지의 static initializer 가 'kernel32.dll' lookup 을 시도해 실패한다.
+// (실 출력은 [PrinterJobQueue] 가 [WindowsTransport] 로 직렬화하므로 본 import
+// 는 isConnected / getAvailableComPorts 등 진단 API 용도로 남는다. PrintService
+// 가 앱 시작 시 동일한 deferred 모듈을 로드해 transport 를 큐에 주입한다.)
 import 'external_receipt_printer_windows.dart' deferred as win_transport;
 
 /// 외부 영수증 프린터 출력의 플랫폼-무관 진입점.
@@ -98,44 +102,22 @@ class ExternalReceiptPrinter {
   // ---- internals ------------------------------------------------------
 
   Future<bool> _sendBytes(Uint8List data, String jobName) async {
-    if (Platform.isAndroid) {
-      try {
-        final ok = await platform.invokeMethod<bool>(
-          'printReceiptBytes',
-          {'bytes': data, 'jobName': jobName},
-        );
-        if (ok != true) {
-          logToFile(
-            tag: LogTag.PLATFORM,
-            message:
-                '[ExternalReceiptPrinter] Android 외부 출력 false (job=$jobName, bytes=${data.length})',
-          );
-        }
-        return ok == true;
-      } catch (e, s) {
-        // MissingPluginException 등 PlatformException 아닌 케이스까지 포괄.
-        logger.e('[ExternalReceiptPrinter] Android 외부 출력 예외 (job=$jobName)',
-            error: e, stackTrace: s);
-        logToFile(
-          tag: LogTag.ERROR,
-          message:
-              '[ExternalReceiptPrinter] Android 외부 출력 예외 (job=$jobName): $e',
-        );
-        return false;
-      }
+    if (!Platform.isAndroid && !Platform.isWindows) {
+      logger.w('[ExternalReceiptPrinter] 지원하지 않는 플랫폼 — 출력 생략');
+      return false;
     }
-    if (Platform.isWindows) {
-      try {
-        await _ensureWinTransport();
-        return await win_transport.sendBytes(data, jobName);
-      } catch (e, s) {
-        logger.e('[ExternalReceiptPrinter] Windows 외부 출력 예외 (job=$jobName)',
-            error: e, stackTrace: s);
-        return false;
-      }
-    }
-    logger.w('[ExternalReceiptPrinter] 지원하지 않는 플랫폼 — 출력 생략');
-    return false;
+    // 직접 transport 호출 대신 PrinterJobQueue 경유.
+    // 큐가 직렬화 + 3회 backoff 재시도 + 최종 실패 시 onFinalFailure 콜백을 책임진다.
+    // 플랫폼별 transport(Android: AndroidUsbTransport / Windows: WindowsTransport)
+    // 는 [PrintService] 가 앱 시작 시 큐에 주입.
+    final job = PrinterJob(
+      bytes: data,
+      jobName: jobName,
+      kind: jobName.startsWith('영수증')
+          ? 'receipt'
+          : (jobName.startsWith('주문서') ? 'order' : 'misc'),
+    );
+    return PrinterJobQueue.instance.enqueue(job);
   }
 
   static Future<void> _ensureWinTransport() async {

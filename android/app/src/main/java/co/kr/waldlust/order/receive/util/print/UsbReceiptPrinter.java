@@ -29,6 +29,17 @@ import java.util.Map;
  */
 public class UsbReceiptPrinter {
 
+    /**
+     * Result code propagated back to Dart via PlatformException for retry/queue
+     * classification in PrinterJobQueue. See lib/services/printer_transport.dart.
+     */
+    public enum WriteResult {
+        SUCCESS,
+        BUSY,            // candidate found, claim/open failed -> likely contended
+        NO_DEVICE,       // no candidate enumerated, or permission missing
+        TRANSPORT_ERROR  // open OK, bulkTransfer failed mid-stream
+    }
+
     private static final String TAG = "UsbReceiptPrinter";
 
     public static final String ACTION_USB_PERMISSION =
@@ -159,17 +170,25 @@ public class UsbReceiptPrinter {
      * 어떤 청크라도 실패하면 false 를 반환하고 연결을 강제로 닫아, 다음
      * discover() 호출에서 복구할 수 있게 한다.
      */
-    public boolean writeBytes(byte[] data, String jobName) {
-        if (data == null || data.length == 0) return false;
+    public WriteResult writeBytes(byte[] data, String jobName) {
+        if (data == null || data.length == 0) return WriteResult.TRANSPORT_ERROR;
+
         UsbDeviceConnection conn;
         UsbEndpoint out;
         synchronized (lock) {
+            if (connection == null || bulkOut == null) {
+                WriteResult open = attemptOpenIfNeededLocked();
+                if (open != WriteResult.SUCCESS) {
+                    Log.w(TAG, "writeBytes: open required but failed=" + open
+                            + " (job=" + jobName + ")");
+                    return open;
+                }
+            }
             conn = connection;
             out = bulkOut;
         }
         if (conn == null || out == null) {
-            Log.e(TAG, "writeBytes: not connected (job=" + jobName + ")");
-            return false;
+            return WriteResult.NO_DEVICE;
         }
 
         int offset = 0;
@@ -189,12 +208,64 @@ public class UsbReceiptPrinter {
                 synchronized (lock) {
                     closeLocked();
                 }
-                return false;
+                return WriteResult.TRANSPORT_ERROR;
             }
             offset += sent;
         }
         Log.d(TAG, "writeBytes: " + data.length + " bytes sent (job=" + jobName + ")");
-        return true;
+        return WriteResult.SUCCESS;
+    }
+
+    /**
+     * Inline open attempt when writeBytes is invoked while disconnected.
+     * Must be called with {@link #lock} held.
+     */
+    private WriteResult attemptOpenIfNeededLocked() {
+        if (connection != null && bulkOut != null) return WriteResult.SUCCESS;
+        if (usbManager == null) return WriteResult.NO_DEVICE;
+
+        HashMap<String, UsbDevice> devices = usbManager.getDeviceList();
+        if (devices == null || devices.isEmpty()) return WriteResult.NO_DEVICE;
+
+        UsbDevice candidate = null;
+        for (UsbDevice d : devices.values()) {
+            if (isLabelPrinter(d)) continue;
+            if (!isReceiptCandidate(d)) continue;
+            candidate = d;
+            break;
+        }
+        if (candidate == null) return WriteResult.NO_DEVICE;
+
+        if (!usbManager.hasPermission(candidate)) {
+            requestPermission(candidate);
+            return WriteResult.NO_DEVICE;
+        }
+
+        int[] sel = selectInterfaceAndEndpoint(candidate);
+        if (sel == null) return WriteResult.NO_DEVICE;
+
+        UsbInterface intf = candidate.getInterface(sel[0]);
+        UsbEndpoint ep = intf.getEndpoint(sel[1]);
+
+        UsbDeviceConnection conn = usbManager.openDevice(candidate);
+        if (conn == null) {
+            Log.w(TAG, "attemptOpenIfNeededLocked: openDevice returned null for "
+                    + candidate.getDeviceName());
+            return WriteResult.BUSY;
+        }
+        if (!conn.claimInterface(intf, true)) {
+            Log.w(TAG, "attemptOpenIfNeededLocked: claimInterface failed for "
+                    + candidate.getDeviceName());
+            conn.close();
+            return WriteResult.BUSY;
+        }
+        this.openDevice = candidate;
+        this.connection = conn;
+        this.claimedInterface = intf;
+        this.bulkOut = ep;
+        Log.i(TAG, "attemptOpenIfNeededLocked: connected " + candidate.getDeviceName()
+                + " intf=" + sel[0] + " ep=" + sel[1]);
+        return WriteResult.SUCCESS;
     }
 
     public void close() {

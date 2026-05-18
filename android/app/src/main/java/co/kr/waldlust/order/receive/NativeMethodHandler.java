@@ -225,6 +225,8 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
             case "printReceiptBytes": {
                 // Dart ReceiptEscPosBuilder.toBytesCp949() 결과(byte[])를 받아 외부 프린터 USB bulkTransfer 로 송출.
                 // Windows 경로와 동일한 byte 스트림을 사용 — 양 플랫폼 hex dump 가 일치한다.
+                // 결과는 PlatformException.code (BUSY / NO_DEVICE / TRANSPORT_ERROR)
+                // 로 전달돼 Dart PrinterJobQueue 가 backoff 재시도를 결정한다.
                 byte[] data = call.argument("bytes");
                 String jobName = call.argument("jobName");
                 final String finalJobName = jobName != null ? jobName : "RECEIPT";
@@ -234,18 +236,46 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
                 }
                 final byte[] finalData = data;
                 receiptPrintExecutor.submit(() -> {
-                    boolean ok = false;
+                    UsbReceiptPrinter.WriteResult wr = UsbReceiptPrinter.WriteResult.TRANSPORT_ERROR;
+                    String errorMsg = null;
                     try {
                         if (MainActivity.receiptPrinter != null) {
-                            ok = MainActivity.receiptPrinter.writeBytes(finalData, finalJobName);
+                            wr = MainActivity.receiptPrinter.writeBytes(finalData, finalJobName);
                         } else {
+                            wr = UsbReceiptPrinter.WriteResult.NO_DEVICE;
+                            errorMsg = "receiptPrinter not initialized";
                             Log.e(TAG, "printReceiptBytes: receiptPrinter is not initialized");
                         }
                     } catch (Exception e) {
+                        wr = UsbReceiptPrinter.WriteResult.TRANSPORT_ERROR;
+                        errorMsg = e.getMessage();
                         Log.e(TAG, "printReceiptBytes error", e);
                     }
-                    final boolean fOk = ok;
-                    new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> result.success(fOk));
+                    final UsbReceiptPrinter.WriteResult fWr = wr;
+                    final String fErrMsg = errorMsg;
+                    new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+                        switch (fWr) {
+                            case SUCCESS:
+                                result.success(true);
+                                break;
+                            case BUSY:
+                                result.error("BUSY",
+                                        fErrMsg != null ? fErrMsg : "claim/open failed",
+                                        null);
+                                break;
+                            case NO_DEVICE:
+                                result.error("NO_DEVICE",
+                                        fErrMsg != null ? fErrMsg : "printer not attached",
+                                        null);
+                                break;
+                            case TRANSPORT_ERROR:
+                            default:
+                                result.error("TRANSPORT_ERROR",
+                                        fErrMsg != null ? fErrMsg : "bulkTransfer failed",
+                                        null);
+                                break;
+                        }
+                    });
                 });
                 break;
             }
