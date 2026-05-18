@@ -124,9 +124,12 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
                 // - 앱 첫 실행 시 미연결이었거나, USB 권한 거부 후 다시 켠 케이스,
                 //   또는 사용자가 설정 화면에서 외부 프린터 토글을 ON 한 직후 호출되어
                 //   discovery + permission 흐름을 다시 돌린다.
-                // - idempotent. open 상태든 닫힌 상태든 안전하게 재시도.
+                // - 항상 close 후 discover. close 없이 discover 만 부르면 같은
+                //   UsbDevice handle 을 reuse 해서 전원 꺼진 프린터(좀비 연결)에
+                //   대한 재연결 버튼이 사용자 입장에서 no-op 이 된다.
                 try {
                     if (MainActivity.receiptPrinter != null) {
+                        MainActivity.receiptPrinter.close();
                         MainActivity.receiptPrinter.discover();
                         result.success(true);
                     } else {
@@ -141,15 +144,23 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
             }
 
             case "isExternalPrinterConnected": {
-                // 외부 영수증 프린터 연결 상태 조회. UsbReceiptPrinter 의 bulkOut endpoint 확보 여부 기반.
+                // 외부 영수증 프린터 연결 상태 2단계 조회:
+                //   1) isConnected()      - 객체 참조가 살아있는지 (가볍다)
+                //   2) verifyConnection() - bulk OUT 으로 ESC @ 를 실제 전송해서
+                //      좀비 연결(프린터 전원 OFF 이지만 USB detach broadcast 가
+                //      도달하지 않은 상태) 까지 잡아낸다. 실패 시 내부적으로
+                //      tear-down 하므로 다음 재연결이 의미 있게 동작.
+                boolean ok = false;
                 try {
-                    boolean connected = MainActivity.receiptPrinter != null
-                            && MainActivity.receiptPrinter.isConnected();
-                    result.success(connected);
+                    if (MainActivity.receiptPrinter != null
+                            && MainActivity.receiptPrinter.isConnected()) {
+                        ok = MainActivity.receiptPrinter.verifyConnection();
+                    }
                 } catch (Exception e) {
                     Log.e(TAG, "isExternalPrinterConnected error", e);
-                    result.success(false);
+                    ok = false;
                 }
+                result.success(ok);
                 break;
             }
 

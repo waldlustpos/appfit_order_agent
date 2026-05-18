@@ -45,13 +45,31 @@ public class UsbReceiptPrinter {
     public static final String ACTION_USB_PERMISSION =
             "co.kr.waldlust.order.receive.RECEIPT_USB_PERMISSION";
 
-    // Posbank VID — 인터페이스 클래스가 7(Printer) 이 아닌 모델을 명시적으로 잡기 위한 힌트.
+    // RELAXED 후보 경로에서 인터페이스 클래스가 7(Printer) 이 아닌 모델도
+    // VID 만으로 영수증 프린터로 채택하기 위한 whitelist.
+    //   0x1552 - Posbank
+    //   0x0D28 - NXP Semiconductors (다수의 ESC/POS 프린터에 들어가는 LPC
+    //            마이크로컨트롤러. D3 MINI 현장 단말 PID 0x4C59 가 이 VID.)
     private static final int VID_POSBANK = 0x1552;
+    private static final int VID_NXP = 0x0D28;
+
+    // 영수증 프린터가 절대 아니지만 bulk OUT 엔드포인트를 노출해 RELAXED 후보
+    // (cls=255 + bulk OUT) 경로로 새어 들어오는 VID 의 hard blocklist. D3 MINI
+    // 의 내장 LAN 포트가 ASIX AX88772B USB-Ethernet 으로 enumerate 되며 chip 이
+    // 어떤 바이트든 ACK 해서 verifyConnection ESC @ 까지 통과한다 -- VID 차단이
+    // 유일한 안전한 회피책.
+    //   0x0B95 - ASIX Electronics (USB-to-Ethernet, AX88772/AX88179 등)
+    private static final int VID_ASIX = 0x0B95;
 
     // bulkTransfer 청크 분할: 구버전 안드로이드는 단일 bulkTransfer 호출 한계가 16 KiB 라
     // 그 절반 수준으로 안전하게 쪼갠다. 로고 비트맵 포함 영수증은 30~80 KiB 까지 갈 수 있다.
     private static final int CHUNK_SIZE = 8 * 1024;
     private static final int CHUNK_TIMEOUT_MS = 5000;
+
+    // ESC @ (0x1B 0x40) - "Initialize printer". 표준 ESC/POS 상태 reset no-op.
+    // verifyConnection() 이 실제 물리 출력 없이 USB writability 를 검증할 때 사용.
+    private static final byte[] ESC_INIT = new byte[] { 0x1B, 0x40 };
+    private static final int VERIFY_TIMEOUT_MS = 500;
 
     private final Context appContext;
     private final UsbManager usbManager;
@@ -162,6 +180,35 @@ public class UsbReceiptPrinter {
     public boolean isConnected() {
         synchronized (lock) {
             return connection != null && bulkOut != null;
+        }
+    }
+
+    /**
+     * 가볍지만 실제 USB write 까지 확인하는 connection probe.
+     * ESC @ (printer initialize, 2 bytes) 를 bulk OUT 으로 짧은 timeout 으로 보낸다.
+     * 전송 실패면 connection 을 tear-down 해 다음 discover() 가 복구할 수 있게 한다.
+     * <p>
+     * connection 자체가 없으면 false 반환 (caller 가 놀라지 않도록). 실제 USB
+     * write 성공만 true. ESC @ 는 보편적 ESC/POS reset 이라 영수증 출력물에는
+     * 아무런 영향이 없다.
+     * <p>
+     * writeBytes 와 동일 lock 을 사용해 영수증 출력 중에는 probe 가 끼어들 수 없다.
+     */
+    public boolean verifyConnection() {
+        synchronized (lock) {
+            if (connection == null || bulkOut == null) return false;
+            int sent = -1;
+            try {
+                sent = connection.bulkTransfer(bulkOut, ESC_INIT, ESC_INIT.length, VERIFY_TIMEOUT_MS);
+            } catch (Exception e) {
+                Log.w(TAG, "verifyConnection: bulkTransfer threw", e);
+            }
+            if (sent < 0) {
+                Log.w(TAG, "verifyConnection: ESC @ probe failed (sent=" + sent + "), tearing down");
+                closeLocked();
+                return false;
+            }
+            return true;
         }
     }
 
@@ -350,6 +397,30 @@ public class UsbReceiptPrinter {
     private int[] selectInterfaceAndEndpoint(UsbDevice device) {
         if (device == null || device.getInterfaceCount() == 0) return null;
 
+        // Tier 0 (NXP composite quirk): NXP LPC 기반 ESC/POS 프린터 (VID 0x0D28)
+        // 는 cosmetic 한 USB Printer Class 인터페이스 (intf 0, cls=7, proto=2)
+        // 를 노출하지만 그쪽 bulk OUT 으로 보내면 데이터가 silently swallow 되고
+        // 종이는 안 나온다. 실제 print pipeline 은 CDC-ACM data 인터페이스
+        // (cls=10) 의 intf 2. 윈도우 측에서 동일 프린터를 가상 COM 포트로 구동
+        // 하는 동작과 일치한다.
+        //
+        // 현장 D3 MINI (PID 0x4C59) 에서 확인됨. cls=7 을 정상적으로 사용하는
+        // 다른 디바이스의 동작을 바꾸지 않도록 NXP + composite (intfCount >= 3)
+        // 조건으로 제한.
+        if (device.getVendorId() == VID_NXP && device.getInterfaceCount() >= 3) {
+            for (int i = 0; i < device.getInterfaceCount(); i++) {
+                UsbInterface intf = device.getInterface(i);
+                if (intf.getInterfaceClass() == UsbConstants.USB_CLASS_CDC_DATA) {
+                    int ep = findBulkOutEndpoint(intf);
+                    if (ep >= 0) {
+                        Log.d(TAG, "selectInterfaceAndEndpoint: tier0 NXP-composite CDC-data intf="
+                                + i + " ep=" + ep);
+                        return new int[] { i, ep };
+                    }
+                }
+            }
+        }
+
         // Tier 1: 표준 USB Printer class.
         for (int i = 0; i < device.getInterfaceCount(); i++) {
             UsbInterface intf = device.getInterface(i);
@@ -419,6 +490,15 @@ public class UsbReceiptPrinter {
     private boolean isReceiptCandidate(UsbDevice d) {
         if (d == null) return false;
 
+        // BLOCKLIST -- 어떤 단계에 도달하기도 전에 거부한다. 프린터가 아님이
+        // 확정된 VID 의 "accept STRICT" 로그를 남기지 않기 위함 (D3 MINI 내장
+        // ASIX USB-Ethernet 등).
+        if (isBlockedReceiptVendor(d.getVendorId())) {
+            Log.d(TAG, "isReceiptCandidate: reject BLOCKLIST vid=0x"
+                    + Integer.toHexString(d.getVendorId()) + " " + d.getDeviceName());
+            return false;
+        }
+
         // STRICT
         for (int i = 0; i < d.getInterfaceCount(); i++) {
             if (d.getInterface(i).getInterfaceClass() == UsbConstants.USB_CLASS_PRINTER) {
@@ -454,7 +534,13 @@ public class UsbReceiptPrinter {
 
     private static boolean isWhitelistedReceiptVendor(int vid) {
         // 현장에서 새로 식별되는 영수증 프린터 제조사 VID 가 있을 때마다 추가.
-        return vid == VID_POSBANK;
+        return vid == VID_POSBANK || vid == VID_NXP;
+    }
+
+    private static boolean isBlockedReceiptVendor(int vid) {
+        // RELAXED 경로로 새어 들어오지만 영수증 프린터가 아님이 현장에서
+        // 확정된 VID 만 추가한다.
+        return vid == VID_ASIX;
     }
 
     // 비프린터 디바이스임이 거의 확실한 인터페이스 클래스 목록. 어떤
