@@ -42,7 +42,7 @@ class PrinterJob {
 }
 
 /// 외부 프린터 출력 글로벌 직렬 큐. 점유 충돌(BUSY) / 일시 단선(NO_DEVICE) /
-/// transport 오류를 [maxAttempts] 회 backoff 재시도로 흡수한다.
+/// transport 오류를 지수 backoff 로 흡수한다.
 ///
 /// - 인메모리 단일 큐. 앱 재시작 시 미완료 잡은 분실.
 /// - 단일 worker -> 잡 사이 직렬화 보장. (호출 측이 동시에 enqueue 해도 안전)
@@ -51,30 +51,39 @@ class PrinterJobQueue {
   PrinterJobQueue._();
   static final PrinterJobQueue instance = PrinterJobQueue._();
 
-  /// 한 잡당 최대 시도 횟수 (초기 1회 포함).
-  /// 사용자 정책: "최대 3회 재시도 후 즉시 실패" -> 총 3회 시도.
-  static const int maxAttempts = 3;
-
-  /// 각 시도 시작 전 대기 시간. 인덱스 0 은 첫 시도(즉시 실행)라 실제 사용되지 않지만,
-  /// 구조 일관성을 위해 자리만 차지한다. 인덱스 1/2 가 1->2 / 2->3 번째 시도 사이 대기.
+  /// 각 시도 시작 전 대기 시간. 인덱스 0 은 첫 시도(즉시 실행)라 실제 사용되지
+  /// 않지만, 구조 일관성을 위해 자리만 차지한다. 인덱스 N(>0) 가 N->N+1 번째
+  /// 시도 사이 대기.
   ///
-  /// 정책: 5s -> 15s (최악 누적 ~20s). 실 매장 테스트에서 1.5s/4.5s 는 운영자가
-  /// 프린터를 다시 꽂거나 USB 권한 다이얼로그에 응답할 시간이 부족해 3회 모두
-  /// 실패. 반대로 10s+ 단계는 큐 적체 위험 증가. 5s 1차 백오프로 단발 점유 충돌
-  /// (Windows COM POS 트랜잭션 등) 흡수, 15s 2차 백오프로 USB 단선/재접속 대응.
-  /// 테스트에서 [backoffsForTest] 로 단축 가능.
+  /// 정책: 0/2/5/10/20/40/60s -- 누적 ~137s, 총 7회 시도.
+  /// 매장 시나리오별 풀리는 타이밍을 반영:
+  ///   - 짧은 트랜잭션 점유(POS 1건 처리 ~2s) -> 2차에서 풀림
+  ///   - 일반 점유 / 사용자 전원 켜는 중(~7s) -> 3차
+  ///   - USB 재연결(~17s) -> 4차
+  ///   - 부팅 느린 프린터(~37s) -> 5차
+  ///   - 잠깐 자리 비운 사이 장애(~77s) -> 6차
+  ///   - cap 60s -- 큐 적체 막기 위한 한계. 137s 까지 시도해도 실패면 final.
+  /// 단일 worker 라 한 잡이 backoff 중이면 후속 영수증이 적체되므로 cap 둠.
+  /// 테스트에서 [backoffsForTest] 로 길이/간격 자유 단축.
   static const List<Duration> defaultBackoffs = [
     Duration.zero,
-    Duration(milliseconds: 5000),
-    Duration(milliseconds: 15000),
+    Duration(seconds: 2),
+    Duration(seconds: 5),
+    Duration(seconds: 10),
+    Duration(seconds: 20),
+    Duration(seconds: 40),
+    Duration(seconds: 60),
   ];
 
   List<Duration> _backoffs = defaultBackoffs;
 
-  /// 테스트 전용. 프로덕션에서는 호출하지 않는다.
+  /// 한 잡당 최대 시도 횟수 (초기 1회 포함). [_backoffs] 길이에서 derive.
+  int get maxAttempts => _backoffs.length;
+
+  /// 테스트 전용. 프로덕션에서는 호출하지 않는다. 길이는 자유.
   @visibleForTesting
   set backoffsForTest(List<Duration> b) {
-    assert(b.length == maxAttempts, 'backoffs length must match maxAttempts');
+    assert(b.isNotEmpty, 'backoffs must not be empty');
     _backoffs = b;
   }
 
@@ -86,14 +95,14 @@ class PrinterJobQueue {
     _transport = t;
   }
 
-  /// 3회 시도 후에도 success 못 받은 잡에 대해 호출. print_service 가 등록.
+  /// [maxAttempts] 회 시도 후에도 success 못 받은 잡에 대해 호출. print_service 가 등록.
   PrinterFinalFailureCallback? onFinalFailure;
 
   final List<PrinterJob> _queue = [];
   bool _running = false;
 
   /// 잡을 큐 끝에 추가하고 worker 가 idle 이면 깨운다.
-  /// 반환 [Future]는 success 시 true, 3회 실패/transport 없음 시 false.
+  /// 반환 [Future]는 success 시 true, [maxAttempts] 회 실패/transport 없음 시 false.
   Future<bool> enqueue(PrinterJob job) {
     _queue.add(job);
     logToFile(

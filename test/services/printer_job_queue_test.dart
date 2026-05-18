@@ -149,4 +149,72 @@ void main() {
     expect(ok, isFalse);
     expect(failureResult, isA<PrinterNoDevice>());
   });
+
+  // 운영 정책 회귀 보호: 옵션 A 시퀀스(0/2/5/10/20/40/60s, 7회) 가 실수로
+  // 변경되면 즉시 발견되도록 한다. 시퀀스를 바꾸려면 이 테스트도 같이 갱신.
+  test('기본 backoff 시퀀스는 0/2/5/10/20/40/60s 총 7회', () {
+    expect(PrinterJobQueue.defaultBackoffs.length, 7);
+    expect(
+      PrinterJobQueue.defaultBackoffs.map((d) => d.inSeconds).toList(),
+      const [0, 2, 5, 10, 20, 40, 60],
+    );
+  });
+
+  test('busy 7회 -> false, sentJobs 7개, onFinalFailure 1회', () async {
+    PrinterJobQueue.instance.backoffsForTest = const [
+      Duration.zero,
+      Duration(milliseconds: 1),
+      Duration(milliseconds: 1),
+      Duration(milliseconds: 1),
+      Duration(milliseconds: 1),
+      Duration(milliseconds: 1),
+      Duration(milliseconds: 1),
+    ];
+    final t = _ScriptedTransport(
+      List.generate(7, (_) => const PrinterBusy('x')),
+    );
+    PrinterJobQueue.instance.setTransport(t);
+
+    int failureCount = 0;
+    PrinterJobQueue.instance.onFinalFailure = (job, r) {
+      failureCount++;
+    };
+
+    final ok = await PrinterJobQueue.instance.enqueue(
+      PrinterJob(bytes: bytes('a'), jobName: 'J1', kind: 'order'),
+    );
+
+    expect(ok, isFalse);
+    expect(t.sentJobs.length, 7);
+    expect(failureCount, 1);
+  });
+
+  test('busy 6회 후 7번째 성공 -> true, sentJobs 7개', () async {
+    PrinterJobQueue.instance.backoffsForTest = const [
+      Duration.zero,
+      Duration(milliseconds: 1),
+      Duration(milliseconds: 1),
+      Duration(milliseconds: 1),
+      Duration(milliseconds: 1),
+      Duration(milliseconds: 1),
+      Duration(milliseconds: 1),
+    ];
+    final t = _ScriptedTransport([
+      const PrinterBusy('1'),
+      const PrinterBusy('2'),
+      const PrinterBusy('3'),
+      const PrinterBusy('4'),
+      const PrinterBusy('5'),
+      const PrinterBusy('6'),
+      const PrinterSuccess(),
+    ]);
+    PrinterJobQueue.instance.setTransport(t);
+
+    final ok = await PrinterJobQueue.instance.enqueue(
+      PrinterJob(bytes: bytes('a'), jobName: 'J1', kind: 'order'),
+    );
+
+    expect(ok, isTrue);
+    expect(t.sentJobs.length, 7);
+  });
 }
