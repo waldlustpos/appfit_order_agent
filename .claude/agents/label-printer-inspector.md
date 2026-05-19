@@ -32,7 +32,7 @@ tools: Read, Glob, Grep, Bash
 
 ### Windows (Dart FFI + autoreplyprint.dll)
 
-> `b38eefe` 에서 `lib/services/label_printer/windows/` 로 이식 완료. 위반 시 즉시 회귀 (동일 라벨 N장, native crash, 큐 영구 정체) 가 발생하므로 17개 모두 보존.
+> `b38eefe` 에서 `lib/services/label_printer/windows/` 로 이식 완료. 위반 시 즉시 회귀 (동일 라벨 N장, native crash, 큐 영구 정체) 가 발생하므로 18개 모두 보존.
 
 - **`autoReplyMode=1` + `CP_Printer_AddOnPrinterPrintedEvent` 콜백 둘 다 등록**: 하나라도 빠지면 `CP_Pos_QueryPrintResult` timeout. 단 일부 펌웨어/SDK 조합은 ACK 미발화 (운영 검증에서 ackCount=0 관찰) -- paperFetch 비콘이 주 신호이지만 콜백 등록은 race 안전망으로 필수.
 - **인쇄 완료 신호 우선순위 = paperFetch 비콘 > ACK 콜백**: step9 폴링은 둘 다 검사하되, paperFetch 비콘이 먼저 잡히는 케이스가 압도적. 신호 둘 중 하나만 감시하면 운영 펌웨어에서 timeout 발생.
@@ -51,6 +51,7 @@ tools: Read, Glob, Grep, Bash
 - **`sawUserAction` snapshot + `noPaperCanceled` stuck 자동 복구 (active clear)**: 무한 대기 진입 시 `entryCover` / `entryNoPaper` 비트 snapshot. Loop 안에서 비트가 진입 시점과 달라지면 `sawUserAction = true` (운영자가 cover 열거나 닫음 / 용지 교체 등 감지). cover/noPaper 모두 해제됐는데 `noPaperCanceled` 만 stuck 인 케이스 = Windows Caysn 펌웨어가 자동 해제 안 함 (SDK sample ERROR Status 0xCE stuck 동작 동등). `sawUserAction && !cover && !noPaper && elapsed >= 200ms` 조건에서 **1회만** `printerClearError` + `printerClearBuffer` + `posResetPrinter` 3종 호출. 3종 중 일부만 호출하면 비트 미해제 -> 큐 영구 정체. `clearTried` flag 로 중복 호출 차단 (Android 에는 펌웨어가 자동 해제하므로 active clear 자체가 불필요 -- Windows 전용 invariant).
 - **active clear 후 1500ms timeout 강제 break**: ClearError + ClearBuffer + ResetPrinter 3종 호출 후에도 펌웨어가 비트를 host 측 호출로도 안 풀어주는 limitation 안전망. 1500ms 안에 비트가 자연 갱신 안 되면 break -> 다음 PagePrint 시도. 시각적으로 cover 닫혔으면 다음 시도가 합리적이라는 가정. 이 break 가 없으면 펌웨어 한계 케이스에서 큐 영구 정체. timeout 을 5s 이상으로 늘리면 사용자 체감 지연 증가.
 - **PAPERNOFETCH wait 중 USB stale 종료 분기 (`portIsConnectionValid==0`)**: 떼기 대기는 timeout 없는 polling 이지만, **커버 열고 닫는 사이 USB 일시 disconnect** 또는 status 비콘 stream 끊긴 케이스 안전망으로 `portIsConnectionValid==0` 시 wait 종료 -> 다음 호출의 `_ensurePortOpen` 이 reconnect 처리. 이 분기가 없으면 status stream 죽은 상태에서 PAPERNOFETCH 비트가 영구히 1 로 남아 무한 대기. 정상 케이스에서는 펌웨어가 PAPERNOFETCH 자동 해제 (Android 동등) 하므로 이 분기는 발화하지 않음 -- 발화 자체가 USB 케이블/허브 이상 시그널.
+- **`portEnumUsb` / `portOpenUsb` Isolate.run boxing (handle address cross-isolate)**: USB 미연결 환경에서 SDK 동기 FFI 호출이 main thread 를 수백ms~수초 block 해 "앱 응답없음" 사고가 보고됨(앱 시작 시 / 설정 화면 진입 / 재연결 버튼). `_enumerateUsbPortsAsync` / `_tryOpenUsbAsync` 가 `Isolate.run` 으로 SDK 호출을 boxing 하고, `portOpenUsb` 의 경우 handle 의 raw `address`(int) 만 cross-isolate 로 반환받아 main isolate 의 backend instance state(`_hPrinter` / 콜백 플래그 / status beacon) 갱신(`windows_label_printer_backend.dart:432-462, 497-545`). instance state 는 main 에 유지되므로 `printPng` 가 동일 인스턴스 그대로 사용. autoreplyprint SDK 가 cross-isolate handle 을 받아주는 점은 `_doPrintPng` 의 `posQueryPrintResult` Isolate.run 패턴이 검증. **sync 헬퍼로 회귀 시 USB 미연결 매장에서 앱 시작/설정 진입/재연결 시 수초 응답없음 사고 직행**.
 
 ## 진단 시나리오
 

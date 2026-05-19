@@ -40,11 +40,11 @@ REST API (폴링)  ───────┘        │
 - **LabelPrinterService** (Windows 전용, `lib/services/label_printer/label_printer_service.dart`) — `autoreplyprint.dll` Dart FFI. 단일 인스턴스(`instance`), 공개 API: `printBitmap` / `warmupOpen` / `calibrateLabel` / `dispose`. `CP_Pos_*` / `CP_Label_*` / `CP_Port_*` 호출 + ACK 콜백 + paperFetch 비콘 폴링(우선)으로 인쇄 완료 판정. main.dart 시작 시 `warmupOpen()` 으로 첫 라벨 지연 제거. (이식 예정 -- contract만 명시)
 - **LabelPrintOrchestrator** (Windows 전용, `lib/services/label_printer/label_print_orchestrator.dart`) — `OutputQueueService` 의 `LabelOnlyJob` / `NewOrderJob` 이 dispatch 하는 Windows 측 실행기. 메뉴 `ordrCnt` 만큼 라벨 N장 확장 + 1회 retry(1.5s) + 최종 실패 시 Sentry `LabelPrintMissingException`. static `_inFlightOrderIds` set 으로 동일 주문 dedup, `clearAllInFlight()` 는 logout 정리 경로에서 호출.
 - **LabelPrintData** (`lib/services/label_printer/label_print_data.dart`) — 모델-중립 DTO. `OrderModel` 을 라벨 N장으로 분해하는 어댑터(`fromOrder`) + 디버그용 `testSample`.
-- **OutputQueueService** — 순차적 출력/인쇄 작업 큐 관리 (로그아웃 시 초기화). 4종 sealed `OutputJob` (`NewOrderJob` / `LabelOnlyJob` / `ReprintJob` / `ReceiptReprintJob`) 양 플랫폼 공통 진입점.
+- **OutputQueueService** — 순차적 출력/인쇄 작업 큐 관리 (로그아웃 시 초기화). 4종 sealed `OutputJob` (`NewOrderJob` / `LabelOnlyJob` / `ReprintJob` / `ReceiptReprintJob`) + 내부 tail (`_NewOrderLabelTail`) 양 플랫폼 공통 진입점. **영수증/라벨 두 직렬 큐 분리**(`_receiptQueue` / `_labelQueue`) — 라벨 떼기(PAPERNOFETCH) 무한 대기와 영수증 PrinterJobQueue 의 backoff(최대 137s)가 서로를 막지 않도록 worker 별개. 같은 `NewOrderJob` 안의 라벨 부분은 **영수증 await 보다 먼저** `_labelQueue` 로 enqueue 되어 두 프린터가 진짜 병렬 동작 (영수증→라벨 순서는 보장하지 않음 — 라벨이 영수증보다 먼저 나올 수 있음).
 - **OverlayService** — 플로팅 버블 오버레이 윈도우 제어.
 - **LocalServerService** — 로컬 HTTP 수신용 경량 서버 (외부 트리거 수용).
 - **WindowsBubbleService** (Windows 전용) — KDS 버블 모드(80x80 플로팅 윈도우) 진입/복귀. 본 윈도우 ↔ 버블 윈도우 전환 시 LayoutBuilder가 카드 size 트랜지션을 재생하지 않도록 originalSize를 캐시.
-- **WindowsPrintService** / **ComPortPrintService** (Windows 전용) — Windows ESC/POS 인쇄. COM 포트 직결과 윈도우 스풀러 raw 두 갈래 경로.
+- **ComPortPrintService** / **WindowsTransport** (Windows 전용) — Windows ESC/POS 외부 영수증 프린터. **COM 포트 단일 경로** (Winspool 폴백 의도적으로 배제 — 사용자가 명시 설정하지 않은 OS default 프린터에 영수증이 잘못 송출되는 사고 차단). `comPort` 미설정이면 즉시 `PrinterNoDevice`, 설정 시 USB-Serial CDC re-enumerate lag 와 패키지 cache 잔재까지 능동 방어(enumerate polling + failure-cooldown settle + 안전 close). false-success 방어는 DLE EOT 1 probe 가 담당. 8가지 사유로 분류된 `_lastFailureReason` 을 `WindowsTransport` 가 PrinterBusy / PrinterNoDevice / PrinterTransportError 결과 타입에 매핑.
 - **WindowsUpdateService** (Windows 전용) — OTA 자동 업데이트 체크/다운로드/재시작. UI는 `lib/widgets/update/update_progress_dialog.dart`.
 - **WindowsLogFileWriter** (Windows 전용) — 시작 시 오래된 로그 파일 자동 삭제.
 - `services/appfit/` — `AppFitProviders`, `KokonutAppFitLogger` 등 `appfit_core` 어댑터.
@@ -112,12 +112,66 @@ ACCEPTED 진입 시 메뉴별 `ordrCnt` 만큼 라벨을 자동 출력. 진입�
 
 플랫폼별 비명시 invariant 카탈로그(11+17개)와 진단 시나리오는 [`.claude/agents/label-printer-inspector.md`](../.claude/agents/label-printer-inspector.md) 참조. **Windows FFI + 백엔드 단독 이식 가이드**(다른 Flutter 프로젝트 대상): [docs/WINDOWS_LABEL_PRINTER_GUIDE.md](WINDOWS_LABEL_PRINTER_GUIDE.md). 핵심 공통 규칙:
 
-- **`OutputQueueService` 단일 진입점**: 4종 sealed `OutputJob` (`NewOrderJob` / `LabelOnlyJob` / `ReprintJob` / `ReceiptReprintJob`) 모두 `add()` 경유. `lib/widgets/settings/settings_label_test_section.dart` 의 라벨 테스트 위젯만 의도적 우회 (자동접수 흐름 영향 차단).
+- **`OutputQueueService` 단일 진입점**: 4종 sealed `OutputJob` (`NewOrderJob` / `LabelOnlyJob` / `ReprintJob` / `ReceiptReprintJob`) 모두 `add*()` 경유. `lib/widgets/settings/settings_label_test_section.dart` 의 라벨 테스트 위젯만 의도적 우회 (자동접수 흐름 영향 차단).
+- **이중 큐 진짜 병렬화**: `_receiptQueue` / `_labelQueue` 가 별개 `SerialAsyncQueue<OutputJob>` worker 로 돌고, `NewOrderJob` 의 라벨 부분(`_NewOrderLabelTail`) 은 **영수증 await 보다 먼저** 라벨 큐로 enqueue. 이게 깨지면 외부 영수증 backoff 137s 동안 라벨 출력이 막히는 사고 직행. 로그 prefix `[ReceiptQueue]` / `[LabelQueue]` 로 큐별 추적.
 - **3-set in-flight 락**: `_inFlightNewOrders` / `_inFlightLabelOnly` / `_inFlightReprints` 양 플랫폼 공통. 짝(`add` ↔ `whenComplete(remove)`) 깨지면 동일 주문 영구 enqueue 차단 또는 다중 enqueue.
 - **`autoReplyMode=1` + 인쇄 완료 ACK/비콘 우선**: Android 는 ACK 콜백 정상 동작, Windows 는 일부 펌웨어/SDK 조합에서 ACK 미발화 -> paperFetch 비콘이 주 신호. 두 신호 모두 등록은 race 안전망으로 필수.
 - **paper-out / cover-up = 무한 대기** (운영자 개입 신뢰), **그 외 ERROR = 짧은 게이트 후 retry** (호출자 위임). Windows ERROR 게이트는 0.5초, Android 와 동등.
 - **최종 실패 시 Sentry `LabelPrintMissingException`** 송신 -- production observability 의 일부. Windows 는 `LabelPrintOrchestrator` 의 1.5s retry 후 `failedIndices.isNotEmpty` 시 발화, Android 는 `output_service.dart` `_printLabelWithRetry` 후 발화.
 - **logout 정리**: `OrderProvider.cleanupOnLogout()` 에서 `_outputQueueService.clear()` + `LabelPrintOrchestrator.clearAllInFlight()` 둘 다 호출.
+
+## 프린터 구현 매트릭스 (OS × 용도)
+
+외부 영수증 프린터 + 라벨 프린터를 Android / Windows 양 OS 에서 어떻게 구현하는지 4 케이스 비교. 비명시적 invariant 카탈로그와 진단 시나리오는 [`external-receipt-printer-inspector`](../.claude/agents/external-receipt-printer-inspector.md) / [`label-printer-inspector`](../.claude/agents/label-printer-inspector.md) agent 참조.
+
+### 4 케이스 transport 경로
+
+|  | 외부 영수증 프린터 | 라벨 프린터 |
+|---|---|---|
+| **Android** | `ExternalReceiptPrinter._sendBytes` → `PrinterJobQueue.enqueue` → `AndroidUsbTransport.send` → MethodChannel `printReceiptBytes` → `NativeMethodHandler.java` → `UsbReceiptPrinter.java` → `bulkTransfer` (3-tier endpoint 선택 + 4-tier 후보 판정) | `OutputService.printOrderLabels` → MethodChannel `printLabel` → `LabelPrinter.java` → Caysn AutoReplyPrint Java SDK (PNG bytes) |
+| **Windows** | `ExternalReceiptPrinter._sendBytes` → `PrinterJobQueue.enqueue` → `WindowsTransport.send` → `ComPortPrintService.sendRaw` → `serial_port_win32` SerialPort (COM 단일 경로, DLE EOT 1 probe) | `OutputService.printOrderLabels` → `LabelPrintOrchestrator.printOrderLabels` → `WindowsLabelPrinterBackend.printPng` → `autoreplyprint.dll` Dart FFI (`CP_Port_OpenUsb` / `CP_Label_PageBegin` / `DrawImageFromData` / `PagePrint`) |
+| **Dart 진입점** | `ExternalReceiptPrinter` ([external_receipt_printer.dart](../lib/services/external_receipt_printer.dart)) | `PrintService.printLabel` ([print_service.dart](../lib/services/print_service.dart)) — 내부에서 `Platform.isWindows` 분기 |
+
+### 공통화된 부분 (양 OS 동일 코드 경로)
+
+큐 / 결과 분류 / 운영 observability / 바이트 빌더 — Dart 측에서 일원화.
+
+- **이중 직렬 큐**: `OutputQueueService._receiptQueue` / `_labelQueue` 별개 `SerialAsyncQueue` worker. `NewOrderJob` 의 라벨 tail 은 영수증 await **이전** 에 라벨 큐로 enqueue 되어 진짜 병렬 동작 (양 OS 동일).
+- **영수증 backoff 큐**: `PrinterJobQueue` 글로벌 직렬 큐 — backoff 7회 (0/2/5/10/20/40/60s, 누적 137s) + `onFinalFailure` 콜백. AndroidUsbTransport / WindowsTransport 가 같은 `PrinterTransport` 인터페이스 구현, 결과 타입 sealed (`PrinterSuccess` / `PrinterBusy` / `PrinterNoDevice` / `PrinterTransportError`).
+- **라벨 in-flight 락**: 3-set (`_inFlightNewOrders` / `_inFlightLabelOnly` / `_inFlightReprints`) — 동일 주문 다중 enqueue 방지.
+- **라벨 retry**: `OutputService._printLabelWithRetry` 1.5s 1회 (양 OS 동일). autoReplyMode=1 정착 후 실제 발화 시 거의 진짜 실패.
+- **라벨 누락 보고**: Sentry `LabelPrintMissingException` — Windows 는 `LabelPrintOrchestrator` 의 1.5s retry 후, Android 는 `OutputService` 의 `_printLabelWithRetry` 후.
+- **라벨 진입 게이트 정책**: paper-out / cover-up / NoPaperCanceled → **무한 대기** (운영자 개입 신뢰), 그 외 ERROR → 0.5s 짧은 게이트 후 false (호출자 retry). 양 OS 동등 의도.
+- **`autoReplyMode=1` invariant**: 양 OS 모두 라벨 출력 진입 직전 ACK 콜백 등록 + autoReplyMode=1. 0 회귀 시 동일 라벨 2장 인쇄 사고.
+- **ESC/POS 바이트 빌더**: `ReceiptEscPosBuilder` ([receipt_escpos_builder.dart](../lib/services/receipt_escpos_builder.dart)) — 영수증/주문서/테스트 페이지 ESC/POS CP949 byte stream 생성. Android USB + Windows COM 양쪽 동일 바이트 입력 (hex dump 1:1 일치).
+- **라벨 PNG 빌더**: `LabelPainter` 가 라벨 1장 PNG bytes 생성, Android Caysn SDK 와 Windows autoreplyprint.dll 양쪽 동일 PNG 입력.
+- **로그 prefix**: `[ReceiptQueue]` / `[LabelQueue]` / `[PrinterQueue]` / `[Label]` 양 OS 동일.
+- **UI 트리거 fire-and-forget**: 영수증/라벨 재출력 / 주문 취소 영수증 / 신규 주문 자동 출력 모두 큐 enqueue 만, 호출자 await 안 함 (양 OS 동일).
+
+### OS 본질 분기되는 부분
+
+| 항목 | Android | Windows |
+|---|---|---|
+| **외부 영수증 transport** | USB 범용 (`UsbManager` + `bulkTransfer`) | COM 시리얼 (`serial_port_win32`) |
+| **외부 영수증 디바이스 enumerate** | `UsbManager` 통한 VID/PID + product name 패턴 | `SerialPort.getAvailablePorts()` |
+| **외부 영수증 권한** | `ACTION_USB_PERMISSION` BroadcastReceiver + 시스템 다이얼로그 | 없음 (COM 포트 점유 충돌만 존재) |
+| **외부 영수증 false-success 방지** | `verifyConnection` (ESC `@` probe) | `_probePrinter` (DLE EOT 1 ping → `cbInQue` 폴링 300ms) |
+| **외부 영수증 endpoint 선택** | 3-tier endpoint (NXP CDC tier 0 → USB Printer class tier 1 → vendor specific tier 2 → bulk OUT tier 3) + 4-tier 후보 판정 (BLOCKLIST/STRICT/WHITELIST/RELAXED) | N/A — COM 포트 단일 destination |
+| **외부 영수증 점유/lag 방어** | USB 권한 / 좀비 detach 미발생 안전망 (`reconnectExternalPrinter`) | `serial_port_win32` cache 잔재 + USB-Serial CDC re-enumerate lag + 외부 프로세스 점유 (close 후 enumerate polling, 3-way settle warm/cold/failure-cooldown, 8가지 사유 분류) |
+| **외부 영수증 결과 차단 정책** | N/A | Winspool RAW 폴백 의도적 배제 (사용자 합의: OS default 프린터에 영수증 송출 사고 차단) |
+| **라벨 transport** | Caysn AutoReplyPrint Java SDK (`autoreplyprint.aar`) | `autoreplyprint.dll` Dart FFI (`AutoReplyPrintBindings`) |
+| **라벨 디바이스 open** | `LabelPrinter.printBitmap()` 안에서 SDK 가 enumerate + open 일임 | `CP_Port_EnumUsb` + `CP_Port_OpenUsb` (VID:PID 4종 화이트리스트, OS 디바이스 경로 `\\?\usb#...` 우선 정렬) |
+| **라벨 ACK / 비콘 신호** | `statusCallback` (PrintedEvent + InfoStatus 통합) | `printerAddOnStatus` + `printerAddOnPrinted` 별개 등록, paperFetch 비콘이 주 신호 (ACK race 안전망) |
+| **라벨 stuck 자동 복구** | 펌웨어가 비트 자동 해제 (active clear 불필요) | `printerClearError` + `printerClearBuffer` + `posResetPrinter` 3종 active clear (Windows Caysn 펌웨어 한계 대응, `noPaperCanceled` stuck 케이스) |
+| **라벨 떼기(PAPERNOFETCH) 안전망** | 펌웨어가 자동 해제 | `portIsConnectionValid==0` 시 wait 종료 → 다음 호출에서 reconnect (status 비콘 stream 끊긴 USB 케이블/허브 이상 시그널) |
+| **라벨 FFI block 회피** | N/A — MethodChannel 이 native 별도 thread (`receiptPrintExecutor`) 에서 처리 | `Isolate.run` boxing (`_enumerateUsbPortsAsync` / `_tryOpenUsbAsync`) — handle raw `address` 만 cross-isolate 로 받아 main isolate 의 instance state 갱신 |
+| **deferred import** | N/A | `external_receipt_printer_windows.dart` 를 `deferred as win_transport` 로 import — Android 런타임이 `win32` / `serial_port_win32` 패키지의 native static initializer (`kernel32.dll` lookup) 를 트리거하지 않도록 격리 |
+
+### 의도적으로 통합하지 않은 부분
+
+- **`PrintBackend` 추상화 미도입**: 두 OS 의 디바이스 enumerate / 권한 / 콜백 모델이 본질적으로 달라 통합 시 가독성 ↓ + Android 회귀 위험 ↑. 의도적으로 transport 인터페이스 (`PrinterTransport`) 만 공통, 그 위층 (서비스 호출, 콜백 등록, FFI vs MethodChannel) 은 OS별 클래스 그대로 유지.
+- **라벨 backend instance state 위치 (Windows)**: `WindowsLabelPrinterBackend` 는 main isolate 의 singleton — `_hPrinter` / 콜백 플래그 / status beacon 모두 main 에 보관. FFI 호출만 isolate 로 boxing 하고 instance state 는 main 에 두는 패턴 (handle address cross-isolate 로 marshal). 전체 backend 를 isolate 로 옮기면 instance state 동기화 / SDK 글로벌 콜백 라이프사이클이 복잡해져 회피.
+- **로그/큐 prefix는 공통, 진단성 분류는 OS별**: `[ReceiptQueue]` / `[LabelQueue]` / `[PrinterQueue]` prefix 는 공통이지만, 실패 사유 분류는 OS 특성에 맞춤 — Windows 는 `_lastFailureReason` 8가지 (COM 환경 특유), Android 는 `PlatformException.code` (BUSY / NO_DEVICE / TRANSPORT_ERROR).
 
 ## UI 구조
 
@@ -212,6 +266,8 @@ WebSocket 푸시 / 폴링 / 자정 새로고침으로 주문 상태가 빈번히
 - **캐싱**: `lib/core/orders/cache/` — 주문 상세, 출력 완료, 처리 완료, 액션 중복 방지를 위한 인메모리 캐시.
 - **알림음/점멸/출력**: `lib/core/orders/` — `SoundService`, `BlinkService`, `OutputService`, `AlertManager`가 알림 부수 효과 처리.
 - **라벨 프린터 플랫폼 분기**: `OutputService.printOrderLabels()` 에서 `Platform.isWindows` 로 갈라짐. Windows = `LabelPrintOrchestrator` -> `LabelPrinterService` (FFI), Android = `MethodChannel printLabel` -> `LabelPrinter.java`. `OutputQueueService` 직렬화 + 3-set in-flight 락 + Sentry `LabelPrintMissingException` 은 양 플랫폼 공통. 자세한 흐름은 [라벨 프린터 파이프라인](#라벨-프린터-파이프라인) 섹션.
+- **UI 트리거는 큐 enqueue 만 (fire-and-forget)**: 영수증/라벨 재출력, 주문 취소 영수증, 신규 주문 자동 출력 등 사용자 가시적 트리거는 모두 `outputQueueServiceProvider.add*()` 호출 후 즉시 리턴. `PrinterJobQueue` 의 backoff(최대 137s) 와 `onFinalFailure` 콜백이 출력 결과/재시도 책임을 가지므로 호출자는 결과를 await 하면 안 됨. await 회귀 시 다이얼로그가 137s 까지 안 닫히는 사고. 설정 화면 "테스트 출력" 같이 결과 표시가 필요한 경우만 짧은 timeout(8s) + 시간 초과 시 백그라운드 진행 안내.
+- **라벨 backend FFI Isolate boxing**: Windows `WindowsLabelPrinterBackend` 의 `portEnumUsb` / `portOpenUsb` 같은 동기 SDK 호출은 USB 미연결 환경에서 main thread 를 수백ms~수초 block 한다. `_enumerateUsbPortsAsync` / `_tryOpenUsbAsync` 가 `Isolate.run` 으로 boxing 하고 handle 의 raw `address` 만 cross-isolate 로 받아 main isolate 의 instance state(`_hPrinter` / 콜백 플래그 / status beacon) 를 갱신. autoreplyprint SDK 가 cross-isolate handle 을 받아주는 점은 `_doPrintPng` 의 `posQueryPrintResult` Isolate.run 패턴이 운영에서 검증.
 - **모니터링**: `OrderAgentMonitoringContext`가 `appfit_core`의 `MonitoringContext`를 구현하여 Sentry 초기화·오류 캡처·breadcrumb를 단일 진입점에서 처리. `MonitoringSyncProvider`가 사용자/스토어 변경 시 컨텍스트를 동기화.
 - **순차 비동기 큐**: `lib/utils/serial_async_queue.dart`의 `SerialAsyncQueue<T>`로 USB 프린터·TTS 등 공유 자원 경쟁을 방지. `appfit_core`의 동일 클래스(v1.0.6 deprecated)에서 자체 구현으로 이전됨. `OutputQueueService`가 대표 사용처.
 - **인증/세션 정리**: `Auth.logout()`(`lib/providers/auth_provider.dart`)이 credentials/JWT/SecureStorage(projectId·apiKey)/SharedPreferences/WebSocket을 정리하는 **단일 진입점**. UI 계층(예: `HomeScreen`)은 이 메서드만 호출하고 영업 상태 변경·`OrderProvider` cleanup·네비게이션을 담당. `disconnect()` 후 dependency가 outdated되므로 모든 `ref.read()`는 disconnect 호출 전에 미리 캐시. `unauthenticate()`는 환경 변경 시 WebSocket만 끊고 로그인 화면으로 복귀.

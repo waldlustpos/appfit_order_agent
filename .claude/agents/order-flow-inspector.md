@@ -19,6 +19,9 @@ tools: Read, Glob, Grep, Bash
 - **ProcessedOrderCache API 일관성**: 소켓·폴링 양 경로 모두 `containsOrderStatus` / `addOrderStatus`만 사용. raw `contains`/`add` 잔재가 있으면 키 포맷 불일치로 회귀 발생.
 - **KDS NEW 차단 단일 정책**: 소켓(dispatcher 콜백)·폴링 두 곳 모두 `appfit_core.OrderEventIgnorePolicy.ignoreNewOrderInKdsMode` **직접 호출**. 도메인 래퍼 잔존 시 정책 분기 누락 가능.
 - **logout 정리 항목**: `cleanupOnLogout()`이 `_outputQueueService.clear()` + `_autoAcceptingOrderIds.clear()` + AudioPlayer 안전 dispose를 모두 포함해야 함.
+- **OutputQueueService 이중 큐 진짜 병렬화**: `_receiptQueue` / `_labelQueue` 가 별개 `SerialAsyncQueue<OutputJob>` worker. `NewOrderJob._processReceiptItem` 안에서 라벨 부분(`_NewOrderLabelTail`) 을 **영수증 await 보다 먼저** `_labelQueue.add()` 로 enqueue 해야 함(`output_queue_service.dart:160-188`). 영수증 await 후 enqueue 회귀 시 외부 PrinterJobQueue backoff(최대 137s) 동안 라벨 출력이 막히는 사고 직행. 라벨/영수증 별개 본체 가정 — 영수증→라벨 출력 순서 보장 X (의도된 trade-off).
+- **OutputQueueService 로그 prefix**: `[ReceiptQueue]` / `[LabelQueue]` 로 큐별 추적(`output_queue_service.dart:74-99, 167-244`). `[Label] [receipt-queue]` / `[label-queue]` 패턴 회귀 시 grep 분리 어려움. `[Label]` 단독 prefix 는 `OutputService.printOrderLabels` 의 운영 식별자(★ 누락 마커 포함) 전용 — `OutputQueueService` 안에서 재사용 금지.
+- **UI 트리거는 fire-and-forget**: 신규 주문(자동) / 영수증 재출력 / 라벨 재출력 / 주문 취소 영수증 모두 `outputQueueServiceProvider.add*()` 호출 후 즉시 리턴. `PrinterJobQueue` backoff(최대 137s) + `onFinalFailure` 콜백이 결과/재시도 책임. 호출자가 await 하면 다이얼로그/버튼이 137s 까지 안 풀리는 사고(`order_provider.dart:1187-1205` 의 `printCancelReceiptById` 가 `unawaited` 처리된 reference). `await ref.read(outputAppServiceProvider).printCancelReceiptById(...)` 같은 회귀 grep 으로 잡기.
 - **AudioPlayer dispose 가드**: `_isAudioPlayerDisposed` 플래그가 모든 stop/dispose 호출에 가드되어야 함.
 - **정렬 기준**: `orderedAt` (DateTime). 과거 `shopOrderNo` (String) 코드 잔재는 회귀.
 - **이벤트 dispatcher 사용**: `_handleAppFitEvent`가 raw 페이로드 검증을 직접 하지 않고 `SocketEventDispatcher.classify`에 위임. 5 outcome(`accepted`/`invalidPayload`/`unknownEventType`/`ignoredByShopCode`/`ignoredByPolicy`) 분기를 호출자가 모두 처리하는지 확인.

@@ -11,7 +11,7 @@ tools: Read, Glob, Grep, Bash
 
 ## 비명시적 Invariant (코드에서 찾기 어려운 규칙)
 
-이것들은 위반해도 컴파일러가 잡지 못하므로 사람이 의식적으로 점검해야 합니다. 총 **9 + 17 + 16 = 42개** (공통 / Android / Windows).
+이것들은 위반해도 컴파일러가 잡지 못하므로 사람이 의식적으로 점검해야 합니다. 총 **9 + 17 + 18 = 44개** (공통 / Android / Windows).
 
 ### 공통 (PrinterJobQueue + UI + 매트릭스)
 
@@ -60,6 +60,10 @@ tools: Read, Glob, Grep, Bash
 - **W12. 이미 open 상태인 포트 강제 close + 100ms 대기 후 재open**: 싱글턴 캐시 객체의 stale handle 처리(`com_port_print_service.dart:78-87`). close 후 100ms 가 OS 측 핸들 해제 마진. 누락 시 다음 openWithSettings ERROR_ACCESS_DENIED.
 - **W13. `_lastSuccessfulSendAt` 갱신은 성공 분기에서만**: 실패(probe/write) 경로는 갱신 안 함 → 다음 시도가 cold path 로 빠져 1.5s settle 재적용(`com_port_print_service.dart:140`). 회귀 시 실패 후 즉시 warm 진입 → 무응답 프린터에 너무 빠른 재시도.
 - **W14. probe write timeout 200ms (DLE EOT 3 bytes 송신 timeout)**: open 직후 write 가 무한 block 되는 케이스 안전망(`com_port_print_service.dart:190`). CDC 가상 COM 에서 chip 응답이 느린 경우라도 200ms 면 충분.
+- **W15. 외부 catch 안 안전 close + `_lastFailureAt` 기록**: `openWithSettings` 가 throw 한 경우 try 안쪽 finally 가 실행되지 않으므로 외부 catch 에서 `_safeClose(port)` 로 cache 인스턴스의 stale `_isOpened` 를 false 로 강제 reset(`com_port_print_service.dart:156-160, 135-141`). 누락 시 다음 호출의 `port.isOpened` 가 stale true 로 보여 잘못된 close 경로 진입. 같은 catch 에서 `_lastFailureAt = DateTime.now()` 갱신 — W17 의 failure-cooldown 진입 트리거.
+- **W16. close 후 enumerate polling (USB stack release 능동 확인)**: 종전 고정 100ms 대기를 `_waitPortEnumerated(comPort)` 폴링(25ms × 최대 300ms)으로 교체(`com_port_print_service.dart:79-101, 109-122`). 정상 환경은 첫 폴링(25ms) 에 통과 → 100ms 보다 빠름. 300ms 안에도 enumerate 못하면 `_lastFailureReason = 'enumerate-timeout-after-close'` 후 false. USB-Serial CDC 가상 COM 의 OS 측 핸들 release lag 와 패키지 cache 잔재 둘 다 능동 방어. 고정 delay 회귀 시 release lag 가 더 긴 환경에서 ERROR_ACCESS_DENIED.
+- **W17. failure-cooldown settle path (warm/cold/failure-cooldown 3-way)**: `_lastFailureAt` 기준 500ms 이내면 cold settle(1500ms) 위에 `_settleFailureCooldown(250ms)` 추가(`com_port_print_service.dart:51-56, 91-99, 213-227`). USB-Serial CDC re-enumerate / OS release lag 가 자연 풀릴 시간을 추가로 줌. backoff(2s+) 안에 흡수되어 큐 적체 영향 없음. 2-way(warm/cold) 회귀 시 직전 실패 직후 cold(1.5s) 만 적용 → 일부 lag 케이스에서 부족.
+- **W18. `_lastFailureReason` 8가지 사유 분류 + `WindowsTransport` 결과 타입 매핑**: `not-enumerated` / `enumerate-timeout-after-close` / `open-throws-file-not-found` / `open-throws-access-denied` / `open-throws-other` / `open-failed-silent` / `probe-timeout` / `probe-write-failed` / `write-exception` 9 케이스(`com_port_print_service.dart:63-83`). 모든 false 반환 경로에서 set, 성공 시 null 로 reset. `WindowsTransport.send` 가 사유별로 `PrinterNoDevice`(`not-enumerated` / `open-throws-file-not-found` / `enumerate-timeout-after-close`) / `PrinterBusy`(`access-denied` / `offline/busy`) / `PrinterTransportError`(`write-exception` / `open-throws-other`) 결과 타입에 매핑(`external_receipt_printer_windows.dart:53-75`). backoff 정책 자체는 동일 — 로그 진단성만 개선. `default` 분기는 PrinterBusy fallback 이라 새 reason 추가 시에도 안전. 외부 catch 의 진단 로그 (`enumerate lag` / `access denied — 외부 프로세스 점유 의심`) 와 같이 봐야 운영 분류 정확.
 
 ## 진단 시나리오
 
@@ -274,7 +278,7 @@ Windows (WindowsTransport + ComPortPrintService):
 5. lib/services/com_port_print_service.dart:NN — open / settle / DLE EOT 1 probe / write / drain / close
 
 ### 식별된 invariant 위반 / 취약 지점
-- [파일:라인] 설명 (해당 invariant 번호 명시: C1~C9 / A1~A17 / W1~W14)
+- [파일:라인] 설명 (해당 invariant 번호 명시: C1~C9 / A1~A17 / W1~W18)
 
 ### 권장 확인 사항
 - ...

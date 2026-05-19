@@ -22,6 +22,10 @@
 - 비동기 작업에는 `Future`와 `async`/`await`를 사용하고, 반드시 오류 처리 포함
 - 비동기 이벤트 시퀀스에는 `Stream` 사용
 - UI 스레드 차단을 피하기 위해 무거운 계산은 `compute()`로 별도 Isolate에서 실행
+- **동기 FFI 호출은 Isolate.run 으로 boxing (Windows 전용)**: Windows 에서 Dart FFI 로 직접 호출하는 native API — `autoreplyprint.dll` (라벨 프린터 SDK), `serial_port_win32` (외부 영수증 COM), `win32` 등 — 의 동기 호출은 USB 스택 / OS 자원 race 환경에서 main isolate event loop 를 수백ms~수초 block 한다. `Isolate.run<T>(() {...})` 안에서 SDK 호출을 실행하고 결과 (primitive / record / handle 의 raw `address`) 만 cross-isolate 로 받는 패턴 사용. `unawaited` 만으로는 main thread block 해소되지 않음 (함수 본체의 동기 부분이 event loop 점유). 라벨 backend 의 `_enumerateUsbPortsAsync` / `_tryOpenUsbAsync` 가 reference.
+
+  Android 는 MethodChannel 이 native 측 별도 thread (`receiptPrintExecutor` 등) 에서 처리하므로 Dart main isolate block 위험이 없어 같은 패턴 불필요. Dart FFI 경로가 새로 추가될 때만 의식적으로 적용.
+- **UI 트리거가 backoff 큐의 결과를 await 하지 말 것 (fire-and-forget)**: `PrinterJobQueue` 처럼 백오프 + final-failure 콜백을 자체적으로 관리하는 큐는 호출자(다이얼로그/버튼) 가 future 를 await 하면 backoff 끝까지 (최대 137s) UI 가 묶인다. `unawaited(queue.add(...))` 또는 동등 패턴 사용. 결과 표시가 필요하면 `Future.timeout` 으로 짧은 시간만 기다리고 시간 초과 시 백그라운드 진행 안내(설정 화면 "외부 프린터 테스트 출력" 8s timeout reference).
 
 ### 패턴 매칭 및 Switch
 - 코드를 간결하게 만드는 곳에서 패턴 매칭 활용
@@ -74,6 +78,21 @@
 - 모듈별 태그 활용: `logToFile(tag: LogTag.API, message: '...')`
 - 파일 로깅은 Whitelist 태그 기반 필터링 적용 (UI_ACTION, SYSTEM, PLATFORM, WEBSOCKET, LIFECYCLE 등)
 - `print()` 대신 항상 `logger` 사용
+- **모듈별 메시지 prefix 컨벤션** (운영 로그 grep 분리용):
+
+  | prefix | 사용처 |
+  |---|---|
+  | `[ReceiptQueue]` | `OutputQueueService._processReceiptItem` |
+  | `[LabelQueue]` | `OutputQueueService._processLabelItem` |
+  | `[OutputQueue]` | `OutputQueueService.clear()` 등 큐 자체 라이프사이클 |
+  | `[PrinterQueue]` | `PrinterJobQueue` (영수증 송출 글로벌 직렬 큐) |
+  | `[ComPortPrint]` | `ComPortPrintService` (Windows COM 저수준) |
+  | `[WindowsTransport]` | `WindowsTransport.send` |
+  | `[LabelPrinter]` | `WindowsLabelPrinterBackend` (Windows FFI) |
+  | `[Label]` | `OutputService.printOrderLabels` (운영 식별자 + ★ 누락 마커) |
+  | `[ExternalReceiptPrinter]` | `ExternalReceiptPrinter` (플랫폼-무관 진입점) |
+
+  같은 prefix 를 두 곳에서 재사용하지 말 것 — grep 분리가 어려워짐. `[Label]` 은 라벨 운영 식별자로 예약, `OutputQueueService` 안에서는 `[ReceiptQueue]` / `[LabelQueue]` 사용.
 
 ### 테마 및 스타일
 - `lib/constants/app_styles.dart`의 `AppStyles` 클래스에 색상, 폰트 크기, 버튼 스타일 등 중앙화
