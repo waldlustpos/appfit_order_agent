@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io' show Platform;
 
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -9,6 +10,7 @@ import '../../providers/providers.dart';
 import '../../services/platform_service.dart';
 import '../../services/preference_service.dart';
 import '../../services/print_service.dart';
+import '../../services/printer_transport.dart' show DebugPrinterFault;
 import 'settings_connection_status.dart';
 
 // Windows COM 포트 enumerate 는 안드로이드 빌드에서 win32 native init (kernel32.dll
@@ -218,6 +220,10 @@ class _ExternalPrinterSubSettingsState
           const SizedBox(height: AppSpacing.s12),
           _buildTestPrintRow(),
         ],
+        if (kDebugMode && widget.isUseExternalPrinter) ...[
+          const SizedBox(height: AppSpacing.s12),
+          _buildDebugBusyInjector(),
+        ],
       ],
     );
   }
@@ -407,6 +413,71 @@ class _ExternalPrinterSubSettingsState
             ),
           ),
       ],
+    );
+  }
+
+  // Android USB Host API 는 claimInterface(force=true) 라 외부 도구만으로
+  // 점유 충돌을 재현할 수 없다. 디버그 빌드에서 다음 N 회 송출을 강제
+  // PrinterBusy 로 만들어 PrinterJobQueue 의 0/2/5/10/20/40/60s backoff 7단계
+  // 전 구간을 결정적으로 검증할 수 있게 한다.
+  Widget _buildDebugBusyInjector() {
+    const presets = [0, 1, 3, 7];
+    final remaining = DebugPrinterFault.remaining;
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.s12),
+      decoration: BoxDecoration(
+        color: AppStyles.gray1,
+        borderRadius: AppRadius.bSm,
+        border: Border.all(color: AppStyles.gray3),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                '[DEBUG] 다음 N회 외부 강제 BUSY',
+                style: AppTextStyles.bodySm.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: AppStyles.gray9,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '잔여: $remaining',
+                style: AppTextStyles.bodySm.copyWith(color: AppStyles.gray6),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.s8),
+          Wrap(
+            spacing: AppSpacing.s8,
+            children: presets
+                .map((n) => ChoiceChip(
+                      label: Text(n == 0 ? 'Off' : '$n'),
+                      selected: remaining == n,
+                      onSelected: (selected) {
+                        if (!selected) return;
+                        setState(() {
+                          DebugPrinterFault.schedule(n);
+                        });
+                        logToFile(
+                          tag: LogTag.UI_ACTION,
+                          message:
+                              '[DEBUG] DebugPrinterFault.schedule($n) — 다음 $n회 강제 BUSY',
+                        );
+                      },
+                    ))
+                .toList(),
+          ),
+          const SizedBox(height: AppSpacing.s4),
+          Text(
+            '※ 디버그 빌드 전용. 테스트 출력 시 카운터만큼 PrinterBusy 반환 → '
+            'PrinterJobQueue 가 0/2/5/10/20/40/60s 백오프(누적 ~137s)로 재시도.',
+            style: AppTextStyles.bodySm.copyWith(color: AppStyles.gray6),
+          ),
+        ],
+      ),
     );
   }
 }

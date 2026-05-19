@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/services.dart';
 
 import 'platform_service.dart';
@@ -64,6 +65,13 @@ class AndroidUsbTransport implements PrinterTransport {
 
   @override
   Future<PrinterTransportResult> send(Uint8List bytes, String jobName) async {
+    // PrinterJobQueue 의 0/2/5/10/20/40/60s backoff 7단계를 결정적으로 검증하기
+    // 위한 debug-only 진입점. Android USB Host API 는 claimInterface(force=true)
+    // 라 외부 도구만으로 점유 충돌을 재현할 수 없으므로, 디버그 빌드에서만
+    // 카운터가 양수일 때 native 호출 없이 즉시 PrinterBusy 를 반환한다.
+    if (kDebugMode && DebugPrinterFault.consumeOne()) {
+      return const PrinterBusy('debug-injected BUSY');
+    }
     try {
       final ok = await platform.invokeMethod<bool>(
         'printReceiptBytes',
@@ -88,5 +96,38 @@ class AndroidUsbTransport implements PrinterTransport {
     } catch (e) {
       return PrinterTransportError('$e');
     }
+  }
+}
+
+/// Debug 빌드 전용 BUSY 주입 카운터.
+///
+/// Windows 는 PowerShell 로 COM 포트를 점유하면 자연스럽게 [PrinterJobQueue]
+/// 의 0/2/5/10/20/40/60s 백오프를 관찰할 수 있지만, Android USB Host API 는
+/// claimInterface(force=true) 로 점유를 강제 탈취하므로 외부 도구만으로는 BUSY
+/// 시나리오를 결정적으로 재현할 수 없다. 디버그 빌드에서 본 카운터를 N 으로
+/// 세팅하면 다음 N 회의 [AndroidUsbTransport.send] 호출이 native 진입 없이 즉시
+/// PrinterBusy 를 반환해 backoff 전 구간 검증이 가능하다.
+///
+/// 호출은 단일 event loop (Dart) 에서 직렬화되므로 별도 동기화 불필요.
+/// 릴리즈 빌드(kReleaseMode)에서는 호출부가 가드되어 dead-code 가 된다.
+class DebugPrinterFault {
+  DebugPrinterFault._();
+
+  static int _remaining = 0;
+
+  /// 잔여 강제 BUSY 회수. UI 표시용.
+  static int get remaining => _remaining;
+
+  /// 다음 [n] 회 출력 시도를 강제 BUSY 로 만든다. [n] 이 0 이하면 해제.
+  static void schedule(int n) {
+    _remaining = n < 0 ? 0 : n;
+  }
+
+  /// 카운터가 양수면 1 감소시키고 true 를 반환. 그 외에는 false.
+  /// [AndroidUsbTransport.send] 진입부에서만 호출되어야 한다.
+  static bool consumeOne() {
+    if (_remaining <= 0) return false;
+    _remaining -= 1;
+    return true;
   }
 }
