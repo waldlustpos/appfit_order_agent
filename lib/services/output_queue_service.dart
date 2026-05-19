@@ -53,10 +53,11 @@ final class _NewOrderLabelTail extends OutputJob {
 
 /// 출력 작업 관리를 위한 큐 서비스.
 ///
-/// 영수증/사운드와 라벨을 별도 직렬 큐로 분리해, 라벨 떼기 (PAPERNOFETCH) 무한
-/// 대기가 다음 주문의 영수증 출력까지 막지 않도록 한다. 같은 NewOrderJob 안에서는
-/// 영수증을 먼저 await 한 뒤 라벨 부분을 라벨 큐로 enqueue 하므로 영수증→라벨
-/// 순서는 유지된다.
+/// 영수증/사운드와 라벨을 별도 직렬 큐로 분리해 두 프린터가 독립 병렬 동작하도록 한다.
+/// 같은 NewOrderJob 안에서는 라벨 부분을 영수증 await 보다 먼저 라벨 큐에 enqueue
+/// 하므로 영수증 PrinterJobQueue 의 backoff(최대 137s) / 라벨떼기(PAPERNOFETCH)
+/// 무한 대기가 서로를 막지 않는다. 두 프린터가 별개 본체이므로 출력 순서는 보장하지
+/// 않는다 — 라벨이 영수증보다 먼저 나올 수 있음.
 ///
 /// 큐 종류:
 /// - `_receiptQueue`: NewOrderJob (영수증+사운드 부분), ReceiptReprintJob
@@ -73,27 +74,28 @@ class OutputQueueService {
       onProcess: _processReceiptItem,
       onError: (item, error, stack) {
         final num = item.order.displayNum;
-        logger.e('[Label] [receipt-queue] $num 큐 처리 실패',
+        logger.e('[ReceiptQueue] $num 처리 실패',
             error: error, stackTrace: stack);
         logToFile(
             tag: LogTag.ERROR,
-            message: '[Label] [receipt-queue] $num 큐 처리 실패: $error');
+            message: '[ReceiptQueue] $num 처리 실패: $error');
       },
     );
     _labelQueue = SerialAsyncQueue(
       onProcess: _processLabelItem,
       onError: (item, error, stack) {
         final num = item.order.displayNum;
-        logger.e('[Label] [label-queue] $num 큐 처리 실패',
+        logger.e('[LabelQueue] $num 처리 실패',
             error: error, stackTrace: stack);
         logToFile(
             tag: LogTag.ERROR,
-            message: '[Label] [label-queue] $num 큐 처리 실패: $error');
+            message: '[LabelQueue] $num 처리 실패: $error');
       },
     );
   }
 
-  /// 핵심 라이프사이클 한 줄 — `[PLATFORM] [Label]` 단일 채널로 기록.
+  /// 핵심 라이프사이클 한 줄 — [PLATFORM] 태그로 기록. 호출 측에서 prefix
+  /// (`[ReceiptQueue]` / `[LabelQueue]`) 를 메시지에 포함시킨다.
   void _life(String message) {
     logToFile(tag: LogTag.PLATFORM, message: message);
   }
@@ -152,7 +154,7 @@ class OutputQueueService {
   }
 
   /// 영수증 큐 처리: NewOrderJob 의 영수증/사운드, ReceiptReprintJob.
-  /// NewOrderJob 의 라벨 부분은 영수증 종료 직후 라벨 큐로 enqueue.
+  /// NewOrderJob 의 라벨 부분은 영수증 await 전에 라벨 큐로 enqueue 되어 병렬 진행.
   Future<void> _processReceiptItem(OutputJob job) async {
     final outputService = ref.read(outputAppServiceProvider);
     final num = job.order.displayNum;
@@ -163,9 +165,24 @@ class OutputQueueService {
           printLabel: final printLabel,
           forceOrderReceipt: final forceOrderReceipt,
         ):
-        _life('[Label] $num 큐시작 (NEW_RECEIPT)');
+        // 라벨 부분을 영수증 await 보다 먼저 라벨 큐에 enqueue.
+        // 두 큐가 진짜 병렬 동작하려면 enqueue 시점이 영수증 backoff(최대 137s)
+        // 와 독립이어야 한다. 라벨/영수증은 별개 본체·별개 큐 worker 라
+        // 동시 진행이 안전.
+        // (이전 구현: 영수증 await 후 enqueue → 큐 분리에도 불구하고 사실상
+        // 직렬화되어 외부 영수증 오프라인 시 라벨이 137s 동안 안 나오는 사고 발생.)
+        if (printLabel) {
+          final tailId = order.orderId;
+          if (!_inFlightLabelTail.contains(tailId)) {
+            _inFlightLabelTail.add(tailId);
+            _labelQueue.add(_NewOrderLabelTail(order));
+            _life('[LabelQueue] $num NEW_LABEL tail enqueue');
+          }
+        }
+
+        _life('[ReceiptQueue] $num NEW_RECEIPT 시작');
         try {
-          // 영수증/사운드만 처리. 라벨은 분리해서 라벨 큐로 위임.
+          // 영수증/사운드만 처리. 라벨은 이미 라벨 큐에서 독립 진행 중.
           await outputService.notifyNewOrder(order,
               playSound: playSound,
               printLabel: false,
@@ -173,25 +190,16 @@ class OutputQueueService {
         } finally {
           _inFlightNewOrders.remove(order.orderId);
         }
-        _life('[Label] $num 큐완료 (NEW_RECEIPT)');
-
-        // 라벨 부분 분리 enqueue. 라벨 떼기 대기가 다음 주문 영수증을 막지 않도록.
-        if (printLabel) {
-          final tailId = order.orderId;
-          if (!_inFlightLabelTail.contains(tailId)) {
-            _inFlightLabelTail.add(tailId);
-            _labelQueue.add(_NewOrderLabelTail(order));
-          }
-        }
+        _life('[ReceiptQueue] $num NEW_RECEIPT 완료');
       case ReceiptReprintJob(order: final order, isCancelReceipt: final cancel):
-        _life('[Label] $num 큐시작 (RECEIPT_REPRINT)');
+        _life('[ReceiptQueue] $num RECEIPT_REPRINT 시작');
         final printService = ref.read(printServiceProvider);
         await printService.printOrderReceipt(
           order: order,
           type: 'receipt',
           isCancelReceipt: cancel,
         );
-        _life('[Label] $num 큐완료 (RECEIPT_REPRINT)');
+        _life('[ReceiptQueue] $num RECEIPT_REPRINT 완료');
       case LabelOnlyJob():
       case ReprintJob():
       case _NewOrderLabelTail():
@@ -199,7 +207,7 @@ class OutputQueueService {
         // sealed switch exhaustiveness 보장용. 정상 흐름에서는 도달 불가.
         logToFile(
             tag: LogTag.WARNING,
-            message: '[Label] [receipt-queue] $num 잘못된 job 라우팅: $job');
+            message: '[ReceiptQueue] $num 잘못된 job 라우팅: $job');
     }
   }
 
@@ -209,35 +217,35 @@ class OutputQueueService {
     final num = job.order.displayNum;
     switch (job) {
       case LabelOnlyJob(order: final order):
-        _life('[Label] $num 큐시작 (LABEL_ONLY)');
+        _life('[LabelQueue] $num LABEL_ONLY 시작');
         try {
           await outputService.printOrderLabels(order);
         } finally {
           _inFlightLabelOnly.remove(order.orderId);
         }
-        _life('[Label] $num 큐완료 (LABEL_ONLY)');
+        _life('[LabelQueue] $num LABEL_ONLY 완료');
       case ReprintJob(order: final order):
-        _life('[Label] $num 큐시작 (REPRINT)');
+        _life('[LabelQueue] $num REPRINT 시작');
         try {
           await outputService.printOrderLabels(order, isReprint: true);
         } finally {
           _inFlightReprints.remove(order.orderId);
         }
-        _life('[Label] $num 큐완료 (REPRINT)');
+        _life('[LabelQueue] $num REPRINT 완료');
       case _NewOrderLabelTail(order: final order):
-        _life('[Label] $num 큐시작 (NEW_LABEL)');
+        _life('[LabelQueue] $num NEW_LABEL 시작');
         try {
           await outputService.printOrderLabels(order);
         } finally {
           _inFlightLabelTail.remove(order.orderId);
         }
-        _life('[Label] $num 큐완료 (NEW_LABEL)');
+        _life('[LabelQueue] $num NEW_LABEL 완료');
       case NewOrderJob():
       case ReceiptReprintJob():
         // 라우팅 오류 — 영수증 큐 전용 job 이 라벨 큐에 들어왔을 때 안전망.
         logToFile(
             tag: LogTag.WARNING,
-            message: '[Label] [label-queue] $num 잘못된 job 라우팅: $job');
+            message: '[LabelQueue] $num 잘못된 job 라우팅: $job');
     }
   }
 
@@ -249,7 +257,7 @@ class OutputQueueService {
     _inFlightLabelOnly.clear();
     _inFlightReprints.clear();
     _inFlightLabelTail.clear();
-    _life('[Label] 큐 정리 완료');
+    _life('[OutputQueue] 큐 정리 완료');
   }
 }
 

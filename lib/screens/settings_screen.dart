@@ -84,8 +84,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     super.initState();
     _setWindowSoftInputMode('resize');
     _loadSettings();
-    WidgetsBinding.instance
-        .addPostFrameCallback((_) => _checkUpdateFromSettings());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkUpdateFromSettings();
+      // 프린터 연결 상태 자동 1회 갱신. USB hot-plug 이벤트 구독이 없어
+      // checkConnection 은 앱 시작 시 1회만 도는데, 사용자가 USB 를 빼고
+      // 설정 화면에 들어왔을 때 "연결됨" 이 stale 하게 표시되는 사고 방지.
+      // 이후 갱신은 재연결 버튼으로 사용자가 직접 트리거.
+      ref.read(printServiceProvider).checkConnection();
+    });
   }
 
   // ── 설정 로드 / 저장 ───────────────────────────────────────────────────────

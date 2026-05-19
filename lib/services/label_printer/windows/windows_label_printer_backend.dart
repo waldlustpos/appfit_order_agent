@@ -449,10 +449,16 @@ class WindowsLabelPrinterBackend {
     // 1) CP_Port_EnumUsb 로 실제 연결된 USB 디바이스 이름을 받는다.
     //    SDK 가 첫 호출 시 lazy enumerate 라 결과가 비어 나오는 경우가 있어
     //    한 번에 한해 200ms 대기 후 재시도.
-    var enumeratedNames = _enumerateUsbPorts(bindings);
+    //
+    //    USB 미연결 환경에서 SDK 의 동기 FFI 호출이 main thread 를 수백ms~수초
+    //    block 해 "앱 응답없음" 사고가 보고됨. enumerate + portOpenUsb 모두
+    //    Isolate.run 으로 boxing 해서 main thread 가 안 막히도록 한다. handle
+    //    의 raw address 는 cross-isolate 로 안전하게 전달 가능 (이미 본 파일의
+    //    posQueryPrintResult 호출에서 검증된 패턴).
+    var enumeratedNames = await _enumerateUsbPortsAsync();
     if (enumeratedNames.isEmpty) {
       await Future.delayed(const Duration(milliseconds: 200));
-      enumeratedNames = _enumerateUsbPorts(bindings);
+      enumeratedNames = await _enumerateUsbPortsAsync();
     }
 
     // OS 디바이스 인스턴스 경로(`\\?\usb#...`)가 SDK 의 OpenUsb 가 실제로 받아
@@ -466,13 +472,13 @@ class WindowsLabelPrinterBackend {
       });
 
     for (final name in ordered) {
-      if (_tryOpenUsb(bindings, name, autoReplyMode)) return true;
+      if (await _tryOpenUsbAsync(name, autoReplyMode)) return true;
     }
 
     // 2) Fallback: appfit Android 와 동일한 VID:PID 4종 화이트리스트.
     for (final port in _kUsbPortCandidates) {
       if (ordered.contains(port)) continue; // 이미 시도함
-      if (_tryOpenUsb(bindings, port, autoReplyMode)) return true;
+      if (await _tryOpenUsbAsync(port, autoReplyMode)) return true;
     }
 
     logger.w('[LabelPrinter] USB 라벨 프린터 오픈 실패 — '
@@ -483,65 +489,82 @@ class WindowsLabelPrinterBackend {
   /// CP_Port_EnumUsb 로 USB 디바이스 이름 목록을 받는다.
   /// 결과는 buffer 안에 null-terminated 문자열들이 연속으로 채워지고
   /// 마지막은 빈 문자열로 끝난다 (double-null terminated list).
-  List<String> _enumerateUsbPorts(AutoReplyPrintBindings bindings) {
-    const int bufSize = 0x1000;
-    final buffer = malloc.allocate<ffi.Uint8>(bufSize);
-    try {
-      final rc = bindings.portEnumUsb(buffer, bufSize, ffi.nullptr);
-      if (rc == 0) return const [];
-      final bytes = buffer.asTypedList(bufSize);
-      final names = <String>[];
-      int offset = 0;
-      while (offset < bufSize) {
-        int end = offset;
-        while (end < bufSize && bytes[end] != 0) {
-          end++;
+  ///
+  /// SDK FFI 호출이 USB 미연결 환경에서 main thread 를 block 하므로 Isolate.run
+  /// 으로 boxing. 결과(String 리스트) 만 cross-isolate 로 반환.
+  Future<List<String>> _enumerateUsbPortsAsync() async {
+    return Isolate.run<List<String>>(() {
+      final bindings = AutoReplyPrintBindings.tryGet();
+      if (bindings == null) return const [];
+      const int bufSize = 0x1000;
+      final buffer = malloc.allocate<ffi.Uint8>(bufSize);
+      try {
+        final rc = bindings.portEnumUsb(buffer, bufSize, ffi.nullptr);
+        if (rc == 0) return const [];
+        final bytes = buffer.asTypedList(bufSize);
+        final names = <String>[];
+        int offset = 0;
+        while (offset < bufSize) {
+          int end = offset;
+          while (end < bufSize && bytes[end] != 0) {
+            end++;
+          }
+          if (end == offset) break; // 빈 문자열 = 종료 마커
+          if (end >= bufSize) break;
+          final name = String.fromCharCodes(bytes.sublist(offset, end));
+          if (name.isNotEmpty) names.add(name);
+          offset = end + 1;
         }
-        if (end == offset) break; // 빈 문자열 = 종료 마커
-        if (end >= bufSize) break;
-        final name = String.fromCharCodes(bytes.sublist(offset, end));
-        if (name.isNotEmpty) names.add(name);
-        offset = end + 1;
+        return names;
+      } catch (_) {
+        // isolate 안에서 throw 시 main 으로 전파되면 안 됨. 빈 결과로 fallback.
+        return const [];
+      } finally {
+        malloc.free(buffer);
       }
-      return names;
-    } catch (e, s) {
-      logger.e('[LabelPrinter] CP_Port_EnumUsb 예외', error: e, stackTrace: s);
-      return const [];
-    } finally {
-      malloc.free(buffer);
-    }
+    });
   }
 
-  bool _tryOpenUsb(
-      AutoReplyPrintBindings bindings, String name, int autoReplyMode) {
-    final namePtr = name.toNativeUtf8();
-    ffi.Pointer<ffi.Void> handle;
-    try {
-      handle = bindings.portOpenUsb(namePtr, autoReplyMode);
-    } catch (e, s) {
-      logger.e('[LabelPrinter] CP_Port_OpenUsb 예외 $name',
-          error: e, stackTrace: s);
-      malloc.free(namePtr);
-      return false;
-    }
-    malloc.free(namePtr);
-    if (handle.address != 0 && bindings.portIsOpened(handle) != 0) {
-      _hPrinter = handle;
-      _currentAutoReplyMode = autoReplyMode;
-      // 콜백은 SDK 글로벌이라 포트 오픈/재오픈과 무관하게 한 번만 등록되면
-      // 충분하지만, 안전하게 재등록하도록 플래그를 리셋한다.
-      _statusCallbackRegistered = false;
-      _printedCallbackRegistered = false;
-      // 라벨 모드는 핸들과 결합되므로 핸들이 새로 열리면 다시 진입해야 한다.
-      _labelModeEnabled = false;
-      _resetStatusBeacon();
-      logger.i('[LabelPrinter] 포트 오픈 성공: $name');
-      return true;
-    }
-    if (handle.address != 0) {
-      bindings.portClose(handle);
-    }
-    return false;
+  /// CP_Port_OpenUsb 호출. SDK FFI 의 동기 block 을 피하기 위해 Isolate.run 으로
+  /// boxing 하고 handle 의 raw address 만 cross-isolate 로 반환받는다. 성공 시
+  /// main isolate 의 backend instance state(`_hPrinter` / 콜백 플래그 / status
+  /// beacon)를 그대로 갱신 — instance state 는 main 에 유지되므로 출력 시점의
+  /// printPng 가 동일 인스턴스를 그대로 사용할 수 있다.
+  Future<bool> _tryOpenUsbAsync(String name, int autoReplyMode) async {
+    final addr = await Isolate.run<int>(() {
+      final innerBindings = AutoReplyPrintBindings.tryGet();
+      if (innerBindings == null) return 0;
+      final namePtr = name.toNativeUtf8();
+      try {
+        final handle = innerBindings.portOpenUsb(namePtr, autoReplyMode);
+        if (handle.address != 0 && innerBindings.portIsOpened(handle) != 0) {
+          return handle.address;
+        }
+        if (handle.address != 0) {
+          innerBindings.portClose(handle);
+        }
+        return 0;
+      } catch (_) {
+        // isolate 안 예외는 0 으로 fallback. 실패 사유 진단 로그는 호출자가 담당.
+        return 0;
+      } finally {
+        malloc.free(namePtr);
+      }
+    });
+
+    if (addr == 0) return false;
+
+    _hPrinter = ffi.Pointer<ffi.Void>.fromAddress(addr);
+    _currentAutoReplyMode = autoReplyMode;
+    // 콜백은 SDK 글로벌이라 포트 오픈/재오픈과 무관하게 한 번만 등록되면
+    // 충분하지만, 안전하게 재등록하도록 플래그를 리셋한다.
+    _statusCallbackRegistered = false;
+    _printedCallbackRegistered = false;
+    // 라벨 모드는 핸들과 결합되므로 핸들이 새로 열리면 다시 진입해야 한다.
+    _labelModeEnabled = false;
+    _resetStatusBeacon();
+    logger.i('[LabelPrinter] 포트 오픈 성공: $name');
+    return true;
   }
 
   void _registerStatusCallback() {

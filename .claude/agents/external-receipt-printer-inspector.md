@@ -1,13 +1,13 @@
 ---
 name: external-receipt-printer-inspector
-description: OutputQueueService → ExternalReceiptPrinter → PrinterJobQueue → (Android: AndroidUsbTransport → MethodChannel printReceiptBytes → UsbReceiptPrinter.java → bulkTransfer | Windows: WindowsTransport → ComPortPrintService (COM + DLE EOT 1 probe) → SerialPort writeBytes / Winspool RAW 폴백) 외부 영수증 프린터 파이프라인을 진단합니다. 점유 충돌(BUSY) backoff 7회 (0/2/5/10/20/40/60s 누적 137s), false-success (USB-Serial CDC 가상 COM bus power 살아있음), 좀비 연결(전원 OFF 인데 USB detach broadcast 미발생), USB 인터페이스 분기 오인식 (NXP composite CDC tier 0 / ASIX BLOCKLIST), 재출력 무반응, settle warm/cold, 권한 다이얼로그, COM probe 폴링, Winspool 폴백 정책 등의 진단 시 컨텍스트 수집용. "외부 프린터 영수증 안 나옴", "재출력 무반응", "COM 포트 출력 실패", "USB 좀비 연결", "점유 충돌", "프린터 backoff", "PR800 출력", "D3MINI 출력", "ESC/POS", "DLE EOT", "Winspool 폴백", "false-success" 등의 요청에 위임.
+description: OutputQueueService → ExternalReceiptPrinter → PrinterJobQueue → (Android: AndroidUsbTransport → MethodChannel printReceiptBytes → UsbReceiptPrinter.java → bulkTransfer | Windows: WindowsTransport → ComPortPrintService (COM + DLE EOT 1 probe) → SerialPort writeBytes) 외부 영수증 프린터 파이프라인을 진단합니다. 점유 충돌(BUSY) backoff 7회 (0/2/5/10/20/40/60s 누적 137s), false-success (USB-Serial CDC 가상 COM bus power 살아있음), 좀비 연결(전원 OFF 인데 USB detach broadcast 미발생), USB 인터페이스 분기 오인식 (NXP composite CDC tier 0 / ASIX BLOCKLIST), 재출력 무반응, settle warm/cold, 권한 다이얼로그, COM probe 폴링 등의 진단 시 컨텍스트 수집용. "외부 프린터 영수증 안 나옴", "재출력 무반응", "COM 포트 출력 실패", "USB 좀비 연결", "점유 충돌", "프린터 backoff", "PR800 출력", "D3MINI 출력", "ESC/POS", "DLE EOT", "false-success" 등의 요청에 위임.
 tools: Read, Glob, Grep, Bash
 ---
 
 당신은 appfit_order_agent의 외부 영수증 프린터 출력 파이프라인 디버깅 전문가입니다.
 **구조 카탈로그(파일 위치/클래스 책임)는 [docs/ARCHITECTURE.md](../../docs/ARCHITECTURE.md) 참조**. 이 에이전트는 코드에서 readable한 카탈로그가 아니라, **비명시적 invariant과 진단 시나리오**에만 집중합니다. ARCHITECTURE.md 의 외부 영수증 섹션이 sparse 하므로 본 에이전트가 점유 큐 backoff 정책 / COM probe / USB 분기 / 좀비 연결 진단을 담당합니다.
 
-`order-flow-inspector`와의 경계: 그쪽은 `outputQueueServiceProvider.add()` 호출 직전까지. `label-printer-inspector`와의 경계: 그쪽은 라벨(Caysn / autoreplyprint) 파이프라인만. 이 에이전트는 `add()` 이후 **외부 영수증** 경로 (PrinterJobQueue + Android USB ESC/POS + Windows COM/Winspool) 전담.
+`order-flow-inspector`와의 경계: 그쪽은 `outputQueueServiceProvider.add()` 호출 직전까지. `label-printer-inspector`와의 경계: 그쪽은 라벨(Caysn / autoreplyprint) 파이프라인만. 이 에이전트는 `add()` 이후 **외부 영수증** 경로 (PrinterJobQueue + Android USB ESC/POS + Windows COM) 전담.
 
 ## 비명시적 Invariant (코드에서 찾기 어려운 규칙)
 
@@ -45,12 +45,11 @@ tools: Read, Glob, Grep, Bash
 - **A16. `MainActivity` 의 `ACTION_USB_PERMISSION` BroadcastReceiver hook**: 권한 다이얼로그 승인 → BroadcastReceiver → `receiptPrinter.onPermissionGranted(device)` 호출(`MainActivity.java:143-152, 173`). hook 누락 시 사용자가 승인해도 영원히 미연결. `usbFilter.addAction(UsbReceiptPrinter.ACTION_USB_PERMISSION)` 필수.
 - **A17. `PrintService.checkConnection` 이중 체크 (USB enumerate + native isExternalPrinterConnected)**: USB enumerate 로 외부 candidate 가 있으면 native connection 상태까지 검증; 비어있으면 reconnectExternalPrinter 자동 트리거(`print_service.dart:170-217`). USB 권한 거부된 첫 실행 환경 회복용.
 
-### Windows (ComPortPrintService + WindowsTransport + Winspool)
+### Windows (ComPortPrintService + WindowsTransport)
 
 - **W1. Deferred-load 의무 (`external_receipt_printer_windows.dart`)**: win32 / serial_port_win32 패키지의 native static initializer 가 `kernel32.dll` lookup 시도 → Android 런타임 즉시 크래시. `external_receipt_printer.dart:18` + `print_service.dart:20` 두 곳에서 `deferred as win_transport` 로 import 필수. 호출 전 반드시 `await win_transport.loadLibrary()`. 신규 파일에서 non-deferred import 한 줄만 회귀해도 Android 빌드 실행 시 즉시 다이.
 - **W2. `loadLibrary()` 후 `setTransport`, 실패 시 큐 영구 NoDevice**: `await win_transport.loadLibrary(); queue.setTransport(win_transport.WindowsTransport());`(`print_service.dart:88-95`). 로드 실패 catch 가 있지만 setTransport 호출 안 되면 큐 영구 NoDevice. 운영 시 `[PrintService] WindowsTransport 로드 실패` 로그가 시그널.
-- **W3. COM 설정 시 Winspool 폴백 안 함 (의도된 결정)**: `WindowsTransport.send` 에서 `comPort != null` 이면 ComPortPrintService 만 시도하고 실패 시 `PrinterBusy` 반환(`external_receipt_printer_windows.dart:36-56`). 동일 물리 디바이스라 Winspool 도 false-success 위험. 매장은 COM 단일 경로. Winspool 폴백을 임의 부활 시 false-success 회귀(커밋 `0c0f7e7`).
-- **W4. COM 미설정 환경만 Winspool 폴백 진입**: `comPort == null || isEmpty` 일 때만 `_resolvePrinter()` → `WinspoolRawClient.sendRaw`(`external_receipt_printer_windows.dart:58-69, 86-90`). COM 미설정 + Winspool default 도 없으면 `PrinterNoDevice('no Windows printer configured')`.
+- **W3. COM 단일 경로 (Winspool 경로 제거됨)**: `WindowsTransport.send` 는 `comPort == null || isEmpty` 면 즉시 `PrinterNoDevice('no COM port configured')`, 설정돼 있으면 `ComPortPrintService.sendRaw` 만 시도하고 실패 시 사유별 결과 반환(`external_receipt_printer_windows.dart:33-75`). Winspool RAW 폴백은 의도적으로 배제: 사용자가 명시 설정하지 않은 OS default 프린터(라벨 프린터 / Microsoft Print to PDF 등) 가 외부 영수증으로 잘못 잡혀 isConnected 가 false-positive 가 되거나 실제 영수증이 라벨 프린터로 송출되는 사고 차단. Winspool 임의 부활 시 false-success / 디바이스 오인 회귀.
 - **W5. settle delay warm(150ms) / cold(1500ms), `_warmWindow=60s`**: `_lastSuccessfulSendAt` 가 60초 이내 → warm, 아니면 cold(`com_port_print_service.dart:38, 42-44, 110-113`). cold 1.5s 는 PR800 펌웨어 부팅 / USB-Serial 재인식 직후 명령 무시 방지. warm 단일값 회귀 시 cold-start 명령 미스 → 첫 잡 backoff 추가 시도.
 - **W6. `SerialPort` 싱글턴 캐시(`portName` 기반) — 매번 새 인스턴스 아님**: `SerialPort('COM3', openNow: false)` 가 동일 portName 에 대해 캐시 객체 반환(`com_port_print_service.dart:75`). 첫 호출의 BaudRate 만 적용되는 패키지 quirk 가 있어 매 호출마다 `openWithSettings` 로 dcb 갱신. 이전 잔여 listener / `_readStream` 가 남아있을 수 있음.
 - **W7. DLE EOT 1 probe (`_probePrinter`) — false-success 방지의 핵심**: USB-Serial CDC chip 이 USB bus power 로 살아있어 본체 OFF 라도 open/write 가 success 로 떨어지는 false-success 를 막는다. 1) PurgeComm(PURGE_RXCLEAR) → 2) `[0x10, 0x04, 0x01]` 3바이트 송신 → 3) 300ms 안에 `ClearCommError(...).cbInQue > 0` 폴링(20ms 간격) → 4) 응답 도착 시 PurgeComm 한 번 더(`com_port_print_service.dart:28-35, 121-128, 173-221`). probe 실패 = `sendRaw false → PrinterBusy → backoff`(커밋 `0c0f7e7`).
@@ -60,9 +59,7 @@ tools: Read, Glob, Grep, Bash
 - **W11. `openNow: false` 명시**: 팩토리 자동 open(115200 기본 baud) 막고 우리 명시 `openWithSettings(BaudRate=baudRate, 8N1, NOPARITY)` 만 적용되게(`com_port_print_service.dart:75, 90`). true 회귀 시 9600 baud 환경에서 첫 잡 dcb 충돌.
 - **W12. 이미 open 상태인 포트 강제 close + 100ms 대기 후 재open**: 싱글턴 캐시 객체의 stale handle 처리(`com_port_print_service.dart:78-87`). close 후 100ms 가 OS 측 핸들 해제 마진. 누락 시 다음 openWithSettings ERROR_ACCESS_DENIED.
 - **W13. `_lastSuccessfulSendAt` 갱신은 성공 분기에서만**: 실패(probe/write) 경로는 갱신 안 함 → 다음 시도가 cold path 로 빠져 1.5s settle 재적용(`com_port_print_service.dart:140`). 회귀 시 실패 후 즉시 warm 진입 → 무응답 프린터에 너무 빠른 재시도.
-- **W14. `WinspoolRawClient.sendRaw` 호출 시퀀스 강제**: `OpenPrinter → StartDocPrinter → StartPagePrinter → WritePrinter → EndPagePrinter → EndDocPrinter → ClosePrinter`(`winspool_raw_client.dart:99-160`). RAW data type, 중간 단계 실패 시 이미 시작된 단계는 closer-first 정리. 순서 위반 시 스풀러 핸들 누수 + 잡 등록 실패.
-- **W15. Winspool success = `ok != 0 && written.value == data.length`**: partial write 도 실패로 간주(`winspool_raw_client.dart:140-145`). Winspool 은 스풀러 단계까지만 동기 확인이고 실제 IO 는 비동기 — false-success 위험은 W3 의 미폴백 정책으로 우회.
-- **W16. probe write timeout 200ms (DLE EOT 3 bytes 송신 timeout)**: open 직후 write 가 무한 block 되는 케이스 안전망(`com_port_print_service.dart:190`). CDC 가상 COM 에서 chip 응답이 느린 경우라도 200ms 면 충분.
+- **W14. probe write timeout 200ms (DLE EOT 3 bytes 송신 timeout)**: open 직후 write 가 무한 block 되는 케이스 안전망(`com_port_print_service.dart:190`). CDC 가상 COM 에서 chip 응답이 느린 경우라도 200ms 면 충분.
 
 ## 진단 시나리오
 
@@ -122,7 +119,7 @@ tools: Read, Glob, Grep, Bash
 3. closeLocked() 자동 호출 후 TRANSPORT_ERROR 매핑 → Dart backoff 재시도 발화
 4. 청크 timeout 임의 단축 / 구버전 안드로이드 16KB 한계 회귀
 
-### Windows (ComPortPrintService + WindowsTransport + Winspool)
+### Windows (ComPortPrintService + WindowsTransport)
 
 #### 시나리오 Win-A: 정상 출력처럼 보이는데 영수증 안 나옴 (false-success)
 
@@ -148,14 +145,14 @@ tools: Read, Glob, Grep, Bash
 3. cold 1.5s 후 probe 통과해야 PR800 펌웨어 부팅 명령 미스 안 함
 4. probe 실패 후 backoff 재시도가 정상 발화하는지(invariant W7)
 
-#### 시나리오 Win-D: Winspool 로 폴백 안 됨 — COM 단일 경로 (의도)
+#### 시나리오 Win-D: 외부 프린터 "연결됨" 인데 출력 안 됨 / 디바이스 오인 — COM 단일 경로 (의도)
 
-증상: COM 포트 설정된 매장에서 COM 출력 실패 시 Winspool 폴백 시도되지 않음. **의도된 동작**.
+증상: COM 포트 미설정 상태에서 외부 프린터가 "연결됨"으로 잘못 표시되거나 의도하지 않은 디바이스로 영수증이 송출됨. Winspool 경로는 제거됐으므로 이 증상은 발생하지 않아야 정상.
 
-1. `WindowsTransport.send` 의 COM 분기에서 `comOk == false` 시 `return PrinterBusy('COM ... offline/busy/write-failed')` 직행(invariant W3)
-2. 폴백 코드 주석 "Winspool 폴백을 의도적으로 안 하는 이유 ..." 보존 여부(`external_receipt_printer_windows.dart:51-54`)
-3. COM 미설정 매장에서만 Winspool 진입(invariant W4)
-4. 사용자가 Winspool 폴백을 기대한다면 운영 합의 미반영 — PreferenceService 의 comPortName 확인
+1. `WindowsTransport.send` 가 `comPort == null || isEmpty` 면 즉시 `PrinterNoDevice('no COM port configured')` 반환하는지(invariant W3)
+2. `isConnected()` 가 COM 포트 enumerate 결과만 보고 판정하는지 — OS default 프린터 fallback 없음(`external_receipt_printer_windows.dart:78-83`)
+3. Winspool RAW 폴백 / `WinspoolRawClient` / `getWindowsPrinterName` 회귀 import 가 없는지 grep: `grep -rn "Winspool\|winspool_raw_client\|WindowsPrinterName" lib/`
+4. 사용자 매장이 COM 미설정이면 외부 프린터 토글을 OFF 로 안내 — Winspool fallback 부활은 false-positive / 디바이스 오인 회귀
 
 #### 시나리오 Win-E: Android 빌드 실행 시 즉시 크래시
 
@@ -269,16 +266,15 @@ Android (AndroidUsbTransport + MethodChannel + UsbReceiptPrinter):
 6. android/.../NativeMethodHandler.java:NN — printReceiptBytes / isExternalPrinterConnected / reconnectExternalPrinter
 7. android/.../util/print/UsbReceiptPrinter.java:NN — discover / verifyConnection / selectInterfaceAndEndpoint / writeBytes
 
-Windows (WindowsTransport + ComPortPrintService / Winspool RAW):
+Windows (WindowsTransport + ComPortPrintService):
 1. lib/services/output_queue_service.dart:NN — 동일 진입
 2. lib/services/print_service.dart:NN — _initPrinterQueue + WindowsTransport deferred-load
 3. lib/services/external_receipt_printer.dart:NN — Platform.isWindows 분기
-4. lib/services/external_receipt_printer_windows.dart:NN — WindowsTransport.send (COM 우선, Winspool 안전망)
+4. lib/services/external_receipt_printer_windows.dart:NN — WindowsTransport.send (COM 단일 경로)
 5. lib/services/com_port_print_service.dart:NN — open / settle / DLE EOT 1 probe / write / drain / close
-6. lib/services/winspool_raw_client.dart:NN — Open/StartDoc/Write/EndDoc (COM 미설정 매장 한정)
 
 ### 식별된 invariant 위반 / 취약 지점
-- [파일:라인] 설명 (해당 invariant 번호 명시: C1~C9 / A1~A17 / W1~W16)
+- [파일:라인] 설명 (해당 invariant 번호 명시: C1~C9 / A1~A17 / W1~W14)
 
 ### 권장 확인 사항
 - ...

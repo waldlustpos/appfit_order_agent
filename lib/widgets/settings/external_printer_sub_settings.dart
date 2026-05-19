@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
@@ -129,13 +130,21 @@ class _ExternalPrinterSubSettingsState
           ? '테스트 출력 시도: COM=$_selectedComPort, baud=$_baudRate'
           : '테스트 출력 시도 (Android)',
     );
+
+    // 점유 충돌 등으로 PrinterJobQueue backoff(최대 137s) 가 다이얼로그 잠금을
+    // 길게 끌지 않도록 8초 timeout 부여. 시간 초과 시 잠금 해제 + 안내 표시,
+    // 백그라운드 큐는 계속 재시도(점유 풀리면 그때 자연 출력될 수 있음).
+    const testTimeout = Duration(seconds: 8);
     bool ok = false;
+    bool timedOut = false;
     try {
       ok = await ref
           .read(printServiceProvider)
-          .printTestPage(targetExternalOnly: true);
+          .printTestPage(targetExternalOnly: true)
+          .timeout(testTimeout);
+    } on TimeoutException {
+      timedOut = true;
     } catch (e) {
-      ok = false;
       if (!mounted) return;
       setState(() {
         _isTesting = false;
@@ -146,7 +155,11 @@ class _ExternalPrinterSubSettingsState
     if (!mounted) return;
     setState(() {
       _isTesting = false;
-      _testResult = ok ? '테스트 출력 성공' : '테스트 출력 실패';
+      if (timedOut) {
+        _testResult = '응답 지연 — 프린터 점유/오프라인 확인 후 다시 시도 (백그라운드 재시도 진행 중)';
+      } else {
+        _testResult = ok ? '테스트 출력 성공' : '테스트 출력 실패';
+      }
     });
   }
 

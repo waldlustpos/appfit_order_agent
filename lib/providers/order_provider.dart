@@ -1184,13 +1184,16 @@ class Order extends _$Order {
           logger.d("Order cancellation queued locally: $orderId");
         }
 
-        // 취소 영수증 출력 로직 (API 성공 후 즉시 실행)
-        try {
-          await _outputService.printCancelReceiptById(
-            orderId: orderId,
-            storeId: storeId,
-          );
-        } catch (printError, stackTrace) {
+        // 취소 영수증 출력은 fire-and-forget 으로 background 진행.
+        // PrinterJobQueue 가 backoff 7회 (최대 137s) 재시도와 onFinalFailure
+        // 콜백을 이미 책임지므로 호출자(취소 다이얼로그)는 결과를 기다리지 않는다.
+        // await 하면 프린터 점유 충돌 등으로 다이얼로그가 최대 137s 까지 닫히지 않는 사고가 난다.
+        unawaited(_outputService
+            .printCancelReceiptById(
+          orderId: orderId,
+          storeId: storeId,
+        )
+            .catchError((Object printError, StackTrace stackTrace) {
           if (printError is Exception &&
               printError.toString().contains("키오스크 주문은 현재 표시되지 않도록 설정되었습니다")) {
             logger.w(
@@ -1199,7 +1202,7 @@ class Order extends _$Order {
             logger.e('Error printing cancelled order receipt',
                 error: printError, stackTrace: stackTrace);
           }
-        }
+        }));
 
         return true;
       } else {
