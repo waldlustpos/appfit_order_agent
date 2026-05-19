@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:appfit_order_agent/services/external_receipt_printer.dart';
+import 'package:appfit_order_agent/services/label_printer/label_printer_options.dart';
 import 'package:appfit_order_agent/services/label_printer/windows/windows_label_printer_backend.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/services/printer_job_queue.dart';
@@ -487,6 +488,26 @@ class PrintService {
       if (!useLabel) {
         logger.w('Label printer is disabled in settings.');
         return false;
+      }
+
+      // Windows: autoreplyprint.dll FFI 직접 호출 — MethodChannel 'printLabel' 핸들러가
+      // Windows runner 측에 없어 invokeMethod 가 무반응이라, backend 를 직접 호출한다.
+      // Android 의 기존 MethodChannel 경로는 아래 else 로 보존.
+      if (Platform.isWindows) {
+        return await WindowsLabelPrinterBackend.instance.printPng(
+          pngBytes: imageBytes,
+          width: LabelPainter.width.toInt(),
+          height: LabelPainter.height.toInt(),
+          options: LabelPrinterOptions(
+            autoReplyMode: _preferenceService.getLabelAutoReplyMode(),
+            useFeedToTear: _preferenceService.getLabelUseFeedToTear(),
+            useBackToPrint: _preferenceService.getLabelUseBackToPrint(),
+            useCalibrate: _preferenceService.getLabelUseCalibrate(),
+          ),
+          orderNo: orderNo,
+          labelIndex: labelIndex,
+          totalLabels: totalLabels,
+        );
       }
 
       final result = await platform.invokeMethod<bool>('printLabel', {

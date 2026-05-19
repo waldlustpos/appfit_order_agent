@@ -10,11 +10,8 @@ import 'package:appfit_order_agent/services/print_service.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:appfit_order_agent/core/orders/sound_service.dart';
 import 'package:appfit_order_agent/exceptions/label_print_missing_exception.dart';
-import 'package:appfit_order_agent/services/label_printer/label_printer_options.dart';
-import 'package:appfit_order_agent/services/label_printer/windows/windows_label_printer_backend.dart';
 import 'package:appfit_order_agent/utils/print/label_painter.dart';
 import 'package:collection/collection.dart'; // [NEW] firstWhereOrNull 사용
-import 'dart:io' show Platform;
 
 import 'package:appfit_core/appfit_core.dart' show MonitoringService;
 import 'package:appfit_order_agent/constants/order_constants.dart';
@@ -320,7 +317,7 @@ class OutputService {
     return ok2;
   }
 
-  /// SDK 호출 1지점. Platform 별로 다른 backend 사용:
+  /// SDK 호출 1지점. 플랫폼 분기는 [PrintService.printLabel] 내부에서 처리:
   /// - Windows: autoreplyprint.dll FFI (CP_Label_DrawImageFromData, PNG bytes)
   /// - Android: MethodChannel (Caysn AutoReplyPrint Java SDK, PNG bytes)
   ///
@@ -333,27 +330,12 @@ class OutputService {
     required int labelIndex,
     required int totalLabels,
   }) async {
-    if (Platform.isWindows) {
-      final pref = ref.read(preferenceServiceProvider);
-      final options = LabelPrinterOptions(
-        autoReplyMode: pref.getLabelAutoReplyMode(),
-        useFeedToTear: pref.getLabelUseFeedToTear(),
-        useBackToPrint: pref.getLabelUseBackToPrint(),
-        useCalibrate: pref.getLabelUseCalibrate(),
-      );
-      return WindowsLabelPrinterBackend.instance.printPng(
-        pngBytes: imageBytes,
-        width: LabelPainter.width.toInt(),
-        height: LabelPainter.height.toInt(),
-        options: options,
-        orderNo: orderNo,
-        labelIndex: labelIndex,
-        totalLabels: totalLabels,
-      );
-    }
-    final result = await printService.printLabel(imageBytes,
-        orderNo: orderNo, labelIndex: labelIndex, totalLabels: totalLabels);
-    return result == true;
+    return printService.printLabel(
+      imageBytes,
+      orderNo: orderNo,
+      labelIndex: labelIndex,
+      totalLabels: totalLabels,
+    );
   }
 
   Future<void> printCancelReceiptById({
