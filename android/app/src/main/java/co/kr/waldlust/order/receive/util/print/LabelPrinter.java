@@ -299,7 +299,14 @@ public class LabelPrinter {
                 return portOk;
             }
 
-            result = printed && AutoReplyPrint.INSTANCE.CP_Port_IsOpened(hPrinter);
+            // ★ 중복 인쇄 방지 (PAPERNOFETCH 가드와 동일 정신):
+            // CP_Pos_QueryPrintResult 가 인쇄 완료까지 동기 블로킹하므로
+            // printed=true 면 종이가 실제 인쇄된 상태. 일부 라벨 프린터 펌웨어는
+            // 인쇄 직후 USB 를 detach 하는데, 그 결과 CP_Port_IsOpened 가 false 가 되어
+            // result=false 가 되고 Dart _printLabelWithRetry 가 1.5초 후 같은 라벨을
+            // 한 장 더 인쇄하는 사고가 발생한다 (USB_DEVICE_DETACHED 직후 케이스).
+            // 출력 자체가 끝났다면 후속 USB 이벤트로 실패 처리하지 않는다.
+            result = printed;
             long elapsed = System.currentTimeMillis() - startTime;
             log("#" + seq + " " + orderTag + " " + (result ? "출력끝" : "실패")
                     + " (" + elapsed + "ms)");
