@@ -1,10 +1,118 @@
 // 라벨 출력에 필요한 모델-중립 DTO.
 //
-// LabelPainter 와 LabelPrintOrchestrator 는 이 DTO 만 알면 되고,
-// OrderModel 어댑터에서 변환해 넣어준다.
+// OutputService.printOrderLabels 가 OrderModel 을 받아 fromOrder() 로 변환한 뒤
+// LabelPainter 에 라벨 1장씩 전달한다.
+//
+// fromOrder() 가 단일 진입점:
+// - TPCP 매장 카테고리 필터링 (filterMode + isTpcpStore + isReprint=false 일 때만)
+// - 옵션 카테고리 분류 (원두/온도/사이즈) — products 카탈로그 필요
+// - 메뉴 qty 만큼 라벨 펼치기
+// - QR 페이로드 생성 — 라벨마다 다름. 포맷:
+//     "orderNo|displayNum|labelIndex|labelTotal"
 
 import 'package:intl/intl.dart';
+
+import 'package:appfit_order_agent/constants/order_constants.dart';
+import 'package:appfit_order_agent/models/menu_option_model.dart';
+import 'package:appfit_order_agent/models/order_menu_model.dart';
 import 'package:appfit_order_agent/models/order_model.dart';
+import 'package:appfit_order_agent/models/product_model.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
+
+/// 라벨에 동봉되는 주문 식별 정보. 같은 주문의 모든 라벨에서 동일.
+class LabelOrderInfo {
+  const LabelOrderInfo({
+    required this.orderNo,
+    required this.displayNum,
+    required this.shopOrderNo,
+    required this.storeId,
+    required this.orderedAt,
+    this.storeName,
+    this.memo,
+    this.orderType,
+    this.userName,
+    this.totalAmount,
+    this.kioskId,
+    this.source,
+  });
+
+  final String orderNo;
+  final String displayNum;
+  final String shopOrderNo;
+  final String storeId;
+  final DateTime orderedAt;
+  final String? storeName;
+  final String? memo;
+  final String? orderType; // 'T'/'H'/'C'
+  final String? userName;
+  final double? totalAmount;
+  final String? kioskId;
+  final String? source;
+
+  factory LabelOrderInfo.fromOrder(OrderModel order) {
+    return LabelOrderInfo(
+      orderNo: order.orderNo,
+      displayNum: order.displayNum,
+      shopOrderNo: order.shopOrderNo,
+      storeId: order.storeId,
+      orderedAt: order.orderedAt,
+      storeName: order.storeName,
+      memo: order.note,
+      orderType: order.orderType.isNotEmpty ? order.orderType : null,
+      userName: order.userName,
+      totalAmount: order.totalAmount,
+      kioskId: order.kioskId.isNotEmpty ? order.kioskId : null,
+      source: order.source.isNotEmpty ? order.source : null,
+    );
+  }
+}
+
+/// 라벨에 인쇄되는 한 장의 메뉴 식별 정보 (라벨마다 다름).
+class LabelMenuInfo {
+  const LabelMenuInfo({
+    required this.shopItemId,
+    required this.itemName,
+    required this.itemPrice,
+    required this.qty,
+    required this.labelSeq,
+    required this.options,
+  });
+
+  final String shopItemId;
+  final String itemName;
+  final double itemPrice;
+
+  /// 메뉴 전체 수량 (예: 아메리카노 3잔이면 3).
+  final int qty;
+
+  /// 이 메뉴 안에서 몇 번째 라벨인지 (1..qty).
+  final int labelSeq;
+
+  final List<LabelOptionInfo> options;
+}
+
+class LabelOptionInfo {
+  const LabelOptionInfo({
+    required this.shopOptionId,
+    required this.optionName,
+    required this.optionPrice,
+    required this.qty,
+  });
+
+  final String shopOptionId;
+  final String optionName;
+  final double optionPrice;
+  final int qty;
+
+  factory LabelOptionInfo.fromModel(MenuOptionModel opt) {
+    return LabelOptionInfo(
+      shopOptionId: opt.shopOptionId,
+      optionName: opt.optionName,
+      optionPrice: opt.optionPrice,
+      qty: opt.qty,
+    );
+  }
+}
 
 class LabelPrintData {
   const LabelPrintData({
@@ -19,7 +127,8 @@ class LabelPrintData {
     this.sizeOption,
     this.memo,
     this.qrData,
-    this.showDetailQr = false,
+    this.orderInfo,
+    this.menuInfo,
   });
 
   final String menuName;
@@ -38,9 +147,9 @@ class LabelPrintData {
 
   final String? memo;
 
-  /// detail 영역 QR. kokonut 은 사용 안 함.
+  /// QR 페이로드 (Body 영역 좌측에 그려짐). fromOrder() 가 자동으로 채움.
+  /// 포맷: "orderNo|displayNum|labelIndex|labelTotal".
   final String? qrData;
-  final bool showDetailQr;
 
   /// 한 주문 묶음 안에서 1부터 시작하는 누적 인덱스 (예: 1, 2, 3, 4 ...).
   final int orderIndex;
@@ -48,45 +157,156 @@ class LabelPrintData {
   /// 같은 묶음의 전체 라벨 매수.
   final int orderTotal;
 
+  /// 주문 식별 정보 (모든 라벨이 공유). QR 페이로드의 store/order 영역에 들어간다.
+  final LabelOrderInfo? orderInfo;
+
+  /// 메뉴 식별 정보 (라벨마다 다름). QR 페이로드의 menu 영역에 들어간다.
+  final LabelMenuInfo? menuInfo;
+
   /// appfit [OrderModel] 을 라벨 묶음(메뉴 1개당 qty 장 반복) 으로 변환.
   ///
-  /// 단순 매핑 — 옵션 분류 (원두/온도/사이즈), TPCP 매장 카테고리 필터링은
-  /// product 카탈로그가 필요한 비즈니스 로직이라 OutputService 측에서 처리.
-  /// 이 어댑터는 분류 없이 옵션 리스트를 그대로 평면화한다.
-  /// - 옵션 수량 > 1 인 경우 "n 옵션명" 형태로 prefix.
-  static List<LabelPrintData> fromOrder(OrderModel order) {
-    final totalLabels =
-        order.menus.fold<int>(0, (sum, menu) => sum + menu.qty);
+  /// [products]: 옵션 카테고리 분류용 카탈로그.
+  /// [filterMode]: 0=전체, 1=와플만, 2=와플제외 (TPCP 매장에서만 동작).
+  /// [isTpcpStore]: true 일 때만 필터링 + 옵션 카테고리 분류(원두/온도/사이즈) 수행.
+  ///                false 면 단순 평면화 (기존 kokonut 등 동작 유지).
+  /// [isReprint]: true 면 카테고리 필터링 우회 (재출력은 전체 라벨 인쇄).
+  static List<LabelPrintData> fromOrder(
+    OrderModel order, {
+    List<ProductModel> products = const [],
+    int filterMode = 0,
+    bool isTpcpStore = false,
+    bool isReprint = false,
+  }) {
+    // 1) 메뉴 카테고리 필터링 (TPCP 매장 + 비-재출력 + filterMode != 0)
+    final List<OrderMenuModel> menusToPrint;
+    if (isTpcpStore && !isReprint && filterMode != 0) {
+      menusToPrint = order.menus.where((menu) {
+        final product = products.firstWhereOrNull(
+          (p) =>
+              p.productId == menu.shopItemId || p.internalId == menu.shopItemId,
+        );
+        // TKP0051, TKP0052 세트 상품은 필터 모드 무관 항상 출력
+        if (product != null &&
+            OrderCategoryCodes.setItemCodes.contains(product.productId)) {
+          return true;
+        }
+        final isWaffle = OrderCategoryCodes.waffleCategoryCodes
+            .contains(product?.categoryCode);
+        return filterMode == 1 ? isWaffle : !isWaffle;
+      }).toList();
+    } else {
+      menusToPrint = order.menus;
+    }
+
+    if (menusToPrint.isEmpty) return const [];
+
+    // 2) 전체 라벨 수는 필터 무관 전체 메뉴 수량 합산 (기존 동작 보존)
+    final totalLabels = order.menus.fold<int>(0, (sum, m) => sum + m.qty);
     if (totalLabels == 0) return const [];
+
+    // 3) 메뉴별 시작 인덱스 미리 계산 (전체 메뉴 기준)
+    final menuStartIndex = <int, int>{};
+    var runningIndex = 0;
+    for (final menu in order.menus) {
+      menuStartIndex[identityHashCode(menu)] = runningIndex;
+      runningIndex += menu.qty;
+    }
 
     final timeStr = DateFormat('MM/dd\nHH:mm:ss').format(order.orderedAt);
     final shopOrderNo =
         order.displayNum.isNotEmpty ? order.displayNum : order.shopOrderNo;
+    final orderInfo = LabelOrderInfo.fromOrder(order);
 
     final result = <LabelPrintData>[];
-    int running = 0;
-    for (final menu in order.menus) {
-      final options = menu.options
-          .map((opt) => opt.qty > 1
-              ? '${opt.qty} ${opt.optionName}'
-              : opt.optionName)
+
+    for (final menu in menusToPrint) {
+      // 옵션 카테고리 분류 (TPCP 매장에서만)
+      String? beanType;
+      String? temperature;
+      String? sizeOption;
+
+      if (isTpcpStore) {
+        for (final opt in menu.options) {
+          final product = products.firstWhereOrNull(
+            (p) =>
+                p.productId == opt.shopOptionId ||
+                p.internalId == opt.shopOptionId,
+          );
+          final categoryCode = product?.categoryCode;
+          if (categoryCode == null) continue;
+          if (OrderCategoryCodes.beanTypeCodes.contains(categoryCode)) {
+            beanType = opt.optionName;
+          } else if (OrderCategoryCodes.temperatureCodes
+              .contains(categoryCode)) {
+            temperature = opt.optionName;
+          } else if (OrderCategoryCodes.sizeOptionCodes
+              .contains(categoryCode)) {
+            sizeOption = opt.optionName;
+          }
+        }
+      }
+
+      // 서브정보로 표시되는 옵션은 하단 옵션 리스트에서 제외
+      final remainingOptions = menu.options.where((opt) =>
+          opt.optionName != beanType &&
+          opt.optionName != temperature &&
+          opt.optionName != sizeOption);
+
+      final flatOptions = remainingOptions
+          .map((opt) =>
+              opt.qty > 1 ? '${opt.qty} ${opt.optionName}' : opt.optionName)
           .where((name) => name.isNotEmpty)
           .toList();
 
-      for (int i = 0; i < menu.qty; i++) {
-        running += 1;
+      // QR menuInfo 의 options 는 분류 안 한 전체 옵션을 보존 (식별 목적)
+      final qrOptions =
+          menu.options.map((o) => LabelOptionInfo.fromModel(o)).toList();
+
+      for (var i = 0; i < menu.qty; i++) {
+        final labelIndex = menuStartIndex[identityHashCode(menu)]! + i + 1;
+        final menuInfo = LabelMenuInfo(
+          shopItemId: menu.shopItemId,
+          itemName: menu.itemName,
+          itemPrice: menu.itemPrice,
+          qty: menu.qty,
+          labelSeq: i + 1,
+          options: qrOptions,
+        );
+
         result.add(LabelPrintData(
           menuName: menu.itemName,
-          options: options,
+          options: flatOptions,
           shopOrderNo: shopOrderNo.isNotEmpty ? shopOrderNo : null,
           orderTime: timeStr,
+          beanType: beanType,
+          temperature: temperature,
+          sizeOption: sizeOption,
           memo: order.note,
-          orderIndex: running,
+          orderIndex: labelIndex,
           orderTotal: totalLabels,
+          orderInfo: orderInfo,
+          menuInfo: menuInfo,
+          qrData: _buildQrPayload(orderInfo, menuInfo, labelIndex, totalLabels),
         ));
       }
     }
     return result;
+  }
+
+  /// 라벨 1장의 QR 페이로드.
+  /// 포맷: "orderNo|displayNum|labelIndex|labelTotal".
+  static String _buildQrPayload(
+    LabelOrderInfo orderInfo,
+    LabelMenuInfo menuInfo,
+    int labelIndex,
+    int labelTotal,
+  ) {
+    final payload = '${orderInfo.orderNo}|${orderInfo.displayNum}'
+        '|$labelIndex|$labelTotal';
+    logger.d('[Label][QR] $labelIndex/$labelTotal'
+        ' ${menuInfo.itemName} (${menuInfo.labelSeq}/${menuInfo.qty})'
+        ' → $payload');
+    return payload;
   }
 
   /// 테스트 인쇄용 더미 데이터.
@@ -100,5 +320,14 @@ class LabelPrintData {
       orderIndex: 1,
       orderTotal: 1,
     );
+  }
+}
+
+extension _IterableFirstOrNull<T> on Iterable<T> {
+  T? firstWhereOrNull(bool Function(T) test) {
+    for (final e in this) {
+      if (test(e)) return e;
+    }
+    return null;
   }
 }

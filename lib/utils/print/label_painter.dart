@@ -15,12 +15,11 @@ class LabelPainter extends CustomPainter {
   final String? beanType; // 원두 타입 (예: Standard)
   final String? temperature; // 온도 정보 (예: HOT)
   final String? sizeOption; // 사이즈 정보 (예: Regular)
-  final String? qrData; // QR 데이터
+  final String? qrData; // QR 데이터 (Body 영역 좌측에 그려짐)
   final String? memo; // 주문 메모 (note)
   final ui.Image? logoImage; // 로고 이미지
   final int? orderIndex; // 현재 라벨 번호 (예: 1)
   final int? orderTotal; // 전체 라벨 수 (예: 10)
-  final bool showDetailQr; // detail 영역 QR 표시 여부
 
   LabelPainter({
     required this.menuName,
@@ -35,7 +34,6 @@ class LabelPainter extends CustomPainter {
     this.logoImage,
     this.orderIndex,
     this.orderTotal,
-    this.showDetailQr = true,
   });
 
   // --- Logo Cache ---
@@ -322,14 +320,6 @@ class LabelPainter extends CustomPainter {
   void _drawDetail(Canvas canvas, Size size, double startY) {
     final paint = Paint()..color = Colors.black;
 
-    final bool hasQr = showDetailQr && qrData != null && qrData!.isNotEmpty;
-    const double detailQrSize = 75;
-
-    // QR 영역 왼쪽 경계
-    final double qrAreaLeft = hasQr
-        ? size.width - defaultMargin - detailQrSize - 10
-        : double.infinity;
-
     // 상단 수평 구분선
     canvas.drawLine(
       Offset(defaultMargin, startY),
@@ -337,56 +327,28 @@ class LabelPainter extends CustomPainter {
       paint..strokeWidth = 1,
     );
 
-    if (hasQr) {
-      // "detail" 타이틀: 왼쪽 영역 중앙
-      final double leftCenterX =
-          defaultMargin + (qrAreaLeft - defaultMargin) / 2;
-      _drawText(
-        canvas,
-        "detail",
-        Offset(leftCenterX, startY + spacingSectionSmall),
-        fontSize: fsSectionTitle,
-        isBold: true,
-        align: TextAlign.center,
-      );
+    // "detail" 타이틀 (가운데 정렬)
+    _drawText(
+      canvas,
+      "detail",
+      Offset(size.width / 2, startY + spacingSectionSmall),
+      fontSize: fsSectionTitle,
+      isBold: true,
+      align: TextAlign.center,
+    );
 
-      // QR 코드: 타이틀과 같은 Y, 오른쪽 배치
-      final qrPainter = QrPainter(
-        data: qrData!,
-        version: QrVersions.auto,
-        errorCorrectionLevel: QrErrorCorrectLevel.L,
-      );
-      canvas.save();
-      canvas.translate(qrAreaLeft + 10, startY + spacingSectionSmall);
-      qrPainter.paint(canvas, const Size(detailQrSize, detailQrSize));
-      canvas.restore();
-    } else {
-      // QR 없을 때: 기존 레이아웃
-      _drawText(
-        canvas,
-        "detail",
-        Offset(size.width / 2, startY + spacingSectionSmall),
-        fontSize: fsSectionTitle,
-        isBold: true,
-        align: TextAlign.center,
-      );
-    }
-
-    // 메모 텍스트 (왼쪽)
+    // 메모 텍스트 (전체 폭)
     final double contentY =
         startY + spacingSectionSmall + fsSectionTitle + spacingSectionSmall;
-    final double memoMaxWidth = hasQr
-        ? qrAreaLeft - defaultMargin - 5
-        : size.width - (defaultMargin * 2);
-
     _drawText(
       canvas,
       memo ?? "",
-      Offset(defaultMargin, contentY),
+      Offset(size.width / 2, contentY),
       fontSize: fsDetailContent,
-      maxWidth: memoMaxWidth,
+      maxWidth: size.width - (defaultMargin * 2),
       maxLines: 2,
       height: 1.3,
+      align: TextAlign.center,
     );
   }
 
@@ -473,7 +435,6 @@ class LabelPainter extends CustomPainter {
     String? memo,
     int? orderIndex,
     int? orderTotal,
-    bool showDetailQr = true,
   }) async {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
@@ -511,7 +472,6 @@ class LabelPainter extends CustomPainter {
       logoImage: logo,
       orderIndex: orderIndex,
       orderTotal: orderTotal,
-      showDetailQr: showDetailQr,
     );
 
     painter.paint(canvas, const Size(width, height));

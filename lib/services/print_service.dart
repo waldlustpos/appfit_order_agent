@@ -102,8 +102,7 @@ class PrintService {
         message:
             '[PrinterQueue] FINAL FAILURE id=${job.id} job=${job.jobName} kind=${job.kind} attempts=${job.attempt} result=$result',
       );
-      logger.e(
-          '[PrinterQueue] 출력 최종 실패 job=${job.jobName} result=$result');
+      logger.e('[PrinterQueue] 출력 최종 실패 job=${job.jobName} result=$result');
     };
   }
 
@@ -462,7 +461,6 @@ class PrintService {
         shopOrderNo: 'TEST',
         orderTime: ts,
         memo: '테스트 출력입니다.',
-        showDetailQr: false,
       );
       return await printLabel(bytes, orderNo: 'TEST');
     } catch (e, s) {

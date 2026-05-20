@@ -468,7 +468,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           memo: qr,
           orderIndex: i + 1,
           orderTotal: total,
-          showDetailQr: false,
         );
         final result = await printService.printLabel(
           imageBytes,

@@ -1,20 +1,18 @@
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:appfit_order_agent/models/order_model.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
-import 'package:appfit_order_agent/providers/product_provider.dart'; // [NEW] 상품 목록 연동
+import 'package:appfit_order_agent/providers/product_provider.dart';
+import 'package:appfit_order_agent/services/label_printer/label_print_data.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/services/print_service.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:appfit_order_agent/core/orders/sound_service.dart';
 import 'package:appfit_order_agent/exceptions/label_print_missing_exception.dart';
 import 'package:appfit_order_agent/utils/print/label_painter.dart';
-import 'package:collection/collection.dart'; // [NEW] firstWhereOrNull 사용
 
 import 'package:appfit_core/appfit_core.dart' show MonitoringService;
-import 'package:appfit_order_agent/constants/order_constants.dart';
 import '../../providers/kds_unified_providers.dart';
 
 class OutputService {
@@ -103,127 +101,63 @@ class OutputService {
       logToFile(tag: LogTag.PLATFORM, message: entryMsg);
       final printService = ref.read(printServiceProvider);
 
-      // 전체 상품 목록 로드 (완성된 모델 대기)
+      // 라벨 묶음 생성 — 카테고리 필터링, 옵션 분류, QR JSON 페이로드,
+      // 메뉴별 라벨 번호 계산을 모두 LabelPrintData.fromOrder() 가 처리.
       final allProducts = await ref.read(productProvider.future);
-
-      // 카테고리 필터링 (재출력이 아닌 자동 출력 시에만 적용, TPCP 매장 전용)
-      // filterMode: 0=전체, 1=와플만, 2=와플제외
       final prefService = ref.read(preferenceServiceProvider);
-      final filterMode = prefService.getLabelFilterMode();
-      final isTpcp = prefService.isTpcpStore();
-      final menusToprint = (!isReprint && filterMode != 0 && isTpcp)
-          ? orderToPrint.menus.where((menu) {
-              final product = allProducts.firstWhereOrNull(
-                (p) =>
-                    p.productId == menu.shopItemId ||
-                    p.internalId == menu.shopItemId,
-              );
-              // TKP0051, TKP0052은 필터 모드에 상관없이 항상 출력 (product.productId 기준)
-              if (product != null &&
-                  OrderCategoryCodes.setItemCodes.contains(product.productId))
-                return true;
-              final isWaffle = OrderCategoryCodes.waffleCategoryCodes
-                  .contains(product?.categoryCode);
-              return filterMode == 1 ? isWaffle : !isWaffle;
-            }).toList()
-          : orderToPrint.menus;
+      final labels = LabelPrintData.fromOrder(
+        orderToPrint,
+        products: allProducts,
+        filterMode: prefService.getLabelFilterMode(),
+        isTpcpStore: prefService.isTpcpStore(),
+        isReprint: isReprint,
+      );
 
-      if (menusToprint.isEmpty) return;
+      if (labels.isEmpty) return;
 
-      // 전체 라벨 수 계산 (필터 무관, 전체 메뉴 수량 합산)
-      final int totalLabels =
-          orderToPrint.menus.fold(0, (sum, m) => sum + m.qty);
-
-      // 전체 메뉴 순서 기준으로 각 메뉴의 시작 인덱스 미리 계산
-      final menuStartIndex = <int, int>{};
-      int runningIndex = 0;
-      for (final menu in orderToPrint.menus) {
-        menuStartIndex[identityHashCode(menu)] = runningIndex;
-        runningIndex += menu.qty;
-      }
+      final totalLabels = labels.first.orderTotal;
 
       // 누락 카운터 — 한 주문 내에서 자동 재시도(1회) 마저 실패한 라벨 추적
       int failedLabels = 0;
       final List<int> failedIndices = [];
 
-      for (final menu in menusToprint) {
-        // 서브 정보 추출 (원두, 온도, 사이즈)
-        String? beanType;
-        String? temperature;
-        String? sizeOption;
+      for (final data in labels) {
+        final genStart = DateTime.now();
+        final imageBytes = await LabelPainter.generateLabelImage(
+          menuName: data.menuName,
+          options: data.options,
+          shopOrderNo: data.shopOrderNo,
+          orderTime: data.orderTime,
+          beanType: data.beanType,
+          temperature: data.temperature,
+          sizeOption: data.sizeOption,
+          qrData: data.qrData,
+          memo: data.memo,
+          orderIndex: data.orderIndex,
+          orderTotal: data.orderTotal,
+        );
+        final genMs = DateTime.now().difference(genStart).inMilliseconds;
 
-        for (final opt in menu.options) {
-          // 상품 목록에서 옵션 상품 코드로 카테고리 정보 찾기
-          final product = allProducts.firstWhereOrNull(
-            (p) =>
-                p.productId == opt.shopOptionId ||
-                p.internalId == opt.shopOptionId,
-          );
-
-          final categoryCode = product?.categoryCode;
-          if (categoryCode != null &&
-              OrderCategoryCodes.beanTypeCodes.contains(categoryCode)) {
-            beanType = opt.optionName;
-          }
-          if (categoryCode != null &&
-              OrderCategoryCodes.temperatureCodes.contains(categoryCode)) {
-            temperature = opt.optionName;
-          }
-          if (categoryCode != null &&
-              OrderCategoryCodes.sizeOptionCodes.contains(categoryCode)) {
-            sizeOption = opt.optionName;
-          }
-        }
-
-        // 서브정보로 표시된 옵션들은 하단 옵션 리스트에서 제외
-        final filteredOptions = menu.options
-            .where((opt) =>
-                opt.optionName != beanType &&
-                opt.optionName != temperature &&
-                opt.optionName != sizeOption)
-            .map((e) => e.qty > 1 ? '${e.qty} ${e.optionName}' : e.optionName)
-            .toList();
-
-        // 해당 메뉴 수량만큼 반복 출력 (순번별로 이미지 생성)
-        for (int i = 0; i < menu.qty; i++) {
-          final labelIndex = menuStartIndex[identityHashCode(menu)]! + i + 1;
-          final genStart = DateTime.now();
-          final imageBytes = await LabelPainter.generateLabelImage(
-            menuName: menu.itemName,
-            options: filteredOptions,
-            shopOrderNo: orderToPrint.displayNum,
-            orderTime:
-                DateFormat('MM/dd\nHH:mm:ss').format(orderToPrint.orderedAt),
-            beanType: beanType,
-            temperature: temperature,
-            sizeOption: sizeOption,
-            //qrData: orderToPrint.orderNo,
-            memo: orderToPrint.note,
-            orderIndex: labelIndex,
-            orderTotal: totalLabels,
-          );
-          final genMs = DateTime.now().difference(genStart).inMilliseconds;
-
-          // samplelabel 표준 흐름: CP_Pos_QueryPrintResult 가 인쇄 완료까지 동기 블로킹.
-          // Java 측이 PAPERNOFETCH 무한 대기로 사용자 떼기까지 누락 0 보장 — 여기서는
-          // ERROR/포트오류/연결끊김 같은 다른 종류 실패만 1회 자동 재시도.
-          final printStart = DateTime.now();
-          final ok = await _printLabelWithRetry(
-            printService: printService,
-            imageBytes: imageBytes,
-            orderNo: orderToPrint.displayNum,
-            labelIndex: labelIndex,
-            totalLabels: totalLabels,
-          );
-          final printMs = DateTime.now().difference(printStart).inMilliseconds;
-          logToFile(
-              tag: ok ? LogTag.PLATFORM : LogTag.WARNING,
-              message: '[Label] $num $labelIndex/$totalLabels ${menu.itemName}'
-                  ' ${ok ? "출력끝" : "실패"} (gen=${genMs}ms, print=${printMs}ms)');
-          if (!ok) {
-            failedLabels++;
-            failedIndices.add(labelIndex);
-          }
+        // samplelabel 표준 흐름: CP_Pos_QueryPrintResult 가 인쇄 완료까지 동기 블로킹.
+        // Java 측이 PAPERNOFETCH 무한 대기로 사용자 떼기까지 누락 0 보장 — 여기서는
+        // ERROR/포트오류/연결끊김 같은 다른 종류 실패만 1회 자동 재시도.
+        final printStart = DateTime.now();
+        final ok = await _printLabelWithRetry(
+          printService: printService,
+          imageBytes: imageBytes,
+          orderNo: orderToPrint.displayNum,
+          labelIndex: data.orderIndex,
+          totalLabels: data.orderTotal,
+        );
+        final printMs = DateTime.now().difference(printStart).inMilliseconds;
+        logToFile(
+            tag: ok ? LogTag.PLATFORM : LogTag.WARNING,
+            message:
+                '[Label] $num ${data.orderIndex}/${data.orderTotal} ${data.menuName}'
+                ' ${ok ? "출력끝" : "실패"} (gen=${genMs}ms, print=${printMs}ms)');
+        if (!ok) {
+          failedLabels++;
+          failedIndices.add(data.orderIndex);
         }
       }
 
