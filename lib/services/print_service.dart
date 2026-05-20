@@ -251,7 +251,7 @@ class PrintService {
 
           if (isKnownLabelPrinter) {
             isLabelConnected = true;
-            identification = ' [라벨 프린터 식별됨]';
+            identification = ' [라벨 프린터 식별됨] VID:$vendorId / PID:$productId';
           }
           // 2. 외부 영수증 프린터 식별
           // Posbank VID: 0x1552 (5458)
