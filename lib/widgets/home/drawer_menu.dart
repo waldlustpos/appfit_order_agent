@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../constants/app_styles.dart';
+import '../../providers/kds_unified_providers.dart';
 import '../../providers/store_provider.dart';
 import '../../providers/app_info_provider.dart';
 import '../../services/platform_service.dart';
@@ -18,6 +19,7 @@ class DrawerMenu extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isKdsMode = ref.watch(kdsModeProvider);
     final store = ref.watch(storeProvider);
     final appInfoAsync = ref.watch(appInfoProvider);
 
@@ -39,6 +41,21 @@ class DrawerMenu extends ConsumerWidget {
             onClose: () => Navigator.pop(context),
           ),
           const SizedBox(height: AppSpacing.s8),
+          if (isKdsMode) ...[
+            _DrawerMenuItem(
+              icon: Icons.inventory_2_outlined,
+              label: '상품관리',
+              isSelected: false,
+              onTap: () async {
+                await onItemSelected(2);
+                logToFile(tag: LogTag.UI_ACTION, message: '상품관리 선택 (KDS)');
+              },
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: AppSpacing.s8),
+              child: Divider(color: AppStyles.gray2),
+            ),
+          ],
           _DrawerMenuItem(
             icon: Icons.settings_outlined,
             label: t.drawer.settings,

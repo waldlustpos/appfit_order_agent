@@ -255,7 +255,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           onLogout: _exitApp,
           onMinimize: _handleMinimize,
           scaffoldKey: _scaffoldKey,
-          isSettingsScreen: _currentIndex == 1,
+          isSettingsScreen: _currentIndex == 1 || _currentIndex == 2,
           onBackPressed: () {
             setState(() {
               _currentIndex = 0;
@@ -277,9 +277,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 300),
                 transitionBuilder: (Widget child, Animation<double> animation) {
-                  final bool isSettings = child.key == const ValueKey(1);
+                  final bool slidesFromRight = child.key == const ValueKey(1) ||
+                      child.key == const ValueKey(2);
                   final offsetAnimation = Tween<Offset>(
-                    begin: Offset(isSettings ? 1.0 : -1.0, 0.0),
+                    begin: Offset(slidesFromRight ? 1.0 : -1.0, 0.0),
                     end: Offset.zero,
                   ).animate(animation);
 
@@ -293,7 +294,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 },
                 child: _currentIndex == 0
                     ? const HomeContent(key: ValueKey(0))
-                    : const SettingsScreen(key: ValueKey(1)),
+                    : _currentIndex == 1
+                        ? const SettingsScreen(key: ValueKey(1))
+                        : const ProductManagementScreen(key: ValueKey(2)),
               ),
             ),
           ],
@@ -449,6 +452,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   Future<void> _onDrawerItemSelected(int index) async {
     if (index == -1) {
       await _handleLogout();
+    } else if (index == 2) {
+      setState(() => _currentIndex = 2);
+      _scaffoldKey.currentState?.closeDrawer();
     } else {
       setState(() {
         _currentIndex = index;
