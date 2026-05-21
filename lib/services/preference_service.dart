@@ -276,13 +276,25 @@ class PreferenceService {
   }
 
   // ID 저장
+  //
+  // 매장 ID는 항상 대문자로 정규화한다. AppFit 토큰/소켓 채널/인터셉터에서
+  // currentStoreId(=getId())를 그대로 사용하므로, 대소문자가 섞이면 토큰 캐시
+  // shopCode mismatch가 발생해 매 요청마다 토큰이 재발급된다. 로그인 화면이
+  // 대문자로 토큰을 발급한 뒤 _saveLoginInfo()가 소문자로 저장하면서 다음 API
+  // 호출에서 캐시가 깨지는 사고를 방지한다.
   Future<void> saveId(String id) async {
-    await _prefs.setString(KEY_MID, id);
+    final normalized = id.trim().toUpperCase();
+    await _prefs.setString(KEY_MID, normalized);
   }
 
   // ID 조회
+  //
+  // 본 변경 이전에 소문자로 저장된 레거시 값이 남아있을 수 있어
+  // 읽는 시점에서도 대문자로 정규화한다. (saveId()와 동일한 규칙)
   String? getId() {
-    return _prefs.getString(KEY_MID);
+    final raw = _prefs.getString(KEY_MID);
+    if (raw == null) return null;
+    return raw.trim().toUpperCase();
   }
 
   // 비밀번호 저장 (FlutterSecureStorage 사용)

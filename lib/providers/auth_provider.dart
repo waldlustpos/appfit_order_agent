@@ -79,6 +79,22 @@ class Auth extends _$Auth {
     state = state.copyWith(
         connectionStatus: ConnectionStatus.connecting, clearError: true);
 
+    // 진입부: 매장 prefix 전환 감지 — 저장된 토큰의 shopCode와 다르면
+    // 이전 자격증명(토큰/비밀번호/projectId/apiKey)을 모두 정리해
+    // stale 토큰 재사용 + 잘못된 Project-ID 헤더 주입을 방지한다.
+    final tokenManager = ref.read(appFitTokenManagerProvider);
+    final storedTokenShopCode = await tokenManager.getStoredTokenShopCode();
+    if (storedTokenShopCode != null &&
+        storedTokenShopCode.isNotEmpty &&
+        storedTokenShopCode != storeId) {
+      logToFile(
+        tag: LogTag.SYSTEM,
+        message:
+            '[Auth] 매장 전환 감지 ($storedTokenShopCode → $storeId) — 이전 자격증명 정리',
+      );
+      await _cleanupCredentials(tokenManager);
+    }
+
     try {
       // 1. AppFit (v2) Login Only
 
@@ -88,13 +104,13 @@ class Auth extends _$Auth {
 
       try {
         // AppFit Token Manager를 통해 토큰 발급 (로그인)
-        final tokenManager = ref.read(appFitTokenManagerProvider);
         final t = await tokenManager.getValidToken(storeId, password: password);
         // 추가: 장시간 세션 토큰 갱신용 - SecureStorage에 비밀번호 보안 저장
         await tokenManager.savePassword(password);
 
         logToFile(
-            tag: LogTag.API, message: '[Auth] V2 Login (Token Issue) Success');
+            tag: LogTag.API,
+            message: '[Auth] V2 Token Acquired (shopCode=$storeId)');
 
         // 프로젝트 정보 및 매장 정보 조회 (API 연동 테스트)
         // Service alias used from api_service.dart
@@ -117,6 +133,8 @@ class Auth extends _$Auth {
               message: '[Auth] V2 Store Info Validation Success');
         } catch (e, s) {
           logger.e('[Auth] V2 Data Fetch Failed', error: e, stackTrace: s);
+          // stale 토큰/projectId/apiKey/password 잔존 차단 — 다음 시도 깨끗한 상태
+          await _cleanupCredentials(tokenManager);
           state = state.copyWith(
               connectionStatus: ConnectionStatus.disconnected,
               errorMessage: '데이터 조회 실패: $e');
@@ -190,6 +208,7 @@ class Auth extends _$Auth {
         logToFile(
             tag: LogTag.ERROR,
             message: '[Auth] V2 Login Failed: $e | diag=$diag');
+        await _cleanupCredentials(tokenManager);
         state = state.copyWith(
             connectionStatus: ConnectionStatus.disconnected,
             errorMessage: errorMsg);
@@ -198,11 +217,32 @@ class Auth extends _$Auth {
     } catch (e, s) {
       logger.e('Native login error', error: e, stackTrace: s);
       final errorMsg = '로그인 중 오류가 발생했습니다: $e';
+      await _cleanupCredentials(tokenManager);
       state = state.copyWith(
           connectionStatus: ConnectionStatus.disconnected,
           errorMessage: errorMsg);
       return (false, null, errorMsg);
     }
+  }
+
+  /// 로그인 진입/실패 시 자격증명 일괄 정리.
+  ///
+  /// 토큰(메모리+SecureStorage) + 비밀번호 + Project ID/API Key 모두 삭제해
+  /// 다음 로그인 시도가 stale 자격증명 없이 깨끗한 상태에서 시작되도록 한다.
+  /// best-effort: 개별 실패는 무시한다.
+  Future<void> _cleanupCredentials(
+      appfit_core.AppFitTokenManager tokenManager) async {
+    try {
+      await tokenManager.clearToken();
+    } catch (_) {}
+    try {
+      await tokenManager.clearPassword();
+    } catch (_) {}
+    try {
+      final secureStorage = SecureStorageService();
+      await secureStorage.delete(SecureStorageService.appFitProjectId);
+      await secureStorage.delete(SecureStorageService.appFitProjectApiKey);
+    } catch (_) {}
   }
 
   /// 로그아웃 — credentials/토큰/소켓을 모두 정리하는 단일 진입점
