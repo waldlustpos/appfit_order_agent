@@ -52,6 +52,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _labelUseFeedToTear = true;
   bool _labelUseBackToPrint = true;
   bool _labelUseCalibrate = false;
+  bool _labelUseQrPrint = false;
   int _labelFilterMode = 0;
 
   bool _isKioskOrderVisible = false;
@@ -115,6 +116,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _labelUseFeedToTear = _preferenceService.getLabelUseFeedToTear();
       _labelUseBackToPrint = _preferenceService.getLabelUseBackToPrint();
       _labelUseCalibrate = _preferenceService.getLabelUseCalibrate();
+      _labelUseQrPrint = _preferenceService.getLabelUseQrPrint();
       _labelFilterMode = _preferenceService.getLabelFilterMode();
 
       _isKioskOrderVisible = _preferenceService.getShowKioskOrder();
@@ -155,6 +157,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await _preferenceService.setLabelUseFeedToTear(_labelUseFeedToTear);
       await _preferenceService.setLabelUseBackToPrint(_labelUseBackToPrint);
       await _preferenceService.setLabelUseCalibrate(_labelUseCalibrate);
+      await _preferenceService.setLabelUseQrPrint(_labelUseQrPrint);
       await _preferenceService.setLabelFilterMode(_labelFilterMode);
       await _preferenceService.setShowKioskOrder(_isKioskOrderVisible);
       await _preferenceService.setKioskPrintAndSound(_isKioskOrderSoundEnabled);
@@ -594,6 +597,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               labelUseFeedToTear: _labelUseFeedToTear,
               labelUseBackToPrint: _labelUseBackToPrint,
               labelUseCalibrate: _labelUseCalibrate,
+              labelUseQrPrint: _labelUseQrPrint,
               onVolumeChanged: (v) => setState(() => _notificationVolume = v),
               onVolumeChangeEnd: (_) => _saveSettings(),
               onSoundChanged: (v) => _setAndSave(() => _selectedSound = v),
@@ -642,6 +646,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   _setAndSave(() => _labelUseBackToPrint = v),
               onCalibrateChanged: (v) =>
                   _setAndSave(() => _labelUseCalibrate = v),
+              onUseQrPrintChanged: (v) =>
+                  _setAndSave(() => _labelUseQrPrint = v),
               isParanmanjanTestRunning: _isQrTestRunning,
               onParanmanjanTest: _runQrTestSequence,
             ),

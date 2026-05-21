@@ -8,7 +8,14 @@
 // - 옵션 카테고리 분류 (원두/온도/사이즈) — products 카탈로그 필요
 // - 메뉴 qty 만큼 라벨 펼치기
 // - QR 페이로드 생성 — 라벨마다 다름. 포맷:
-//     "orderNo|displayNum|labelIndex|labelTotal"
+//     "{OrderNo}-{ShopItemId}-{CupIdx}-{ShopCode}-{YYYYMMDD}-{DisplayNo}"
+//     예: ORD-123456-M1-0-SHOP001-20260520-0795
+//   * OrderNo   : 주문 식별자 (orderNo, '-' 포함 가능)
+//   * ShopItemId: 상품(메뉴) 식별자
+//   * CupIdx    : 같은 메뉴 내 0-based sequence (중복 스캔 방지)
+//   * ShopCode  : 매장 코드 (storeId)
+//   * YYYYMMDD  : 매장 영업일 (orderedAt 의 날짜 부분)
+//   * DisplayNo : display no 4자리 (zero-padded)
 
 import 'package:intl/intl.dart';
 
@@ -148,7 +155,7 @@ class LabelPrintData {
   final String? memo;
 
   /// QR 페이로드 (Body 영역 좌측에 그려짐). fromOrder() 가 자동으로 채움.
-  /// 포맷: "orderNo|displayNum|labelIndex|labelTotal".
+  /// 포맷: "{OrderNo}-{ShopItemId}-{CupIdx}-{ShopCode}-{YYYYMMDD}-{DisplayNo}".
   final String? qrData;
 
   /// 한 주문 묶음 안에서 1부터 시작하는 누적 인덱스 (예: 1, 2, 3, 4 ...).
@@ -294,15 +301,26 @@ class LabelPrintData {
   }
 
   /// 라벨 1장의 QR 페이로드.
-  /// 포맷: "orderNo|displayNum|labelIndex|labelTotal".
+  ///
+  /// 포맷: "{OrderNo}-{ShopItemId}-{CupIdx}-{ShopCode}-{YYYYMMDD}-{DisplayNo}".
+  /// 예: ORD-123456-M1-0-SHOP001-20260520-0795
+  ///
+  /// - OrderNo   : 주문 식별자
+  /// - ShopItemId: 메뉴 식별자
+  /// - CupIdx    : 같은 메뉴 안에서 0-based 라벨 sequence (중복 스캔 방지)
+  /// - ShopCode  : storeId
+  /// - YYYYMMDD  : orderedAt 의 날짜 (별도 영업일 필드가 없어 주문 시각 기준)
+  /// - DisplayNo : display no 4자리 (LabelOrderInfo.displayNum)
   static String _buildQrPayload(
     LabelOrderInfo orderInfo,
     LabelMenuInfo menuInfo,
     int labelIndex,
     int labelTotal,
   ) {
-    final payload = '${orderInfo.orderNo}|${orderInfo.displayNum}'
-        '|$labelIndex|$labelTotal';
+    final dateStr = DateFormat('yyyyMMdd').format(orderInfo.orderedAt);
+    final cupIdx = menuInfo.labelSeq - 1; // 1-based labelSeq → 0-based cupIdx
+    final payload = '${orderInfo.orderNo}-${menuInfo.shopItemId}-$cupIdx';
+    //'-${orderInfo.storeId}-$dateStr-${orderInfo.displayNum}';
     logger.d('[Label][QR] $labelIndex/$labelTotal'
         ' ${menuInfo.itemName} (${menuInfo.labelSeq}/${menuInfo.qty})'
         ' → $payload');

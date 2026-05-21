@@ -40,6 +40,7 @@ class SettingsRightPanel extends ConsumerStatefulWidget {
     required this.labelUseFeedToTear,
     required this.labelUseBackToPrint,
     required this.labelUseCalibrate,
+    required this.labelUseQrPrint,
     // 콜백
     required this.onVolumeChanged,
     required this.onVolumeChangeEnd,
@@ -59,6 +60,7 @@ class SettingsRightPanel extends ConsumerStatefulWidget {
     required this.onFeedToTearChanged,
     required this.onBackToPrintChanged,
     required this.onCalibrateChanged,
+    required this.onUseQrPrintChanged,
     required this.isParanmanjanTestRunning,
     required this.onParanmanjanTest,
   });
@@ -83,6 +85,7 @@ class SettingsRightPanel extends ConsumerStatefulWidget {
   final bool labelUseFeedToTear;
   final bool labelUseBackToPrint;
   final bool labelUseCalibrate;
+  final bool labelUseQrPrint;
 
   final void Function(int) onVolumeChanged;
   final void Function(double) onVolumeChangeEnd;
@@ -102,6 +105,7 @@ class SettingsRightPanel extends ConsumerStatefulWidget {
   final void Function(bool) onFeedToTearChanged;
   final void Function(bool) onBackToPrintChanged;
   final void Function(bool) onCalibrateChanged;
+  final void Function(bool) onUseQrPrintChanged;
   final bool isParanmanjanTestRunning;
   final VoidCallback onParanmanjanTest;
 
@@ -598,10 +602,12 @@ class _SettingsRightPanelState extends ConsumerState<SettingsRightPanel> {
                 labelUseFeedToTear: widget.labelUseFeedToTear,
                 labelUseBackToPrint: widget.labelUseBackToPrint,
                 labelUseCalibrate: widget.labelUseCalibrate,
+                labelUseQrPrint: widget.labelUseQrPrint,
                 onAutoReplyModeChanged: widget.onAutoReplyModeChanged,
                 onFeedToTearChanged: widget.onFeedToTearChanged,
                 onBackToPrintChanged: widget.onBackToPrintChanged,
                 onCalibrateChanged: widget.onCalibrateChanged,
+                onUseQrPrintChanged: widget.onUseQrPrintChanged,
                 isParanmanjanTestRunning: widget.isParanmanjanTestRunning,
                 onParanmanjanTest: widget.onParanmanjanTest,
               ),

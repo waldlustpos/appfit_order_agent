@@ -467,7 +467,7 @@ class LabelPainter extends CustomPainter {
       beanType: beanType,
       temperature: temperature,
       sizeOption: sizeOption,
-      qrData: qrData,
+      qrData: qrData, // QR 인쇄는 일단 보류
       memo: memo,
       logoImage: logo,
       orderIndex: orderIndex,

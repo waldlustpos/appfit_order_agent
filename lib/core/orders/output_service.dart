@@ -131,7 +131,7 @@ class OutputService {
           beanType: data.beanType,
           temperature: data.temperature,
           sizeOption: data.sizeOption,
-          qrData: data.qrData,
+          qrData: prefService.getLabelUseQrPrint() ? data.qrData : null,
           memo: data.memo,
           orderIndex: data.orderIndex,
           orderTotal: data.orderTotal,

@@ -23,21 +23,25 @@ class SettingsLabelTestSection extends ConsumerStatefulWidget {
     required this.labelUseFeedToTear,
     required this.labelUseBackToPrint,
     required this.labelUseCalibrate,
+    required this.labelUseQrPrint,
     required this.onAutoReplyModeChanged,
     required this.onFeedToTearChanged,
     required this.onBackToPrintChanged,
     required this.onCalibrateChanged,
+    required this.onUseQrPrintChanged,
   });
 
   final int labelAutoReplyMode;
   final bool labelUseFeedToTear;
   final bool labelUseBackToPrint;
   final bool labelUseCalibrate;
+  final bool labelUseQrPrint;
 
   final void Function(int) onAutoReplyModeChanged;
   final void Function(bool) onFeedToTearChanged;
   final void Function(bool) onBackToPrintChanged;
   final void Function(bool) onCalibrateChanged;
+  final void Function(bool) onUseQrPrintChanged;
 
   @override
   ConsumerState<SettingsLabelTestSection> createState() =>
@@ -402,6 +406,15 @@ class _SettingsLabelTestSectionState
                     child: _switch(
                       widget.labelUseCalibrate,
                       widget.onCalibrateChanged,
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  _buildRow(
+                    label: 'QR 코드 출력',
+                    description: 'QR 페이로드 완성 전까지 기본 OFF',
+                    child: _switch(
+                      widget.labelUseQrPrint,
+                      widget.onUseQrPrintChanged,
                     ),
                   ),
                   const SizedBox(height: AppSpacing.s12),
