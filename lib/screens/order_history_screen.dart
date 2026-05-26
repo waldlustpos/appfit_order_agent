@@ -249,41 +249,37 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen> {
     );
   }
 
-  // 필터 세그먼트 — gray3 외곽 박스 + ClipRRect, 선택만 kMainColor
+  // 필터 세그먼트 — iOS pill 스타일. gray2 트랙 + 선택 pill 흰배경+그림자
   Widget _buildFilterSegment(OrderFilter selectedFilter) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border.all(color: AppStyles.gray3),
+    return Container(
+      height: 48,
+      padding: const EdgeInsets.all(4),
+      decoration: const BoxDecoration(
+        color: AppStyles.gray2,
         borderRadius: AppRadius.bSm,
       ),
-      child: ClipRRect(
-        borderRadius: AppRadius.bSm,
-        child: IntrinsicHeight(
-          child: Row(
-            children: [
-              _FilterSegmentButton(
-                title: t.order_history.filter_all,
-                isSelected: selectedFilter == OrderFilter.ALL,
-                onPressed: () => ref.read(orderFilterProvider.notifier).state =
-                    OrderFilter.ALL,
-              ),
-              const _FilterSegmentDivider(),
-              _FilterSegmentButton(
-                title: t.order_history.filter_completed,
-                isSelected: selectedFilter == OrderFilter.COMPLETED,
-                onPressed: () => ref.read(orderFilterProvider.notifier).state =
-                    OrderFilter.COMPLETED,
-              ),
-              const _FilterSegmentDivider(),
-              _FilterSegmentButton(
-                title: t.order_history.filter_cancelled,
-                isSelected: selectedFilter == OrderFilter.CANCELLED,
-                onPressed: () => ref.read(orderFilterProvider.notifier).state =
-                    OrderFilter.CANCELLED,
-              ),
-            ],
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _FilterSegmentButton(
+            title: t.order_history.filter_all,
+            isSelected: selectedFilter == OrderFilter.ALL,
+            onPressed: () =>
+                ref.read(orderFilterProvider.notifier).state = OrderFilter.ALL,
           ),
-        ),
+          _FilterSegmentButton(
+            title: t.order_history.filter_completed,
+            isSelected: selectedFilter == OrderFilter.COMPLETED,
+            onPressed: () => ref.read(orderFilterProvider.notifier).state =
+                OrderFilter.COMPLETED,
+          ),
+          _FilterSegmentButton(
+            title: t.order_history.filter_cancelled,
+            isSelected: selectedFilter == OrderFilter.CANCELLED,
+            onPressed: () => ref.read(orderFilterProvider.notifier).state =
+                OrderFilter.CANCELLED,
+          ),
+        ],
       ),
     );
   }
@@ -333,7 +329,7 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen> {
         const SizedBox(width: AppSpacing.s8),
         _CountChip(
           label: t.order_history.cancel_count(n: cancelledCount),
-          emphasize: cancelledCount > 0,
+          numberColor: cancelledCount > 0 ? AppStyles.kRed : null,
         ),
       ],
     );
@@ -496,40 +492,59 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen> {
   }
 }
 
-/// 건수 표시 뱃지 — gray2 배경, emphasize 시 kMainColor 강조.
+/// 건수 표시 뱃지 — gray2 배경 통일. numberColor 지정 시 라벨 내 숫자만 강조색.
 class _CountChip extends StatelessWidget {
-  const _CountChip({required this.label, this.emphasize = false});
+  const _CountChip({required this.label, this.numberColor});
 
   final String label;
-  final bool emphasize;
+  final Color? numberColor;
 
   @override
   Widget build(BuildContext context) {
+    final baseStyle = AppTextStyles.bodySm.copyWith(
+      fontSize: AppStyles.kSectionCountSize,
+      fontWeight: FontWeight.w600,
+      color: AppStyles.gray9,
+    );
+
+    // numberColor 지정 시에만 첫 숫자 그룹을 별도 span 으로 분리해 색 적용.
+    // ko/en/ja 모두 generic 하게 RegExp 로 매칭 (총 N건 / Total: N / 合計 N件 등).
+    Widget textChild;
+    final match = numberColor == null ? null : RegExp(r'\d+').firstMatch(label);
+    if (match == null) {
+      textChild = Text(label, style: baseStyle);
+    } else {
+      textChild = Text.rich(
+        TextSpan(
+          style: baseStyle,
+          children: [
+            TextSpan(text: label.substring(0, match.start)),
+            TextSpan(
+              text: match.group(0),
+              style: TextStyle(color: numberColor),
+            ),
+            TextSpan(text: label.substring(match.end)),
+          ],
+        ),
+      );
+    }
+
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.s12,
         vertical: AppSpacing.s4,
       ),
-      decoration: BoxDecoration(
-        color: emphasize
-            ? AppStyles.kMainColor.withValues(alpha: 0.08)
-            : AppStyles.gray2,
+      decoration: const BoxDecoration(
+        color: AppStyles.gray2,
         borderRadius: AppRadius.bMd,
-        border: emphasize ? Border.all(color: AppStyles.kMainColor) : null,
       ),
-      child: Text(
-        label,
-        style: AppTextStyles.bodySm.copyWith(
-          fontSize: AppStyles.kSectionCountSize,
-          fontWeight: FontWeight.w600,
-          color: emphasize ? AppStyles.kMainColor : AppStyles.gray9,
-        ),
-      ),
+      child: textChild,
     );
   }
 }
 
-/// 필터 세그먼트 내부 개별 버튼 — 선택 시 kMainColor 채움.
+/// 필터 세그먼트 내부 개별 pill 버튼 — iOS 스타일.
+/// 선택 시 흰배경 + 약한 그림자 pill, 미선택 시 트랙(gray2) 위 투명 배경.
 class _FilterSegmentButton extends StatelessWidget {
   const _FilterSegmentButton({
     required this.title,
@@ -543,33 +558,38 @@ class _FilterSegmentButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: isSelected ? AppStyles.kMainColor : Colors.white,
-      child: InkWell(
-        onTap: onPressed,
-        child: Container(
-          height: 48,
-          alignment: Alignment.center,
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s16),
-          child: Text(
-            title,
-            style: AppTextStyles.body.copyWith(
-              color: isSelected ? Colors.white : AppStyles.gray9,
-              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: isSelected ? Colors.white : Colors.transparent,
+        borderRadius: BorderRadius.circular(6),
+        boxShadow: isSelected
+            ? const [
+                BoxShadow(
+                  color: Color(0x14000000), // black 8%
+                  blurRadius: 4,
+                  offset: Offset(0, 1),
+                ),
+              ]
+            : null,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(6),
+          onTap: onPressed,
+          child: Container(
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s16),
+            child: Text(
+              title,
+              style: AppTextStyles.body.copyWith(
+                color: isSelected ? AppStyles.gray9 : AppStyles.gray6,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+              ),
             ),
           ),
         ),
       ),
     );
-  }
-}
-
-/// 필터 세그먼트 버튼 사이 구분선.
-class _FilterSegmentDivider extends StatelessWidget {
-  const _FilterSegmentDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(width: 1, color: AppStyles.gray3);
   }
 }
