@@ -186,6 +186,8 @@ public class MainActivity extends FlutterActivity {
         bitmapLogoForPrint = BitmapFactory.decodeResource(this.getResources(), R.drawable.logo);
 
         // Show dual monitor if device is D3 MINI -> 현재 매머드만 지원
+        SharedPreferences dualMonitorPrefs = getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE);
+        showDualMonitor(dualMonitorPrefs.getString(KEY_STORE_ID, ""));
 
         // Start Foreground Service after checking notification permission
         checkAndStartForegroundService();
@@ -357,12 +359,18 @@ public class MainActivity extends FlutterActivity {
         if (dualMonitorPresentation != null && dualMonitorPresentation.isShowing()) {
             dualMonitorPresentation.cleanup();
         }
+        dualMonitorPresentation = null;
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         Log.d("MainActivity", "onResume called");
+
+        if (dualMonitorPresentation == null || !dualMonitorPresentation.isShowing()) {
+            SharedPreferences dualMonitorPrefs = getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE);
+            showDualMonitor(dualMonitorPrefs.getString(KEY_STORE_ID, ""));
+        }
 
         if (decorView != null) {
             decorView.setSystemUiVisibility(
@@ -669,19 +677,10 @@ public class MainActivity extends FlutterActivity {
 
             videoView = findViewById(R.id.videoView1);
             imageView = findViewById(R.id.imageView1);
-            if (storeId.toLowerCase().startsWith("k013")) {
+            if (storeId != null && storeId.toUpperCase().startsWith("MHST")) {
                 setVideo(R.raw.mmth);
-            } else if (storeId.toLowerCase().startsWith("k047")) {
-                setImage(R.drawable.blushaak_dual_monitor_logo);
-            } else if (storeId.toLowerCase().startsWith("k064")) {
-                setImage(R.drawable.milkypresso_dual_monitor_logo);
             }
-
-        }
-
-        private void setImage(int imageResource) {
-            imageView.setImageResource(imageResource);
-            imageView.setVisibility(View.VISIBLE);
+            // 매칭 없음 → VideoView/ImageView 모두 gone → FrameLayout 흰 배경만 노출
         }
 
         // 동영상 파일 매머드만 존재
@@ -689,6 +688,7 @@ public class MainActivity extends FlutterActivity {
             videoUrl = "android.resource://" + packageName + "/" + videoResource;
             Uri videoUri = Uri.parse(videoUrl);
 
+            videoView.setVisibility(View.VISIBLE);
             videoView.setVideoURI(videoUri);
 
             videoView.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
@@ -879,6 +879,14 @@ public class MainActivity extends FlutterActivity {
         editor.putBoolean(KEY_IS_KDS_MODE, isKdsMode);
         editor.putString(KEY_MAIN_URL, mainURL);
         editor.apply();
+
+        runOnUiThread(() -> {
+            if (dualMonitorPresentation != null) {
+                dualMonitorPresentation.dismiss();
+                dualMonitorPresentation = null;
+            }
+            showDualMonitor(storeId);
+        });
     }
 
     public void appendLogToFile(String text) {
