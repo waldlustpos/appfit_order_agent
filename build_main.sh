@@ -5,7 +5,7 @@ PROJECT_NAME=$(grep "^name:" pubspec.yaml | cut -d' ' -f2 | tr -d '"' | tr -d "'
 VERSION=$(grep "^version:" pubspec.yaml | cut -d' ' -f2 | tr -d '"' | tr -d "'")
 BUILD_DATE=$(date +%Y%m%d)
 
-echo "=== 코코넛 주문 접수 앱 빌드 시작 ==="
+echo "=== Appfit 주문 접수 앱 빌드 시작 ==="
 echo "패키지명: co.kr.waldlust.order.receive"
 echo "앱 이름: $PROJECT_NAME"
 echo "버전: $VERSION"
