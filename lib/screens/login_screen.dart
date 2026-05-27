@@ -973,41 +973,127 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   }
 
   Future<void> _showEnvSelectDialog() async {
+    final t = Translations.of(context);
     final envOptions = ['dev', 'staging', 'live', 'japanLive'];
 
     final selected = await showDialog<String>(
       context: context,
-      builder: (context) => SimpleDialog(
-        shape: const RoundedRectangleBorder(borderRadius: AppRadius.bLg),
-        title: const Text('서버 환경 선택'),
-        titleTextStyle: AppTextStyles.title,
-        children: envOptions.map((env) {
-          final isSelected = env == _selectedEnv;
-          return SimpleDialogOption(
-            onPressed: () => Navigator.pop(context, env),
-            child: Row(
-              children: [
-                Icon(
-                  isSelected
-                      ? Icons.radio_button_checked
-                      : Icons.radio_button_off,
-                  size: 20,
-                  color: isSelected ? AppStyles.kMainColor : AppStyles.gray6,
+      builder: (dialogCtx) {
+        String tempSelected = _selectedEnv;
+        return StatefulBuilder(
+          builder: (ctx, setLocal) {
+            return AlertDialog(
+              shape: const RoundedRectangleBorder(borderRadius: AppRadius.bLg),
+              title: Row(
+                children: [
+                  Icon(
+                    Icons.dns_outlined,
+                    color: AppStyles.kMainColor,
+                    size: 28,
+                  ),
+                  const SizedBox(width: AppSpacing.s12),
+                  const Text('서버 환경 선택', style: AppTextStyles.title),
+                ],
+              ),
+              titlePadding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.s24,
+                vertical: AppSpacing.s24,
+              ),
+              contentPadding: const EdgeInsets.fromLTRB(
+                AppSpacing.s24,
+                AppSpacing.s16,
+                AppSpacing.s24,
+                0,
+              ),
+              content: SizedBox(
+                width: 400,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: envOptions.map((env) {
+                    final isSelected = env == tempSelected;
+                    return InkWell(
+                      onTap: () => setLocal(() => tempSelected = env),
+                      borderRadius: AppRadius.bSm,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.s8,
+                          vertical: AppSpacing.s12,
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              isSelected
+                                  ? Icons.radio_button_checked
+                                  : Icons.radio_button_off,
+                              size: 26,
+                              color: isSelected
+                                  ? AppStyles.kMainColor
+                                  : AppStyles.gray6,
+                            ),
+                            const SizedBox(width: AppSpacing.s12),
+                            Text(
+                              _envLabel(env),
+                              style: AppTextStyles.body.copyWith(
+                                fontWeight: isSelected
+                                    ? FontWeight.w600
+                                    : FontWeight.normal,
+                                color: isSelected
+                                    ? AppStyles.kMainColor
+                                    : AppStyles.gray9,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
                 ),
-                const SizedBox(width: AppSpacing.s12),
-                Text(
-                  _envLabel(env),
-                  style: AppTextStyles.body.copyWith(
-                    fontWeight:
-                        isSelected ? FontWeight.w600 : FontWeight.normal,
-                    color: isSelected ? AppStyles.kMainColor : AppStyles.gray9,
+              ),
+              actionsPadding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.s24,
+                vertical: AppSpacing.s24,
+              ),
+              actions: [
+                ElevatedButton(
+                  style: AppStyles.outlinedButton(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.s20,
+                      vertical: AppSpacing.s12,
+                    ),
+                    minimumSize: const Size(100, 45),
+                  ),
+                  onPressed: () => Navigator.of(dialogCtx).pop(null),
+                  child: Text(
+                    t.common.cancel,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                ElevatedButton(
+                  style: AppStyles.primaryButton(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.s20,
+                      vertical: AppSpacing.s12,
+                    ),
+                    minimumSize: const Size(100, 45),
+                  ),
+                  onPressed: () => Navigator.of(dialogCtx).pop(tempSelected),
+                  child: Text(
+                    t.common.confirm,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ],
-            ),
-          );
-        }).toList(),
-      ),
+            );
+          },
+        );
+      },
     );
 
     if (selected == null || selected == _selectedEnv) return;
