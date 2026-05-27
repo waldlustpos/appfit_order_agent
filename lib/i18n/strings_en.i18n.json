@@ -412,7 +412,7 @@
             "hint": "Please enter phone number or coupon number.",
             "hint_searched": "Please enter number of stamps. (Up to 20)",
             "btn_search": "Search Member",
-            "btn_other_member": "Search Other Member",
+            "btn_other_member": "Reset Search",
             "btn_save_stamp": "Save Stamp",
             "btn_use_coupon": "Use Coupon",
             "btn_validate_coupon": "Validate Coupon",

@@ -6,7 +6,7 @@
 /// Locales: 3
 /// Strings: 1118 (372 per locale)
 ///
-/// Built on 2026-05-13 at 02:25 UTC
+/// Built on 2026-05-26 at 01:31 UTC
 
 // coverage:ignore-file
 // ignore_for_file: type=lint
@@ -421,7 +421,7 @@ class _StringsOrderDetailKo {
 	String get status_update_fail => '주문 상태 변경에 실패했습니다.';
 	String get dialog_kiosk_cancel_title => '주문 취소';
 	String get dialog_kiosk_cancel_content => '키오스크 주문은 키오스크 기기에서 취소해주세요.';
-	String dialog_cancel_confirm_content({required Object n}) => '#${n}번 주문을 취소하시겠습니까?';
+	String dialog_cancel_confirm_content({required Object n}) => '${n}번 주문을 취소하시겠습니까?';
 	String get dialog_repickup_confirm_title => '픽업 재요청';
 	String dialog_repickup_confirm_content({required Object n}) => '#${n}번 주문 픽업을 재요청하시겠습니까?';
 	String get dialog_not_picked_up_confirm_title => '미픽업 처리';
@@ -965,7 +965,7 @@ class _StringsMembershipSearchKo {
 	String get hint => '전화번호 또는 쿠폰번호를 입력해주세요.';
 	String get hint_searched => '스탬프 개수를 입력해주세요. (최대 20개까지)';
 	String get btn_search => '회원조회';
-	String get btn_other_member => '다른 회원 조회';
+	String get btn_other_member => '검색 초기화';
 	String get btn_save_stamp => '스탬프 적립';
 	String get btn_use_coupon => '쿠폰사용';
 	String get btn_validate_coupon => '쿠폰검증';
@@ -1961,7 +1961,7 @@ class _StringsMembershipSearchEn extends _StringsMembershipSearchKo {
 	@override String get hint => 'Please enter phone number or coupon number.';
 	@override String get hint_searched => 'Please enter number of stamps. (Up to 20)';
 	@override String get btn_search => 'Search Member';
-	@override String get btn_other_member => 'Search Other Member';
+	@override String get btn_other_member => 'Reset Search';
 	@override String get btn_save_stamp => 'Save Stamp';
 	@override String get btn_use_coupon => 'Use Coupon';
 	@override String get btn_validate_coupon => 'Validate Coupon';
@@ -2949,7 +2949,7 @@ class _StringsMembershipSearchJa extends _StringsMembershipSearchKo {
 	@override String get hint => '電話番号またはクーポン番号を入力してください。';
 	@override String get hint_searched => 'スタンプの個数を入力してください。(最大20個まで)';
 	@override String get btn_search => '会員照会';
-	@override String get btn_other_member => '他の会員を照会';
+	@override String get btn_other_member => '検索リセット';
 	@override String get btn_save_stamp => 'スタンプ積立';
 	@override String get btn_use_coupon => 'クーポン使用';
 	@override String get btn_validate_coupon => 'クーポン検証';

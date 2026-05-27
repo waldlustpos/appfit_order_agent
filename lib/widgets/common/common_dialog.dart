@@ -80,7 +80,7 @@ class CommonDialog {
               children: [
                 Text(
                   t.dialog.status_change.content(item: itemName),
-                  style: AppTextStyles.body,
+                  style: AppTextStyles.body.copyWith(fontSize: 17),
                 ),
                 const SizedBox(height: 8),
                 Row(
@@ -744,7 +744,10 @@ class _ConfirmDialogState extends State<_ConfirmDialog> {
         height: 80,
         child: Align(
           alignment: Alignment.centerLeft,
-          child: Text(widget.content, style: AppTextStyles.body),
+          child: Text(
+            widget.content,
+            style: AppTextStyles.body.copyWith(fontSize: 17),
+          ),
         ),
       ),
       actionsPadding: const EdgeInsets.symmetric(

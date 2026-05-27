@@ -406,7 +406,7 @@
             "hint": "電話番号またはクーポン番号を入力してください。",
             "hint_searched": "スタンプの個数を入力してください。(最大20個まで)",
             "btn_search": "会員照会",
-            "btn_other_member": "他の会員を照会",
+            "btn_other_member": "検索リセット",
             "btn_save_stamp": "スタンプ積立",
             "btn_use_coupon": "クーポン使用",
             "btn_validate_coupon": "クーポン検証",

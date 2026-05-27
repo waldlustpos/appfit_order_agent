@@ -260,7 +260,7 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
           child: Align(
             alignment: Alignment.centerRight,
             child: TextButton.icon(
-              icon: const Icon(Icons.person_search_outlined, size: 18),
+              icon: const Icon(Icons.refresh, size: 18),
               label: Text(
                 t.membership.search.btn_other_member,
                 style: AppTextStyles.bodySm,
