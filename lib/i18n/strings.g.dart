@@ -4,9 +4,9 @@
 /// To regenerate, run: `dart run slang`
 ///
 /// Locales: 3
-/// Strings: 1118 (372 per locale)
+/// Strings: 1121 (373 per locale)
 ///
-/// Built on 2026-05-26 at 01:31 UTC
+/// Built on 2026-05-29 at 02:58 UTC
 
 // coverage:ignore-file
 // ignore_for_file: type=lint
@@ -1096,6 +1096,7 @@ class _StringsSettingsThemeOptionsKo {
 	// Translations
 	String get appfit_default => '기본';
 	String get mammoth_coffee => 'Brown';
+	String get mata => '마하테이스트';
 }
 
 // Path: settings.developer_options.appfit_test
@@ -2092,6 +2093,7 @@ class _StringsSettingsThemeOptionsEn extends _StringsSettingsThemeOptionsKo {
 	// Translations
 	@override String get appfit_default => 'Default';
 	@override String get mammoth_coffee => 'Brown';
+	@override String get mata => '마하테이스트';
 }
 
 // Path: settings.developer_options.appfit_test
@@ -3080,6 +3082,7 @@ class _StringsSettingsThemeOptionsJa extends _StringsSettingsThemeOptionsKo {
 	// Translations
 	@override String get appfit_default => 'デフォルト';
 	@override String get mammoth_coffee => 'Brown';
+	@override String get mata => '마하테이스트';
 }
 
 // Path: settings.developer_options.appfit_test

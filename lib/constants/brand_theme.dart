@@ -27,6 +27,21 @@ enum BrandTheme {
       end: Alignment.bottomRight,
       colors: [Color(0xFF5B443B), Color(0xFFC7A79B)],
     ),
+  ),
+  // 마하테이스트(mahataste) 브랜드 색상(#E31F26).
+  //   logo.svg 배치 후 logoAsset 지정 가능.
+  mata(
+    id: 'mata',
+    primary: Color(0xFFe31f26),
+    primaryAlpha: Color(0x14e31f26),
+    loginBackground: Color(0xFFe31f26),
+    onLoginBackground: Colors.white,
+    logoAsset: null,
+    loginGradient: LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [Color(0xFFe31f26), Color(0xFF9e1418)],
+    ),
   );
 
   const BrandTheme({

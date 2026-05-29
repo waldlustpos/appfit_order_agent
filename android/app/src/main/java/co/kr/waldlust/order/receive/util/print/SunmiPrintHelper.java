@@ -1,6 +1,7 @@
 package co.kr.waldlust.order.receive.util.print;
 
 import android.content.Context;
+import android.graphics.Bitmap;
 import android.os.RemoteException;
 import android.util.Log;
 
@@ -22,7 +23,6 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import co.kr.waldlust.order.receive.MainActivity;
 
 
 /**
@@ -514,7 +514,7 @@ public class SunmiPrintHelper {
      * @param orderJson JSON 형식의 주문 데이터
      * @param isCancel 취소 주문서 여부
      */
-    public void printOrderFromJson(String orderJson, boolean isCancel) { // 메서드 시그니처 재확인
+    public void printOrderFromJson(String orderJson, boolean isCancel, Bitmap logo) { // 메서드 시그니처 재확인
         if(sunmiPrinterService == null){
             Log.e("SunmiPrintHelper", "프린터 서비스에 연결되지 않았습니다.");
             return;
@@ -659,7 +659,7 @@ public class SunmiPrintHelper {
             // sunmiPrinterService.printTextWithFont("주문해주셔서 감사합니다.\n", null, receiptFontSize, null);
 
             // 여백 및 용지 출력
-            if(MainActivity.bitmapLogoForPrint != null)sunmiPrinterService.printBitmap(MainActivity.bitmapLogoForPrint, null);
+            if(logo != null)sunmiPrinterService.printBitmap(logo, null);
             sunmiPrinterService.printText(" \n", null);
             sunmiPrinterService.printText(" \n", null);
             sunmiPrinterService.printText(" \n", null);
@@ -686,7 +686,7 @@ public class SunmiPrintHelper {
      * @param orderJson JSON 형식의 주문 데이터
      * @param isCancel 취소 영수증 여부
      */
-    public void printReceiptFromJson(String orderJson, boolean isCancel) {
+    public void printReceiptFromJson(String orderJson, boolean isCancel, Bitmap logo) {
         if(sunmiPrinterService == null){
             Log.e("SunmiPrintHelper", "프린터 서비스에 연결되지 않았습니다.");
             return;
@@ -881,7 +881,7 @@ public class SunmiPrintHelper {
 
 
 
-            if(MainActivity.bitmapLogoForPrint != null)sunmiPrinterService.printBitmap(MainActivity.bitmapLogoForPrint, null);
+            if(logo != null)sunmiPrinterService.printBitmap(logo, null);
             sunmiPrinterService.printText(" \n", null);
             sunmiPrinterService.printText(" \n", null);
             sunmiPrinterService.printText(" \n", null);

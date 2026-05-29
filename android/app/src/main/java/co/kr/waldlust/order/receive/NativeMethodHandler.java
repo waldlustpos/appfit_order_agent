@@ -11,6 +11,7 @@ import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Build;
+import android.util.Base64;
 import android.util.Log;
 import android.net.Uri;
 import android.provider.Settings;
@@ -301,18 +302,31 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
                     isCancel = false;
                 }
 
+                // Brand-specific receipt logo passed from Dart (BrandAssets.receiptLogoPath).
+                // Null/empty or decode failure -> no logo printed (graceful skip).
+                String logoBase64 = call.argument("logoBase64");
+                Bitmap logoBitmap = null;
+                if (logoBase64 != null && !logoBase64.isEmpty()) {
+                    try {
+                        byte[] logoBytes = Base64.decode(logoBase64, Base64.DEFAULT);
+                        logoBitmap = BitmapFactory.decodeByteArray(logoBytes, 0, logoBytes.length);
+                    } catch (Exception e) {
+                        Log.w(TAG, "Receipt logo decode failed, printing without logo: " + e.getMessage());
+                    }
+                }
+
                 if (orderJson != null && !orderJson.isEmpty()) {
                     Log.d(TAG, "Received print request. Type: " + type + ", isCancel: "
                             + isCancel + ", isSunmi: " + activity.isSunmiDevice());
 
                     if (activity.isSunmiDevice() && Boolean.TRUE.equals(useBuiltinPrint)) {
                         if ("order".equals(type)) {
-                            SunmiPrintHelper.getInstance().printOrderFromJson(orderJson, isCancel);
+                            SunmiPrintHelper.getInstance().printOrderFromJson(orderJson, isCancel, logoBitmap);
                         } else if (type != null && type.equals("receipt")) {
-                            SunmiPrintHelper.getInstance().printReceiptFromJson(orderJson, isCancel);
+                            SunmiPrintHelper.getInstance().printReceiptFromJson(orderJson, isCancel, logoBitmap);
                         } else {
                             Log.w(TAG, "Print type is null or unknown: " + type + ". Defaulting to receipt.");
-                            SunmiPrintHelper.getInstance().printReceiptFromJson(orderJson, isCancel);
+                            SunmiPrintHelper.getInstance().printReceiptFromJson(orderJson, isCancel, logoBitmap);
                         }
                     }
                     result.success(true);

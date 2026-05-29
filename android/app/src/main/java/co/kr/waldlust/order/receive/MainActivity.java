@@ -10,8 +10,6 @@ import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.Uri;
@@ -109,7 +107,6 @@ public class MainActivity extends FlutterActivity {
     public static UsbReceiptPrinter receiptPrinter;
 
     public static String versionName = "/api/v2";
-    public static Bitmap bitmapLogoForPrint = null;
 
     private static View decorView;
     private static int uiOption;
@@ -182,8 +179,9 @@ public class MainActivity extends FlutterActivity {
         // Initialize printers
         initPrinters();
 
-        // 타브랜드 로고 준비 필요
-        bitmapLogoForPrint = BitmapFactory.decodeResource(this.getResources(), R.drawable.logo);
+        // 영수증/주문서 하단 로고는 브랜드별로 분기되어 Dart(PrintService)에서
+        // BrandAssets 기준으로 logoBase64 인자로 전달된다. 네이티브는 고정 로고를
+        // 보유하지 않는다. (외부 ESC/POS 프린터와 동일한 single source of truth)
 
         // Show dual monitor if device is D3 MINI -> 현재 매머드만 지원
         SharedPreferences dualMonitorPrefs = getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE);

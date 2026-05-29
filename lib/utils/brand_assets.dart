@@ -11,7 +11,7 @@ import '../services/preference_service.dart';
 ///
 /// 호출부는 매번 getter 를 읽고 캐시된 path 와 비교 (lazy invalidation) 하므로
 /// 로그아웃/매장 전환 시 별도 후크 없이 자동 재로드된다.
-enum BrandKey { tpcp, mhst }
+enum BrandKey { tpcp, mhst, mata }
 
 class BrandAssetSet {
   const BrandAssetSet({
@@ -36,6 +36,7 @@ class BrandAssets {
   static const Map<BrandKey, BrandAssetSet> _brands = {
     BrandKey.tpcp: BrandAssetSet(folder: 'tokyoplatz'),
     BrandKey.mhst: BrandAssetSet(folder: 'mammoth', hasReceiptLogo: true),
+    BrandKey.mata: BrandAssetSet(folder: 'mahataste', hasReceiptLogo: true),
   };
 
   static BrandAssetSet _current() =>
@@ -45,6 +46,7 @@ class BrandAssets {
     final id = PreferenceService().getId();
     if (PreferenceService.isMHSTStoreId(id)) return BrandKey.mhst;
     if (PreferenceService.isTPCPStoreId(id)) return BrandKey.tpcp;
+    if (PreferenceService.isMATAStoreId(id)) return BrandKey.mata;
     return null;
   }
 

@@ -70,6 +70,8 @@ class SettingsBrandThemeSection extends ConsumerWidget {
         return t.settings.theme.options.appfit_default;
       case BrandTheme.mammothCoffee:
         return t.settings.theme.options.mammoth_coffee;
+      case BrandTheme.mata:
+        return t.settings.theme.options.mata;
     }
   }
 

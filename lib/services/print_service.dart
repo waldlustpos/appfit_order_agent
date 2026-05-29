@@ -408,12 +408,17 @@ class PrintService {
       // 동시에 켜질 수 있어 두 경로를 분리 호출. 외부는 플랫폼-무관 [ExternalReceiptPrinter] 위임.
       if (useBuiltin && Platform.isAndroid) {
         // Sunmi 는 raw bytes 미지원이라 기존 JSON 채널 유지.
+        // 하단 로고는 브랜드별로 분기 — 외부 프린터와 동일하게 BrandAssets 기반
+        // [ExternalReceiptPrinter.loadReceiptLogoBytes] 를 single source of truth 로
+        // 사용. 로고 없는 브랜드(receiptLogoPath == null)는 null → 네이티브에서 미출력.
+        final logoBytes = await ExternalReceiptPrinter.loadReceiptLogoBytes();
         try {
           await platform.invokeMethod('printOrder', {
             'orderJson': orderJson,
             'type': type,
             'isCancel': isCancelReceipt,
             'useBuiltinPrint': true,
+            'logoBase64': logoBytes != null ? base64Encode(logoBytes) : null,
           });
         } on PlatformException catch (e, s) {
           logger.e('[PrintService] Sunmi 내장 출력 실패', error: e, stackTrace: s);

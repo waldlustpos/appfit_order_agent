@@ -36,7 +36,7 @@ class ExternalReceiptPrinter {
     final data = await ReceiptEscPosBuilder.buildOrderBytes(
       jsonOrder: orderMap,
       isCancel: isCancel,
-      logoImageBytes: await _loadLogoBytes(),
+      logoImageBytes: await loadReceiptLogoBytes(),
     );
     final displayNum = _displayNum(orderMap);
     return _sendBytes(data, '주문서_$displayNum');
@@ -49,7 +49,7 @@ class ExternalReceiptPrinter {
     final data = await ReceiptEscPosBuilder.buildReceiptBytes(
       jsonOrder: orderMap,
       isCancel: isCancel,
-      logoImageBytes: await _loadLogoBytes(),
+      logoImageBytes: await loadReceiptLogoBytes(),
     );
     final displayNum = _displayNum(orderMap);
     return _sendBytes(data, '영수증_$displayNum');
@@ -134,7 +134,10 @@ class ExternalReceiptPrinter {
     return '';
   }
 
-  Future<Uint8List?> _loadLogoBytes() async {
+  /// 현재 브랜드([BrandAssets.receiptLogoPath])의 영수증 로고 PNG 바이트를 로드.
+  /// 로고가 없는 브랜드(path == null)는 null 반환. lazy-invalidation 캐싱(path 비교)
+  /// 으로 번들 재로드는 브랜드당 1회. 외부 영수증 프린터 / Sunmi 내장 프린터가 공유.
+  static Future<Uint8List?> loadReceiptLogoBytes() async {
     final String? targetPath = BrandAssets.receiptLogoPath;
     if (_cachedLogoPath != targetPath) {
       // 브랜드 전환(또는 첫 호출) — 캐시 무효화.

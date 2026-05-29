@@ -871,6 +871,15 @@ class PreferenceService {
   /// 현재 저장된 매장 ID가 MHST(매머드) 매장인지 반환.
   bool isMammothStore() => isMHSTStoreId(getId());
 
+  /// 마하테이스트(mahataste) 매장 여부를 ID 문자열로 판별하는 정적 유틸리티.
+  static bool isMATAStoreId(String? storeId) {
+    if (storeId == null || storeId.isEmpty) return false;
+    return storeId.toUpperCase().startsWith('MATA');
+  }
+
+  /// 현재 저장된 매장 ID가 마하테이스트(mahataste) 매장인지 반환.
+  bool isMataStore() => isMATAStoreId(getId());
+
   // ── Windows 전용 프린터 설정 ────────────────────────────────────────────────
 
   static const String _keyComPortName = 'APPFIT_COM_PORT_NAME';
