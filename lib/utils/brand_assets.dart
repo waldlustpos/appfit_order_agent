@@ -1,56 +1,23 @@
 import '../services/preference_service.dart';
+import 'brand_registry.dart';
 
-/// 매장 ID prefix → 브랜드 키 매핑.
+/// 현재 브랜드의 인쇄 자산(라벨/영수증 로고) 경로를 노출하는 얇은 파사드.
 ///
-/// 새 브랜드 추가는 3단계로 단순화된다:
-///   1. `assets/images/brand/<slug>/` 폴더에 표준 파일명으로 자산 배치
-///      (`label_logo.bmp`, 선택적으로 `receipt_logo.png`, `logo.svg`)
-///   2. `pubspec.yaml` 의 assets 에 새 폴더 경로 추가
-///   3. 본 파일에 `BrandKey` enum 값과 `_brands` Map 한 줄,
-///      `_resolveBrand()` if 한 줄 추가 (+ PreferenceService 헬퍼 필요 시)
+/// 브랜드 식별·메타데이터는 [BrandRegistry](단일 출처)에 위임한다. 본 클래스는
+/// label_painter / external_receipt_printer 의 lazy invalidation 호출부가 쓰는
+/// 정적 getter 만 제공한다(매 호출마다 현재 매장 ID 로 재해석 → 매장 전환 시 자동 반영).
 ///
-/// 호출부는 매번 getter 를 읽고 캐시된 path 와 비교 (lazy invalidation) 하므로
-/// 로그아웃/매장 전환 시 별도 후크 없이 자동 재로드된다.
-enum BrandKey { tpcp, mhst, mata }
-
-class BrandAssetSet {
-  const BrandAssetSet({
-    required this.folder,
-    this.hasReceiptLogo = false,
-  });
-
-  final String folder;
-  final bool hasReceiptLogo;
-
-  String get _base => 'assets/images/brand/$folder';
-  String get labelLogo => '$_base/label_logo.bmp';
-  String? get receiptLogo => hasReceiptLogo ? '$_base/receipt_logo.png' : null;
-  String get themeLogo => '$_base/logo.svg';
-}
-
+/// 새 브랜드 추가 절차는 [BrandRegistry] 주석 참고.
 class BrandAssets {
   BrandAssets._();
 
-  static const BrandKey _fallback = BrandKey.tpcp;
+  static BrandMeta _current() =>
+      BrandRegistry.resolve(PreferenceService().getId());
 
-  static const Map<BrandKey, BrandAssetSet> _brands = {
-    BrandKey.tpcp: BrandAssetSet(folder: 'tokyoplatz'),
-    BrandKey.mhst: BrandAssetSet(folder: 'mammoth', hasReceiptLogo: true),
-    BrandKey.mata: BrandAssetSet(folder: 'mahataste', hasReceiptLogo: true),
-  };
+  static String get labelLogoPath => _current().labelLogoPath;
 
-  static BrandAssetSet _current() =>
-      _brands[_resolveBrand()] ?? _brands[_fallback]!;
+  static String get labelLogoFallbackPath =>
+      BrandRegistry.fallback.labelLogoPath;
 
-  static BrandKey? _resolveBrand() {
-    final id = PreferenceService().getId();
-    if (PreferenceService.isMHSTStoreId(id)) return BrandKey.mhst;
-    if (PreferenceService.isTPCPStoreId(id)) return BrandKey.tpcp;
-    if (PreferenceService.isMATAStoreId(id)) return BrandKey.mata;
-    return null;
-  }
-
-  static String get labelLogoPath => _current().labelLogo;
-  static String get labelLogoFallbackPath => _brands[_fallback]!.labelLogo;
-  static String? get receiptLogoPath => _current().receiptLogo;
+  static String? get receiptLogoPath => _current().receiptLogoPath;
 }

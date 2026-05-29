@@ -1,5 +1,5 @@
 ---
-description: 새 브랜드를 대화형으로 추가 (preference/brand_assets/brand_theme/settings/i18n 3로캘/pubspec 6개 지점 편집 + 라벨 BMP/영수증 PNG 로고 자산 변환 + slang 재생성 + analyze + l10n 감사)
+description: 새 브랜드를 대화형으로 추가 (brand_registry/brand_theme/settings/i18n 3로캘/pubspec 5개 지점 편집 + 라벨 BMP/영수증 PNG 로고 자산 변환 + slang 재생성 + analyze + l10n 감사)
 ---
 
 새 브랜드를 매장 ID prefix 기반으로 앱 전반에 통합한다. 아래 STEP 순서대로 진행한다.
@@ -30,8 +30,7 @@ description: 새 브랜드를 대화형으로 추가 (preference/brand_assets/br
 각 지점이 이미 적용됐는지 Grep 한다:
 
 ```
-grep -n "is<PREFIX>StoreId\|startsWith('<PREFIX>')" lib/services/preference_service.dart
-grep -n "BrandKey.<KEY>\|folder: '<slug>'" lib/utils/brand_assets.dart
+grep -n "BrandKey.<KEY>\|storeIdPrefix: '<PREFIX>'\|assetFolder: '<slug>'" lib/utils/brand_registry.dart
 grep -n "id: '<KEY>'" lib/constants/brand_theme.dart
 grep -n "options.<KEY>" lib/widgets/settings/settings_brand_theme_section.dart
 grep -n "\"<KEY>\"" lib/i18n/strings_ko.i18n.json lib/i18n/strings_en.i18n.json lib/i18n/strings_ja.i18n.json
@@ -44,44 +43,45 @@ grep -n "assets/images/brand/<slug>/" pubspec.yaml
 
 ---
 
-## STEP 2 — 6개 코드 지점 Edit
+## STEP 2 — 5개 코드 지점 Edit
 
 각 파일을 **Edit 전에 Read** 한다. anchor 매칭이 실패하면(이미 적용/구조 변경 신호) 그 지점만 건너뛰고 STEP 5 에 보고한다.
 
-### 2-1. `lib/services/preference_service.dart`
-**마지막 헬퍼**(현재 `isMataStore()`) 뒤에 추가. old = 마지막 두 줄, new = 그 두 줄 + 신규 블록:
-```dart
-  /// <NAME_ko>(<slug>) 매장 여부를 ID 문자열로 판별하는 정적 유틸리티.
-  static bool is<PREFIX>StoreId(String? storeId) {
-    if (storeId == null || storeId.isEmpty) return false;
-    return storeId.toUpperCase().startsWith('<PREFIX>');
-  }
+> 브랜드 식별·자산·통화·환경·기능이 모두 `BrandRegistry` 한곳으로 모였다. `PreferenceService.isXXXStoreId` 같은 prefix 헬퍼는 더 이상 새로 추가하지 않는다(레지스트리가 prefix 매칭 전담).
 
-  /// 현재 저장된 매장 ID가 <NAME_ko>(<slug>) 매장인지 반환.
-  bool is<KeyPascal>Store() => is<PREFIX>StoreId(getId());
-```
-
-### 2-2. `lib/utils/brand_assets.dart` (3곳)
+### 2-1. `lib/utils/brand_registry.dart` (2곳)
 - enum: `enum BrandKey { ... }` 끝에 `, <KEY>` 추가.
-- `_brands` Map 마지막 항목 뒤: `    BrandKey.<KEY>: BrandAssetSet(folder: '<slug>'<영수증 시 , hasReceiptLogo: true>),`
-- `_resolveBrand()` 의 `return null;` 직전: `    if (PreferenceService.is<PREFIX>StoreId(id)) return BrandKey.<KEY>;`
+- `_all` Map 마지막 항목(`);`) 뒤에 `BrandMeta` 항목 추가:
+```dart
+    BrandKey.<KEY>: BrandMeta(
+      key: BrandKey.<KEY>,
+      storeIdPrefix: '<PREFIX>',
+      assetFolder: '<slug>',
+      hasReceiptLogo: <true 영수증 시 / 아니면 줄 생략>,
+      theme: BrandTheme.<EnumCase>,
+      currency: CurrencyUnit.<krw|jpy>,        // 입력 8(일본/JPY) → jpy
+      serverEnvironment: '<live|japanLive>',   // 입력 8 → japanLive
+      features: {<지원 기능, 예: BrandFeature.labelCategoryFilter> },  // 없으면 줄 생략
+    ),
+```
+입력 8(특수 분기)이 "아니오"면 currency=krw / serverEnvironment='live' / features 생략. "예"(일본)면 jpy / japanLive / 필요 기능 등록.
 
-### 2-3. `lib/constants/brand_theme.dart` — ⚠️ 세미콜론 함정
+### 2-2. `lib/constants/brand_theme.dart` — ⚠️ 세미콜론 함정
 마지막 enum 항목이 `);` 로 끝난다. anchor 에 `  );` + 빈 줄 + `  const BrandTheme({` 를 포함해 종료부만 유일 매칭하고, `);`→`),` 로 바꾼 뒤 새 항목 + `);` 를 넣는다.
 - **placeholder 색상**(기본): MATA TODO 패턴 복제 — primary `0xFFfb3e7e`, primaryAlpha `0x14fb3e7e`, loginBackground `0xFFfb3e7e`, onLoginBackground `Colors.white`, logoAsset `null`, loginGradient `[Color(0xFFfb3e7e), Color(0xFF9843cb)]`. 위에 `// TODO(<PREFIX>): 색상 확정 시 교체 … logo.svg 배치 후 logoAsset 지정` 주석.
 - **hex 지정 시**: primary=`0xFF<hex>`, primaryAlpha=`0x14<hex>`, loginBackground/onLoginBackground/loginGradient 를 입력값으로, TODO 생략.
 
-### 2-4. `lib/widgets/settings/settings_brand_theme_section.dart`
+### 2-3. `lib/widgets/settings/settings_brand_theme_section.dart`
 `_labelFor` switch 마지막 case 뒤에:
 ```dart
       case BrandTheme.<EnumCase>:
         return t.settings.theme.options.<KEY>;
 ```
 
-### 2-5. i18n `strings_ko` / `strings_en` / `strings_ja` (3파일 모두)
+### 2-4. i18n `strings_ko` / `strings_en` / `strings_ja` (3파일 모두)
 각 파일 `settings.theme.options` 의 마지막 키 끝에 콤마를 추가하고 새 줄 `                "<KEY>": "<NAME_xx>"` 추가(들여쓰기 16칸). **3파일 누락 없이.**
 
-### 2-6. `pubspec.yaml`
+### 2-5. `pubspec.yaml`
 assets 의 마지막 brand 폴더 줄 뒤에 `    - assets/images/brand/<slug>/` (들여쓰기 4칸).
 
 ---
@@ -117,7 +117,7 @@ print(f'receipt_logo.png: {flat.size} -> {out.size} (W x H), 폭<=384: {out.size
 EOF
 ```
 
-> 라벨 PNG 도 없어 폴더가 미생성 상태일 수 있으니 스크립트가 `os.makedirs` 로 폴더를 보장한다. 단 STEP 2-2 의 `hasReceiptLogo: true` 가 설정돼 있어야 호출부가 이 PNG 를 읽는다(입력 6=예면 이미 반영됨).
+> 라벨 PNG 도 없어 폴더가 미생성 상태일 수 있으니 스크립트가 `os.makedirs` 로 폴더를 보장한다. 단 STEP 2-1 의 `BrandMeta.hasReceiptLogo: true` 가 설정돼 있어야 호출부가 이 PNG 를 읽는다(입력 6=예면 이미 반영됨).
 
 ---
 
@@ -137,9 +137,9 @@ EOF
 변경 파일 표로 요약 후, 자동화 못 한 작업을 체크리스트로 출력:
 - [ ] `assets/images/brand/<slug>/` 폴더 (자산을 1개라도 생성했으면 폴더는 이미 존재. 자산을 아예 안 만들었으면 `.gitkeep` 으로 폴더 추적)
 - [ ] `label_logo.bmp` 최종 채택 (PNG 변환했으면 검정비율 검토)
-- [ ] `receipt_logo.png` — 입력 6 "예" + 소스 있으면 STEP 3-2 에서 높이 80px 로 자동 생성됨 (`W×H`·폭≤384 검토). 소스 없었으면 §4.2 스크립트로 높이 80px 정규화 후 수동 배치 + brand_assets `hasReceiptLogo: true` 확인
+- [ ] `receipt_logo.png` — 입력 6 "예" + 소스 있으면 STEP 3-2 에서 높이 80px 로 자동 생성됨 (`W×H`·폭≤384 검토). 소스 없었으면 §4.2 스크립트로 높이 80px 정규화 후 수동 배치 + brand_registry `BrandMeta.hasReceiptLogo: true` 확인
 - [ ] (선택) `logo.svg` 배치 → brand_theme `logoAsset` 경로 지정
 - [ ] 색상 placeholder 면 최종 hex 확정 + TODO 제거
 - [ ] `flutter clean && flutter pub get` (신규 asset 인식)
 - [ ] 실기기: 해당 prefix 매장 로그인 → 라벨/영수증 테스트 출력, 브랜드 전환 시 캐시 무효화 확인
-- [ ] (입력 8 이 "예" 였다면) 일본/JPY 등 특수 분기는 별도 작업 — preference_service getCurrency/japanLive, label_print_data 와플필터, settings_left_panel 필터모드, login_screen 자동업데이트 오버라이드 참조
+- [ ] (입력 8 이 "예" 였다면) 일본/JPY 등은 `BrandMeta.currency`/`serverEnvironment` 로 처리됨. 추가로 다른 동작이 필요하면 `BrandFeature` + Strategy/Hook(라벨필터=`label_filter_strategy.dart`, 외부전송=`soundgraph_hook.dart`) 패턴 참고

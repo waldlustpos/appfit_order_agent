@@ -12,6 +12,7 @@ import '../utils/logger.dart';
 import '../services/platform_service.dart';
 import '../services/windows_bubble_service.dart';
 import '../services/preference_service.dart';
+import '../utils/brand_registry.dart';
 import '../services/migration/v2_migration_service.dart';
 import '../services/appfit/appfit_providers.dart' as appfit_providers;
 import '../services/secure_storage_service.dart';
@@ -436,10 +437,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           .login(storeId, _passwordController.text);
 
       if (success) {
-        // TPCP 오버라이드: SUNMI + TPCP 매장은 자동 업데이트 체크 ON 유지
+        // 자동 업데이트 강제 브랜드(현재 TPCP) + SUNMI 는 자동 업데이트 체크 ON 유지
         final prefService = PreferenceService();
         if (!prefService.getUpdateTpcpOverrideDone()) {
-          if (PreferenceService.isTPCPStoreId(storeId) && Platform.isAndroid) {
+          final forceAutoUpdate = BrandRegistry.resolveOrNull(storeId)
+                  ?.has(BrandFeature.autoUpdateForce) ??
+              false;
+          if (forceAutoUpdate && Platform.isAndroid) {
             final deviceInfo = await DeviceInfoPlugin().androidInfo;
             if (deviceInfo.manufacturer.toLowerCase() == 'sunmi') {
               await prefService.setAutoCheckUpdate(true);

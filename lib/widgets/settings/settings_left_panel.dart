@@ -4,11 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../constants/app_styles.dart';
 import '../../providers/providers.dart';
+import '../../providers/brand_provider.dart';
 import '../../providers/locale_provider.dart';
 import '../../providers/currency_provider.dart';
 import '../../providers/rotation_provider.dart';
 import '../../services/platform_service.dart';
 import '../../services/print_service.dart';
+import '../../utils/brand_registry.dart';
 import '../../utils/currency_unit.dart';
 import '../../widgets/custom_switch.dart';
 import 'package:appfit_order_agent/i18n/strings.g.dart';
@@ -37,7 +39,6 @@ class SettingsLeftPanel extends ConsumerStatefulWidget {
     required this.builtinPrintReceipt,
     required this.externalPrintOrder,
     required this.externalPrintReceipt,
-    required this.isTpcpStore,
     required this.labelFilterMode,
     required this.isShowOrderTypeBadge,
     required this.onModeSwitch,
@@ -76,7 +77,6 @@ class SettingsLeftPanel extends ConsumerStatefulWidget {
   final bool builtinPrintReceipt;
   final bool externalPrintOrder;
   final bool externalPrintReceipt;
-  final bool isTpcpStore;
   final int labelFilterMode;
   final bool isShowOrderTypeBadge;
 
@@ -248,6 +248,10 @@ class _SettingsLeftPanelState extends ConsumerState<SettingsLeftPanel> {
   @override
   Widget build(BuildContext context) {
     final t = Translations.of(context);
+    final brand = ref.watch(currentBrandProvider);
+    final canLabelFilter =
+        brand?.has(BrandFeature.labelCategoryFilter) ?? false;
+    final canSoundGraph = brand?.has(BrandFeature.soundGraphSend) ?? false;
 
     return Scrollbar(
       controller: _scrollController,
@@ -539,10 +543,9 @@ class _SettingsLeftPanelState extends ConsumerState<SettingsLeftPanel> {
                   additionalContent: LabelPrinterSubSettings(
                     isUseLabelPrinter: widget.isUseLabelPrinter,
                   ),
-                  showDivider:
-                      !(widget.isUseLabelPrinter && widget.isTpcpStore),
+                  showDivider: !(widget.isUseLabelPrinter && canLabelFilter),
                 ),
-                if (widget.isUseLabelPrinter && widget.isTpcpStore)
+                if (widget.isUseLabelPrinter && canLabelFilter)
                   SettingsItemWidget(
                     title: t.settings.label_filter.title,
                     description: switch (widget.labelFilterMode) {
@@ -569,8 +572,8 @@ class _SettingsLeftPanelState extends ConsumerState<SettingsLeftPanel> {
             ),
             const SizedBox(height: AppSpacing.s16),
 
-            // ── SoundGraph 설정 카드 ───────────────────────────────────────
-            if (!widget.isKdsMode)
+            // ── SoundGraph 설정 카드 (MHST 전용) ───────────────────────────
+            if (!widget.isKdsMode && canSoundGraph)
               SettingsSectionCard(
                 title: t.settings.soundgraph.title,
                 icon: Icons.notifications_active_outlined,

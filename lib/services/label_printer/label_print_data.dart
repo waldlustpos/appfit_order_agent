@@ -4,8 +4,9 @@
 // LabelPainter 에 라벨 1장씩 전달한다.
 //
 // fromOrder() 가 단일 진입점:
-// - TPCP 매장 카테고리 필터링 (filterMode + isTpcpStore + isReprint=false 일 때만)
-// - 옵션 카테고리 분류 (원두/온도/사이즈) — products 카탈로그 필요
+// - 메뉴 카테고리 필터링 + 옵션 카테고리 분류(원두/온도/사이즈)는 브랜드별
+//   LabelFilterStrategy 에 위임 (TPCP=TpcpLabelFilterStrategy, 그 외=NoOp).
+//   products 카탈로그 필요.
 // - 메뉴 qty 만큼 라벨 펼치기
 // - QR 페이로드 생성 — 라벨마다 다름. 포맷:
 //     "{OrderNo}-{ShopItemId}-{CupIdx}-{ShopCode}-{YYYYMMDD}-{DisplayNo}"
@@ -19,11 +20,10 @@
 
 import 'package:intl/intl.dart';
 
-import 'package:appfit_order_agent/constants/order_constants.dart';
 import 'package:appfit_order_agent/models/menu_option_model.dart';
-import 'package:appfit_order_agent/models/order_menu_model.dart';
 import 'package:appfit_order_agent/models/order_model.dart';
 import 'package:appfit_order_agent/models/product_model.dart';
+import 'package:appfit_order_agent/services/label_printer/label_filter_strategy.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 
 /// 라벨에 동봉되는 주문 식별 정보. 같은 주문의 모든 라벨에서 동일.
@@ -173,37 +173,24 @@ class LabelPrintData {
   /// appfit [OrderModel] 을 라벨 묶음(메뉴 1개당 qty 장 반복) 으로 변환.
   ///
   /// [products]: 옵션 카테고리 분류용 카탈로그.
-  /// [filterMode]: 0=전체, 1=와플만, 2=와플제외 (TPCP 매장에서만 동작).
-  /// [isTpcpStore]: true 일 때만 필터링 + 옵션 카테고리 분류(원두/온도/사이즈) 수행.
-  ///                false 면 단순 평면화 (기존 kokonut 등 동작 유지).
+  /// [filterMode]: 0=전체, 1=와플만, 2=와플제외 (필터를 쓰는 브랜드에서만 의미).
+  /// [strategy]: 브랜드별 메뉴 필터/옵션 분류 동작. 기본 [NoOpLabelFilterStrategy]
+  ///             는 필터 없이 단순 평면화 (기존 kokonut 등 동작 유지).
   /// [isReprint]: true 면 카테고리 필터링 우회 (재출력은 전체 라벨 인쇄).
   static List<LabelPrintData> fromOrder(
     OrderModel order, {
     List<ProductModel> products = const [],
     int filterMode = 0,
-    bool isTpcpStore = false,
+    LabelFilterStrategy strategy = const NoOpLabelFilterStrategy(),
     bool isReprint = false,
   }) {
-    // 1) 메뉴 카테고리 필터링 (TPCP 매장 + 비-재출력 + filterMode != 0)
-    final List<OrderMenuModel> menusToPrint;
-    if (isTpcpStore && !isReprint && filterMode != 0) {
-      menusToPrint = order.menus.where((menu) {
-        final product = products.firstWhereOrNull(
-          (p) =>
-              p.productId == menu.shopItemId || p.internalId == menu.shopItemId,
-        );
-        // TKP0051, TKP0052 세트 상품은 필터 모드 무관 항상 출력
-        if (product != null &&
-            OrderCategoryCodes.setItemCodes.contains(product.productId)) {
-          return true;
-        }
-        final isWaffle = OrderCategoryCodes.waffleCategoryCodes
-            .contains(product?.categoryCode);
-        return filterMode == 1 ? isWaffle : !isWaffle;
-      }).toList();
-    } else {
-      menusToPrint = order.menus;
-    }
+    // 1) 메뉴 카테고리 필터링 — 브랜드 전략에 위임 (기본 NoOp = 전체).
+    final menusToPrint = strategy.selectMenus(
+      order,
+      products: products,
+      filterMode: filterMode,
+      isReprint: isReprint,
+    );
 
     if (menusToPrint.isEmpty) return const [];
 
@@ -227,31 +214,11 @@ class LabelPrintData {
     final result = <LabelPrintData>[];
 
     for (final menu in menusToPrint) {
-      // 옵션 카테고리 분류 (TPCP 매장에서만)
-      String? beanType;
-      String? temperature;
-      String? sizeOption;
-
-      if (isTpcpStore) {
-        for (final opt in menu.options) {
-          final product = products.firstWhereOrNull(
-            (p) =>
-                p.productId == opt.shopOptionId ||
-                p.internalId == opt.shopOptionId,
-          );
-          final categoryCode = product?.categoryCode;
-          if (categoryCode == null) continue;
-          if (OrderCategoryCodes.beanTypeCodes.contains(categoryCode)) {
-            beanType = opt.optionName;
-          } else if (OrderCategoryCodes.temperatureCodes
-              .contains(categoryCode)) {
-            temperature = opt.optionName;
-          } else if (OrderCategoryCodes.sizeOptionCodes
-              .contains(categoryCode)) {
-            sizeOption = opt.optionName;
-          }
-        }
-      }
+      // 옵션 카테고리 분류 — 브랜드 전략에 위임 (기본 NoOp = 분류 없음).
+      final cats = strategy.classifyOptions(menu, products: products);
+      final String? beanType = cats.beanType;
+      final String? temperature = cats.temperature;
+      final String? sizeOption = cats.sizeOption;
 
       // 서브정보로 표시되는 옵션은 하단 옵션 리스트에서 제외
       final remainingOptions = menu.options.where((opt) =>
@@ -338,14 +305,5 @@ class LabelPrintData {
       orderIndex: 1,
       orderTotal: 1,
     );
-  }
-}
-
-extension _IterableFirstOrNull<T> on Iterable<T> {
-  T? firstWhereOrNull(bool Function(T) test) {
-    for (final e in this) {
-      if (test(e)) return e;
-    }
-    return null;
   }
 }

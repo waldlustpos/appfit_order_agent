@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:appfit_order_agent/models/order_model.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
 import 'package:appfit_order_agent/providers/product_provider.dart';
+import 'package:appfit_order_agent/services/label_printer/label_filter_strategy.dart';
 import 'package:appfit_order_agent/services/label_printer/label_print_data.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/services/print_service.dart';
@@ -109,7 +110,7 @@ class OutputService {
         orderToPrint,
         products: allProducts,
         filterMode: prefService.getLabelFilterMode(),
-        isTpcpStore: prefService.isTpcpStore(),
+        strategy: ref.read(labelFilterStrategyProvider),
         isReprint: isReprint,
       );
 

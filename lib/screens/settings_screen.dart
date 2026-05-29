@@ -46,7 +46,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _builtinPrintReceipt = true;
   bool _externalPrintOrder = true;
   bool _externalPrintReceipt = true;
-  bool _isTpcpStore = false;
 
   int _labelAutoReplyMode = 1;
   bool _labelUseFeedToTear = true;
@@ -110,7 +109,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _builtinPrintReceipt = _preferenceService.getBuiltinPrintReceipt();
       _externalPrintOrder = _preferenceService.getExternalPrintOrder();
       _externalPrintReceipt = _preferenceService.getExternalPrintReceipt();
-      _isTpcpStore = _preferenceService.isTpcpStore();
 
       _labelAutoReplyMode = _preferenceService.getLabelAutoReplyMode();
       _labelUseFeedToTear = _preferenceService.getLabelUseFeedToTear();
@@ -526,7 +524,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               builtinPrintReceipt: _builtinPrintReceipt,
               externalPrintOrder: _externalPrintOrder,
               externalPrintReceipt: _externalPrintReceipt,
-              isTpcpStore: _isTpcpStore,
               labelFilterMode: _labelFilterMode,
               isShowOrderTypeBadge: _isShowOrderTypeBadge,
               onModeSwitch: _handleModeSwitch,

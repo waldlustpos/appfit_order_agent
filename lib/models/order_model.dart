@@ -267,11 +267,14 @@ class OrderModel {
     };
   }
 
-  Map<String, dynamic> toJsonForSoundGraph(String marketId) {
+  /// 사운드그래프 전송 페이로드. [brandId]는 호출자(브랜드별 hook)가 주입한다
+  /// (모델은 브랜드에 무관). 현재 사운드그래프는 MHST 전용이라 'mmth'.
+  Map<String, dynamic> toJsonForSoundGraph(String marketId,
+      {required String brandId}) {
     final orderChannel = paymentCode.toUpperCase().contains('KIOSK') ? 1 : 2;
     final vibBell = int.tryParse(displayNum) ?? 0;
     return {
-      'brandId': 'mmth',
+      'brandId': brandId,
       'marketId': marketId,
       'orderChannel': orderChannel,
       'vibBell': vibBell,

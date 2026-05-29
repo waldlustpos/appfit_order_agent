@@ -21,7 +21,7 @@ import 'package:appfit_order_agent/core/orders/blink_service.dart';
 import 'package:appfit_order_agent/core/orders/output_service.dart';
 import 'package:appfit_order_agent/core/orders/order_queue_service.dart';
 import 'package:appfit_order_agent/services/output_queue_service.dart'; // [NEW]
-import 'package:appfit_order_agent/services/soundgraph_service.dart';
+import 'package:appfit_order_agent/services/soundgraph/soundgraph_hook.dart';
 
 import 'package:appfit_order_agent/core/orders/cache/order_detail_cache.dart';
 import 'package:appfit_order_agent/core/orders/cache/processed_order_cache.dart';
@@ -728,36 +728,10 @@ class Order extends _$Order {
   // (정리) _processAcceptedKioskOrder: 사용되지 않아 제거
 
   void _triggerSoundGraphSend(OrderModel order) {
-    final prefs = PreferenceService();
-    if (!prefs.getSoundGraphOn()) return;
-    final marketId = prefs.getSoundGraphMarketId();
-    if (marketId.isEmpty) {
-      logToFile(
-        tag: LogTag.SOUNDGRAPH,
-        message:
-            '[SoundGraph] enabled but marketId empty, skip ${order.orderNo}',
-      );
-      return;
-    }
-    if (order.menus.isEmpty) {
-      logToFile(
-        tag: LogTag.SOUNDGRAPH,
-        message: '[SoundGraph] menus empty, skip ${order.orderNo}',
-      );
-      return;
-    }
-    final payload = order.toJsonForSoundGraph(marketId);
-    ref.read(soundGraphServiceProvider).sendOrder(payload).then((ok) {
-      logToFile(
-        tag: LogTag.SOUNDGRAPH,
-        message: ok
-            ? '[SoundGraph] send OK ${order.orderNo}'
-            : '[SoundGraph] send FAIL ${order.orderNo}',
-      );
-    }).catchError((e, s) {
-      logger.e('[SoundGraph] sendOrder error ${order.orderNo}',
-          error: e, stackTrace: s);
-    });
+    // 브랜드 게이팅(MHST 전용)·marketId 검증·외부 전송 동작은 모두
+    // SoundGraphHook 에 위임. 비대상 브랜드는 NoOpSoundGraphHook 이라 무동작
+    // (크로스-브랜드 누수 차단).
+    ref.read(soundGraphHookProvider).onAutoAccepted(order);
   }
 
   // 리팩토링 후:

@@ -254,9 +254,24 @@ WebSocket 푸시 / 폴링 / 자정 새로고침으로 주문 상태가 빈번히
 
 `copyWith` 의 `updateTime` 은 명시 전달 없으면 `this.updateTime` 보존(`DateTime.now()` 자동 주입 X).
 
-## 브랜드 테마
+## 브랜드 (식별·자산·테마·커스텀 기능)
 
-`lib/constants/brand_theme.dart`의 `BrandTheme` enum(예: `appfitDefault`, `mammothCoffee`)이 매장별 색상·로그인 배경·로고를 정의. `main()`에서 `AppStyles.applyBrand(savedBrand)`로 정적 색상 값을 부팅 시 1회 고정합니다. `BrandThemeNotifier`(`lib/providers/brand_theme_provider.dart`)의 `selectTheme()`은 `PreferenceService`에만 저장하며, 색상 교체는 **앱 재시작 후** 반영됩니다(런타임 즉시 변경 X).
+브랜드는 **매장 ID prefix**(`TPCP`/`MHST`/`MATA`)로 식별되며, 3계층으로 다룹니다.
+
+**Layer 1 — SSOT 레지스트리**: `lib/utils/brand_registry.dart`의 `BrandRegistry`가 단일 출처. prefix → `BrandMeta`(자산 폴더/영수증로고/테마/통화/서버환경/`features`)를 해석합니다. prefix 매칭 로직은 이곳에만 존재하며, `PreferenceService.isTPCPStoreId` 등 레거시 헬퍼와 `BrandAssets`(자산 경로)는 모두 레지스트리에 위임합니다.
+- `BrandRegistry.resolveOrNull(id)` → 미매칭이면 **null** (capability·통화·환경 판단용 — "미지의 브랜드 = 기능 없음" 보장).
+- `BrandRegistry.resolve(id)` → 미매칭이면 **fallback=tokyoplatz** (라벨/영수증 로고는 항상 필요하므로 자산 경로 전용).
+- `currentBrandProvider`(`lib/providers/brand_provider.dart`)는 무상태로 매번 prefs를 읽어 `BrandMeta?`를 반환 → 로그아웃/서버전환 시 outdated 문제 없음.
+
+**Layer 2 — Capability 게이팅**: `enum BrandFeature`(`labelCategoryFilter`, `soundGraphSend`, `japanEnvironment`, `autoUpdateForce`)로 UI show/hide·로직 enable/disable을 `brand.has(feature)`로 일관 처리. 산재된 `isTpcpStore`/`isMammothStore` 분기를 대체합니다.
+
+**Layer 3 — 동작 seam**: 게이팅이 아니라 **동작이 갈리는** 소수 지점만 얇은 인터페이스로 분리(비대상 브랜드는 NoOp).
+- 파이프라인 **변환** → `LabelFilterStrategy`(`lib/services/label_printer/label_filter_strategy.dart`). `labelFilterStrategyProvider`가 capability로 `TpcpLabelFilterStrategy`/`NoOpLabelFilterStrategy` 선택. `LabelPrintData.fromOrder(strategy: ...)`가 메뉴 필터/옵션 분류를 위임.
+- 라이프사이클 **외부 통합** → `SoundGraphHook`(`lib/services/soundgraph/soundgraph_hook.dart`). `soundGraphHookProvider`가 capability로 `MhstSoundGraphHook`/`NoOpSoundGraphHook` 선택. `OrderProvider`의 자동접수 성공 후 `onAutoAccepted(order)` 호출. 비-MHST 매장은 NoOp → 크로스-브랜드 전송 누수 차단.
+
+**테마**: `lib/constants/brand_theme.dart`의 `BrandTheme` enum이 색상·로그인 배경·로고를 정의(레지스트리의 `BrandMeta.theme`가 prefix→테마 매핑). `main()`에서 `AppStyles.applyBrand(savedBrand)`로 부팅 시 1회 고정하며 색상 교체는 **앱 재시작 후** 반영(런타임 즉시 변경 X).
+
+**새 브랜드/기능 추가**: 브랜드는 `BrandRegistry._all`에 `BrandMeta` 한 항목(+ 자산·`BrandTheme`·pubspec) 추가가 핵심. 새 브랜드 전용 기능은 `BrandFeature` 추가 → 해당 브랜드 `features`에 등록 → (단순 게이팅이면) capability 체크, (동작이 다르면) Strategy/Hook 구현체 추가. 자산 절차는 [docs/BRAND_ASSETS.md](BRAND_ASSETS.md).
 
 ## 주요 패턴
 

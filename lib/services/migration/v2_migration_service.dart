@@ -1,5 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:appfit_order_agent/services/preference_service.dart';
+import 'package:appfit_order_agent/utils/brand_registry.dart';
 import 'v2_migration_logger.dart';
 
 /// 구앱(kokonut_order_agent_v2) → 신규앱(appfit_order_agent) 마이그레이션 서비스
@@ -145,8 +146,10 @@ class V2MigrationService {
   /// 구앱의 프린터 설정이 존재하면 KEY_PRINTER_DEFAULT_SET=true로 설정하여
   /// _initializePrinterDefaults()가 덮어쓰지 않도록 보호
   Future<void> _migratePrinterFlags(SharedPreferences prefs) async {
-    final hasBuiltin = prefs.containsKey(PreferenceService.KEY_USE_BUILTIN_PRINTER);
-    final hasExternal = prefs.containsKey(PreferenceService.KEY_USE_EXTERNAL_PRINTER);
+    final hasBuiltin =
+        prefs.containsKey(PreferenceService.KEY_USE_BUILTIN_PRINTER);
+    final hasExternal =
+        prefs.containsKey(PreferenceService.KEY_USE_EXTERNAL_PRINTER);
     final hasPrint = prefs.containsKey(PreferenceService.KEY_USE_PRINT);
 
     if (hasBuiltin || hasExternal || hasPrint) {
@@ -190,9 +193,9 @@ class V2MigrationService {
     V2MigrationLogger.log('로그인 정보 초기화 완료. 자동로그인 해제됨. 구앱 ID 백업: $oldId');
   }
 
-  /// 서버 환경 설정 (ID 접두사 기반)
+  /// 서버 환경 설정 (브랜드 레지스트리 기반, 미지의 매장은 'live')
   Future<void> _setEnvironment(SharedPreferences prefs, String oldId) async {
-    final env = PreferenceService.isTPCPStoreId(oldId) ? 'japanLive' : 'live';
+    final env = BrandRegistry.resolveOrNull(oldId)?.serverEnvironment ?? 'live';
     await prefs.setString(PreferenceService.KEY_ENVIRONMENT, env);
     V2MigrationLogger.log('서버 환경 설정: $env (ID: $oldId)');
   }

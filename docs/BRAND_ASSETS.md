@@ -4,8 +4,9 @@
 
 ## 1. 자원 분기 구조
 
-- 헬퍼: [lib/utils/brand_assets.dart](../lib/utils/brand_assets.dart) — `enum BrandKey` + `const Map<BrandKey, BrandAssetSet>` lookup.
-- 분기 기준: [`PreferenceService.isMHSTStoreId`](../lib/services/preference_service.dart) / `isTPCPStoreId` — 매장 ID prefix.
+- SSOT: [lib/utils/brand_registry.dart](../lib/utils/brand_registry.dart) — `enum BrandKey` + `const Map<BrandKey, BrandMeta>`. prefix 매칭 로직의 단일 출처.
+- 자산 파사드: [lib/utils/brand_assets.dart](../lib/utils/brand_assets.dart) — `BrandRegistry.resolve(id)`(자산용 fallback=tokyoplatz)에 위임하는 정적 getter(`labelLogoPath`/`receiptLogoPath`).
+- 분기 기준: 매장 ID prefix. `BrandRegistry.resolveOrNull(id)`(미매칭=null) / `resolve(id)`(미매칭=fallback). 레거시 [`PreferenceService.isTPCPStoreId`](../lib/services/preference_service.dart) 등도 레지스트리에 위임.
 - 캐시 무효화: `label_painter.dart` / `external_receipt_printer.dart` 양쪽이 매 호출마다 `BrandAssets.{label,receipt}LogoPath`를 캐시된 path와 비교 → 다르면 자동 재로드 (lazy invalidation). 별도 후크 불필요.
 
 자산은 `assets/images/brand/<slug>/` 폴더에 표준 파일명으로 배치한다:
@@ -165,17 +166,32 @@ EOF
 
 ### 4.3 코드 변경
 
-새 브랜드 추가는 **2~3곳** 만 수정하면 된다.
+새 브랜드 추가는 **2~3곳** 만 수정하면 된다. (브랜드 식별/자산/통화/환경/기능이 모두 `BrandRegistry` 한곳으로 모임)
 
 1. **`pubspec.yaml`** assets 에 새 폴더 등록:
    ```yaml
    - assets/images/brand/<slug>/
    ```
-2. **[lib/services/preference_service.dart](../lib/services/preference_service.dart)** : prefix 헬퍼가 없으면 추가 (`isXXXXStoreId(String? storeId)` static 형태, 기존 `isTPCPStoreId` / `isMHSTStoreId` 패턴 그대로).
-3. **[lib/utils/brand_assets.dart](../lib/utils/brand_assets.dart)** :
+2. **[lib/constants/brand_theme.dart](../lib/constants/brand_theme.dart)** : 색상이 다르면 `BrandTheme` enum 값 추가 (기존 브랜드 색상 재사용 시 생략 가능).
+3. **[lib/utils/brand_registry.dart](../lib/utils/brand_registry.dart)** :
    - `enum BrandKey` 에 새 키 추가
-   - `_brands` Map 에 한 줄 추가: `BrandKey.xxx: BrandAssetSet(folder: '<slug>', hasReceiptLogo: true/false)`
-   - `_resolveBrand()` 안에 prefix 분기 한 줄 추가
+   - `_all` Map 에 `BrandMeta` 항목 한 개 추가:
+     ```dart
+     BrandKey.xxx: BrandMeta(
+       key: BrandKey.xxx,
+       storeIdPrefix: 'XXXX',
+       assetFolder: '<slug>',
+       hasReceiptLogo: true,            // 영수증 로고 있으면
+       theme: BrandTheme.xxx,
+       currency: CurrencyUnit.krw,      // 또는 jpy
+       serverEnvironment: 'live',       // 또는 japanLive
+       features: {BrandFeature.labelCategoryFilter, ...}, // 지원 기능만
+     ),
+     ```
+
+> 새 브랜드 **전용 기능**은: `BrandFeature` enum 값 추가 → 해당 브랜드 `features` 에 등록 → 단순 게이팅이면 `brand.has(feature)` 체크, 동작이 다르면 Strategy(파이프라인 변환)나 Hook(라이프사이클 통합) 구현체 + provider 추가. 자세한 계층 구조는 [docs/ARCHITECTURE.md](ARCHITECTURE.md) "브랜드" 섹션.
+>
+> `PreferenceService.isXXXStoreId` 같은 prefix 헬퍼는 더 이상 새로 추가할 필요 없다(레지스트리가 prefix 매칭을 전담).
 
 ### 4.4 검증
 

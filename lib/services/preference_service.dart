@@ -1,6 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:appfit_order_agent/config/app_env.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
+import 'package:appfit_order_agent/utils/brand_registry.dart';
 import 'package:appfit_order_agent/utils/currency_unit.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import 'dart:io';
@@ -244,7 +245,8 @@ class PreferenceService {
     if (_prefs.containsKey(KEY_ENVIRONMENT)) return;
     final savedId = getId();
     if (savedId == null || savedId.isEmpty) return;
-    final env = isTPCPStoreId(savedId) ? 'japanLive' : 'live';
+    final env =
+        BrandRegistry.resolveOrNull(savedId)?.serverEnvironment ?? 'live';
     await _prefs.setString(KEY_ENVIRONMENT, env);
     logger.i('[PreferenceService] 서버 환경 자동 복원: $env (ID: $savedId)');
   }
@@ -819,12 +821,12 @@ class PreferenceService {
     await _prefs.setString(KEY_CURRENCY, value.name);
   }
 
-  // 화폐단위 설정 조회 (기본값: TPCP 매장은 jpy, 일반 매장은 krw)
+  // 화폐단위 설정 조회 (기본값: 브랜드 레지스트리의 currency, 미지의 매장은 krw)
   CurrencyUnit getCurrency() {
     final saved = _prefs.getString(KEY_CURRENCY);
     if (saved == 'krw') return CurrencyUnit.krw;
     if (saved == 'jpy') return CurrencyUnit.jpy;
-    return isTpcpStore() ? CurrencyUnit.jpy : CurrencyUnit.krw;
+    return BrandRegistry.resolveOrNull(getId())?.currency ?? CurrencyUnit.krw;
   }
 
   // 화면 상하 반전 저장
@@ -852,30 +854,27 @@ class PreferenceService {
   Future<void> setUpdateTpcpOverrideDone(bool value) async =>
       await _prefs.setBool(KEY_UPDATE_TPCP_OVERRIDE_DONE, value);
 
-  /// TPCP 매장 여부를 ID 문자열로 판별하는 정적 유틸리티.
-  /// 마이그레이션/로그인처럼 아직 ID가 저장되기 전인 경우 사용.
-  static bool isTPCPStoreId(String? storeId) {
-    if (storeId == null || storeId.isEmpty) return false;
-    return storeId.toUpperCase().startsWith('TPCP');
-  }
+  // ── 브랜드 판별 레거시 헬퍼 ──────────────────────────────────────────────
+  // prefix 매칭 로직의 단일 출처는 [BrandRegistry]. 아래 헬퍼들은 그 위의 얇은
+  // 어댑터이며, 신규 코드는 BrandRegistry.resolveOrNull / currentBrandProvider 사용.
+
+  /// TPCP 매장 여부를 ID 문자열로 판별. (마이그레이션/로그인처럼 ID 저장 전 사용)
+  static bool isTPCPStoreId(String? storeId) =>
+      BrandRegistry.resolveOrNull(storeId)?.key == BrandKey.tpcp;
 
   /// 현재 저장된 매장 ID가 TPCP(일본 특화) 매장인지 반환.
   bool isTpcpStore() => isTPCPStoreId(getId());
 
-  /// MHST(매머드) 매장 여부를 ID 문자열로 판별하는 정적 유틸리티.
-  static bool isMHSTStoreId(String? storeId) {
-    if (storeId == null || storeId.isEmpty) return false;
-    return storeId.toUpperCase().startsWith('MHST');
-  }
+  /// MHST(매머드) 매장 여부를 ID 문자열로 판별.
+  static bool isMHSTStoreId(String? storeId) =>
+      BrandRegistry.resolveOrNull(storeId)?.key == BrandKey.mhst;
 
   /// 현재 저장된 매장 ID가 MHST(매머드) 매장인지 반환.
   bool isMammothStore() => isMHSTStoreId(getId());
 
-  /// 마하테이스트(mahataste) 매장 여부를 ID 문자열로 판별하는 정적 유틸리티.
-  static bool isMATAStoreId(String? storeId) {
-    if (storeId == null || storeId.isEmpty) return false;
-    return storeId.toUpperCase().startsWith('MATA');
-  }
+  /// 마하테이스트(mahataste) 매장 여부를 ID 문자열로 판별.
+  static bool isMATAStoreId(String? storeId) =>
+      BrandRegistry.resolveOrNull(storeId)?.key == BrandKey.mata;
 
   /// 현재 저장된 매장 ID가 마하테이스트(mahataste) 매장인지 반환.
   bool isMataStore() => isMATAStoreId(getId());
