@@ -84,7 +84,9 @@
         },
         "builtin_printer": {
             "title": "内蔵プリンター使用",
-            "desc": "デバイスの内蔵プリンターを使用します。"
+            "desc": "デバイスの内蔵プリンターを使用します。",
+            "detected": "このデバイスで内蔵プリンターを検出しました。",
+            "not_detected": "このデバイスで内蔵プリンターを検出できませんでした。(Sunmi端末の内蔵モジュールのみ対応)"
         },
         "external_printer": {
             "title": "外部プリンター使用",
@@ -394,6 +396,7 @@
         }
     },
     "drawer": {
+        "product_management": "商品管理",
         "settings": "設定",
         "logout": "ログアウト",
         "customer_center": "カスタマーセンター",

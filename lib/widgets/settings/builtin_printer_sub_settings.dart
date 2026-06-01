@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:appfit_order_agent/constants/app_styles.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
+import 'package:appfit_order_agent/i18n/strings.g.dart';
 
 /// "내장 프린터 사용" 토글의 additionalContent.
 ///
@@ -140,8 +141,8 @@ class _BuiltinPrinterSubSettingsState
     final detected = widget.available;
     final color = detected ? AppStyles.green100 : AppStyles.gray6;
     final msg = detected
-        ? '이 기기에서 내장 프린터를 감지했습니다.'
-        : '이 기기에서 내장 프린터를 감지하지 못했습니다. (Sunmi 단말의 내장 모듈만 지원)';
+        ? t.settings.builtin_printer.detected
+        : t.settings.builtin_printer.not_detected;
     return Row(
       children: [
         Icon(

@@ -84,7 +84,9 @@
         },
         "builtin_printer": {
             "title": "Use Built-in Printer",
-            "desc": "Use the device's built-in printer."
+            "desc": "Use the device's built-in printer.",
+            "detected": "A built-in printer was detected on this device.",
+            "not_detected": "No built-in printer was detected on this device. (Only Sunmi device built-in modules are supported)"
         },
         "external_printer": {
             "title": "Use External Printer",
@@ -400,6 +402,7 @@
         }
     },
     "drawer": {
+        "product_management": "Product Management",
         "settings": "Settings",
         "logout": "Logout",
         "customer_center": "Customer Center",

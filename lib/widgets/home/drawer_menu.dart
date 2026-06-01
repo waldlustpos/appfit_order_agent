@@ -44,7 +44,7 @@ class DrawerMenu extends ConsumerWidget {
           if (isKdsMode) ...[
             _DrawerMenuItem(
               icon: Icons.inventory_2_outlined,
-              label: '상품관리',
+              label: t.drawer.product_management,
               isSelected: false,
               onTap: () async {
                 await onItemSelected(2);

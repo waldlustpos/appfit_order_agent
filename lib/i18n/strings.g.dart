@@ -4,9 +4,9 @@
 /// To regenerate, run: `dart run slang`
 ///
 /// Locales: 3
-/// Strings: 1121 (373 per locale)
+/// Strings: 1130 (376 per locale)
 ///
-/// Built on 2026-05-29 at 02:58 UTC
+/// Built on 2026-06-01 at 05:49 UTC
 
 // coverage:ignore-file
 // ignore_for_file: type=lint
@@ -553,6 +553,7 @@ class _StringsDrawerKo {
   final Translations _root; // ignore: unused_field
 
   // Translations
+  String get product_management => '상품관리';
   String get settings => '설정';
   String get logout => '로그아웃';
   String get customer_center => '고객센터';
@@ -704,6 +705,8 @@ class _StringsSettingsBuiltinPrinterKo {
   // Translations
   String get title => '기기 내장 프린터 사용';
   String get desc => '기기에 내장된 프린터를 사용합니다.';
+  String get detected => '이 기기에서 내장 프린터를 감지했습니다.';
+  String get not_detected => '이 기기에서 내장 프린터를 감지하지 못했습니다. (Sunmi 단말의 내장 모듈만 지원)';
 }
 
 // Path: settings.external_printer
@@ -1869,6 +1872,8 @@ class _StringsDrawerEn extends _StringsDrawerKo {
 
   // Translations
   @override
+  String get product_management => 'Product Management';
+  @override
   String get settings => 'Settings';
   @override
   String get logout => 'Logout';
@@ -2107,6 +2112,11 @@ class _StringsSettingsBuiltinPrinterEn
   String get title => 'Use Built-in Printer';
   @override
   String get desc => 'Use the device\'s built-in printer.';
+  @override
+  String get detected => 'A built-in printer was detected on this device.';
+  @override
+  String get not_detected =>
+      'No built-in printer was detected on this device. (Only Sunmi device built-in modules are supported)';
 }
 
 // Path: settings.external_printer
@@ -3569,6 +3579,8 @@ class _StringsDrawerJa extends _StringsDrawerKo {
 
   // Translations
   @override
+  String get product_management => '商品管理';
+  @override
   String get settings => '設定';
   @override
   String get logout => 'ログアウト';
@@ -3803,6 +3815,10 @@ class _StringsSettingsBuiltinPrinterJa
   String get title => '内蔵プリンター使用';
   @override
   String get desc => 'デバイスの内蔵プリンターを使用します。';
+  @override
+  String get detected => 'このデバイスで内蔵プリンターを検出しました。';
+  @override
+  String get not_detected => 'このデバイスで内蔵プリンターを検出できませんでした。(Sunmi端末の内蔵モジュールのみ対応)';
 }
 
 // Path: settings.external_printer
