@@ -1,7 +1,7 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:appfit_order_agent/providers/order_provider.dart';
+import 'package:appfit_order_agent/providers/order/order_provider.dart';
 import 'package:appfit_order_agent/models/order_model.dart';
-import 'package:appfit_order_agent/providers/kds_unified_providers.dart';
+import 'package:appfit_order_agent/providers/kds/kds_unified_providers.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 
 part 'kds_order_tracking_provider.g.dart';

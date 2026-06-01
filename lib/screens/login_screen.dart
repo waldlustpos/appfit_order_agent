@@ -26,8 +26,8 @@ import 'package:appfit_order_agent/widgets/common/brand_logo.dart';
 import 'package:appfit_order_agent/constants/app_styles.dart';
 import 'package:appfit_order_agent/services/local_server_service.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
-import 'package:appfit_order_agent/providers/kds_unified_providers.dart';
-import 'package:appfit_order_agent/providers/order_provider.dart';
+import 'package:appfit_order_agent/providers/kds/kds_unified_providers.dart';
+import 'package:appfit_order_agent/providers/order/order_provider.dart';
 import 'package:flutter/foundation.dart'; // For kDebugMode if needed
 import 'package:appfit_order_agent/i18n/strings.g.dart';
 import 'package:appfit_order_agent/providers/locale_provider.dart';

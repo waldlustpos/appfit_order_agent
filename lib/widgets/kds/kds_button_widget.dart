@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:appfit_order_agent/constants/app_styles.dart';
 import 'package:appfit_order_agent/constants/card_types.dart';
 import 'package:appfit_order_agent/models/order_model.dart';
-import 'package:appfit_order_agent/providers/kds_unified_providers.dart';
+import 'package:appfit_order_agent/providers/kds/kds_unified_providers.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/widgets/common/common_dialog.dart';

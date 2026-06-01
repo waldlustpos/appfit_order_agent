@@ -1,16 +1,16 @@
 export 'package:appfit_order_agent/providers/auth_provider.dart';
-export 'package:appfit_order_agent/providers/order_computed_providers.dart';
-export 'package:appfit_order_agent/providers/order_provider.dart';
+export 'package:appfit_order_agent/providers/order/order_computed_providers.dart';
+export 'package:appfit_order_agent/providers/order/order_provider.dart';
 export 'package:appfit_order_agent/providers/store_provider.dart';
-export 'package:appfit_order_agent/providers/order_history_provider.dart';
+export 'package:appfit_order_agent/providers/order/order_history_provider.dart';
 export 'package:appfit_order_agent/services/appfit/appfit_providers.dart';
 export 'package:appfit_order_agent/providers/preference_provider.dart';
 export 'package:appfit_order_agent/providers/lifecycle_provider.dart';
 export 'package:appfit_order_agent/providers/membership_provider.dart';
 export 'package:appfit_order_agent/services/api_service.dart';
-export 'package:appfit_order_agent/providers/order_detail_provider.dart';
+export 'package:appfit_order_agent/providers/order/order_detail_provider.dart';
 export 'package:appfit_order_agent/providers/app_info_provider.dart';
-export 'package:appfit_order_agent/providers/kds_unified_providers.dart';
+export 'package:appfit_order_agent/providers/kds/kds_unified_providers.dart';
 export 'package:appfit_order_agent/providers/brand_theme_provider.dart';
 export 'package:appfit_order_agent/core/orders/alert_manager.dart'; // AlertManager export
 
@@ -24,7 +24,7 @@ import 'package:appfit_order_agent/utils/model_parse_utils.dart';
 import 'package:intl/intl.dart'; // DateFormat 사용
 import 'package:appfit_order_agent/models/order_model.dart';
 import 'package:appfit_order_agent/providers/auth_provider.dart';
-import 'package:appfit_order_agent/providers/order_provider.dart';
+import 'package:appfit_order_agent/providers/order/order_provider.dart';
 import 'package:appfit_order_agent/providers/store_provider.dart';
 import 'package:appfit_order_agent/providers/product_provider.dart';
 import 'package:appfit_order_agent/services/preference_service.dart';

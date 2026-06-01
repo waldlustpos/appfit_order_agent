@@ -3,7 +3,7 @@ import 'dart:async'; // FutureOr 사용을 위해 추가
 import 'package:appfit_order_agent/models/store_model.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/services/preference_service.dart';
-import 'package:appfit_order_agent/providers/kds_unified_providers.dart';
+import 'package:appfit_order_agent/providers/kds/kds_unified_providers.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
 import 'package:appfit_order_agent/utils/logger.dart'; // logger import 추가
 

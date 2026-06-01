@@ -1,7 +1,7 @@
 import 'dart:math';
 import 'package:appfit_order_agent/models/order_model.dart';
 import 'package:appfit_order_agent/models/order_menu_model.dart';
-import 'package:appfit_order_agent/providers/order_history_provider.dart';
+import 'package:appfit_order_agent/providers/order/order_history_provider.dart';
 
 // 간단한 주문인지 판단하는 헬퍼 함수 (가중치 기반)
 bool _isSimpleOrder(int menuCount, int totalOptions) {

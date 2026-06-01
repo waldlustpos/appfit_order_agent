@@ -3,7 +3,7 @@ import 'package:appfit_order_agent/models/order_model.dart';
 import 'package:appfit_order_agent/core/orders/cache/order_detail_cache.dart';
 import 'package:appfit_order_agent/services/api_service.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
-import 'package:appfit_order_agent/providers/kds_unified_providers.dart';
+import 'package:appfit_order_agent/providers/kds/kds_unified_providers.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
 
 /// 주문 캐시 관리 클래스

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:appfit_order_agent/providers/order_history_provider.dart';
+import 'package:appfit_order_agent/providers/order/order_history_provider.dart';
 import 'package:appfit_order_agent/constants/app_styles.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import 'dart:async';

@@ -43,7 +43,7 @@ tools: Read, Glob, Grep, Bash
 
 1. `_resolveMergedStatus()` 적용 위치 grep — 모든 머지 지점 커버 확인
 2. 자동접수 3 진입점에서 위 **3중 가드** 적용 여부 점검
-3. 필요 시 `git log -- lib/providers/order_provider.dart`로 `e532877`, `5fa0109` 컨텍스트 조회
+3. 필요 시 `git log --follow -- lib/providers/order/order_provider.dart`로 `e532877`, `5fa0109` 컨텍스트 조회
 
 ### 시나리오 B: WebSocket↔폴링 중복 처리
 

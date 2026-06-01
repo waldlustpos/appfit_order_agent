@@ -16,7 +16,7 @@ REST API (폴링)  ───────┘        │
                                  └── OrderStateManager (상태 변경 헬퍼)
 ```
 
-주문은 **WebSocket**(기본, 실시간)과 **REST API 폴링**(폴백)으로 수신됩니다. `OrderProvider`는 `lib/providers/order_*.dart` 하위의 매니저 클래스로 분해되어 있습니다. 부수 효과 서비스(알림음, 점멸, 출력)는 `lib/core/orders/`에 위치합니다.
+주문은 **WebSocket**(기본, 실시간)과 **REST API 폴링**(폴백)으로 수신됩니다. `OrderProvider`는 `lib/providers/order/order_*.dart` 하위의 매니저 클래스로 분해되어 있습니다. 부수 효과 서비스(알림음, 점멸, 출력)는 `lib/core/orders/`에 위치합니다.
 
 ## 상태 관리: Riverpod
 
@@ -225,7 +225,7 @@ WebSocket 푸시 / 폴링 / 자정 새로고침으로 주문 상태가 빈번히
 
 8. **build 중 부수효과 금지** — `WidgetsBinding.instance.addPostFrameCallback` 으로 외부 호출(상세 fetch 등) 등록은 `initState` / `didUpdateWidget` / `ref.listen` 으로 이동. build 마다 콜백이 큐잉되어 누적된다.
 
-### 적용된 컴퓨티드 프로바이더 (`lib/providers/order_computed_providers.dart`)
+### 적용된 컴퓨티드 프로바이더 (`lib/providers/order/order_computed_providers.dart`)
 
 | Provider | 반환 | 캐싱 조건 | 사용처 |
 |---|---|---|---|

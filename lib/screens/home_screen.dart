@@ -5,7 +5,7 @@ import 'package:appfit_order_agent/services/preference_service.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:appfit_order_agent/i18n/strings.g.dart';
 import 'package:appfit_order_agent/constants/app_styles.dart';
-import 'package:appfit_order_agent/providers/kds_unified_providers.dart';
+import 'package:appfit_order_agent/providers/kds/kds_unified_providers.dart';
 import 'package:appfit_order_agent/providers/product_provider.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';

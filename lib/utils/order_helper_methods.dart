@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:appfit_order_agent/models/order_model.dart';
 import 'package:appfit_order_agent/core/orders/cache/order_detail_cache.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
-import 'package:appfit_order_agent/providers/kds_unified_providers.dart';
+import 'package:appfit_order_agent/providers/kds/kds_unified_providers.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
 
 /// 주문 관련 헬퍼 메서드들을 담는 클래스

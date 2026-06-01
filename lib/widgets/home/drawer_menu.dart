@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:appfit_order_agent/constants/app_styles.dart';
-import 'package:appfit_order_agent/providers/kds_unified_providers.dart';
+import 'package:appfit_order_agent/providers/kds/kds_unified_providers.dart';
 import 'package:appfit_order_agent/providers/store_provider.dart';
 import 'package:appfit_order_agent/providers/app_info_provider.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
