@@ -735,28 +735,6 @@ class Order extends _$Order {
     return _stateManager.calculateActiveOrderCount(orders);
   }
 
-  /// 상태 진행도 비교용 레벨. CANCELLED 은 별도 처리.
-  static const Map<OrderStatus, int> _statusProgress = {
-    OrderStatus.NEW: 0,
-    OrderStatus.PREPARING: 1,
-    OrderStatus.READY: 2,
-    OrderStatus.DONE: 3,
-  };
-
-  /// 서버 응답과 로컬 상태를 병합할 때 다운그레이드(예: PREPARING→NEW)를 막기 위한 헬퍼.
-  ///
-  /// 서버 PUT 직후 GET 응답이 구버전을 돌려주는 타이밍에서, 로컬이 이미
-  /// 더 진행된 상태라면 서버의 구버전 상태로 덮어쓰지 않는다.
-  /// CANCELLED 는 터미널 상태이므로 어느 한쪽이라도 CANCELLED 이면 우선한다.
-  OrderStatus _resolveMergedStatus(OrderStatus local, OrderStatus server) {
-    if (server == OrderStatus.CANCELLED || local == OrderStatus.CANCELLED) {
-      return OrderStatus.CANCELLED;
-    }
-    final lo = _statusProgress[local] ?? 0;
-    final so = _statusProgress[server] ?? 0;
-    return lo > so ? local : server;
-  }
-
   // ==========================================
   // refreshOrders 심플화를 위한 헬퍼 메서드들
   // ==========================================
@@ -956,7 +934,7 @@ class Order extends _$Order {
         final OrderStatus localReference =
             existing?.status ?? cached?.status ?? basicOrder.status;
         final OrderStatus resolvedStatus =
-            _resolveMergedStatus(localReference, basicOrder.status);
+            resolveMergedStatus(localReference, basicOrder.status);
         final bool keepLocalStatus = resolvedStatus != basicOrder.status;
         final String resolvedOrderStatus = keepLocalStatus
             ? (existing?.orderStatus ??
