@@ -14,7 +14,6 @@ class OrderTimerManager {
   Timer? _pollingStartupTimer; // 초기 30초 딜레이용 (취소 가능)
   Timer? _cacheCleanupTimer;
   Timer? _midnightRefreshTimer;
-  Timer? _batchProcessingTimer;
 
   // 구독들
   StreamSubscription? _orderNotificationSubscription;
@@ -110,18 +109,6 @@ class OrderTimerManager {
     });
   }
 
-  /// 배치 처리 타이머 설정
-  void setBatchProcessingTimer(Duration duration, VoidCallback callback) {
-    _batchProcessingTimer?.cancel();
-    _batchProcessingTimer = Timer(duration, callback);
-  }
-
-  /// 배치 처리 타이머 취소
-  void cancelBatchProcessingTimer() {
-    _batchProcessingTimer?.cancel();
-    _batchProcessingTimer = null;
-  }
-
   /// 주문 알림 구독 설정
   void setOrderNotificationSubscription(StreamSubscription subscription) {
     _orderNotificationSubscription?.cancel();
@@ -176,9 +163,6 @@ class OrderTimerManager {
 
     _midnightRefreshTimer?.cancel();
     _midnightRefreshTimer = null;
-
-    _batchProcessingTimer?.cancel();
-    _batchProcessingTimer = null;
 
     // 구독 정리
     _orderNotificationSubscription?.cancel();

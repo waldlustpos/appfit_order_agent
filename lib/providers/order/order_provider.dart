@@ -38,8 +38,6 @@ import 'package:intl/intl.dart';
 
 part 'order_provider.g.dart'; // Generator part file
 
-// moved to core/orders/cache/printed_order_cache.dart
-
 // OrderState 클래스는 order_state.dart로 이동됨
 
 @Riverpod(keepAlive: true)
@@ -75,7 +73,6 @@ class Order extends _$Order {
   bool _isAudioPlayerDisposed = false; // AudioPlayer dispose 상태 추적
   String _lastKnownOrderSequence = "0";
   List<OrderModel> _unfilteredOrders = []; // 필터링되지 않은 전체 주문 목록
-  Timer? _batchProcessingTimer; // 일부는 QueueManager로 이동, 일부는 여전히 필요
 
   bool _isInitialLoadComplete = false; // 초기 로딩 완료 여부 플래그
 
@@ -243,7 +240,6 @@ class Order extends _$Order {
         });
         _isAudioPlayerDisposed = true;
       }
-      _batchProcessingTimer?.cancel(); // 배치 처리 타이머 취소 추가
     });
 
     // 초기 상태 반환 시 설정값 반영
@@ -2119,8 +2115,6 @@ class Order extends _$Order {
     _timerManager.cleanupOnLogout();
     _queueProcessingTimer?.cancel();
     _queueProcessingTimer = null;
-    _batchProcessingTimer?.cancel();
-    _batchProcessingTimer = null;
 
     // 3. 외부 서비스 정지
     // _firestoreSyncService.stop(); // Removed

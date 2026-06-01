@@ -3,7 +3,6 @@ import 'package:appfit_order_agent/models/order_model.dart';
 import 'package:appfit_order_agent/core/orders/cache/order_detail_cache.dart';
 import 'package:appfit_order_agent/services/api_service.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
-import 'package:appfit_order_agent/providers/kds/kds_unified_providers.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
 
 /// 주문 캐시 관리 클래스
@@ -25,11 +24,6 @@ class OrderCacheManager {
   /// 주문 상세 정보 캐시 존재 여부 확인
   bool hasDetailCache(String orderId) {
     return _orderDetailCache.contains(orderId);
-  }
-
-  /// 주문 상세 정보를 캐시에 저장
-  void putOrderDetailCache(String orderId, OrderModel order) {
-    _orderDetailCache.put(orderId, order);
   }
 
   /// 캐시 정리 (만료된 항목들)
@@ -158,103 +152,4 @@ class OrderCacheManager {
     }
   }
 
-  /// 기존 상세 정보를 보존하면서 새 주문 목록과 병합
-  List<OrderModel> mergeWithExistingDetails(
-      List<OrderModel> newOrders, List<OrderModel> existingOrders) {
-    final Map<String, OrderModel> existingDetailsMap = {};
-
-    // 기존 주문들 중 상세 정보가 있는 것들을 맵에 저장
-    for (final existingOrder in existingOrders) {
-      if (existingOrder.menus.isNotEmpty) {
-        existingDetailsMap[existingOrder.orderNo] = existingOrder;
-      }
-    }
-
-    // 캐시에서도 상세 정보 확인
-    for (final newOrder in newOrders) {
-      if (newOrder.menus.isEmpty) {
-        final cachedDetail = _orderDetailCache.get(newOrder.orderNo);
-        if (cachedDetail != null && cachedDetail.menus.isNotEmpty) {
-          existingDetailsMap[newOrder.orderNo] = cachedDetail;
-        }
-      }
-    }
-
-    // 새 주문 목록에 기존 상세 정보 병합
-    return newOrders.map((newOrder) {
-      final existingDetail = existingDetailsMap[newOrder.orderNo];
-      if (existingDetail != null && newOrder.menus.isEmpty) {
-        // 상세 정보는 기존 것을 사용하되, 상태 정보는 새로운 것 사용
-        return existingDetail.copyWith(
-          status: newOrder.status,
-          orderStatus: newOrder.orderStatus,
-          updateTime: newOrder.updateTime.isAfter(existingDetail.updateTime)
-              ? newOrder.updateTime
-              : existingDetail.updateTime,
-        );
-      }
-      return newOrder;
-    }).toList();
-  }
-
-  /// 주문 상세 정보를 백그라운드에서 병렬로 로드
-  Future<void> loadOrderDetailsInBackground(List<OrderModel> orders) async {
-    try {
-      // 상세 정보가 없는 주문들만 필터링
-      final ordersNeedingDetails = orders
-          .where((order) => order.menus.isEmpty && order.orderNo.isNotEmpty)
-          .toList();
-
-      if (ordersNeedingDetails.isEmpty) {
-        logger.d('상세 정보가 필요한 주문이 없습니다.');
-        return;
-      }
-
-      logger.d('${ordersNeedingDetails.length}개 주문의 상세 정보를 백그라운드에서 로드합니다.');
-
-      // 저사양 장비 고려한 상세 정보 로드
-      final isKdsMode = ref.read(kdsModeProvider);
-      final int batchSize = isKdsMode ? 2 : 10; // KDS 모드에서는 더 작은 배치
-      final int delayMs = isKdsMode ? 300 : 50; // KDS 모드에서는 더 긴 지연
-
-      for (int i = 0; i < ordersNeedingDetails.length; i += batchSize) {
-        final batch = ordersNeedingDetails.skip(i).take(batchSize).toList();
-
-        // 이미 캐시에 있는 주문은 건너뛰기
-        final ordersToLoad = batch
-            .where((order) => !_orderDetailCache.contains(order.orderNo))
-            .toList();
-
-        if (ordersToLoad.isNotEmpty) {
-          if (isKdsMode) {
-            // KDS 모드에서는 순차적으로 처리 (저사양 장비 고려)
-            for (final order in ordersToLoad) {
-              try {
-                await fetchOrderDetail(order.orderNo);
-                // 각 주문 로드 후 휴식
-                await Future.delayed(const Duration(milliseconds: 200));
-              } catch (e, s) {
-                logger.e('상세 정보 로드 오류: ${order.orderNo}',
-                    error: e, stackTrace: s);
-              }
-            }
-          } else {
-            // 일반 모드에서는 병렬 처리
-            await Future.wait(
-              ordersToLoad.map((order) => fetchOrderDetail(order.orderNo)),
-            );
-          }
-        }
-
-        // 각 배치 완료 후 대기 시간
-        if (i + batchSize < ordersNeedingDetails.length) {
-          await Future.delayed(Duration(milliseconds: delayMs));
-        }
-      }
-
-      logger.d('백그라운드 상세 정보 로드 완료');
-    } catch (e, s) {
-      logger.e('백그라운드 상세 정보 로드 중 오류 발생', error: e, stackTrace: s);
-    }
-  }
 }
