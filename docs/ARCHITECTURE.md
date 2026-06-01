@@ -267,7 +267,7 @@ WebSocket 푸시 / 폴링 / 자정 새로고침으로 주문 상태가 빈번히
 
 **Layer 3 — 동작 seam**: 게이팅이 아니라 **동작이 갈리는** 소수 지점만 얇은 인터페이스로 분리(비대상 브랜드는 NoOp).
 - 파이프라인 **변환** → `LabelFilterStrategy`(`lib/services/label_printer/label_filter_strategy.dart`). `labelFilterStrategyProvider`가 capability로 `TpcpLabelFilterStrategy`/`NoOpLabelFilterStrategy` 선택. `LabelPrintData.fromOrder(strategy: ...)`가 메뉴 필터/옵션 분류를 위임.
-- 라이프사이클 **외부 통합** → `SoundGraphHook`(`lib/services/soundgraph/soundgraph_hook.dart`). `soundGraphHookProvider`가 capability로 `MhstSoundGraphHook`/`NoOpSoundGraphHook` 선택. `OrderProvider`의 자동접수 성공 후 `onAutoAccepted(order)` 호출. 비-MHST 매장은 NoOp → 크로스-브랜드 전송 누수 차단.
+- 라이프사이클 **외부 통합** → `SoundGraphHook`(`lib/services/soundgraph_hook.dart`). `soundGraphHookProvider`가 capability로 `MhstSoundGraphHook`/`NoOpSoundGraphHook` 선택. `OrderProvider`의 자동접수 성공 후 `onAutoAccepted(order)` 호출. 비-MHST 매장은 NoOp → 크로스-브랜드 전송 누수 차단.
 
 **테마**: `lib/constants/brand_theme.dart`의 `BrandTheme` enum이 색상·로그인 배경·로고를 정의(레지스트리의 `BrandMeta.theme`가 prefix→테마 매핑). `main()`에서 `AppStyles.applyBrand(savedBrand)`로 부팅 시 1회 고정하며 색상 교체는 **앱 재시작 후** 반영(런타임 즉시 변경 X).
 

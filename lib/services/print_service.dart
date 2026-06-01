@@ -7,7 +7,7 @@ import 'package:appfit_order_agent/services/label_printer/windows/windows_label_
 import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/services/printer_job_queue.dart';
 import 'package:appfit_order_agent/services/printer_transport.dart';
-import 'package:appfit_order_agent/utils/print/label_painter.dart';
+import 'package:appfit_order_agent/utils/label_painter.dart';
 import 'package:appfit_order_agent/models/order_model.dart';
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

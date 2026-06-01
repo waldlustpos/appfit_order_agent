@@ -43,7 +43,7 @@
 
 커밋 [`6959307`](https://github.com/.../commit/6959307) `fix(print): use FilterQuality.none for label logo to prevent binarization distortion on older Android versions`
 
-`canvas.drawImageRect`로 1-bit BMP를 50×50 영역에 그릴 때 [`FilterQuality.high`](../lib/utils/print/label_painter.dart) 보간을 쓰면 픽셀 경계에 회색 그라데이션이 생기고, 라벨 프린터(Caysn SDK)가 이를 디더링으로 이진화하면서 노이즈/얼룩으로 변환된다. **반드시 `FilterQuality.none`(NEAREST 보간)** 사용. label_painter.dart:117 참조.
+`canvas.drawImageRect`로 1-bit BMP를 50×50 영역에 그릴 때 [`FilterQuality.high`](../lib/utils/label_painter.dart) 보간을 쓰면 픽셀 경계에 회색 그라데이션이 생기고, 라벨 프린터(Caysn SDK)가 이를 디더링으로 이진화하면서 노이즈/얼룩으로 변환된다. **반드시 `FilterQuality.none`(NEAREST 보간)** 사용. label_painter.dart:117 참조.
 
 ### 3.2 PNG → BMP 변환 시 alpha 임계값 방향 주의
 

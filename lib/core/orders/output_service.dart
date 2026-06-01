@@ -11,7 +11,7 @@ import 'package:appfit_order_agent/services/print_service.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:appfit_order_agent/core/orders/sound_service.dart';
 import 'package:appfit_order_agent/exceptions/label_print_missing_exception.dart';
-import 'package:appfit_order_agent/utils/print/label_painter.dart';
+import 'package:appfit_order_agent/utils/label_painter.dart';
 
 import 'package:appfit_core/appfit_core.dart' show MonitoringService;
 import 'package:appfit_order_agent/providers/kds_unified_providers.dart';

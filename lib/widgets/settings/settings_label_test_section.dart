@@ -10,7 +10,7 @@ import 'package:appfit_order_agent/providers/providers.dart';
 import 'package:appfit_order_agent/services/output_queue_service.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/services/print_service.dart';
-import 'package:appfit_order_agent/utils/print/label_painter.dart';
+import 'package:appfit_order_agent/utils/label_painter.dart';
 import 'package:appfit_order_agent/widgets/custom_switch.dart';
 
 /// 라벨 프린터 고급 설정 (개발자 옵션 내부).

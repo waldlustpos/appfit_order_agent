@@ -9,7 +9,7 @@ import 'package:appfit_order_agent/services/api_service.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
 import 'package:appfit_order_agent/models/membership_model.dart';
 import 'package:intl/intl.dart';
-import 'package:appfit_order_agent/utils/print/label_painter.dart';
+import 'package:appfit_order_agent/utils/label_painter.dart';
 
 /// AppFit API 설정 및 테스트 화면
 ///

@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
-import 'package:appfit_order_agent/widgets/update/update_progress_dialog.dart';
+import 'package:appfit_order_agent/widgets/update/update_bootstrap_app.dart';
 
 /// main()의 runApp(MyApp) 직전에 호출한다.
 /// Windows가 아니면 즉시 반환.
@@ -14,64 +14,9 @@ Future<void> runStartupUpdateFlow() async {
 
   final completer = Completer<void>();
 
-  runApp(_UpdateBootstrapApp(onDone: () {
+  runApp(UpdateBootstrapApp(onDone: () {
     if (!completer.isCompleted) completer.complete();
   }));
 
   await completer.future;
-}
-
-class _UpdateBootstrapApp extends StatefulWidget {
-  final VoidCallback onDone;
-  const _UpdateBootstrapApp({required this.onDone});
-
-  @override
-  State<_UpdateBootstrapApp> createState() => _UpdateBootstrapAppState();
-}
-
-class _UpdateBootstrapAppState extends State<_UpdateBootstrapApp> {
-  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
-  bool _dialogShown = false;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _showDialog());
-  }
-
-  Future<void> _showDialog() async {
-    if (_dialogShown) return;
-    _dialogShown = true;
-
-    final navigator = _navigatorKey.currentState;
-    if (navigator == null) {
-      widget.onDone();
-      return;
-    }
-
-    await showDialog<void>(
-      context: navigator.context,
-      barrierDismissible: false,
-      useRootNavigator: false,
-      builder: (_) => const UpdateProgressDialog(),
-    );
-
-    widget.onDone();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      navigatorKey: _navigatorKey,
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        fontFamily: 'Pretendard',
-      ),
-      home: const Scaffold(
-        backgroundColor: Colors.white,
-        body: SizedBox.expand(),
-      ),
-    );
-  }
 }

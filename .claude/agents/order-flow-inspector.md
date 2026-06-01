@@ -56,7 +56,7 @@ tools: Read, Glob, Grep, Bash
 
 1. **equality 보존 확인**: `OrderModel`, `OrderMenuModel`, `OrderState` 클래스에 `==`/`hashCode` 가 정의돼 있는지 grep:
    ```
-   grep -n "operator ==" lib/models/order_model.dart lib/models/order_menu_model.dart lib/providers/order_state.dart
+   grep -n "operator ==" lib/models/order_model.dart lib/models/order_menu_model.dart lib/models/order_state.dart
    ```
    3개 파일 모두에서 매칭이 나와야 함. 새 필드를 추가하면 동등성 키에도 반영했는지 점검(mutable 필드는 제외).
 2. **`copyWith(updateTime)` 가드 확인**: `order_model.dart` 의 `copyWith` 시그니처에서 `updateTime: updateTime ?? this.updateTime` 패턴(또는 동등한 가드). `DateTime.now()` 자동 주입이면 회귀.

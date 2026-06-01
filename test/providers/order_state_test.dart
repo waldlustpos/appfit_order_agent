@@ -1,6 +1,6 @@
 import 'package:appfit_order_agent/models/order_menu_model.dart';
 import 'package:appfit_order_agent/models/order_model.dart';
-import 'package:appfit_order_agent/providers/order_state.dart';
+import 'package:appfit_order_agent/models/order_state.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 OrderModel _order({String orderNo = 'order-1'}) {

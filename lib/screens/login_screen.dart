@@ -31,7 +31,7 @@ import 'package:appfit_order_agent/providers/order_provider.dart';
 import 'package:flutter/foundation.dart'; // For kDebugMode if needed
 import 'package:appfit_order_agent/i18n/strings.g.dart';
 import 'package:appfit_order_agent/providers/locale_provider.dart';
-import 'package:appfit_order_agent/utils/print/label_painter.dart';
+import 'package:appfit_order_agent/utils/label_painter.dart';
 import 'package:appfit_order_agent/config/ota_config.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 

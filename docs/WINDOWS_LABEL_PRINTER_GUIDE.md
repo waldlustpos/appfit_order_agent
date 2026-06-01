@@ -521,6 +521,6 @@ waitPaperFetched(tag):
 
 ### C.5 참고 파일
 
-- [`lib/utils/print/label_painter.dart`](../lib/utils/print/label_painter.dart) — 캔버스 페인터 + `generateLabelImage()` PNG 생성 진입점
+- [`lib/utils/label_painter.dart`](../lib/utils/label_painter.dart) — 캔버스 페인터 + `generateLabelImage()` PNG 생성 진입점
 - [`lib/services/label_printer/label_print_orchestrator.dart`](../lib/services/label_printer/label_print_orchestrator.dart) — 주문 1건 → 라벨 N장 분해 + 위 painter 호출 → 백엔드 `print_label()` 전달
 - [`lib/utils/brand_assets.dart`](../lib/utils/brand_assets.dart) — 브랜드별 로고 path 분기 (`labelLogoPath` / `labelLogoFallbackPath`)

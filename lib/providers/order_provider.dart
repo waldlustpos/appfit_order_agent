@@ -21,17 +21,17 @@ import 'package:appfit_order_agent/core/orders/blink_service.dart';
 import 'package:appfit_order_agent/core/orders/output_service.dart';
 import 'package:appfit_order_agent/core/orders/order_queue_service.dart';
 import 'package:appfit_order_agent/services/output_queue_service.dart'; // [NEW]
-import 'package:appfit_order_agent/services/soundgraph/soundgraph_hook.dart';
+import 'package:appfit_order_agent/services/soundgraph_hook.dart';
 
 import 'package:appfit_order_agent/core/orders/cache/order_detail_cache.dart';
 import 'package:appfit_order_agent/core/orders/cache/processed_order_cache.dart';
 import 'package:appfit_order_agent/services/appfit/appfit_providers.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:appfit_order_agent/utils/model_parse_utils.dart';
-import 'package:appfit_order_agent/providers/order_state.dart';
+import 'package:appfit_order_agent/models/order_state.dart';
 import 'package:appfit_order_agent/utils/socket_event_suppressor.dart';
 import 'package:appfit_core/appfit_core.dart' as appfit_core;
-import 'package:appfit_order_agent/providers/order_helper_methods.dart';
+import 'package:appfit_order_agent/utils/order_helper_methods.dart';
 
 import 'package:intl/intl.dart';
 // Actually ApiVersion enum is in config/api_version.dart
