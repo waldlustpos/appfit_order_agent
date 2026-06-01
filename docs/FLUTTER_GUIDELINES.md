@@ -11,6 +11,12 @@
 - **약어 지양**: 축약어를 피하고, 의미 있고 일관성 있는 이름 사용
 - **화살표 함수**: 단순한 한 줄 함수에는 화살표(`=>`) 구문 사용
 
+### import 규칙
+
+- **프로젝트 내부 import 는 `package:` 형태만**: `lib/` 안의 다른 파일을 참조할 때는 상대 경로(`import '../utils/foo.dart'`)가 아니라 항상 `import 'package:appfit_order_agent/utils/foo.dart'` 형태를 사용한다.
+- **근거**: 프로젝트 내부 import 를 `package:` 로 통일하면 파일 이동 시 import 가 깨지지 않고(이동에 불변), stale import 를 컴파일 에러로 잡을 수 있다. `analysis_options.yaml` 의 `always_use_package_imports: true` 린트로 강제된다 — 상대 import 는 분석 단계에서 걸린다.
+- **`directives_ordering` 은 비활성(정렬 강제 아님)**: import 알파벳 정렬은 의도적으로 켜지 않았다. flutter_lints 기본 세트에 없고, 자동 fix 가 없어 수백 줄 수동 정렬이 필요하며, deferred import 등 주석이 붙은 지시문을 정렬하면 주석-지시문 연결이 끊기기 때문. import 순서는 자유.
+
 ## Dart 모범 사례
 
 ### Null Safety
