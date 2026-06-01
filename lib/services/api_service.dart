@@ -191,6 +191,19 @@ class ApiService {
           } catch (_) {
             // 조회 실패 시 원본 서버 메시지 유지
           }
+          // 친절 메시지를 Sentry 추적 trail 에 남긴다. core 인터셉터가 이 400 을
+          // 양성(benign)으로 분류해 issue 는 만들지 않으므로, 사람이 읽기 쉬운
+          // 한국어 메시지를 breadcrumb 으로 보강해 추적 시 맥락을 제공한다.
+          MonitoringService.instance.addBreadcrumb(
+            '주문 상태 변경 거부: $message',
+            category: 'order',
+            data: {
+              'order_id': orderId,
+              'server_code': data['code'],
+              'server_message': data['message'],
+              'friendly_message': message,
+            },
+          );
           throw ApiException(message, e, e.stackTrace);
         }
       }
