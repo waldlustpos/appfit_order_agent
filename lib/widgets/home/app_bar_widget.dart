@@ -16,7 +16,7 @@ import 'package:appfit_order_agent/widgets/common/common_dialog.dart';
 import 'package:appfit_order_agent/widgets/common/app_icon_action.dart';
 import 'package:appfit_order_agent/widgets/common/app_loading_indicator.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:appfit_order_agent/utils/test/socket_burst_test.dart'
+import 'package:appfit_order_agent/dev/socket_burst_test.dart'
     as test_util; // [TEST]
 import 'package:appfit_order_agent/i18n/strings.g.dart';
 import 'package:appfit_order_agent/providers/locale_provider.dart';

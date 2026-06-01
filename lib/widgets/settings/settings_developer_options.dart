@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:appfit_order_agent/constants/app_styles.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
 import 'package:appfit_order_agent/core/orders/order_queue_service.dart';
-import 'package:appfit_order_agent/utils/mock_order_generator.dart' as mock_gen;
+import 'package:appfit_order_agent/dev/mock_order_generator.dart' as mock_gen;
 import 'package:appfit_order_agent/screens/appfit_test_screen.dart';
 import 'package:appfit_order_agent/i18n/strings.g.dart';
 import 'package:appfit_order_agent/widgets/settings/settings_section_card.dart';
