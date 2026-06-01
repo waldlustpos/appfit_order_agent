@@ -4,31 +4,31 @@ import 'package:appfit_order_agent/screens/membership_screen.dart';
 import 'package:appfit_order_agent/services/preference_service.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:appfit_order_agent/i18n/strings.g.dart';
-import '../constants/app_styles.dart';
-import '../providers/kds_unified_providers.dart';
-import '../providers/product_provider.dart';
-import '../providers/providers.dart';
+import 'package:appfit_order_agent/constants/app_styles.dart';
+import 'package:appfit_order_agent/providers/kds_unified_providers.dart';
+import 'package:appfit_order_agent/providers/product_provider.dart';
+import 'package:appfit_order_agent/providers/providers.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'dart:async'; // StreamSubscription 사용 위해 추가
 import 'dart:io'; // Platform 사용 위해 추가
-import '../services/local_server_service.dart';
-import '../services/platform_service.dart';
-import '../services/platform_bridge_service.dart'; // PlatformBridgeService 사용 위해 추가
+import 'package:appfit_order_agent/services/local_server_service.dart';
+import 'package:appfit_order_agent/services/platform_service.dart';
+import 'package:appfit_order_agent/services/platform_bridge_service.dart'; // PlatformBridgeService 사용 위해 추가
 
 import 'package:appfit_order_agent/services/overlay_service.dart';
 
-import '../widgets/home/app_bar_widget.dart';
-import '../widgets/home/tab_button_widget.dart';
-import 'order_history_screen.dart';
-import 'order_status_screen.dart';
-import 'product_management_screen.dart';
-import '../widgets/home/drawer_menu.dart';
-import 'settings_screen.dart';
-import '../widgets/common/common_dialog.dart';
+import 'package:appfit_order_agent/widgets/home/app_bar_widget.dart';
+import 'package:appfit_order_agent/widgets/home/tab_button_widget.dart';
+import 'package:appfit_order_agent/screens/order_history_screen.dart';
+import 'package:appfit_order_agent/screens/order_status_screen.dart';
+import 'package:appfit_order_agent/screens/product_management_screen.dart';
+import 'package:appfit_order_agent/widgets/home/drawer_menu.dart';
+import 'package:appfit_order_agent/screens/settings_screen.dart';
+import 'package:appfit_order_agent/widgets/common/common_dialog.dart';
 import 'package:flutter/widgets.dart';
 import 'package:audioplayers/audioplayers.dart';
-import '../services/monitoring/monitoring_sync_provider.dart';
-import 'kds_screen.dart';
+import 'package:appfit_order_agent/services/monitoring/monitoring_sync_provider.dart';
+import 'package:appfit_order_agent/screens/kds_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);

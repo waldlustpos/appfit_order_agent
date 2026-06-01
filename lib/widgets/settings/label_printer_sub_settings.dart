@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../constants/app_styles.dart';
-import '../../providers/providers.dart';
-import '../../services/platform_service.dart';
-import '../../services/print_service.dart';
-import 'settings_connection_status.dart';
+import 'package:appfit_order_agent/constants/app_styles.dart';
+import 'package:appfit_order_agent/providers/providers.dart';
+import 'package:appfit_order_agent/services/platform_service.dart';
+import 'package:appfit_order_agent/services/print_service.dart';
+import 'package:appfit_order_agent/widgets/settings/settings_connection_status.dart';
 
 /// "라벨 프린터 사용" 토글의 additionalContent.
 ///

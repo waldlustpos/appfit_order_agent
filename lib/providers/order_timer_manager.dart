@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:appfit_core/appfit_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../utils/logger.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
 
 /// 주문 관련 타이머 및 구독 관리 클래스
 /// 폴링, 캐시 정리, 자정 새로고침 등의 타이머를 관리합니다.

@@ -1,11 +1,11 @@
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:intl/intl.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
-import '../utils/kds_utils.dart' as kds_utils;
-import 'enums/order_status.dart';
-import 'order_menu_model.dart';
+import 'package:appfit_order_agent/utils/kds_utils.dart' as kds_utils;
+import 'package:appfit_order_agent/models/enums/order_status.dart';
+import 'package:appfit_order_agent/models/order_menu_model.dart';
 
-export 'enums/order_status.dart';
+export 'package:appfit_order_agent/models/enums/order_status.dart';
 
 class OrderModel {
   final String orderNo; // ordrId -> orderNo

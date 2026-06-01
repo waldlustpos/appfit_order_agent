@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../widgets/common/app_loading_indicator.dart';
+import 'package:appfit_order_agent/widgets/common/app_loading_indicator.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
@@ -8,13 +8,13 @@ import 'package:appfit_order_agent/models/membership_model.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:appfit_order_agent/widgets/common/common_dialog.dart';
 import 'package:appfit_order_agent/i18n/strings.g.dart';
-import '../services/platform_service.dart';
-import '../constants/app_styles.dart';
-import '../widgets/membership/numeric_keypad_widget.dart';
-import '../widgets/membership/membership_history_list.dart';
-import '../widgets/membership/stamp_history_card.dart';
-import '../widgets/membership/coupon_history_card.dart';
-import '../widgets/membership/available_coupon_card.dart';
+import 'package:appfit_order_agent/services/platform_service.dart';
+import 'package:appfit_order_agent/constants/app_styles.dart';
+import 'package:appfit_order_agent/widgets/membership/numeric_keypad_widget.dart';
+import 'package:appfit_order_agent/widgets/membership/membership_history_list.dart';
+import 'package:appfit_order_agent/widgets/membership/stamp_history_card.dart';
+import 'package:appfit_order_agent/widgets/membership/coupon_history_card.dart';
+import 'package:appfit_order_agent/widgets/membership/available_coupon_card.dart';
 
 class MembershipScreen extends ConsumerStatefulWidget {
   const MembershipScreen({Key? key}) : super(key: key);

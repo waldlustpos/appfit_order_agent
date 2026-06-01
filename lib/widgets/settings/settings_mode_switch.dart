@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../constants/app_styles.dart';
+import 'package:appfit_order_agent/constants/app_styles.dart';
 import 'package:appfit_order_agent/i18n/strings.g.dart';
 
 /// 메인 모드 ↔ KDS 모드 전환 세그먼티드 탭.

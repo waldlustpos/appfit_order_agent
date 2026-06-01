@@ -1,7 +1,7 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'dart:async'; // FutureOr 사용 위해 추가 (build 메서드 반환 타입)
-import '../models/order_model.dart';
-import 'providers.dart';
+import 'package:appfit_order_agent/models/order_model.dart';
+import 'package:appfit_order_agent/providers/providers.dart';
 // PrintService import 추가
 import 'package:appfit_order_agent/utils/logger.dart'; // logger import 추가
 import 'package:appfit_order_agent/utils/model_parse_utils.dart';

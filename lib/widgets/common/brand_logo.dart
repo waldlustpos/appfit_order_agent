@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import '../../constants/app_styles.dart';
+import 'package:appfit_order_agent/constants/app_styles.dart';
 
 /// 활성 브랜드의 로고. [BrandTheme.logoAsset] 이 지정돼 있으면 이미지를,
 /// 지정되지 않았으면 [fallbackText] 를 렌더한다.

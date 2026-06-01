@@ -2,12 +2,12 @@ import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../constants/app_styles.dart';
-import '../../constants/card_types.dart';
-import '../../models/order_model.dart';
-import '../../providers/order_provider.dart';
-import 'kds_card_metrics.dart';
-import 'kds_order_card.dart';
+import 'package:appfit_order_agent/constants/app_styles.dart';
+import 'package:appfit_order_agent/constants/card_types.dart';
+import 'package:appfit_order_agent/models/order_model.dart';
+import 'package:appfit_order_agent/providers/order_provider.dart';
+import 'package:appfit_order_agent/widgets/kds/kds_card_metrics.dart';
+import 'package:appfit_order_agent/widgets/kds/kds_order_card.dart';
 
 /// KDS 카드의 가로 스크롤 그리드.
 ///

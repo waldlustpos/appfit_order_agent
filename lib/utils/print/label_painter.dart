@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
-import '../brand_assets.dart';
-import '../logger.dart';
+import 'package:appfit_order_agent/utils/brand_assets.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
 
 class LabelPainter extends CustomPainter {
   final String menuName;

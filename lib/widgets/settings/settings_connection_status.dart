@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../constants/app_styles.dart';
+import 'package:appfit_order_agent/constants/app_styles.dart';
 import 'package:appfit_order_agent/i18n/strings.g.dart';
 
 /// 프린터 연결 상태를 표시하는 위젯.

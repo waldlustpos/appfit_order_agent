@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../constants/app_styles.dart';
+import 'package:appfit_order_agent/constants/app_styles.dart';
 
 /// 가로 스크롤 컨테이너에 좌/우 화살표 오버레이를 제공하는 위젯.
 ///

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'action_button_shell.dart';
+import 'package:appfit_order_agent/widgets/common/action_button_shell.dart';
 
 /// API류(주문 접수/완료/취소, 상태 변경 등) 전용 다이얼로그 버튼.
 ///

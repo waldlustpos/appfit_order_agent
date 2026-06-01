@@ -74,22 +74,18 @@ class OutputQueueService {
       onProcess: _processReceiptItem,
       onError: (item, error, stack) {
         final num = item.order.displayNum;
-        logger.e('[ReceiptQueue] $num 처리 실패',
-            error: error, stackTrace: stack);
+        logger.e('[ReceiptQueue] $num 처리 실패', error: error, stackTrace: stack);
         logToFile(
-            tag: LogTag.ERROR,
-            message: '[ReceiptQueue] $num 처리 실패: $error');
+            tag: LogTag.ERROR, message: '[ReceiptQueue] $num 처리 실패: $error');
       },
     );
     _labelQueue = SerialAsyncQueue(
       onProcess: _processLabelItem,
       onError: (item, error, stack) {
         final num = item.order.displayNum;
-        logger.e('[LabelQueue] $num 처리 실패',
-            error: error, stackTrace: stack);
+        logger.e('[LabelQueue] $num 처리 실패', error: error, stackTrace: stack);
         logToFile(
-            tag: LogTag.ERROR,
-            message: '[LabelQueue] $num 처리 실패: $error');
+            tag: LogTag.ERROR, message: '[LabelQueue] $num 처리 실패: $error');
       },
     );
   }

@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import '../config/update_config.dart';
+import 'package:appfit_order_agent/config/update_config.dart';
 
 class WindowsUpdaterScript {
   /// bat 내부는 ASCII only (한글 금지 — cmd.exe 기본 코드페이지 충돌 방지).

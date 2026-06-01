@@ -1,24 +1,24 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import '../widgets/common/app_loading_indicator.dart';
+import 'package:appfit_order_agent/widgets/common/app_loading_indicator.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:appfit_order_agent/widgets/kds/kds_card_grid_layout_widget.dart';
 import 'package:table_calendar/table_calendar.dart';
-import '../providers/kds_unified_providers.dart';
-import '../providers/kds_order_tracking_provider.dart';
-import '../providers/providers.dart';
-import '../services/preference_service.dart';
-import '../constants/app_styles.dart';
-import '../constants/card_types.dart';
-import '../utils/logger.dart';
-import '../utils/model_parse_utils.dart';
-import '../widgets/order/order_detail_popup.dart';
-import '../widgets/common/common_dialog.dart';
-import '../widgets/common/app_toolbar_button.dart';
-import '../models/order_model.dart';
-import '../widgets/home/order_card_widget.dart';
-import '../i18n/strings.g.dart';
+import 'package:appfit_order_agent/providers/kds_unified_providers.dart';
+import 'package:appfit_order_agent/providers/kds_order_tracking_provider.dart';
+import 'package:appfit_order_agent/providers/providers.dart';
+import 'package:appfit_order_agent/services/preference_service.dart';
+import 'package:appfit_order_agent/constants/app_styles.dart';
+import 'package:appfit_order_agent/constants/card_types.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/utils/model_parse_utils.dart';
+import 'package:appfit_order_agent/widgets/order/order_detail_popup.dart';
+import 'package:appfit_order_agent/widgets/common/common_dialog.dart';
+import 'package:appfit_order_agent/widgets/common/app_toolbar_button.dart';
+import 'package:appfit_order_agent/models/order_model.dart';
+import 'package:appfit_order_agent/widgets/home/order_card_widget.dart';
+import 'package:appfit_order_agent/i18n/strings.g.dart';
 
 // 키오스크 주문 노출 설정을 위한 StateProvider (order_history_screen과 동일)
 final kioskOrderVisibilityProvider = StateProvider<bool>((ref) {

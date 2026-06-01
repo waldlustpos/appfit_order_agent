@@ -8,17 +8,18 @@ import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/services/printer_job_queue.dart';
 import 'package:appfit_order_agent/services/printer_transport.dart';
 import 'package:appfit_order_agent/utils/print/label_painter.dart';
-import '../models/order_model.dart';
+import 'package:appfit_order_agent/models/order_model.dart';
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../providers/providers.dart';
+import 'package:appfit_order_agent/providers/providers.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
-import '../services/preference_service.dart';
+import 'package:appfit_order_agent/services/preference_service.dart';
 
 // Windows transport (WindowsTransport) 는 win32/serial_port_win32 의존성 때문에
 // Android 런타임에서 로드되면 안 된다. external_receipt_printer.dart 가 이미
 // deferred 로 import 하고 있으나 별도 alias 가 필요하므로 본 파일에서도 deferred 로 받음.
-import 'external_receipt_printer_windows.dart' deferred as win_transport;
+import 'package:appfit_order_agent/services/external_receipt_printer_windows.dart'
+    deferred as win_transport;
 
 class PrinterStatus {
   final bool isExternalConnected;

@@ -5,9 +5,9 @@ import 'package:ffi/ffi.dart';
 import 'package:serial_port_win32/serial_port_win32.dart';
 import 'package:win32/win32.dart';
 
-import '../utils/logger.dart';
-import 'platform_service.dart';
-import 'receipt_escpos_builder.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/services/platform_service.dart';
+import 'package:appfit_order_agent/services/receipt_escpos_builder.dart';
 
 /// Windows COM 포트로 직접 ESC/POS 명령을 전송하는 프린터 서비스.
 /// PR800 같은 시리얼 영수증 프린터용.

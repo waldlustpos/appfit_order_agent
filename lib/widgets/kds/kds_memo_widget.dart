@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../constants/app_styles.dart';
-import '../../models/order_model.dart';
+import 'package:appfit_order_agent/constants/app_styles.dart';
+import 'package:appfit_order_agent/models/order_model.dart';
 
 /// KDS 카드 메모 영역.
 ///

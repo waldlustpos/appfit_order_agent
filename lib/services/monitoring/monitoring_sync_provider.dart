@@ -1,7 +1,7 @@
 import 'package:appfit_core/appfit_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../providers/store_provider.dart';
+import 'package:appfit_order_agent/providers/store_provider.dart';
 
 /// 매장 정보가 로드되면 MonitoringService 컨텍스트를 업데이트하는 Provider
 ///

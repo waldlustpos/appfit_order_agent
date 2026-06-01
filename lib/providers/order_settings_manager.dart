@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:audioplayers/audioplayers.dart';
-import '../services/preference_service.dart';
-import '../utils/logger.dart';
+import 'package:appfit_order_agent/services/preference_service.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
 
 /// 주문 관련 설정 관리 클래스
 /// 알람소리, 볼륨, 자동접수 등의 설정을 관리합니다.

@@ -1,5 +1,5 @@
 import 'package:appfit_core/appfit_core.dart';
-import '../../utils/logger.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
 
 class AppfitAppFitLogger implements AppFitLogger {
   @override

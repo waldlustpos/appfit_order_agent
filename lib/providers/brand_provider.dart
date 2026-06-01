@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../services/preference_service.dart';
-import '../utils/brand_registry.dart';
+import 'package:appfit_order_agent/services/preference_service.dart';
+import 'package:appfit_order_agent/utils/brand_registry.dart';
 
 /// 현재 로그인 매장의 [BrandMeta] 를 즉석에서 해석하는 무상태 헬퍼.
 ///

@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'action_button_shell.dart';
+import 'package:appfit_order_agent/widgets/common/action_button_shell.dart';
 
 /// 출력류(영수증/라벨 재출력 등) 전용 다이얼로그 버튼.
 ///

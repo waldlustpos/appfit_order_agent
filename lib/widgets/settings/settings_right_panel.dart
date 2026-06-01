@@ -3,17 +3,17 @@ import 'dart:io' show Platform;
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../constants/app_styles.dart';
-import '../../providers/providers.dart';
-import '../../services/local_server_service.dart';
-import '../../services/platform_service.dart';
-import '../../utils/logger.dart';
-import '../../widgets/custom_switch.dart';
+import 'package:appfit_order_agent/constants/app_styles.dart';
+import 'package:appfit_order_agent/providers/providers.dart';
+import 'package:appfit_order_agent/services/local_server_service.dart';
+import 'package:appfit_order_agent/services/platform_service.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/widgets/custom_switch.dart';
 import 'package:appfit_order_agent/i18n/strings.g.dart';
-import 'settings_section_card.dart';
-import 'settings_item_widget.dart';
-import 'settings_developer_options.dart';
-import 'settings_brand_theme_section.dart';
+import 'package:appfit_order_agent/widgets/settings/settings_section_card.dart';
+import 'package:appfit_order_agent/widgets/settings/settings_item_widget.dart';
+import 'package:appfit_order_agent/widgets/settings/settings_developer_options.dart';
+import 'package:appfit_order_agent/widgets/settings/settings_brand_theme_section.dart';
 
 /// 설정화면 우측 패널 — 알림/키오스크/출력/업데이트 설정.
 class SettingsRightPanel extends ConsumerStatefulWidget {

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../constants/app_styles.dart';
+import 'package:appfit_order_agent/constants/app_styles.dart';
 
 /// 데이터가 없을 때 표시하는 빈 상태 위젯.
 class AppEmptyView extends StatelessWidget {

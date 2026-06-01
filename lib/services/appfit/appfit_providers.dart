@@ -1,8 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:appfit_core/appfit_core.dart';
-import '../preference_service.dart';
-import 'kokonut_appfit_logger.dart';
+import 'package:appfit_order_agent/services/preference_service.dart';
+import 'package:appfit_order_agent/services/appfit/kokonut_appfit_logger.dart';
 
 AppFitLogger _makeSentryLogger() =>
     SentryAppFitLogger(delegate: AppfitAppFitLogger());

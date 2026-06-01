@@ -55,11 +55,9 @@ class WindowsLogFileWriter {
         if (fileDate.isBefore(cutoff)) {
           try {
             await entity.delete();
-            await appendLogsToFile(
-                ['[SYSTEM] 오래된 로그 파일 삭제 완료: $name']);
+            await appendLogsToFile(['[SYSTEM] 오래된 로그 파일 삭제 완료: $name']);
           } catch (e) {
-            await appendLogsToFile(
-                ['[SYSTEM] 오래된 로그 파일 삭제 실패: $name ($e)']);
+            await appendLogsToFile(['[SYSTEM] 오래된 로그 파일 삭제 실패: $name ($e)']);
           }
         }
       }
@@ -105,7 +103,8 @@ class WindowsLogFileWriter {
   static Future<Directory?> _resolveLogDir({required bool create}) async {
     try {
       final docs = await getApplicationDocumentsDirectory();
-      final dir = Directory('${docs.path}${Platform.pathSeparator}$_logDirName');
+      final dir =
+          Directory('${docs.path}${Platform.pathSeparator}$_logDirName');
       if (create && !await dir.exists()) {
         await dir.create(recursive: true);
       }

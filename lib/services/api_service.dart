@@ -1,23 +1,23 @@
 // import 'package:flutter_dotenv/flutter_dotenv.dart'; // Removed
-import '../config/app_env.dart'; // AppEnv 추가
+import 'package:appfit_order_agent/config/app_env.dart'; // AppEnv 추가
 import 'package:dio/dio.dart'; // Added for DioException
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
-import '../models/order_model.dart';
-import '../models/order_menu_model.dart';
-import '../models/menu_option_model.dart';
-import '../models/store_model.dart';
-import '../models/product_model.dart';
-import '../models/membership_model.dart';
+import 'package:appfit_order_agent/models/order_model.dart';
+import 'package:appfit_order_agent/models/order_menu_model.dart';
+import 'package:appfit_order_agent/models/menu_option_model.dart';
+import 'package:appfit_order_agent/models/store_model.dart';
+import 'package:appfit_order_agent/models/product_model.dart';
+import 'package:appfit_order_agent/models/membership_model.dart';
 // import 'api_service_interface.dart'; // Removed
-import 'appfit/appfit_providers.dart';
-import 'secure_storage_service.dart';
+import 'package:appfit_order_agent/services/appfit/appfit_providers.dart';
+import 'package:appfit_order_agent/services/secure_storage_service.dart';
 import 'package:appfit_core/appfit_core.dart'; // import 추가
 // import 'appfit/api_routes.dart'; // Removed
-import '../models/enums/order_action.dart';
-import '../exceptions/api_exceptions.dart'; // Added for precise error catching
-import '../services/platform_service.dart'; // logToFile, LogTag 사용 위해 추가
+import 'package:appfit_order_agent/models/enums/order_action.dart';
+import 'package:appfit_order_agent/exceptions/api_exceptions.dart'; // Added for precise error catching
+import 'package:appfit_order_agent/services/platform_service.dart'; // logToFile, LogTag 사용 위해 추가
 
 part 'api_service.g.dart';
 

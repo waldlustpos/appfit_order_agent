@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../constants/app_styles.dart';
+import 'package:appfit_order_agent/constants/app_styles.dart';
 
 /// 주문현황 섹션 하나를 감싸는 카드 컨테이너.
 ///

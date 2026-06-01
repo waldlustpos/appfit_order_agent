@@ -1,11 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../constants/order_constants.dart';
-import '../../models/order_menu_model.dart';
-import '../../models/order_model.dart';
-import '../../models/product_model.dart';
-import '../../providers/brand_provider.dart';
-import '../../utils/brand_registry.dart';
+import 'package:appfit_order_agent/constants/order_constants.dart';
+import 'package:appfit_order_agent/models/order_menu_model.dart';
+import 'package:appfit_order_agent/models/order_model.dart';
+import 'package:appfit_order_agent/models/product_model.dart';
+import 'package:appfit_order_agent/providers/brand_provider.dart';
+import 'package:appfit_order_agent/utils/brand_registry.dart';
 
 /// 라벨 한 장의 sub-info 영역에 들어가는 옵션 카테고리 분류 결과.
 ///

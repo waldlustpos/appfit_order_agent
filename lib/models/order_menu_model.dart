@@ -1,4 +1,4 @@
-import 'menu_option_model.dart';
+import 'package:appfit_order_agent/models/menu_option_model.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 
 class OrderMenuModel {

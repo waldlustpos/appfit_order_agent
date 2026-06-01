@@ -1,9 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../models/order_model.dart';
-import '../utils/kds_utils.dart' as kds_utils;
-import 'kds_unified_providers.dart';
-import 'order_history_provider.dart';
-import 'order_provider.dart';
+import 'package:appfit_order_agent/models/order_model.dart';
+import 'package:appfit_order_agent/utils/kds_utils.dart' as kds_utils;
+import 'package:appfit_order_agent/providers/kds_unified_providers.dart';
+import 'package:appfit_order_agent/providers/order_history_provider.dart';
+import 'package:appfit_order_agent/providers/order_provider.dart';
 
 /// OrderStatusScreen 용 필터링+정렬 완료된 주문 목록.
 /// build() 내에서 매번 연산하지 않고 provider 레벨에서 캐싱.

@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/services.dart';
 
-import 'platform_service.dart';
+import 'package:appfit_order_agent/services/platform_service.dart';
 
 /// 프린터 transport 1회 호출 결과.
 ///

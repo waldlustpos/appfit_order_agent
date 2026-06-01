@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../constants/app_styles.dart';
-import '../../i18n/strings.g.dart';
+import 'package:appfit_order_agent/constants/app_styles.dart';
+import 'package:appfit_order_agent/i18n/strings.g.dart';
 
 /// 주문현황 섹션의 좌측 120px 헤더 위젯.
 ///

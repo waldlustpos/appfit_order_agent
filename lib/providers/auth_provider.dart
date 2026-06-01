@@ -1,13 +1,13 @@
 import 'package:dio/dio.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 // import 'package:flutter_dotenv/flutter_dotenv.dart'; // Removed
-import '../config/app_env.dart'; // AppEnv 추가
-import 'providers.dart';
+import 'package:appfit_order_agent/config/app_env.dart'; // AppEnv 추가
+import 'package:appfit_order_agent/providers/providers.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
-import '../services/appfit/appfit_providers.dart'; // appFitTokenManagerProvider
-import '../services/api_service.dart';
-import '../services/platform_service.dart'; // logToFile, LogTag 사용 위해 추가
-import '../services/secure_storage_service.dart'; // 로그아웃 cleanup용
+import 'package:appfit_order_agent/services/appfit/appfit_providers.dart'; // appFitTokenManagerProvider
+import 'package:appfit_order_agent/services/api_service.dart';
+import 'package:appfit_order_agent/services/platform_service.dart'; // logToFile, LogTag 사용 위해 추가
+import 'package:appfit_order_agent/services/secure_storage_service.dart'; // 로그아웃 cleanup용
 
 import 'package:appfit_core/appfit_core.dart'
     as appfit_core; // AppFitConfig (패키지)

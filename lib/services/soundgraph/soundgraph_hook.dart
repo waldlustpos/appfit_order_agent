@@ -1,12 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../models/order_model.dart';
-import '../../providers/brand_provider.dart';
-import '../../utils/brand_registry.dart';
-import '../../utils/logger.dart';
-import '../platform_service.dart';
-import '../preference_service.dart';
-import '../soundgraph_service.dart';
+import 'package:appfit_order_agent/models/order_model.dart';
+import 'package:appfit_order_agent/providers/brand_provider.dart';
+import 'package:appfit_order_agent/utils/brand_registry.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/services/platform_service.dart';
+import 'package:appfit_order_agent/services/preference_service.dart';
+import 'package:appfit_order_agent/services/soundgraph_service.dart';
 
 /// 자동접수 성공 직후 발화하는 주문 라이프사이클 외부 통합 hook.
 ///

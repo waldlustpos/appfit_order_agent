@@ -59,5 +59,4 @@ class DefaultFirebaseOptions {
     projectId: 'orderkds-ab33b',
     storageBucket: 'orderkds-ab33b.firebasestorage.app',
   );
-
 }

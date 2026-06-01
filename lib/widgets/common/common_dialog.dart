@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../constants/app_styles.dart';
-import '../../models/product_model.dart';
-import '../../i18n/strings.g.dart';
+import 'package:appfit_order_agent/constants/app_styles.dart';
+import 'package:appfit_order_agent/models/product_model.dart';
+import 'package:appfit_order_agent/i18n/strings.g.dart';
 import 'package:appfit_core/appfit_core.dart';
 
 /// 공통 다이얼로그 위젯

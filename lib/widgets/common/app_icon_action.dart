@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../constants/app_styles.dart';
-import 'app_loading_indicator.dart';
+import 'package:appfit_order_agent/constants/app_styles.dart';
+import 'package:appfit_order_agent/widgets/common/app_loading_indicator.dart';
 
 /// 앱바/툴바 아이콘 버튼 통일 컴포넌트.
 ///

@@ -4,10 +4,10 @@ import 'package:dio/dio.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 
-import '../config/update_config.dart';
-import '../models/update_info.dart';
-import 'platform_service.dart';
-import 'windows_updater_script.dart';
+import 'package:appfit_order_agent/config/update_config.dart';
+import 'package:appfit_order_agent/models/update_info.dart';
+import 'package:appfit_order_agent/services/platform_service.dart';
+import 'package:appfit_order_agent/services/windows_updater_script.dart';
 
 /// Windows 전용 OTA 자동업데이트 서비스.
 ///
@@ -47,8 +47,7 @@ class WindowsUpdateService {
 
       logToFile(
         tag: LogTag.SYSTEM,
-        message:
-            '업데이트 체크: current=$currentVersion, latest=$latestVersion',
+        message: '업데이트 체크: current=$currentVersion, latest=$latestVersion',
       );
 
       return UpdateInfo(

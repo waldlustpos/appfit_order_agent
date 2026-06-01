@@ -2,12 +2,12 @@ import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../providers/providers.dart';
-import '../../utils/logger.dart';
-import '../../services/platform_bridge_service.dart';
-import '../../services/windows_bubble_service.dart';
+import 'package:appfit_order_agent/providers/providers.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/services/platform_bridge_service.dart';
+import 'package:appfit_order_agent/services/windows_bubble_service.dart';
 // import '../../services/platform_service.dart'; // Unused
-import 'sound_service.dart'; // Import SoundService (relative import since same directory)
+import 'package:appfit_order_agent/core/orders/sound_service.dart'; // Import SoundService (relative import since same directory)
 
 class AlertManager {
   final Ref ref;

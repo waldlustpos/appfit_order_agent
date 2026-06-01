@@ -46,7 +46,6 @@ class AppLifecycleObserver extends _$AppLifecycleObserver
         // 앱이 백그라운드로 전환될 때 필요한 작업 수행
         break;
       case AppLifecycleState.detached:
-
         break;
       case AppLifecycleState.hidden:
         // 앱이 숨겨진 상태 (예: 다른 앱 위에 표시될 때)
@@ -57,8 +56,6 @@ class AppLifecycleObserver extends _$AppLifecycleObserver
     state = newState;
     super.didChangeAppLifecycleState(newState);
   }
-
-
 
   // 앱 종료 시 호출할 수 있는 메서드 (main.dart 에서도 사용 가능하도록 public 으로 변경)
   Future<void> uploadLogsOnExit() async {

@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:collection';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../models/order_model.dart';
-import '../utils/logger.dart';
+import 'package:appfit_order_agent/models/order_model.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
 
 /// 주문 처리 큐 관리 클래스 (Refactored)
 /// Buffer -> Sort -> Emit (Throttle) 파이프라인 구현

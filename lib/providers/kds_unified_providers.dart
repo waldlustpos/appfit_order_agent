@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'order_history_provider.dart';
-import '../constants/app_styles.dart';
-import '../utils/logger.dart';
+import 'package:appfit_order_agent/providers/order_history_provider.dart';
+import 'package:appfit_order_agent/constants/app_styles.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
 import 'dart:async';
 
 part 'kds_unified_providers.g.dart';

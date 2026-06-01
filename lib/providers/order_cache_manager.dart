@@ -1,10 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../models/order_model.dart';
-import '../core/orders/cache/order_detail_cache.dart';
-import '../services/api_service.dart';
-import '../utils/logger.dart';
-import 'kds_unified_providers.dart';
-import 'providers.dart';
+import 'package:appfit_order_agent/models/order_model.dart';
+import 'package:appfit_order_agent/core/orders/cache/order_detail_cache.dart';
+import 'package:appfit_order_agent/services/api_service.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/providers/kds_unified_providers.dart';
+import 'package:appfit_order_agent/providers/providers.dart';
 
 /// 주문 캐시 관리 클래스
 /// 주문 상세 정보 캐시, 출력 이력 캐시 등을 관리합니다.
@@ -234,7 +234,8 @@ class OrderCacheManager {
                 // 각 주문 로드 후 휴식
                 await Future.delayed(const Duration(milliseconds: 200));
               } catch (e, s) {
-                logger.e('상세 정보 로드 오류: ${order.orderNo}', error: e, stackTrace: s);
+                logger.e('상세 정보 로드 오류: ${order.orderNo}',
+                    error: e, stackTrace: s);
               }
             }
           } else {

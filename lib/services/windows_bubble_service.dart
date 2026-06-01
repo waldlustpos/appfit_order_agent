@@ -150,10 +150,7 @@ class WindowsBubbleService with WindowListener, TrayListener {
       await _debugFileLog('[ratio] 1280/availW=$ratioW, '
           '720/availH=$ratioH (threshold=0.85)');
 
-      if (availW > 0 &&
-          availH > 0 &&
-          ratioW <= 0.85 &&
-          ratioH <= 0.85) {
+      if (availW > 0 && availH > 0 && ratioW <= 0.85 && ratioH <= 0.85) {
         await _debugFileLog('[branch] 큰 화면 → 1280x720 반환');
         return const Size(1280, 720);
       }
@@ -177,8 +174,7 @@ class WindowsBubbleService with WindowListener, TrayListener {
       return result;
     } catch (e, s) {
       await _debugFileLog('[error] _computeTargetWindowSize 예외: $e\n$s');
-      logger.w('디스플레이 크기 조회 실패, 폴백 1120x630 사용',
-          error: e, stackTrace: s);
+      logger.w('디스플레이 크기 조회 실패, 폴백 1120x630 사용', error: e, stackTrace: s);
       return const Size(1120, 630);
     }
   }

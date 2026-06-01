@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../../constants/app_styles.dart';
-import '../../models/update_info.dart';
-import '../../services/platform_service.dart';
-import '../../services/windows_update_service.dart';
+import 'package:appfit_order_agent/constants/app_styles.dart';
+import 'package:appfit_order_agent/models/update_info.dart';
+import 'package:appfit_order_agent/services/platform_service.dart';
+import 'package:appfit_order_agent/services/windows_update_service.dart';
 
 enum _UiStage { checking, prompt, downloading, installing, error, noUpdate }
 
@@ -46,8 +46,7 @@ class _UpdateProgressDialogState extends State<UpdateProgressDialog> {
     // 재발 진단을 위해 즉시 로그로 남긴다.
     logToFile(
       tag: LogTag.SYSTEM,
-      message:
-          '업데이트 다이얼로그 prompt: current=${info.currentVersion}, '
+      message: '업데이트 다이얼로그 prompt: current=${info.currentVersion}, '
           'latest=${info.latestVersion} → 사용자에게 노출',
     );
 
@@ -156,8 +155,7 @@ class _UpdateProgressDialogState extends State<UpdateProgressDialog> {
           height: 80,
           child: Center(
             child: CircularProgressIndicator(
-              valueColor:
-                  AlwaysStoppedAnimation<Color>(AppStyles.kMainColor),
+              valueColor: AlwaysStoppedAnimation<Color>(AppStyles.kMainColor),
             ),
           ),
         );

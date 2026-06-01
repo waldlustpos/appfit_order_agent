@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../constants/app_styles.dart';
-import '../../providers/kds_unified_providers.dart';
-import '../../providers/providers.dart';
+import 'package:appfit_order_agent/constants/app_styles.dart';
+import 'package:appfit_order_agent/providers/kds_unified_providers.dart';
+import 'package:appfit_order_agent/providers/providers.dart';
 
 // 상단 스크롤 버튼 위젯
 class KdsScrollUpButtonWidget extends ConsumerWidget {

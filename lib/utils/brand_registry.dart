@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 
-import '../constants/brand_theme.dart';
-import 'currency_unit.dart';
+import 'package:appfit_order_agent/constants/brand_theme.dart';
+import 'package:appfit_order_agent/utils/currency_unit.dart';
 
 /// 브랜드별 커스텀 기능(capability) 플래그.
 ///

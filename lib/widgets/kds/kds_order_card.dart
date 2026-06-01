@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../constants/app_styles.dart';
-import '../../constants/card_types.dart';
-import '../../models/order_model.dart';
-import '../../providers/kds_unified_providers.dart';
-import '../../providers/order_provider.dart';
-import '../../utils/logger.dart';
-import '../order/order_detail_popup.dart';
-import 'kds_button_widget.dart';
-import 'kds_card_metrics.dart';
-import 'kds_card_widget.dart';
-import 'kds_memo_widget.dart';
-import 'kds_menu_list_widget.dart';
-import 'kds_scroll_button_widget.dart';
-import 'w_kds_card_skeleton.dart';
+import 'package:appfit_order_agent/constants/app_styles.dart';
+import 'package:appfit_order_agent/constants/card_types.dart';
+import 'package:appfit_order_agent/models/order_model.dart';
+import 'package:appfit_order_agent/providers/kds_unified_providers.dart';
+import 'package:appfit_order_agent/providers/order_provider.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/widgets/order/order_detail_popup.dart';
+import 'package:appfit_order_agent/widgets/kds/kds_button_widget.dart';
+import 'package:appfit_order_agent/widgets/kds/kds_card_metrics.dart';
+import 'package:appfit_order_agent/widgets/kds/kds_card_widget.dart';
+import 'package:appfit_order_agent/widgets/kds/kds_memo_widget.dart';
+import 'package:appfit_order_agent/widgets/kds/kds_menu_list_widget.dart';
+import 'package:appfit_order_agent/widgets/kds/kds_scroll_button_widget.dart';
+import 'package:appfit_order_agent/widgets/kds/w_kds_card_skeleton.dart';
 
 /// 가로 그리드 한 열에 들어가는 단일 카드 컬럼.
 ///

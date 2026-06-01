@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // import 'package:flutter_dotenv/flutter_dotenv.dart'; // Removed
-import '../config/app_env.dart'; // AppEnv 추가 // import 추가
+import 'package:appfit_order_agent/config/app_env.dart'; // AppEnv 추가 // import 추가
 import 'package:appfit_core/appfit_core.dart';
 import 'package:appfit_order_agent/services/appfit/appfit_providers.dart';
 import 'package:appfit_order_agent/utils/logger.dart';

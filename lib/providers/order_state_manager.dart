@@ -1,10 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../models/order_model.dart';
-import 'kds_unified_providers.dart';
-import 'order_state.dart';
-import '../utils/logger.dart';
-import '../utils/model_parse_utils.dart';
-import 'providers.dart';
+import 'package:appfit_order_agent/models/order_model.dart';
+import 'package:appfit_order_agent/providers/kds_unified_providers.dart';
+import 'package:appfit_order_agent/providers/order_state.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/utils/model_parse_utils.dart';
+import 'package:appfit_order_agent/providers/providers.dart';
 
 /// 주문 상태 관리 클래스
 /// 주문 목록 업데이트, 활성 주문 수 계산, UI 상태 업데이트 등을 담당합니다.

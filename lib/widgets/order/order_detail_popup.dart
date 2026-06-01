@@ -11,14 +11,14 @@ import 'package:appfit_order_agent/widgets/common/common_dialog.dart';
 import 'package:appfit_order_agent/widgets/common/print_action_button.dart';
 import 'package:appfit_order_agent/exceptions/api_exceptions.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
-import '../../models/order_model.dart';
-import '../../providers/providers.dart';
-import '../../providers/currency_provider.dart';
+import 'package:appfit_order_agent/models/order_model.dart';
+import 'package:appfit_order_agent/providers/providers.dart';
+import 'package:appfit_order_agent/providers/currency_provider.dart';
 import 'package:appfit_order_agent/services/output_queue_service.dart';
 import 'package:appfit_order_agent/i18n/strings.g.dart';
-import 'order_menu_list_widget.dart';
-import 'order_payment_info_widget.dart';
-import 'order_info_panel_widget.dart';
+import 'package:appfit_order_agent/widgets/order/order_menu_list_widget.dart';
+import 'package:appfit_order_agent/widgets/order/order_payment_info_widget.dart';
+import 'package:appfit_order_agent/widgets/order/order_info_panel_widget.dart';
 
 class OrderDetailPopup extends ConsumerStatefulWidget {
   final OrderModel order;

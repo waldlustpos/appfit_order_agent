@@ -2,24 +2,24 @@ import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../constants/app_styles.dart';
-import '../../providers/providers.dart';
-import '../../providers/brand_provider.dart';
-import '../../providers/locale_provider.dart';
-import '../../providers/currency_provider.dart';
-import '../../providers/rotation_provider.dart';
-import '../../services/platform_service.dart';
-import '../../services/print_service.dart';
-import '../../utils/brand_registry.dart';
-import '../../utils/currency_unit.dart';
-import '../../widgets/custom_switch.dart';
+import 'package:appfit_order_agent/constants/app_styles.dart';
+import 'package:appfit_order_agent/providers/providers.dart';
+import 'package:appfit_order_agent/providers/brand_provider.dart';
+import 'package:appfit_order_agent/providers/locale_provider.dart';
+import 'package:appfit_order_agent/providers/currency_provider.dart';
+import 'package:appfit_order_agent/providers/rotation_provider.dart';
+import 'package:appfit_order_agent/services/platform_service.dart';
+import 'package:appfit_order_agent/services/print_service.dart';
+import 'package:appfit_order_agent/utils/brand_registry.dart';
+import 'package:appfit_order_agent/utils/currency_unit.dart';
+import 'package:appfit_order_agent/widgets/custom_switch.dart';
 import 'package:appfit_order_agent/i18n/strings.g.dart';
-import 'settings_section_card.dart';
-import 'settings_item_widget.dart';
-import 'settings_mode_switch.dart';
-import 'builtin_printer_sub_settings.dart';
-import 'external_printer_sub_settings.dart';
-import 'label_printer_sub_settings.dart';
+import 'package:appfit_order_agent/widgets/settings/settings_section_card.dart';
+import 'package:appfit_order_agent/widgets/settings/settings_item_widget.dart';
+import 'package:appfit_order_agent/widgets/settings/settings_mode_switch.dart';
+import 'package:appfit_order_agent/widgets/settings/builtin_printer_sub_settings.dart';
+import 'package:appfit_order_agent/widgets/settings/external_printer_sub_settings.dart';
+import 'package:appfit_order_agent/widgets/settings/label_printer_sub_settings.dart';
 
 /// 설정화면 좌측 패널 — 기기/언어/프린터 설정.
 class SettingsLeftPanel extends ConsumerStatefulWidget {

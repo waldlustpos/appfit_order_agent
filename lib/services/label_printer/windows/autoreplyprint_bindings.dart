@@ -42,10 +42,8 @@ typedef CpOnPrinterPrintedEventNative = ffi.Void Function(
 // ---------------------------------------------------------------------------
 
 typedef _LibraryVersionNative = ffi.Pointer<Utf8> Function();
-typedef _PortEnumUsbNative = ffi.Uint32 Function(
-    ffi.Pointer<ffi.Uint8> buffer,
-    ffi.Uint32 cbBuf,
-    ffi.Pointer<ffi.Uint32> cbNeeded);
+typedef _PortEnumUsbNative = ffi.Uint32 Function(ffi.Pointer<ffi.Uint8> buffer,
+    ffi.Uint32 cbBuf, ffi.Pointer<ffi.Uint32> cbNeeded);
 typedef _PortOpenUsbNative = ffi.Pointer<ffi.Void> Function(
     ffi.Pointer<Utf8> name, ffi.Int32 autoReplyMode);
 typedef _PortCloseNative = ffi.Int32 Function(ffi.Pointer<ffi.Void> handle);
@@ -54,7 +52,8 @@ typedef _PortIsConnectionValidNative = ffi.Int32 Function(
     ffi.Pointer<ffi.Void> handle);
 
 typedef _LabelEnableNative = ffi.Int32 Function(ffi.Pointer<ffi.Void> handle);
-typedef _LabelCalibrateNative = ffi.Int32 Function(ffi.Pointer<ffi.Void> handle);
+typedef _LabelCalibrateNative = ffi.Int32 Function(
+    ffi.Pointer<ffi.Void> handle);
 typedef _LabelFeedNative = ffi.Int32 Function(ffi.Pointer<ffi.Void> handle);
 typedef _LabelPageBeginNative = ffi.Int32 Function(
     ffi.Pointer<ffi.Void> handle,
@@ -121,9 +120,7 @@ typedef _PrinterRemoveOnPrintedNative = ffi.Int32 Function(
 
 typedef LibraryVersionDart = ffi.Pointer<Utf8> Function();
 typedef PortEnumUsbDart = int Function(
-    ffi.Pointer<ffi.Uint8> buffer,
-    int cbBuf,
-    ffi.Pointer<ffi.Uint32> cbNeeded);
+    ffi.Pointer<ffi.Uint8> buffer, int cbBuf, ffi.Pointer<ffi.Uint32> cbNeeded);
 typedef PortOpenUsbDart = ffi.Pointer<ffi.Void> Function(
     ffi.Pointer<Utf8> name, int autoReplyMode);
 typedef PortCloseDart = int Function(ffi.Pointer<ffi.Void> handle);
@@ -229,12 +226,10 @@ class AutoReplyPrintBindings {
         .lookup<ffi.NativeFunction<_LabelFeedNative>>('CP_Label_FeedLabel')
         .asFunction();
     labelPageBegin = _dylib
-        .lookup<ffi.NativeFunction<_LabelPageBeginNative>>(
-            'CP_Label_PageBegin')
+        .lookup<ffi.NativeFunction<_LabelPageBeginNative>>('CP_Label_PageBegin')
         .asFunction();
     labelPagePrint = _dylib
-        .lookup<ffi.NativeFunction<_LabelPagePrintNative>>(
-            'CP_Label_PagePrint')
+        .lookup<ffi.NativeFunction<_LabelPagePrintNative>>('CP_Label_PagePrint')
         .asFunction();
     labelDrawImageFromPixels = _dylib
         .lookup<ffi.NativeFunction<_LabelDrawImageFromPixelsNative>>(

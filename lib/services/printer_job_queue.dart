@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
-import 'platform_service.dart';
-import 'printer_transport.dart';
+import 'package:appfit_order_agent/services/platform_service.dart';
+import 'package:appfit_order_agent/services/printer_transport.dart';
 
 typedef PrinterFinalFailureCallback = void Function(
     PrinterJob job, PrinterTransportResult lastResult);

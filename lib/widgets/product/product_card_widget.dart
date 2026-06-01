@@ -4,10 +4,10 @@ import 'package:appfit_order_agent/constants/app_styles.dart';
 import 'package:appfit_order_agent/providers/currency_provider.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/utils/common_util.dart';
-import '../../models/product_model.dart';
-import '../../providers/product_provider.dart';
-import '../common/common_dialog.dart';
-import '../../i18n/strings.g.dart';
+import 'package:appfit_order_agent/models/product_model.dart';
+import 'package:appfit_order_agent/providers/product_provider.dart';
+import 'package:appfit_order_agent/widgets/common/common_dialog.dart';
+import 'package:appfit_order_agent/i18n/strings.g.dart';
 
 class ProductCardWidget extends ConsumerStatefulWidget {
   final ProductModel product;

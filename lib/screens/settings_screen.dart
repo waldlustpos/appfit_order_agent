@@ -6,21 +6,22 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:appfit_order_agent/utils/print/label_painter.dart';
-import '../providers/providers.dart';
-import '../providers/product_provider.dart';
-import '../constants/app_styles.dart';
-import '../services/platform_service.dart';
-import '../services/local_server_service.dart';
-import '../services/preference_service.dart';
-import '../services/windows_update_service.dart';
-import '../widgets/update/update_progress_dialog.dart';
-import '../widgets/common/common_dialog.dart';
-import '../services/appfit/appfit_providers.dart' as appfit_providers;
+import 'package:appfit_order_agent/providers/providers.dart';
+import 'package:appfit_order_agent/providers/product_provider.dart';
+import 'package:appfit_order_agent/constants/app_styles.dart';
+import 'package:appfit_order_agent/services/platform_service.dart';
+import 'package:appfit_order_agent/services/local_server_service.dart';
+import 'package:appfit_order_agent/services/preference_service.dart';
+import 'package:appfit_order_agent/services/windows_update_service.dart';
+import 'package:appfit_order_agent/widgets/update/update_progress_dialog.dart';
+import 'package:appfit_order_agent/widgets/common/common_dialog.dart';
+import 'package:appfit_order_agent/services/appfit/appfit_providers.dart'
+    as appfit_providers;
 import 'package:appfit_order_agent/i18n/strings.g.dart';
-import '../config/ota_config.dart';
-import '../services/secure_storage_service.dart';
-import '../widgets/settings/settings_left_panel.dart';
-import '../widgets/settings/settings_right_panel.dart';
+import 'package:appfit_order_agent/config/ota_config.dart';
+import 'package:appfit_order_agent/services/secure_storage_service.dart';
+import 'package:appfit_order_agent/widgets/settings/settings_left_panel.dart';
+import 'package:appfit_order_agent/widgets/settings/settings_right_panel.dart';
 import 'package:appfit_core/appfit_core.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {

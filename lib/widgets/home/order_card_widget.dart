@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../constants/app_styles.dart';
-import '../../models/order_model.dart';
-import '../order/order_detail_popup.dart';
-import '../../providers/providers.dart';
-import '../../utils/model_parse_utils.dart';
-import '../../i18n/strings.g.dart';
+import 'package:appfit_order_agent/constants/app_styles.dart';
+import 'package:appfit_order_agent/models/order_model.dart';
+import 'package:appfit_order_agent/widgets/order/order_detail_popup.dart';
+import 'package:appfit_order_agent/providers/providers.dart';
+import 'package:appfit_order_agent/utils/model_parse_utils.dart';
+import 'package:appfit_order_agent/i18n/strings.g.dart';
 
 class OrderCardWidget extends ConsumerStatefulWidget {
   final OrderModel order;

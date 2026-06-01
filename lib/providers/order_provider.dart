@@ -1,20 +1,20 @@
 import 'dart:async';
 
 import 'package:riverpod_annotation/riverpod_annotation.dart'; // Generator import
-import '../services/preference_service.dart';
-import '../services/platform_service.dart';
-import '../services/api_service.dart';
-import '../models/order_model.dart';
-import '../exceptions/api_exceptions.dart';
+import 'package:appfit_order_agent/services/preference_service.dart';
+import 'package:appfit_order_agent/services/platform_service.dart';
+import 'package:appfit_order_agent/services/api_service.dart';
+import 'package:appfit_order_agent/models/order_model.dart';
+import 'package:appfit_order_agent/exceptions/api_exceptions.dart';
 
-import 'kds_unified_providers.dart';
-import 'order_cache_manager.dart';
-import 'order_settings_manager.dart';
-import 'order_state_manager.dart';
-import 'order_timer_manager.dart';
-import 'order_queue_manager.dart';
-import 'order_socket_manager.dart';
-import 'providers.dart';
+import 'package:appfit_order_agent/providers/kds_unified_providers.dart';
+import 'package:appfit_order_agent/providers/order_cache_manager.dart';
+import 'package:appfit_order_agent/providers/order_settings_manager.dart';
+import 'package:appfit_order_agent/providers/order_state_manager.dart';
+import 'package:appfit_order_agent/providers/order_timer_manager.dart';
+import 'package:appfit_order_agent/providers/order_queue_manager.dart';
+import 'package:appfit_order_agent/providers/order_socket_manager.dart';
+import 'package:appfit_order_agent/providers/providers.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:appfit_order_agent/core/orders/sound_service.dart';
 import 'package:appfit_order_agent/core/orders/blink_service.dart';
@@ -28,10 +28,10 @@ import 'package:appfit_order_agent/core/orders/cache/processed_order_cache.dart'
 import 'package:appfit_order_agent/services/appfit/appfit_providers.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:appfit_order_agent/utils/model_parse_utils.dart';
-import 'order_state.dart';
+import 'package:appfit_order_agent/providers/order_state.dart';
 import 'package:appfit_order_agent/utils/socket_event_suppressor.dart';
 import 'package:appfit_core/appfit_core.dart' as appfit_core;
-import 'order_helper_methods.dart';
+import 'package:appfit_order_agent/providers/order_helper_methods.dart';
 
 import 'package:intl/intl.dart';
 // Actually ApiVersion enum is in config/api_version.dart

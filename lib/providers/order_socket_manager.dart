@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
-import '../core/orders/order_queue_service.dart';
-import '../models/order_model.dart';
-import '../utils/logger.dart';
-import 'providers.dart';
-import '../services/appfit/appfit_providers.dart';
-import '../services/api_service.dart';
+import 'package:appfit_order_agent/core/orders/order_queue_service.dart';
+import 'package:appfit_order_agent/models/order_model.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/providers/providers.dart';
+import 'package:appfit_order_agent/services/appfit/appfit_providers.dart';
+import 'package:appfit_order_agent/services/api_service.dart';
 import 'package:appfit_core/appfit_core.dart' as appfit_core;
 import 'package:appfit_order_agent/utils/socket_event_suppressor.dart';
 

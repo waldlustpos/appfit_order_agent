@@ -1,6 +1,6 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../services/preference_service.dart';
+import 'package:appfit_order_agent/services/preference_service.dart';
 
 part 'preference_provider.g.dart';
 

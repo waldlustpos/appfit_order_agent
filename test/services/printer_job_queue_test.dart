@@ -106,12 +106,12 @@ void main() {
     ]);
     PrinterJobQueue.instance.setTransport(t);
 
-    final f1 = PrinterJobQueue.instance.enqueue(
-      PrinterJob(bytes: bytes('a'), jobName: 'A', kind: 'order'));
-    final f2 = PrinterJobQueue.instance.enqueue(
-      PrinterJob(bytes: bytes('b'), jobName: 'B', kind: 'order'));
-    final f3 = PrinterJobQueue.instance.enqueue(
-      PrinterJob(bytes: bytes('c'), jobName: 'C', kind: 'order'));
+    final f1 = PrinterJobQueue.instance
+        .enqueue(PrinterJob(bytes: bytes('a'), jobName: 'A', kind: 'order'));
+    final f2 = PrinterJobQueue.instance
+        .enqueue(PrinterJob(bytes: bytes('b'), jobName: 'B', kind: 'order'));
+    final f3 = PrinterJobQueue.instance
+        .enqueue(PrinterJob(bytes: bytes('c'), jobName: 'C', kind: 'order'));
 
     final results = await Future.wait([f1, f2, f3]);
     expect(results, [true, true, true]);
@@ -127,10 +127,10 @@ void main() {
     ]);
     PrinterJobQueue.instance.setTransport(t);
 
-    final fA = PrinterJobQueue.instance.enqueue(
-      PrinterJob(bytes: bytes('a'), jobName: 'A', kind: 'order'));
-    final fB = PrinterJobQueue.instance.enqueue(
-      PrinterJob(bytes: bytes('b'), jobName: 'B', kind: 'order'));
+    final fA = PrinterJobQueue.instance
+        .enqueue(PrinterJob(bytes: bytes('a'), jobName: 'A', kind: 'order'));
+    final fB = PrinterJobQueue.instance
+        .enqueue(PrinterJob(bytes: bytes('b'), jobName: 'B', kind: 'order'));
 
     expect(await fA, isFalse);
     expect(await fB, isTrue);

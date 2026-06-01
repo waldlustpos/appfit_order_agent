@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart' show listEquals;
-import '../models/order_model.dart';
+import 'package:appfit_order_agent/models/order_model.dart';
 
 // `error: null` 같이 의도적 reset 을 "전달됨" vs "기본값" 으로 구분하기 위한 sentinel.
 const Object _unset = Object();

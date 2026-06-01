@@ -19,22 +19,22 @@ import 'package:appfit_order_agent/utils/app_startup_updater.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:appfit_order_agent/widgets/windows_bubble_overlay.dart';
 import 'package:appfit_core/appfit_core.dart'; // AppFit Core 추가
-import 'firebase_options.dart';
-import 'screens/home_screen.dart';
-import 'screens/login_screen.dart';
-import 'screens/settings_screen.dart';
+import 'package:appfit_order_agent/firebase_options.dart';
+import 'package:appfit_order_agent/screens/home_screen.dart';
+import 'package:appfit_order_agent/screens/login_screen.dart';
+import 'package:appfit_order_agent/screens/settings_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:launch_at_startup/launch_at_startup.dart';
 import 'package:window_manager/window_manager.dart';
 
-import 'config/app_env.dart'; // AppEnv 추가
+import 'package:appfit_order_agent/config/app_env.dart'; // AppEnv 추가
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:appfit_order_agent/i18n/strings.g.dart';
 import 'package:appfit_order_agent/providers/locale_provider.dart';
 import 'package:appfit_order_agent/providers/rotation_provider.dart';
-import 'services/monitoring/order_agent_monitoring_context.dart';
-import 'constants/app_styles.dart';
-import 'constants/brand_theme.dart';
+import 'package:appfit_order_agent/services/monitoring/order_agent_monitoring_context.dart';
+import 'package:appfit_order_agent/constants/app_styles.dart';
+import 'package:appfit_order_agent/constants/brand_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -51,8 +51,7 @@ void main() async {
       unawaited(WindowsLogFileWriter.deleteOldLogs());
       // 라벨 프린터 NativeCallable / USB 핸들 누수 방어. 앱이 detached 로
       // 진입할 때 (창 닫기, 시스템 종료, 업데이터 재시작) SDK 콜백을 정리한다.
-      WidgetsBinding.instance
-          .addObserver(_LabelPrinterLifecycleObserver());
+      WidgetsBinding.instance.addObserver(_LabelPrinterLifecycleObserver());
     } catch (e, s) {
       logger.e('Windows 초기화 실패', error: e, stackTrace: s);
     }
@@ -165,8 +164,8 @@ void main() async {
     // 실패해도 polling/lazy fallback 이 살아있어 앱 시작을 차단하지 않는다.
     if (Platform.isWindows && preferenceService.getUseLabelPrinter()) {
       final mode = preferenceService.getLabelAutoReplyMode();
-      unawaited(WindowsLabelPrinterBackend.instance
-          .warmupOpen(autoReplyMode: mode));
+      unawaited(
+          WindowsLabelPrinterBackend.instance.warmupOpen(autoReplyMode: mode));
     }
 
     // 브랜드 테마 적용 — runApp 이전에 AppStyles 의 활성 브랜드를 확정

@@ -1,11 +1,12 @@
 import 'package:intl/intl.dart';
-import 'logger.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
 
 /// `int`, `String`, `null` 등 다양한 형식의 타임스탬프를 [DateTime]으로 변환.
 /// 여러 모델의 fromJson에서 중복 사용되던 로직을 통합.
 DateTime parseTimestamp(dynamic timestamp, {String? context}) {
   if (timestamp == null) {
-    logger.w('${context ?? 'parseTimestamp'}: Timestamp is null, returning current date.');
+    logger.w(
+        '${context ?? 'parseTimestamp'}: Timestamp is null, returning current date.');
     return DateTime.now();
   }
   try {
@@ -19,7 +20,8 @@ DateTime parseTimestamp(dynamic timestamp, {String? context}) {
         try {
           return DateFormat('yyyy-MM-dd HH:mm:ss').parse(timestamp);
         } catch (e, s) {
-          logger.e('${context ?? 'parseTimestamp'}: Failed to parse date string "$timestamp".',
+          logger.e(
+              '${context ?? 'parseTimestamp'}: Failed to parse date string "$timestamp".',
               error: e);
           return DateTime.now();
         }

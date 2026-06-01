@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../../constants/app_styles.dart';
-import '../../i18n/strings.g.dart';
-import '../../models/membership_model.dart';
+import 'package:appfit_order_agent/constants/app_styles.dart';
+import 'package:appfit_order_agent/i18n/strings.g.dart';
+import 'package:appfit_order_agent/models/membership_model.dart';
 
 /// 쿠폰 사용 내역 1행 카드.
 ///

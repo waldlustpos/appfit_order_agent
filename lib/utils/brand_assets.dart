@@ -1,5 +1,5 @@
-import '../services/preference_service.dart';
-import 'brand_registry.dart';
+import 'package:appfit_order_agent/services/preference_service.dart';
+import 'package:appfit_order_agent/utils/brand_registry.dart';
 
 /// 현재 브랜드의 인쇄 자산(라벨/영수증 로고) 경로를 노출하는 얇은 파사드.
 ///

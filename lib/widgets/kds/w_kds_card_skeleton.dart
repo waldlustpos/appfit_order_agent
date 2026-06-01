@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
-import '../../constants/app_styles.dart';
+import 'package:appfit_order_agent/constants/app_styles.dart';
 
 // 전체 카드 스켈레톤 (더 이상 사용 안함, 하위 호환성 위해 유지하거나 제거 가능)
 class KdsCardSkeleton extends StatelessWidget {

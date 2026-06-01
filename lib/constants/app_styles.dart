@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../models/order_model.dart';
-import 'brand_theme.dart';
+import 'package:appfit_order_agent/models/order_model.dart';
+import 'package:appfit_order_agent/constants/brand_theme.dart';
 
 // ─── 간격 토큰 ────────────────────────────────────────────────────────────────
 class AppSpacing {

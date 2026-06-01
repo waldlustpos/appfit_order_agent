@@ -8,19 +8,19 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
-import '../../constants/app_styles.dart';
-import '../../services/platform_service.dart';
-import '../../services/windows_bubble_service.dart';
-import '../custom_switch.dart';
-import '../../widgets/common/common_dialog.dart';
-import '../../widgets/common/app_icon_action.dart';
-import '../../widgets/common/app_loading_indicator.dart';
+import 'package:appfit_order_agent/constants/app_styles.dart';
+import 'package:appfit_order_agent/services/platform_service.dart';
+import 'package:appfit_order_agent/services/windows_bubble_service.dart';
+import 'package:appfit_order_agent/widgets/custom_switch.dart';
+import 'package:appfit_order_agent/widgets/common/common_dialog.dart';
+import 'package:appfit_order_agent/widgets/common/app_icon_action.dart';
+import 'package:appfit_order_agent/widgets/common/app_loading_indicator.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:appfit_order_agent/utils/test/socket_burst_test.dart'
     as test_util; // [TEST]
 import 'package:appfit_order_agent/i18n/strings.g.dart';
 import 'package:appfit_order_agent/providers/locale_provider.dart';
-import '../../services/appfit/appfit_providers.dart';
+import 'package:appfit_order_agent/services/appfit/appfit_providers.dart';
 import 'package:appfit_core/appfit_core.dart' as appfit_core;
 
 // === New StatefulWidget for Time Display ===

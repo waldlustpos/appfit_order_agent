@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../constants/app_styles.dart';
-import '../../providers/providers.dart';
-import '../../services/platform_service.dart';
+import 'package:appfit_order_agent/constants/app_styles.dart';
+import 'package:appfit_order_agent/providers/providers.dart';
+import 'package:appfit_order_agent/services/platform_service.dart';
 
 /// "내장 프린터 사용" 토글의 additionalContent.
 ///

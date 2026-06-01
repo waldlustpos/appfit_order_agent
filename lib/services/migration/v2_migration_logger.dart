@@ -21,7 +21,8 @@ class V2MigrationLogger {
   }
 
   static void error(String message, [Object? error]) {
-    final entry = '[MIGRATION][ERROR] $message${error != null ? ' | $error' : ''}';
+    final entry =
+        '[MIGRATION][ERROR] $message${error != null ? ' | $error' : ''}';
     _logs.add(entry);
     logger.e(entry, error: error);
   }

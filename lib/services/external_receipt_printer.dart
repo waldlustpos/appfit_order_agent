@@ -2,12 +2,12 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 
-import '../utils/brand_assets.dart';
-import '../utils/logger.dart';
-import 'platform_service.dart';
-import 'preference_service.dart';
-import 'printer_job_queue.dart';
-import 'receipt_escpos_builder.dart';
+import 'package:appfit_order_agent/utils/brand_assets.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/services/platform_service.dart';
+import 'package:appfit_order_agent/services/preference_service.dart';
+import 'package:appfit_order_agent/services/printer_job_queue.dart';
+import 'package:appfit_order_agent/services/receipt_escpos_builder.dart';
 
 // Windows 전용 transport (win32 + serial_port_win32 의존).
 // Android 런타임에서는 절대 로드되지 않도록 deferred 로 import — 안 그러면
@@ -15,7 +15,8 @@ import 'receipt_escpos_builder.dart';
 // (실 출력은 [PrinterJobQueue] 가 [WindowsTransport] 로 직렬화하므로 본 import
 // 는 isConnected / getAvailableComPorts 등 진단 API 용도로 남는다. PrintService
 // 가 앱 시작 시 동일한 deferred 모듈을 로드해 transport 를 큐에 주입한다.)
-import 'external_receipt_printer_windows.dart' deferred as win_transport;
+import 'package:appfit_order_agent/services/external_receipt_printer_windows.dart'
+    deferred as win_transport;
 
 /// 외부 영수증 프린터 출력의 플랫폼-무관 진입점.
 ///

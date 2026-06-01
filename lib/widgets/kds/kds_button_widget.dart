@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
-import '../../constants/app_styles.dart';
-import '../../constants/card_types.dart';
-import '../../models/order_model.dart';
-import '../../providers/kds_unified_providers.dart';
-import '../../utils/logger.dart';
-import '../../services/platform_service.dart';
-import '../../widgets/common/common_dialog.dart';
-import '../../providers/providers.dart';
+import 'package:appfit_order_agent/constants/app_styles.dart';
+import 'package:appfit_order_agent/constants/card_types.dart';
+import 'package:appfit_order_agent/models/order_model.dart';
+import 'package:appfit_order_agent/providers/kds_unified_providers.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/services/platform_service.dart';
+import 'package:appfit_order_agent/widgets/common/common_dialog.dart';
+import 'package:appfit_order_agent/providers/providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../i18n/strings.g.dart';
-import '../../exceptions/api_exceptions.dart';
+import 'package:appfit_order_agent/i18n/strings.g.dart';
+import 'package:appfit_order_agent/exceptions/api_exceptions.dart';
 
 // 공통 버튼 스타일 — AppStyles 팩토리로 위임
 class KdsButtonStyle {

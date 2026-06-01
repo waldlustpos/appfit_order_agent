@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../constants/app_styles.dart';
-import '../../providers/providers.dart';
-import '../../core/orders/order_queue_service.dart';
-import '../../utils/mock_order_generator.dart' as mock_gen;
-import '../../screens/appfit_test_screen.dart';
+import 'package:appfit_order_agent/constants/app_styles.dart';
+import 'package:appfit_order_agent/providers/providers.dart';
+import 'package:appfit_order_agent/core/orders/order_queue_service.dart';
+import 'package:appfit_order_agent/utils/mock_order_generator.dart' as mock_gen;
+import 'package:appfit_order_agent/screens/appfit_test_screen.dart';
 import 'package:appfit_order_agent/i18n/strings.g.dart';
-import 'settings_section_card.dart';
-import 'settings_item_widget.dart';
-import 'settings_label_test_section.dart';
-import '../../widgets/custom_switch.dart';
+import 'package:appfit_order_agent/widgets/settings/settings_section_card.dart';
+import 'package:appfit_order_agent/widgets/settings/settings_item_widget.dart';
+import 'package:appfit_order_agent/widgets/settings/settings_label_test_section.dart';
+import 'package:appfit_order_agent/widgets/custom_switch.dart';
 
 /// 개발자 옵션 섹션.
 ///

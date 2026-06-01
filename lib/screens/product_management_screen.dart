@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:appfit_order_agent/constants/app_styles.dart';
 import 'package:shimmer/shimmer.dart';
-import '../providers/product_provider.dart';
-import '../widgets/product/product_card_widget.dart';
-import '../models/product_model.dart';
-import '../i18n/strings.g.dart';
+import 'package:appfit_order_agent/providers/product_provider.dart';
+import 'package:appfit_order_agent/widgets/product/product_card_widget.dart';
+import 'package:appfit_order_agent/models/product_model.dart';
+import 'package:appfit_order_agent/i18n/strings.g.dart';
 
 class ProductManagementScreen extends ConsumerStatefulWidget {
   const ProductManagementScreen({Key? key}) : super(key: key);

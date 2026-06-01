@@ -1,26 +1,26 @@
-export 'auth_provider.dart';
-export 'order_computed_providers.dart';
-export 'order_provider.dart';
-export 'store_provider.dart';
-export 'order_history_provider.dart';
-export '../services/appfit/appfit_providers.dart';
-export 'preference_provider.dart';
-export 'lifecycle_provider.dart';
-export 'membership_provider.dart';
-export '../services/api_service.dart';
-export 'order_detail_provider.dart';
-export 'app_info_provider.dart';
-export 'kds_unified_providers.dart';
-export 'brand_theme_provider.dart';
-export '../core/orders/alert_manager.dart'; // AlertManager export
+export 'package:appfit_order_agent/providers/auth_provider.dart';
+export 'package:appfit_order_agent/providers/order_computed_providers.dart';
+export 'package:appfit_order_agent/providers/order_provider.dart';
+export 'package:appfit_order_agent/providers/store_provider.dart';
+export 'package:appfit_order_agent/providers/order_history_provider.dart';
+export 'package:appfit_order_agent/services/appfit/appfit_providers.dart';
+export 'package:appfit_order_agent/providers/preference_provider.dart';
+export 'package:appfit_order_agent/providers/lifecycle_provider.dart';
+export 'package:appfit_order_agent/providers/membership_provider.dart';
+export 'package:appfit_order_agent/services/api_service.dart';
+export 'package:appfit_order_agent/providers/order_detail_provider.dart';
+export 'package:appfit_order_agent/providers/app_info_provider.dart';
+export 'package:appfit_order_agent/providers/kds_unified_providers.dart';
+export 'package:appfit_order_agent/providers/brand_theme_provider.dart';
+export 'package:appfit_order_agent/core/orders/alert_manager.dart'; // AlertManager export
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import '../services/api_service.dart';
-import '../services/print_service.dart';
+import 'package:appfit_order_agent/services/api_service.dart';
+import 'package:appfit_order_agent/services/print_service.dart';
 import 'package:flutter/material.dart'; // For TextEditingController and AppLifecycleState
-import '../utils/logger.dart'; // For logger
-import '../utils/model_parse_utils.dart';
+import 'package:appfit_order_agent/utils/logger.dart'; // For logger
+import 'package:appfit_order_agent/utils/model_parse_utils.dart';
 import 'package:intl/intl.dart'; // DateFormat 사용
 import 'package:appfit_order_agent/models/order_model.dart';
 import 'package:appfit_order_agent/providers/auth_provider.dart';

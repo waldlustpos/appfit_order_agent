@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../constants/app_styles.dart';
+import 'package:appfit_order_agent/constants/app_styles.dart';
 
 /// KDS/홈 툴바에서 사용하는 40px 높이 통일 버튼.
 ///

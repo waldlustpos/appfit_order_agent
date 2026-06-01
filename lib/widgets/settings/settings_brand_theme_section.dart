@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:appfit_order_agent/i18n/strings.g.dart';
-import '../../constants/app_styles.dart';
-import '../../constants/brand_theme.dart';
-import '../../providers/brand_theme_provider.dart';
-import '../../services/platform_service.dart';
-import 'settings_section_card.dart';
-import 'settings_item_widget.dart';
+import 'package:appfit_order_agent/constants/app_styles.dart';
+import 'package:appfit_order_agent/constants/brand_theme.dart';
+import 'package:appfit_order_agent/providers/brand_theme_provider.dart';
+import 'package:appfit_order_agent/services/platform_service.dart';
+import 'package:appfit_order_agent/widgets/settings/settings_section_card.dart';
+import 'package:appfit_order_agent/widgets/settings/settings_item_widget.dart';
 
 /// 설정 화면의 "테마(브랜드)" 섹션.
 ///

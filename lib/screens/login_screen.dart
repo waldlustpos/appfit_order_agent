@@ -1,32 +1,33 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
-import '../widgets/common/app_loading_indicator.dart';
+import 'package:appfit_order_agent/widgets/common/app_loading_indicator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:appfit_core/appfit_core.dart'; // AppFitConfig (패키지)
 import 'package:appfit_order_agent/models/store_model.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import '../utils/logger.dart';
-import '../services/platform_service.dart';
-import '../services/windows_bubble_service.dart';
-import '../services/preference_service.dart';
-import '../utils/brand_registry.dart';
-import '../services/migration/v2_migration_service.dart';
-import '../services/appfit/appfit_providers.dart' as appfit_providers;
-import '../services/secure_storage_service.dart';
-import '../providers/auth_provider.dart';
-import '../providers/store_provider.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/services/platform_service.dart';
+import 'package:appfit_order_agent/services/windows_bubble_service.dart';
+import 'package:appfit_order_agent/services/preference_service.dart';
+import 'package:appfit_order_agent/utils/brand_registry.dart';
+import 'package:appfit_order_agent/services/migration/v2_migration_service.dart';
+import 'package:appfit_order_agent/services/appfit/appfit_providers.dart'
+    as appfit_providers;
+import 'package:appfit_order_agent/services/secure_storage_service.dart';
+import 'package:appfit_order_agent/providers/auth_provider.dart';
+import 'package:appfit_order_agent/providers/store_provider.dart';
 
-import '../widgets/common/app_icon_action.dart';
-import '../widgets/common/common_dialog.dart';
-import '../widgets/common/brand_logo.dart';
-import '../constants/app_styles.dart';
-import '../services/local_server_service.dart';
-import '../providers/providers.dart';
-import '../providers/kds_unified_providers.dart';
-import '../providers/order_provider.dart';
+import 'package:appfit_order_agent/widgets/common/app_icon_action.dart';
+import 'package:appfit_order_agent/widgets/common/common_dialog.dart';
+import 'package:appfit_order_agent/widgets/common/brand_logo.dart';
+import 'package:appfit_order_agent/constants/app_styles.dart';
+import 'package:appfit_order_agent/services/local_server_service.dart';
+import 'package:appfit_order_agent/providers/providers.dart';
+import 'package:appfit_order_agent/providers/kds_unified_providers.dart';
+import 'package:appfit_order_agent/providers/order_provider.dart';
 import 'package:flutter/foundation.dart'; // For kDebugMode if needed
 import 'package:appfit_order_agent/i18n/strings.g.dart';
 import 'package:appfit_order_agent/providers/locale_provider.dart';

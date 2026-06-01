@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
-import '../widgets/update/update_progress_dialog.dart';
+import 'package:appfit_order_agent/widgets/update/update_progress_dialog.dart';
 
 /// main()의 runApp(MyApp) 직전에 호출한다.
 /// Windows가 아니면 즉시 반환.

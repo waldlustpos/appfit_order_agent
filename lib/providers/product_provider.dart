@@ -1,9 +1,9 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'dart:async';
-import '../models/product_model.dart';
-import '../services/platform_service.dart'; // apiServiceProvider를 위해 필요
-import '../services/local_server_service.dart'; // LocalServerService를 위해 필요
-import 'providers.dart'; // storeProvider를 위해 필요
+import 'package:appfit_order_agent/models/product_model.dart';
+import 'package:appfit_order_agent/services/platform_service.dart'; // apiServiceProvider를 위해 필요
+import 'package:appfit_order_agent/services/local_server_service.dart'; // LocalServerService를 위해 필요
+import 'package:appfit_order_agent/providers/providers.dart'; // storeProvider를 위해 필요
 import 'package:appfit_order_agent/utils/logger.dart'; // logger import 추가
 
 part 'product_provider.g.dart';

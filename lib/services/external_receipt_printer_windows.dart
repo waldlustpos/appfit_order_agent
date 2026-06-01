@@ -1,9 +1,9 @@
 import 'dart:typed_data';
 
-import '../utils/logger.dart';
-import 'com_port_print_service.dart';
-import 'preference_service.dart';
-import 'printer_transport.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/services/com_port_print_service.dart';
+import 'package:appfit_order_agent/services/preference_service.dart';
+import 'package:appfit_order_agent/services/printer_transport.dart';
 
 /// Windows 전용 외부 영수증 프린터 transport.
 ///

@@ -2,8 +2,8 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'escpos_builder.dart';
-import 'platform_service.dart';
+import 'package:appfit_order_agent/services/escpos_builder.dart';
+import 'package:appfit_order_agent/services/platform_service.dart';
 
 /// 영수증 / 주문서 / 테스트 페이지의 ESC/POS 문서를 만드는 플랫폼-무관 빌더.
 ///

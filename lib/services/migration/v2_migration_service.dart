@@ -1,7 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:appfit_order_agent/services/preference_service.dart';
 import 'package:appfit_order_agent/utils/brand_registry.dart';
-import 'v2_migration_logger.dart';
+import 'package:appfit_order_agent/services/migration/v2_migration_logger.dart';
 
 /// 구앱(kokonut_order_agent_v2) → 신규앱(appfit_order_agent) 마이그레이션 서비스
 ///

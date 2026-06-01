@@ -2,16 +2,16 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../constants/app_styles.dart';
-import '../../models/menu_option_model.dart';
-import '../../models/order_menu_model.dart';
-import '../../models/order_model.dart';
-import '../../providers/providers.dart';
-import '../../services/output_queue_service.dart';
-import '../../services/platform_service.dart';
-import '../../services/print_service.dart';
-import '../../utils/print/label_painter.dart';
-import '../../widgets/custom_switch.dart';
+import 'package:appfit_order_agent/constants/app_styles.dart';
+import 'package:appfit_order_agent/models/menu_option_model.dart';
+import 'package:appfit_order_agent/models/order_menu_model.dart';
+import 'package:appfit_order_agent/models/order_model.dart';
+import 'package:appfit_order_agent/providers/providers.dart';
+import 'package:appfit_order_agent/services/output_queue_service.dart';
+import 'package:appfit_order_agent/services/platform_service.dart';
+import 'package:appfit_order_agent/services/print_service.dart';
+import 'package:appfit_order_agent/utils/print/label_painter.dart';
+import 'package:appfit_order_agent/widgets/custom_switch.dart';
 
 /// 라벨 프린터 고급 설정 (개발자 옵션 내부).
 ///

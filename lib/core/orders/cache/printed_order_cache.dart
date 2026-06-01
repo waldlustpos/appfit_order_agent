@@ -126,7 +126,8 @@ class PrintedOrderCache {
 
       await prefs.setString(_keyPrintedOrders, jsonEncode(data));
     } catch (e, s) {
-      logger.e('[PrintedOrderCache] 저장 오류: $newOrderId', error: e, stackTrace: s);
+      logger.e('[PrintedOrderCache] 저장 오류: $newOrderId',
+          error: e, stackTrace: s);
     }
   }
 

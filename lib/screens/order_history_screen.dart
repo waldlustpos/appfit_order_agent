@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:table_calendar/table_calendar.dart';
-import '../providers/providers.dart';
-import '../widgets/common/app_loading_indicator.dart';
-import '../widgets/home/order_card_widget.dart';
-import '../constants/app_styles.dart';
-import '../widgets/order/order_detail_popup.dart';
+import 'package:appfit_order_agent/providers/providers.dart';
+import 'package:appfit_order_agent/widgets/common/app_loading_indicator.dart';
+import 'package:appfit_order_agent/widgets/home/order_card_widget.dart';
+import 'package:appfit_order_agent/constants/app_styles.dart';
+import 'package:appfit_order_agent/widgets/order/order_detail_popup.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:appfit_order_agent/utils/model_parse_utils.dart';
-import '../models/order_model.dart';
-import '../providers/order_history_provider.dart';
-import '../i18n/strings.g.dart';
+import 'package:appfit_order_agent/models/order_model.dart';
+import 'package:appfit_order_agent/providers/order_history_provider.dart';
+import 'package:appfit_order_agent/i18n/strings.g.dart';
 
 class OrderHistoryScreen extends ConsumerStatefulWidget {
   const OrderHistoryScreen({super.key});

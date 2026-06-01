@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../constants/app_styles.dart';
-import '../../models/order_model.dart';
-import '../../providers/order_provider.dart';
-import 'order_card_widget.dart';
-import 'order_section_card.dart';
-import 'order_section_header.dart';
-import '../common/horizontal_scroll_arrow_overlay.dart';
-import '../../widgets/common/common_dialog.dart';
+import 'package:appfit_order_agent/constants/app_styles.dart';
+import 'package:appfit_order_agent/models/order_model.dart';
+import 'package:appfit_order_agent/providers/order_provider.dart';
+import 'package:appfit_order_agent/widgets/home/order_card_widget.dart';
+import 'package:appfit_order_agent/widgets/home/order_section_card.dart';
+import 'package:appfit_order_agent/widgets/home/order_section_header.dart';
+import 'package:appfit_order_agent/widgets/common/horizontal_scroll_arrow_overlay.dart';
+import 'package:appfit_order_agent/widgets/common/common_dialog.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:appfit_order_agent/i18n/strings.g.dart';
 

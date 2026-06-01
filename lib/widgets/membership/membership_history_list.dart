@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../constants/app_styles.dart';
-import '../common/app_empty_view.dart';
-import '../common/app_loading_indicator.dart';
+import 'package:appfit_order_agent/constants/app_styles.dart';
+import 'package:appfit_order_agent/widgets/common/app_empty_view.dart';
+import 'package:appfit_order_agent/widgets/common/app_loading_indicator.dart';
 
 /// 멤버십 내역 3개 탭(스탬프·쿠폰사용·보유쿠폰)이 공유하는 카드 리스트 컨테이너.
 ///

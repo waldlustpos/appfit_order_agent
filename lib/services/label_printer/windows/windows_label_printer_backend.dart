@@ -14,9 +14,9 @@ import 'dart:typed_data';
 import 'package:ffi/ffi.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 
-import '../label_printer_options.dart';
-import 'autoreplyprint_bindings.dart';
-import 'autoreplyprint_constants.dart';
+import 'package:appfit_order_agent/services/label_printer/label_printer_options.dart';
+import 'package:appfit_order_agent/services/label_printer/windows/autoreplyprint_bindings.dart';
+import 'package:appfit_order_agent/services/label_printer/windows/autoreplyprint_constants.dart';
 
 class WindowsLabelPrinterBackend {
   WindowsLabelPrinterBackend._();

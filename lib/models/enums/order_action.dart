@@ -4,4 +4,3 @@ enum OrderAction {
   DONE,
   REJECT,
 }
-

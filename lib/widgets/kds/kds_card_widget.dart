@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-import '../../constants/app_styles.dart';
-import '../../constants/card_types.dart';
-import '../../i18n/strings.g.dart';
-import '../../models/order_model.dart';
+import 'package:appfit_order_agent/constants/app_styles.dart';
+import 'package:appfit_order_agent/constants/card_types.dart';
+import 'package:appfit_order_agent/i18n/strings.g.dart';
+import 'package:appfit_order_agent/models/order_model.dart';
 
 /// KDS 주문 카드 헤더.
 ///
