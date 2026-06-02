@@ -575,7 +575,11 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
                         Padding(
                           padding: const EdgeInsets.all(0),
                           child: PageView(
-                            key: const PageStorageKey('kds_page_view'),
+                            // PageStorageKey 제거: 화면 재생성(설정 진입 후 복귀) 시
+                            // PageStorage 가 PageController.initialPage 를 덮어써
+                            // 탭(provider 기준)과 내용(PageStorage 기준)이 어긋나는
+                            // 문제를 유발했음. 탭 위치는 kdsTabIndexProvider 단일
+                            // 소스로 복원하고, 탭별 가로 스크롤은 _KdsTabKeepAlive 가 보존.
                             physics: const NeverScrollableScrollPhysics(),
                             controller: _pageController,
                             onPageChanged: (index) {
