@@ -24,6 +24,14 @@ class PlatformBridgeService {
       if (Platform.isAndroid) {
         logger.d('[PlatformBridge] Android: 앱 백그라운드로 이동 및 오버레이 표시 요청');
 
+        // 네이티브 오버레이 권한을 먼저 확인하여 권한이 없으면 백그라운드 이동을 중단함
+        final bool hasPermission =
+            await _channel.invokeMethod('checkOverlayPermission');
+        if (!hasPermission) {
+          logger.w('[PlatformBridge] 오버레이 권한이 없어 백그라운드 이동을 중단합니다.');
+          return;
+        }
+
         // 1. 오버레이 먼저 표시 (최소화 전에 실행하여 UI 스레드 blocking 방지)
         await showOverlay();
 
@@ -89,9 +97,8 @@ class PlatformBridgeService {
         if (!granted) {
           logger.i('[PlatformBridge] Android: 네이티브 오버레이 권한 요청');
           await _channel.invokeMethod('requestOverlayPermission');
-          // 권한 요청 화면으로 이동했으므로, 결과는 보장할 수 없음.
-          // 사용자 경험상 요청을 띄웠으면 일단 진행.
-          return true;
+          // 권한 요청 화면으로 이동하므로 일단 false를 반환하여 바로 최소화가 진행되지 않게 막음
+          return false;
         }
         return true;
       } catch (e, s) {

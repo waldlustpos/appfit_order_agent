@@ -20,7 +20,7 @@ REST API (폴링)  ───────┘        │
 
 ## 상태 관리: Riverpod
 
-모든 상태는 `flutter_riverpod`를 사용하며, 장기 유지가 필요한 상태에는 `@Riverpod(keepAlive: true)`를 적용합니다. 핵심 프로바이더 (`lib/providers/`):
+모든 상태는 `flutter_riverpod`를 사용하며, 장기 유지가 필요한 상태에는 `@Riverpod(keepAlive: true)`를 적용합니다. 프로바이더는 도메인별 하위 폴더로 분리됩니다 — 주문 생명주기 매니저는 `lib/providers/order/`, KDS 모드·추적은 `lib/providers/kds/`, 그 외 단일 프로바이더는 `lib/providers/` 직하. `lib/providers/providers.dart` 는 공개 표면 barrel(**export 전용**)이며, 인라인 프로바이더/상태/확장 정의는 `lib/providers/misc_providers.dart` 에 둡니다. 핵심 프로바이더:
 
 - `authProvider` — 로그인, WebSocket 연결 상태
 - `orderProvider` — 주문 생명주기 전체 (조회, 접수, 완료, 취소)
@@ -28,7 +28,9 @@ REST API (폴링)  ───────┘        │
 - `localeNotifierProvider` — 런타임 언어 전환 (ko/en/ja)
 - `preferenceProvider` — `PreferenceService`에 대한 반응형 브릿지
 
-추가 프로바이더(`brand_theme`, `kds_order_tracking`, `order_detail`, `order_history`, `membership`, `product`, `currency`, `lifecycle`, `rotation`, `store`, `app_info` 등)는 `lib/providers/`에서 직접 탐색합니다. 화면에서는 `ConsumerWidget` / `ConsumerStatefulWidget`을 사용하여 `ref.watch()` / `ref.read()`로 접근합니다.
+추가 프로바이더(`brand_theme`, `kds_order_tracking`, `order_detail`, `order_history`, `membership`, `product`, `currency`, `lifecycle`, `rotation`, `store`, `app_info` 등)는 `lib/providers/` 와 그 하위(`order/` · `kds/`)에서 직접 탐색합니다. 화면에서는 `ConsumerWidget` / `ConsumerStatefulWidget`을 사용하여 `ref.watch()` / `ref.read()`로 접근합니다.
+
+> 개발 전용 코드(`mock_order_generator`, `socket_burst_test` 등 출고 빌드에 불필요한 도구)는 프로덕션 코드와 섞지 않고 `lib/dev/` 에 격리합니다.
 
 ## 서비스 레이어 (`lib/services/`)
 
@@ -56,7 +58,7 @@ REST API (폴링)  ───────┘        │
 - `SoundService`, `BlinkService`, `OutputService` — 신규 주문 시 알림음·점멸·출력 처리. `printOrderLabels()` 는 `Platform.isWindows` 분기: Windows 는 `LabelPrintOrchestrator` 경유 FFI, Android 는 기존 `MethodChannel printLabel` 유지. `OutputQueueService` 직렬화 + `_inFlightNewOrders` / `_inFlightLabelOnly` / `_inFlightReprints` 3-set in-flight 락은 양 플랫폼 공통.
 - `AlertManager` — 알림 표시 라이프사이클 통합
 - `OrderQueueService` — 주문 처리 작업 직렬화
-- `cache/` — `OrderDetailCache`, `PrintedOrderCache`, `ProcessedOrderCache`, `ActionCache` (인메모리 캐시로 중복 실행 방지)
+- `cache/` — `OrderDetailCache`, `ProcessedOrderCache` (인메모리 캐시로 중복 실행 방지)
 
 ## 외부 의존성: appfit_core
 

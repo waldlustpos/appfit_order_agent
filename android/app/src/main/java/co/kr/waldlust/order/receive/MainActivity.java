@@ -170,7 +170,7 @@ public class MainActivity extends FlutterActivity {
         usbFilter.addAction(UsbReceiptPrinter.ACTION_USB_PERMISSION);
         usbFilter.addAction(android.hardware.usb.UsbManager.ACTION_USB_DEVICE_DETACHED);
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-            // 앱 내부 전용 broadcast — RECEIVER_NOT_EXPORTED 로 외부 노출 차단.
+            // App internal broadcast only — restrict external exposure with RECEIVER_NOT_EXPORTED.
             registerReceiver(usbPermissionReceiver, usbFilter, Context.RECEIVER_NOT_EXPORTED);
         } else {
             registerReceiver(usbPermissionReceiver, usbFilter);
@@ -179,11 +179,7 @@ public class MainActivity extends FlutterActivity {
         // Initialize printers
         initPrinters();
 
-        // 영수증/주문서 하단 로고는 브랜드별로 분기되어 Dart(PrintService)에서
-        // BrandAssets 기준으로 logoBase64 인자로 전달된다. 네이티브는 고정 로고를
-        // 보유하지 않는다. (외부 ESC/POS 프린터와 동일한 single source of truth)
-
-        // Show dual monitor if device is D3 MINI -> 현재 매머드만 지원
+        // Dual monitor logic for D3 MINI
         SharedPreferences dualMonitorPrefs = getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE);
         showDualMonitor(dualMonitorPrefs.getString(KEY_STORE_ID, ""));
 
@@ -214,7 +210,6 @@ public class MainActivity extends FlutterActivity {
 
         receiptPrinter = new UsbReceiptPrinter(getApplicationContext());
         receiptPrinter.discover();
-
     }
 
     @Override
@@ -264,10 +259,10 @@ public class MainActivity extends FlutterActivity {
                     WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD |
                     WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
 
-            // 2. Task를 전면으로 이동
+            // 2. Task를 전면으로 이동 (홈 화면을 강제 뒤배치하지 않기 위해 플래그를 0으로 설정)
             ActivityManager activityManager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
             if (activityManager != null) {
-                activityManager.moveTaskToFront(getTaskId(), ActivityManager.MOVE_TASK_WITH_HOME);
+                activityManager.moveTaskToFront(getTaskId(), 0);
                 Log.d("MainActivity", "moveTaskToFront success in onNewIntent");
             }
         } catch (Exception e) {
@@ -384,7 +379,7 @@ public class MainActivity extends FlutterActivity {
         // Stop Foreground Service
         stopOrderAgentService();
 
-        // 중요: SUNMI 프린터 서비스 해제 (SUNMI 장비인 경우에만)
+        // SUNMI printer cleanup
         if (isSunmiDevice()) {
             SunmiPrintHelper.getInstance().deInitSunmiPrinterService(this);
         }
@@ -394,12 +389,12 @@ public class MainActivity extends FlutterActivity {
             unregisterReceiver(usbPermissionReceiver);
         }
 
-        // 외부 영수증 프린터 USB 자원 해제
+        // USB printer resource release
         if (receiptPrinter != null) {
             receiptPrinter.close();
         }
 
-        super.onDestroy(); // 항상 마지막에 호출
+        super.onDestroy(); // Must be called last
     }
 
     private void initPrinters() {
@@ -407,19 +402,15 @@ public class MainActivity extends FlutterActivity {
         if (isSunmiDevice()) {
             SunmiPrintHelper.getInstance().initSunmiPrinterService(this);
         }
-        // 라벨 프린터 파일 로깅 초기화
         co.kr.waldlust.order.receive.util.print.LabelPrinter.init(this);
-        // receiptPrinter is initialized in onCreate
     }
 
     public boolean checkPermissions() {
         Log.d("checkPermissions", "checkPermissions Build.VERSION.SDK_INT: " + Build.VERSION.SDK_INT);
-        // API 23 (Marshmallow) 미만은 항상 true (설치 시 권한 부여)
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
             return true;
         }
 
-        // API 33 (Tiramisu) 이상
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             boolean audioPermission = ContextCompat.checkSelfPermission(this,
                     Manifest.permission.READ_MEDIA_AUDIO) == PackageManager.PERMISSION_GRANTED;
@@ -505,13 +496,6 @@ public class MainActivity extends FlutterActivity {
         return date;
     }
 
-    /**
-     * 직접 File I/O로 Documents/appfit/ 폴더에 로그를 기록합니다.
-     * MANAGE_EXTERNAL_STORAGE 권한이 있거나 Android 10 + requestLegacyExternalStorage
-     * 환경에서 동작합니다.
-     * 
-     * @return true: 기록 성공, false: 기록 실패 (fallback 필요)
-     */
     private boolean appendLogToFileDirectIO(String text, String fileName) {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !Environment.isExternalStorageManager()) {
@@ -548,20 +532,13 @@ public class MainActivity extends FlutterActivity {
         }
     }
 
-    /**
-     * Android 11+ (R 이상) 환경에서 MANAGE_EXTERNAL_STORAGE 권한 보유 여부를 확인합니다.
-     */
     public boolean hasAllFilesAccess() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             return Environment.isExternalStorageManager();
         }
-        // Android 10 이하는 requestLegacyExternalStorage 또는 WRITE_EXTERNAL_STORAGE로 커버
         return true;
     }
 
-    /**
-     * MANAGE_EXTERNAL_STORAGE 권한을 요청하기 위해 시스템 설정 화면을 엽니다.
-     */
     public void requestAllFilesAccess() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             try {
@@ -570,7 +547,6 @@ public class MainActivity extends FlutterActivity {
                 startActivityForResult(intent, REQUEST_CODE_ALL_FILES_ACCESS);
             } catch (Exception e) {
                 Log.e("FileWriter", "Failed to open All Files Access settings", e);
-                // Fallback: 일반 설정 화면
                 try {
                     Intent intent = new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
                     startActivityForResult(intent, REQUEST_CODE_ALL_FILES_ACCESS);
@@ -581,11 +557,6 @@ public class MainActivity extends FlutterActivity {
         }
     }
 
-    /**
-     * 앱 전용 외부 저장소에 로그를 기록합니다. (fallback용)
-     * 경로: /Android/data/${packageName}/files/logs/
-     * 권한 불필요, 앱 삭제 시 함께 삭제됨.
-     */
     private void writeLogToAppFolder(String text, String fileName) {
         try {
             File logDir = getExternalFilesDir("logs");
@@ -611,7 +582,6 @@ public class MainActivity extends FlutterActivity {
         startActivity(intent);
     }
 
-    // Add method to check if device is SUNMI
     public boolean isSunmiDevice() {
         return Build.MANUFACTURER.startsWith("SUNMI");
     }
@@ -650,7 +620,6 @@ public class MainActivity extends FlutterActivity {
         }
     }
 
-    // DualMonitorPresentation class
     private class DualMonitorPresentation extends Presentation {
         private VideoView videoView;
         private ImageView imageView;
@@ -678,10 +647,8 @@ public class MainActivity extends FlutterActivity {
             if (storeId != null && storeId.toUpperCase().startsWith("MHST")) {
                 setVideo(R.raw.mmth);
             }
-            // 매칭 없음 → VideoView/ImageView 모두 gone → FrameLayout 흰 배경만 노출
         }
 
-        // 동영상 파일 매머드만 존재
         private void setVideo(int videoResource) {
             videoUrl = "android.resource://" + packageName + "/" + videoResource;
             Uri videoUri = Uri.parse(videoUrl);
@@ -692,8 +659,7 @@ public class MainActivity extends FlutterActivity {
             videoView.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
                 @Override
                 public void onPrepared(MediaPlayer mp) {
-                    mp.setVolume(0f, 0f); // 왼쪽, 오른쪽 음량을 모두 0으로 설정
-                    // 동영상 크기 최적화
+                    mp.setVolume(0f, 0f);
                     mp.setVideoScalingMode(MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT);
                 }
             });
@@ -710,7 +676,7 @@ public class MainActivity extends FlutterActivity {
                 @Override
                 public void onCompletion(MediaPlayer mp) {
                     if (!isDestroyed) {
-                        videoView.start(); // 재생이 완료되면 다시 시작
+                        videoView.start();
                     }
                 }
             });
@@ -757,8 +723,6 @@ public class MainActivity extends FlutterActivity {
             if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                 Log.w("MainActivity",
                         "Notification permission not granted. Requesting permission before starting service.");
-                // Request permission. Service will be started in onRequestPermissionsResult if
-                // granted.
                 requestPermissions(new String[] { Manifest.permission.POST_NOTIFICATIONS },
                         REQUEST_CODE_POST_NOTIFICATION);
             } else {
@@ -766,7 +730,6 @@ public class MainActivity extends FlutterActivity {
                 startOrderAgentService();
             }
         } else {
-            // Below Tiramisu, permission is not needed
             Log.d("MainActivity", "Below Tiramisu, starting service directly.");
             startOrderAgentService();
         }
@@ -805,8 +768,6 @@ public class MainActivity extends FlutterActivity {
                 startActivityForResult(intent, REQUEST_CODE_IGNORE_BATTERY_OPTIMIZATIONS);
             } catch (Exception e) {
                 Log.e("MainActivity", "Failed to request ignore battery optimizations", e);
-                // Fallback: Open battery optimization settings for the user to manually
-                // configure
                 try {
                     Intent intent = new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS);
                     startActivity(intent);
@@ -832,7 +793,7 @@ public class MainActivity extends FlutterActivity {
         }
 
         Calendar cal = Calendar.getInstance();
-        cal.add(Calendar.MONTH, -6); // Calculate date 6 months ago
+        cal.add(Calendar.MONTH, -6);
         long cutoffMillis = cal.getTimeInMillis();
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
 
@@ -842,7 +803,6 @@ public class MainActivity extends FlutterActivity {
             if (file.isFile() && file.getName().endsWith(".txt")) {
                 String fileName = file.getName();
                 try {
-                    // Extract date string from filename (e.g., "2024-03-31" from "appfit_2024-03-31.txt")
                     if (!fileName.startsWith("appfit_") || fileName.length() < 18) continue;
                     String dateString = fileName.substring(7, 17);
                     Date fileDate = dateFormat.parse(dateString);
@@ -856,9 +816,6 @@ public class MainActivity extends FlutterActivity {
                             Log.w("MainActivity", "Failed to delete: " + fileName);
                             appendLogToFile("[SYSTEM] 오래된 로그 파일 삭제 실패: " + fileName);
                         }
-                    } else {
-                        // Log.d("MainActivity", "Keeping log file (not older than 6 months): " +
-                        // fileName);
                     }
                 } catch (ParseException e) {
                     Log.w("MainActivity", "Could not parse date from log file name: " + fileName, e);
@@ -893,12 +850,7 @@ public class MainActivity extends FlutterActivity {
         String date = getDate(System.currentTimeMillis());
         String fileName = "appfit_" + date + ".txt";
 
-        // 1순위: Documents/appfit/에 직접 File I/O
-        // (Android 7~9: WRITE_EXTERNAL_STORAGE, Android 10:
-        // requestLegacyExternalStorage,
-        // Android 11+: MANAGE_EXTERNAL_STORAGE)
         if (!appendLogToFileDirectIO(timestampedText, fileName)) {
-            // 2순위: 앱 전용 외부 폴더 (권한 불필요, 앱 삭제 시 함께 삭제됨)
             writeLogToAppFolder(timestampedText, fileName);
         }
     }
@@ -916,9 +868,7 @@ public class MainActivity extends FlutterActivity {
         String date = getDate(System.currentTimeMillis());
         String fileName = "appfit_" + date + ".txt";
 
-        // 1순위: Documents/appfit/에 직접 File I/O
         if (!appendLogToFileDirectIO(combinedText, fileName)) {
-            // 2순위: 앱 전용 외부 폴더
             writeLogToAppFolder(combinedText, fileName);
         }
     }
@@ -950,7 +900,6 @@ public class MainActivity extends FlutterActivity {
                     Log.e("MainActivity", "Error in crash handler: " + e.getMessage());
                 }
 
-                // 기존 핸들러에 전달 (앱 종료 등 기본 처리 수행)
                 if (originalHandler != null) {
                     originalHandler.uncaughtException(thread, throwable);
                 }
@@ -962,12 +911,10 @@ public class MainActivity extends FlutterActivity {
         try {
             Log.d("MainActivity", "Setting auto startup: " + enable);
 
-            // KEY_AUTO_LAUNCH 값을 SharedPreferences에 저장
             SharedPreferences prefs = getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE);
             SharedPreferences.Editor editor = prefs.edit();
             editor.putBoolean(KEY_AUTO_LAUNCH, enable);
 
-            // 설정 즉시 적용
             boolean result = editor.commit();
 
             if (result) {
@@ -985,14 +932,13 @@ public class MainActivity extends FlutterActivity {
 
     @Override
     public void onBackPressed() {
-        // 뒤로가기 버튼이 눌렸을 때 앱을 종료하지 않고 백그라운드로 이동
         Log.d("MainActivity", "Back button pressed, moving to background");
-
-        // 홈 화면으로 이동
-        Intent intent = new Intent(Intent.ACTION_MAIN);
-        intent.addCategory(Intent.CATEGORY_HOME);
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        startActivity(intent);
+        try {
+            moveTaskToBack(true);
+        } catch (Exception e) {
+            Log.e("MainActivity", "Failed to move task to back in onBackPressed: " + e.getMessage());
+            super.onBackPressed();
+        }
     }
 
     public String readLegacyOrderNumberFile() {
@@ -1001,14 +947,12 @@ public class MainActivity extends FlutterActivity {
         File orderNumDir = new File(appfitDir, "orderNum");
         File currentNumFile = new File(orderNumDir, "current_num.txt");
 
-        // 파일 존재 여부 확인
         if (!currentNumFile.exists() || !currentNumFile.isFile()) {
             Log.w("MainActivity", "Legacy order number file does not exist: " + currentNumFile.getAbsolutePath());
             appendLogToFile("Legacy order number file does not exist: " + currentNumFile.getAbsolutePath());
             return "";
         }
 
-        // 파일 읽기
         StringBuilder content = new StringBuilder();
         try (BufferedReader reader = new BufferedReader(
                 new InputStreamReader(new FileInputStream(currentNumFile), StandardCharsets.UTF_8))) {
