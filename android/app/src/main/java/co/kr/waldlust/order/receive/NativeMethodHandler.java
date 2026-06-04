@@ -34,11 +34,7 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
     private static final String TAG = "NativeMethodHandler";
     private final MainActivity activity;
     private final ExecutorService fileIoExecutor = Executors.newSingleThreadExecutor();
-    // 라벨 프린터는 USB 단일 자원 → 단일 스레드 executor 로 직렬화하여 재출력 연타 / 동시 호출의
-    // 공백지/지연 이슈를 차단한다.
     private final ExecutorService labelPrintExecutor = Executors.newSingleThreadExecutor();
-    // 외부 영수증 프린터(범용 USB ESC/POS). 라벨과는 별개의 USB 디바이스이지만, 동일 단말에서
-    // 연속 출력 시 bulkTransfer 동시 호출 충돌을 막기 위해 단일 스레드로 직렬화한다.
     private final ExecutorService receiptPrintExecutor = Executors.newSingleThreadExecutor();
 
     public NativeMethodHandler(MainActivity activity) {
@@ -94,7 +90,6 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
 
                 if (imageBytes != null && imageBytes.length > 0) {
                     final Bitmap bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length);
-                    // autoReplyMode 기본 1: SDK PrintedEvent ACK 활성. preference_service.dart 와 일치.
                     final int finalAutoReplyMode = autoReplyMode != null ? autoReplyMode : 1;
                     final boolean finalUseFeedToTear = useFeedToTear != null ? useFeedToTear : true;
                     final boolean finalUseBackToPrint = useBackToPrint != null ? useBackToPrint : true;
@@ -121,13 +116,6 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
                 break;
 
             case "reconnectExternalPrinter": {
-                // 외부 영수증 프린터(범용 USB ESC/POS) 재탐색 트리거.
-                // - 앱 첫 실행 시 미연결이었거나, USB 권한 거부 후 다시 켠 케이스,
-                //   또는 사용자가 설정 화면에서 외부 프린터 토글을 ON 한 직후 호출되어
-                //   discovery + permission 흐름을 다시 돌린다.
-                // - 항상 close 후 discover. close 없이 discover 만 부르면 같은
-                //   UsbDevice handle 을 reuse 해서 전원 꺼진 프린터(좀비 연결)에
-                //   대한 재연결 버튼이 사용자 입장에서 no-op 이 된다.
                 try {
                     if (MainActivity.receiptPrinter != null) {
                         MainActivity.receiptPrinter.close();
@@ -145,12 +133,6 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
             }
 
             case "isExternalPrinterConnected": {
-                // 외부 영수증 프린터 연결 상태 2단계 조회:
-                //   1) isConnected()      - 객체 참조가 살아있는지 (가볍다)
-                //   2) verifyConnection() - bulk OUT 으로 ESC @ 를 실제 전송해서
-                //      좀비 연결(프린터 전원 OFF 이지만 USB detach broadcast 가
-                //      도달하지 않은 상태) 까지 잡아낸다. 실패 시 내부적으로
-                //      tear-down 하므로 다음 재연결이 의미 있게 동작.
                 boolean ok = false;
                 try {
                     if (MainActivity.receiptPrinter != null
@@ -166,11 +148,6 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
             }
 
             case "hasBuiltinPrinter": {
-                // Sunmi 내장 프린터 하드웨어 존재 여부.
-                // - 비-Sunmi 단말은 즉시 false.
-                // - Sunmi 단말: initSunmiPrinterService 가 비동기 bindService 라 isReady() 가
-                //   false 일 수 있음 → main thread 의 Handler.postDelayed 로 50ms 간격 폴링
-                //   (최대 1.5초). isReady() true 되면 hasInnerPrinter() 반환, timeout 시 false.
                 if (!activity.isSunmiDevice()) {
                     result.success(false);
                     break;
@@ -185,7 +162,7 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
                 final android.os.Handler probeHandler =
                         new android.os.Handler(android.os.Looper.getMainLooper());
                 final int[] tries = {0};
-                final int maxTries = 30; // 50ms × 30 = 1.5s
+                final int maxTries = 30;
                 final long intervalMs = 50;
                 Runnable probe = new Runnable() {
                     @Override
@@ -213,10 +190,6 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
             }
 
             case "encodeCp949Batch": {
-                // Dart ReceiptEscPosBuilder.toBytesCp949 가 한 영수증의 모든 텍스트 segments 를
-                // 한 번에 위탁. Java String.getBytes("EUC-KR") 는 CP949 호환 출력으로
-                // 기존 Posbank/PrintUtil 경로와 동일한 byte 결과를 보장.
-                // (Dart win32 의존을 안드로이드에서 트리거하지 않기 위한 우회.)
                 java.util.List<String> texts = call.argument("texts");
                 java.util.List<byte[]> out = new java.util.ArrayList<>();
                 if (texts != null) {
@@ -235,10 +208,6 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
             }
 
             case "printReceiptBytes": {
-                // Dart ReceiptEscPosBuilder.toBytesCp949() 결과(byte[])를 받아 외부 프린터 USB bulkTransfer 로 송출.
-                // Windows 경로와 동일한 byte 스트림을 사용 — 양 플랫폼 hex dump 가 일치한다.
-                // 결과는 PlatformException.code (BUSY / NO_DEVICE / TRANSPORT_ERROR)
-                // 로 전달돼 Dart PrinterJobQueue 가 backoff 재시도를 결정한다.
                 byte[] data = call.argument("bytes");
                 String jobName = call.argument("jobName");
                 final String finalJobName = jobName != null ? jobName : "RECEIPT";
@@ -293,7 +262,6 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
             }
 
             case "printOrder":
-                // Sunmi 내장 영수증 프린터 전용 채널. 외부 영수증 프린터는 'printReceiptBytes' 로 분리.
                 String orderJson = call.argument("orderJson");
                 String type = call.argument("type");
                 Boolean isCancel = call.argument("isCancel");
@@ -302,8 +270,6 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
                     isCancel = false;
                 }
 
-                // Brand-specific receipt logo passed from Dart (BrandAssets.receiptLogoPath).
-                // Null/empty or decode failure -> no logo printed (graceful skip).
                 String logoBase64 = call.argument("logoBase64");
                 Bitmap logoBitmap = null;
                 if (logoBase64 != null && !logoBase64.isEmpty()) {
@@ -350,7 +316,8 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
                     ActivityManager activityManager = (ActivityManager) activity
                             .getSystemService(Context.ACTIVITY_SERVICE);
                     if (activityManager != null) {
-                        activityManager.moveTaskToFront(activity.getTaskId(), ActivityManager.MOVE_TASK_WITH_HOME);
+                        // 홈 화면을 강제 뒤배치하지 않기 위해 플래그를 0으로 설정
+                        activityManager.moveTaskToFront(activity.getTaskId(), 0);
                     }
 
                     Intent intent = new Intent(activity, MainActivity.class);
