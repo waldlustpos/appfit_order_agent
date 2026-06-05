@@ -15,6 +15,7 @@ import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/services/preference_service.dart';
 import 'package:appfit_order_agent/services/windows_bubble_service.dart';
 import 'package:appfit_order_agent/services/windows_log_file_writer.dart';
+import 'package:appfit_order_agent/dev/rebuild_counter_observer.dart';
 import 'package:appfit_order_agent/utils/app_startup_updater.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:appfit_order_agent/widgets/windows_bubble_overlay.dart';
@@ -183,11 +184,23 @@ void main() async {
     }
 
     // 앱 실행
-    runApp(const ProviderScope(child: MyApp()));
+    runApp(
+      ProviderScope(
+        // [DEV] 리빌드 카운트 검증용 옵저버 (release 영향 없음 — kDebugMode 가드).
+        observers: kDebugMode ? [RebuildCounterObserver()] : const [],
+        child: const MyApp(),
+      ),
+    );
   } catch (e, s) {
     logger.e('앱 초기화 중 오류 발생', error: e, stackTrace: s);
     MonitoringService.instance.captureError(e, s, hint: '앱 초기화 중 오류 발생');
-    runApp(const ProviderScope(child: MyApp()));
+    runApp(
+      ProviderScope(
+        // [DEV] 리빌드 카운트 검증용 옵저버 (release 영향 없음 — kDebugMode 가드).
+        observers: kDebugMode ? [RebuildCounterObserver()] : const [],
+        child: const MyApp(),
+      ),
+    );
   }
 }
 
