@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
+import 'package:appfit_order_agent/i18n/strings.g.dart';
 import 'package:appfit_order_agent/utils/brand_assets.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 
@@ -289,8 +290,8 @@ class LabelPainter extends CustomPainter {
     );
 
     // Title (구분선 아래 정렬 보정)
-    _drawText(
-        canvas, "option", Offset(size.width / 2, startY + spacingSectionSmall),
+    _drawText(canvas, t.receipt.section_option,
+        Offset(size.width / 2, startY + spacingSectionSmall),
         fontSize: fsSectionTitle, isBold: true, align: TextAlign.center);
 
     // List
@@ -330,7 +331,7 @@ class LabelPainter extends CustomPainter {
     // "detail" 타이틀 (가운데 정렬)
     _drawText(
       canvas,
-      "detail",
+      t.receipt.section_detail,
       Offset(size.width / 2, startY + spacingSectionSmall),
       fontSize: fsSectionTitle,
       isBold: true,

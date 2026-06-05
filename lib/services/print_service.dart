@@ -12,6 +12,8 @@ import 'package:appfit_order_agent/models/order_model.dart';
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
+import 'package:appfit_order_agent/providers/locale_provider.dart';
+import 'package:appfit_order_agent/services/receipt_labels.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:appfit_order_agent/services/preference_service.dart';
 
@@ -377,6 +379,11 @@ class PrintService {
       if (storePhone != null && storePhone.isNotEmpty) {
         orderMap['storePhone'] = storePhone;
       }
+      // 영수증/주문서 고정 라벨을 현재 앱 로캘 번역으로 주입. Dart ESC/POS 빌더와
+      // Sunmi(Java) 가 동일한 'labels' 맵을 읽어 라벨 언어가 일치한다. (메뉴명/옵션명
+      // 등 서버값은 그대로.) 누락 시 각 빌더가 한국어로 fallback.
+      orderMap['labels'] =
+          buildReceiptLabels(ref.read(localeNotifierProvider).translations);
       final orderJson = jsonEncode(orderMap);
 
       // 캐시된 설정값이 없는 경우에만 로드

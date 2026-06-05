@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:appfit_order_agent/i18n/strings.g.dart';
 import 'package:appfit_order_agent/services/escpos_builder.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
 
@@ -271,13 +272,20 @@ class ReceiptEscPosBuilder {
     const amountW = 10;
     final menuW = width - countW - amountW;
 
+    // PrintService 가 현재 로캘 번역을 jsonOrder['labels'] 로 주입. 누락 시 한국어 fallback.
+    final labels = jsonOrder['labels'] as Map?;
+    String lbl(String key, String ko) {
+      final v = labels?[key];
+      return v is String ? v : ko;
+    }
+
     b
       ..init()
       ..setAlign(EscPos.alignCenter);
 
     if (isCancel) {
       b
-        ..textLn('[취소영수증]')
+        ..textLn('[${lbl('cancel_receipt', '취소영수증')}]')
         ..ln();
     }
 
@@ -289,7 +297,7 @@ class ReceiptEscPosBuilder {
             ? jsonOrder['displayOrderNum'] as String
             : (jsonOrder['ordrSimpleId'] as String? ?? '');
     b
-      ..textLn('주문번호 : $displayNum')
+      ..textLn('${lbl('order_no', '주문번호')} : $displayNum')
       ..setSize(EscPos.fontNormal)
       ..boldOff()
       ..ln()
@@ -303,11 +311,12 @@ class ReceiptEscPosBuilder {
     // 사업자번호는 /v0/shop 응답 추가 후 storeBusinessNumber 키로 주입 예정.
 
     b
-      ..textLn('[일시]   : ${jsonOrder['ordrDtm'] as String? ?? ''}')
+      ..textLn(
+          '[${lbl('datetime', '일시')}]   : ${jsonOrder['ordrDtm'] as String? ?? ''}')
       ..textLn(separatorLine(width))
-      ..text(padRight('메뉴', menuW))
-      ..text(padLeft('수량', countW))
-      ..text(padLeft('금액', amountW))
+      ..text(padRight(lbl('col_menu', '메뉴'), menuW))
+      ..text(padLeft(lbl('col_qty', '수량'), countW))
+      ..text(padLeft(lbl('col_amount', '금액'), amountW))
       ..ln()
       ..textLn(separatorLine(width));
 
@@ -353,8 +362,9 @@ class ReceiptEscPosBuilder {
 
     b
       ..setAlign(EscPos.alignRight)
-      ..textLn('과세금액: ${jsonOrder['exceptTaxPrice'] ?? '0'}')
-      ..textLn('부 가 세: ${jsonOrder['taxPrice'] ?? '0'}')
+      ..textLn(
+          '${lbl('taxable', '과세금액')}: ${jsonOrder['exceptTaxPrice'] ?? '0'}')
+      ..textLn('${lbl('vat', '부가세')}: ${jsonOrder['taxPrice'] ?? '0'}')
       ..setAlign(EscPos.alignLeft)
       ..textLn(separatorLine(width));
 
@@ -365,14 +375,14 @@ class ReceiptEscPosBuilder {
 
     final labelW = width - amountW;
     b
-      ..text(padRight('주문금액 : ', labelW))
+      ..text(padRight('${lbl('order_amount', '주문금액')} : ', labelW))
       ..text(padLeft(orderPrice, amountW))
       ..ln()
-      ..text(padRight('할인금액 : ', labelW))
+      ..text(padRight('${lbl('discount_amount', '할인금액')} : ', labelW))
       ..text(padLeft(discountPrice == '0' ? '0' : '-$discountPrice', amountW))
       ..ln()
       ..boldOn()
-      ..text(padRight('결제금액 : ', labelW))
+      ..text(padRight('${lbl('payment_amount', '결제금액')} : ', labelW))
       ..text(padLeft(paymentPrice, amountW))
       ..ln()
       ..boldOff();
@@ -410,13 +420,20 @@ class ReceiptEscPosBuilder {
     const countW = 10;
     final menuW = width - countW;
 
+    // PrintService 가 현재 로캘 번역을 jsonOrder['labels'] 로 주입. 누락 시 한국어 fallback.
+    final labels = jsonOrder['labels'] as Map?;
+    String lbl(String key, String ko) {
+      final v = labels?[key];
+      return v is String ? v : ko;
+    }
+
     b
       ..init()
       ..setAlign(EscPos.alignCenter);
 
     if (isCancel) {
       b
-        ..textLn('[취소주문서]')
+        ..textLn('[${lbl('cancel_order', '취소주문서')}]')
         ..ln();
     }
 
@@ -428,7 +445,7 @@ class ReceiptEscPosBuilder {
             ? jsonOrder['displayOrderNum'] as String
             : (jsonOrder['ordrSimpleId'] as String? ?? '');
     b
-      ..textLn('주문번호: $displayNum')
+      ..textLn('${lbl('order_no', '주문번호')}: $displayNum')
       ..setSize(EscPos.fontNormal)
       ..boldOff()
       ..ln();
@@ -438,23 +455,24 @@ class ReceiptEscPosBuilder {
       b
         ..boldOn()
         ..setSize(EscPos.fontTall)
-        ..textLn('$userName님')
+        ..textLn('$userName${lbl('customer_suffix', '님')}')
         ..setSize(EscPos.fontNormal)
         ..boldOff();
     }
     final kioskId = jsonOrder['kioskId'] as String?;
     if (kioskId != null && kioskId.isNotEmpty && kioskId != 'null') {
-      b.textLn('키오스크: $kioskId');
+      b.textLn('${lbl('kiosk', '키오스크')}: $kioskId');
     }
     b.ln();
 
     b
       ..setAlign(EscPos.alignLeft)
       ..textLn(jsonOrder['storeName'] as String? ?? '')
-      ..textLn('[일시] : ${jsonOrder['ordrDtm'] as String? ?? ''}')
+      ..textLn(
+          '[${lbl('datetime', '일시')}] : ${jsonOrder['ordrDtm'] as String? ?? ''}')
       ..textLn(separatorLine(width))
-      ..text(padRight('메뉴', menuW))
-      ..text(padLeft('수량', countW))
+      ..text(padRight(lbl('col_menu', '메뉴'), menuW))
+      ..text(padLeft(lbl('col_qty', '수량'), countW))
       ..ln()
       ..textLn(separatorLine(width));
 
@@ -538,15 +556,15 @@ class ReceiptEscPosBuilder {
       ..ln()
       ..setAlign(EscPos.alignLeft)
       ..textLn(separatorLine(innerWidth))
-      ..textLn('포트  : ${comPort ?? '-'}')
-      ..textLn('보드  : ${baudRate ?? '-'} baud')
-      ..textLn('일시  : $ts')
+      ..textLn('${t.receipt.test_port}  : ${comPort ?? '-'}')
+      ..textLn('${t.receipt.test_board}  : ${baudRate ?? '-'} baud')
+      ..textLn('${t.receipt.datetime}  : $ts')
       ..textLn(separatorLine(innerWidth))
       ..ln()
       ..setAlign(EscPos.alignCenter)
       ..textLn('한글 ABC 0123 가나다 !@#')
       ..ln()
-      ..textLn('이 영수증이 보이면 정상')
+      ..textLn(t.receipt.test_ok)
       // 종이 절단 위치 확보용 명시적 line feed.
       ..ln()
       ..ln()

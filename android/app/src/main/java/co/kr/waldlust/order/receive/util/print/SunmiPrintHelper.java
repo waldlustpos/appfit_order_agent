@@ -510,6 +510,16 @@ public class SunmiPrintHelper {
 
 
     /**
+     * 영수증/주문서 고정 라벨을 주문 JSON 의 "labels" 맵에서 읽는다.
+     * Dart(PrintService.buildReceiptLabels)가 현재 앱 로캘 번역을 주입하며,
+     * 키가 없거나 맵 자체가 없으면 한국어 fallback 으로 출력해 기존 동작을 보존한다.
+     * (빈 문자열 값 — 예: en customer_suffix="" — 은 그대로 반환한다.)
+     */
+    private String lbl(JSONObject labels, String key, String ko) {
+        return labels == null ? ko : labels.optString(key, ko);
+    }
+
+    /**
      * JSON 형식의 주문 데이터를 받아 주문서를 출력합니다. (메서드 설명 수정)
      * @param orderJson JSON 형식의 주문 데이터
      * @param isCancel 취소 주문서 여부
@@ -522,14 +532,15 @@ public class SunmiPrintHelper {
 
         try {
             JSONObject jsonOrder = new JSONObject(orderJson);
-            
+            JSONObject L = jsonOrder.optJSONObject("labels");
+
             // 영수증 인쇄 시작
             sunmiPrinterService.printerInit(null);
             sunmiPrinterService.setAlignment(1, null); // 가운데 정렬
             sunmiPrinterService.lineWrap(1, null);
             // 취소 주문서인 경우 제목 추가
             if (isCancel) {
-                sunmiPrinterService.printTextWithFont("[취소주문서]\n", null, receiptTitleFontSize, null);
+                sunmiPrinterService.printTextWithFont("[" + lbl(L, "cancel_order", "취소주문서") + "]\n", null, receiptTitleFontSize, null);
                 sunmiPrinterService.lineWrap(1, null);
             }
             
@@ -542,19 +553,19 @@ public class SunmiPrintHelper {
 
             // 주문번호 출력 (ordrSimpleId 또는 displayOrderNum)
             String displayNum = jsonOrder.optString("displayOrderNum", jsonOrder.optString("ordrSimpleId", ""));
-            sunmiPrinterService.printTextWithFont("주문번호: " + displayNum + "\n", null, receiptOrderNumFontSize, null);
+            sunmiPrinterService.printTextWithFont(lbl(L, "order_no", "주문번호") + ": " + displayNum + "\n", null, receiptOrderNumFontSize, null);
             sunmiPrinterService.lineWrap(1, null);
             // 사용자 이름 출력 (userName)
             String userName = jsonOrder.optString("userName", "");
             Log.d("userName", "printOrderFromJson userName: " + userName);
 
             if (!userName.isEmpty() && !userName.equals("null")) {
-                sunmiPrinterService.printTextWithFont(userName + "님\n", null, receiptOrderNumFontSize, null);
+                sunmiPrinterService.printTextWithFont(userName + lbl(L, "customer_suffix", "님") + "\n", null, receiptOrderNumFontSize, null);
             }
 
             String kioskId = jsonOrder.optString("kioskId", "");
             if(!kioskId.isEmpty() && !kioskId.equals("null")){
-                sunmiPrinterService.printTextWithFont("키오스크: " + kioskId + "\n", null, receiptOrderNumFontSize, null);
+                sunmiPrinterService.printTextWithFont(lbl(L, "kiosk", "키오스크") + ": " + kioskId + "\n", null, receiptOrderNumFontSize, null);
             }
 
             // 주문 일시 출력 (ordrDtm)
@@ -575,14 +586,14 @@ public class SunmiPrintHelper {
             sunmiPrinterService.printTextWithFont(storeName + "\n", null, receiptInfoFontSize, null);
             // 주문 일시 출력
             sunmiPrinterService.setFontSize(receiptInfoFontSize, null);
-            sunmiPrinterService.printTextWithFont("[일시] : " + orderDate + "\n", null, receiptInfoFontSize, null);
-            
+            sunmiPrinterService.printTextWithFont("[" + lbl(L, "datetime", "일시") + "] : " + orderDate + "\n", null, receiptInfoFontSize, null);
+
             // 구분선 출력
             drawLine();
-            
+
             // 메뉴 헤더 출력
             sunmiPrinterService.setFontSize(receiptFontSize, null);
-            String[] columnHeaders = new String[]{"메뉴", "수량"};
+            String[] columnHeaders = new String[]{lbl(L, "col_menu", "메뉴"), lbl(L, "col_qty", "수량")};
             int[] columnWidths = new int[]{3, 1};
             int[] columnAligns = new int[]{0, 2}; // 0:왼쪽, 1:가운데, 2:오른쪽
             sunmiPrinterService.printColumnsString(columnHeaders, columnWidths, columnAligns, null);
@@ -694,14 +705,15 @@ public class SunmiPrintHelper {
         
         try {
             JSONObject jsonOrder = new JSONObject(orderJson);
-            
+            JSONObject L = jsonOrder.optJSONObject("labels");
+
             // 영수증 인쇄 시작
             sunmiPrinterService.printerInit(null);
             sunmiPrinterService.setAlignment(1, null); // 가운데 정렬
             sunmiPrinterService.lineWrap(1, null);
             // 취소 영수증인 경우 제목 추가
             if (isCancel) {
-                sunmiPrinterService.printTextWithFont("[취소영수증]\n", null, receiptTitleFontSize, null);
+                sunmiPrinterService.printTextWithFont("[" + lbl(L, "cancel_receipt", "취소영수증") + "]\n", null, receiptTitleFontSize, null);
                 sunmiPrinterService.lineWrap(1, null);
             }
             
@@ -713,7 +725,7 @@ public class SunmiPrintHelper {
             }
             // 주문번호 출력
             String displayNum = jsonOrder.optString("displayOrderNum", jsonOrder.optString("ordrSimpleId", ""));
-            sunmiPrinterService.printTextWithFont("주문번호 : " + displayNum + "\n", null, receiptOrderNumFontSize, null);
+            sunmiPrinterService.printTextWithFont(lbl(L, "order_no", "주문번호") + " : " + displayNum + "\n", null, receiptOrderNumFontSize, null);
             sunmiPrinterService.printTextWithFont("〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓\n", null, 13, null);
             sunmiPrinterService.lineWrap(1, null);
             
@@ -739,7 +751,7 @@ public class SunmiPrintHelper {
 
             // 주문 일시 출력
             String orderDate = jsonOrder.optString("ordrDtm", "");
-            sunmiPrinterService.printTextWithFont("[일시]   : " + orderDate + "\n", null, receiptInfoFontSize, null);
+            sunmiPrinterService.printTextWithFont("[" + lbl(L, "datetime", "일시") + "]   : " + orderDate + "\n", null, receiptInfoFontSize, null);
             sunmiPrinterService.lineWrap(1, null);
             
             // 구분선 출력
@@ -747,7 +759,7 @@ public class SunmiPrintHelper {
 
             // 메뉴 헤더 출력
                     sunmiPrinterService.setFontSize(receiptFontSize, null);
-            String[] columnHeaders = new String[]{"메뉴", "수량", "금액"};
+            String[] columnHeaders = new String[]{lbl(L, "col_menu", "메뉴"), lbl(L, "col_qty", "수량"), lbl(L, "col_amount", "금액")};
             int[] columnWidths = new int[]{5, 1, 2};
             int[] columnAligns = new int[]{0, 2, 2};
             sunmiPrinterService.printColumnsString(columnHeaders, columnWidths, columnAligns, null);
@@ -815,12 +827,12 @@ public class SunmiPrintHelper {
             String exceptTaxPriceStr = jsonOrder.optString("exceptTaxPrice", "0");
             String taxPriceStr = jsonOrder.optString("taxPrice", "0");
             
-            String[] taxData = new String[]{"과세금액", exceptTaxPriceStr};
+            String[] taxData = new String[]{lbl(L, "taxable", "과세금액"), exceptTaxPriceStr};
             int[] taxWidths = new int[]{1, 1};
             int[] taxAligns = new int[]{2, 2};
             sunmiPrinterService.printColumnsString(taxData, taxWidths, taxAligns, null);
-            
-            taxData[0] = "부가세";
+
+            taxData[0] = lbl(L, "vat", "부가세");
             taxData[1] = taxPriceStr;
             sunmiPrinterService.printColumnsString(taxData, taxWidths, taxAligns, null);
             
@@ -834,18 +846,18 @@ public class SunmiPrintHelper {
             int[] priceAligns = new int[]{0, 2};
             
             // 주문금액
-            priceData[0] = "주문금액 : ";
+            priceData[0] = lbl(L, "order_amount", "주문금액") + " : ";
             priceData[1] = jsonOrder.optString("ordrPrc", "0");
             sunmiPrinterService.printColumnsString(priceData, priceWidths, priceAligns, null);
-            
+
             // 할인금액
             String discPrcStr = jsonOrder.optString("discPrc", "0");
-            priceData[0] = "할인금액 : ";
+            priceData[0] = lbl(L, "discount_amount", "할인금액") + " : ";
             priceData[1] = discPrcStr.equals("0") ? "0" : "-" + discPrcStr;
             sunmiPrinterService.printColumnsString(priceData, priceWidths, priceAligns, null);
-            
+
             // 결제금액
-            priceData[0] = "결제금액 : ";
+            priceData[0] = lbl(L, "payment_amount", "결제금액") + " : ";
             priceData[1] = jsonOrder.optString("payPrc", "0");
             sunmiPrinterService.printColumnsString(priceData, priceWidths, priceAligns, null);
             
