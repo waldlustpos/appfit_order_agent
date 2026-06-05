@@ -258,7 +258,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
     logger.i('로그인 정보 저장: _isKdsMode=$_isKdsMode');
 
-    final storeId = _idController.text.trim();
+    // 매장 ID는 항상 대문자로 저장한다. savePassword 키('{id}_password')가
+    // 대문자로 저장되어야 자동로그인 조회 시 getPassword(getId())(대문자)와
+    // 일치한다. (소문자 로그인 시 비밀번호 키 불일치로 자동로그인이 깨지는 문제 방지)
+    final storeId = _idController.text.trim().toUpperCase();
 
     if (_isSaveId) {
       await preferenceService.saveId(storeId);
@@ -624,6 +627,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                 ),
                 keyboardType: TextInputType.text,
                 textInputAction: TextInputAction.next,
+                // 매장 ID는 대문자로만 다룬다. 입력 단계에서 대문자로 강제하여
+                // 토큰 캐시 shopCode / 소켓 채널 / 비밀번호 저장 키가 항상
+                // 대문자 ID로 일치하도록 보장한다.
+                textCapitalization: TextCapitalization.characters,
+                inputFormatters: [
+                  TextInputFormatter.withFunction(
+                    (oldValue, newValue) => newValue.copyWith(
+                      text: newValue.text.toUpperCase(),
+                    ),
+                  ),
+                ],
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return t.login.id_placeholder;
