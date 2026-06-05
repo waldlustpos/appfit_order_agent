@@ -513,10 +513,13 @@ class ReceiptEscPosBuilder {
 
     final memo = jsonOrder['ordrMemo'] as String? ?? '';
     if (memo.isNotEmpty) {
+      // 메모도 메뉴와 동일한 폰트 크기(주문서: 세로 2배)로 출력.
       b
         ..ln()
         ..setAlign(EscPos.alignCenter)
+        ..setSize(EscPos.fontTall)
         ..textLn(memo)
+        ..setSize(EscPos.fontNormal)
         ..setAlign(EscPos.alignLeft);
     }
 
