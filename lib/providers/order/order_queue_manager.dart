@@ -41,6 +41,23 @@ class OrderQueueManager {
     this.onProcessBatchOrders,
   });
 
+  /// 주문 정렬 비교자 — shopOrderNo(int) 오름차순, 파싱 실패 시 orderId 사전식 fallback.
+  ///
+  /// 주문서/영수증 출력 순서 직렬화의 single source of truth. 소켓 경로는 [_flushBuffer]
+  /// 가, 폴링/새로고침 자동접수 경로(order_provider)는 이 비교자를 직접 재사용해
+  /// "낮은 주문번호 순" 으로 enqueue 되도록 보장한다.
+  static int compareByShopOrderNo(OrderModel a, OrderModel b) {
+    try {
+      return int.parse(a.shopOrderNo).compareTo(int.parse(b.shopOrderNo));
+    } catch (_) {
+      return a.orderId.compareTo(b.orderId);
+    }
+  }
+
+  /// 리스트를 in-place 정렬 (낮은 주문번호 순). [compareByShopOrderNo] 위임.
+  static void sortByShopOrderNo(List<OrderModel> orders) =>
+      orders.sort(compareByShopOrderNo);
+
   /// 외부에서 주문을 큐에 추가
   void queueOrder(OrderModel order) {
     // 중복 체크: 버퍼나 방출 큐, 상태 버퍼에 이미 있는지 확인
@@ -107,16 +124,8 @@ class OrderQueueManager {
   void _flushBuffer() {
     if (_bufferList.isEmpty) return;
 
-    // 1. 정렬 (User 요구사항: 낮은 주문번호 순)
-    _bufferList.sort((a, b) {
-      try {
-        final nA = int.parse(a.shopOrderNo);
-        final nB = int.parse(b.shopOrderNo);
-        return nA.compareTo(nB);
-      } catch (_) {
-        return a.orderId.compareTo(b.orderId);
-      }
-    });
+    // 1. 정렬 (User 요구사항: 낮은 주문번호 순) — 공유 비교자 사용
+    _bufferList.sort(compareByShopOrderNo);
 
     logger.d('[QueueManager] 버퍼 정렬 완료 및 방출 큐 이동: ${_bufferList.length}건');
 

@@ -643,10 +643,14 @@ class Order extends _$Order {
       logger.d('$modeText: 자동 접수 진행: ${order.orderId}');
       // 사용자 피드백을 위해 블링크는 즉시 반영 (UI는 NEW 상태로 유지)
 
-      // Firestore 기록은 updateOrderStatus에서 처리하므로 중복 제거
-      // 즉시 서버 업데이트로 속도 개선
-      Future.microtask(() => updateOrderStatus(order, OrderStatus.PREPARING))
-          .then((success) async {
+      // Firestore 기록은 updateOrderStatus에서 처리하므로 중복 제거.
+      // [출력 순서 보장] 자동접수 PUT→출력 enqueue 를 await 로 직렬화한다.
+      // 이전: Future.microtask(...).then(add) 로 분리되어 _outputQueueService.add()
+      // 가 PUT 응답 도착 순서대로 호출 → bulk 부하 시 인접 주문 영수증 순서 역전.
+      // 이제 emit 루프(_processNextEmit)가 정렬된 shopOrderNo 순서로 이 함수를 await
+      // 하므로, enqueue 순서 = 정렬 순서가 보장된다.
+      try {
+        final success = await updateOrderStatus(order, OrderStatus.PREPARING);
         logger.d(
             '$modeText: updateOrderStatus 결과 - 성공: $success, 주문: ${order.orderId}');
         if (success) {
@@ -699,13 +703,13 @@ class Order extends _$Order {
           }
           logger.w('$modeText: 자동 접수 실패: ${order.orderId}');
         }
-      }).catchError((error, stackTrace) {
+      } catch (error, stackTrace) {
         // updateOrderStatus 가 rethrow 한 ApiException 이 unhandled 로 터지며 앱이 죽지 않도록 흡수.
         logger.w('$modeText: 자동접수 체인 오류(무시): ${order.orderId}',
             error: error, stackTrace: stackTrace);
-      }).whenComplete(() {
+      } finally {
         _autoAcceptingOrderIds.remove(order.orderId);
-      });
+      }
 
       return; // 자동접수 경로에서는 추가 알림 처리 불필요
     }
@@ -744,6 +748,8 @@ class Order extends _$Order {
   /// 2. NEW/ACCEPTED 주문 처리
   Future<void> _processNewOrdersWhenRefresh(List<OrderModel> orders) async {
     final newOrders = orders.where((o) => o.status == OrderStatus.NEW).toList();
+    // [출력 순서 보장] 자동접수 enqueue 를 정렬 순서로 직렬화하기 위해 먼저 정렬.
+    OrderQueueManager.sortByShopOrderNo(newOrders);
 
     logger.d('[Order Processing] NEW: ${newOrders.length}건');
 
@@ -789,10 +795,12 @@ class Order extends _$Order {
           updateTime: DateTime.now(),
         );
 
-        // rethrow 된 ApiException 이 unhandled async exception 으로 터지며 앱이 죽는 것을 방지.
-        Future.microtask(
-          () => updateOrderStatus(order, OrderStatus.PREPARING),
-        ).then((success) async {
+        // [출력 순서 보장] 자동접수 PUT→출력 enqueue 를 await 로 직렬화.
+        // 정렬된 newOrders 를 for 루프가 한 건씩 await 하므로 enqueue 순서 = 정렬 순서.
+        // (이전: Future.microtask 로 분리되어 PUT 응답 순서대로 enqueue → 순서 역전.)
+        // rethrow 된 ApiException 은 try/catch 로 흡수해 앱 크래시 방지.
+        try {
+          final success = await updateOrderStatus(order, OrderStatus.PREPARING);
           if (success == true) {
             logger.d(
                 '[Order Processing] NEW 주문 자동접수 성공 — 출력/알림 트리거: ${order.orderId}');
@@ -808,15 +816,15 @@ class Order extends _$Order {
           } else {
             logger.w('[Order Processing] NEW 자동접수 실패: ${order.orderId}');
           }
-        }).catchError((error, stackTrace) {
+        } catch (error, stackTrace) {
           logger.w(
             '[Order Processing] 자동접수 재시도 실패(무시): ${order.orderId}',
             error: error,
             stackTrace: stackTrace,
           );
-        }).whenComplete(() {
+        } finally {
           _autoAcceptingOrderIds.remove(order.orderId);
-        });
+        }
       }
     }
   }
@@ -1713,7 +1721,11 @@ class Order extends _$Order {
     // replication lag 대응 — RecentRemovalsCache 만료 청소 + 부활 차단 ID 셋 준비.
     final removedIds = _recentRemovals.snapshotIds();
 
-    for (final order in newOrders) {
+    // [출력 순서 보장] 자동접수 enqueue 를 정렬 순서로 직렬화하기 위해 정렬된 복사본 순회.
+    // (원본 newOrders 는 호출부의 선행 처리와 alias 되어 있어 in-place 정렬 대신 복사.)
+    final sortedNewOrders = List<OrderModel>.of(newOrders)
+      ..sort(OrderQueueManager.compareByShopOrderNo);
+    for (final order in sortedNewOrders) {
       // 0. 최근 종결(DONE/CANCELLED) 처리한 주문이 stale 응답으로 *active* 상태로
       // 부활하는 경우만 차단. 서버가 CANCELLED/DONE 등 종결 상태로 응답한 경우는
       // 정상 동기화 경로이므로 통과시킨다.
@@ -1808,9 +1820,12 @@ class Order extends _$Order {
           }
 
           // 2) 비동기 API 호출 (UI는 이미 업데이트됨)
-          Future.microtask(
-                  () => updateOrderStatus(order, OrderStatus.PREPARING))
-              .then((success) async {
+          // [출력 순서 보장] 자동접수 PUT→출력 enqueue 를 await 로 직렬화.
+          // 정렬된 sortedNewOrders 를 for 루프가 한 건씩 await 하므로 enqueue 순서 = 정렬 순서.
+          // (이전: Future.microtask 로 분리되어 PUT 응답 순서대로 enqueue → 순서 역전.)
+          try {
+            final success =
+                await updateOrderStatus(order, OrderStatus.PREPARING);
             if (success) {
               logger.d('새로고침 주문 자동 접수 성공: ${order.orderId}');
               // 자기 자신이 자동접수한 주문은 후행 PREPARING 이벤트의 L555 라벨 핸들러에서
@@ -1820,7 +1835,6 @@ class Order extends _$Order {
               // 접수 성공 시: 프린트만 실행 (큐를 통해 처리)
               _outputQueueService.add(acceptedOrder, playSound: true);
 
-              // 플랫폼 알림 (앱이 백그라운드일 때)
               // 플랫폼 알림 (앱이 백그라운드일 때)
               ref.read(alertManagerProvider).triggerNewOrderAlert(
                     playSound: true,
@@ -1845,13 +1859,13 @@ class Order extends _$Order {
                 logger.w('자동접수 실패로 상태 롤백: ${order.orderId} -> NEW');
               }
             }
-          }).catchError((error, stackTrace) {
+          } catch (error, stackTrace) {
             // updateOrderStatus 의 ApiException rethrow 로 unhandled async 가 나지 않도록 흡수.
             logger.w('새로고침 주문 자동 접수 체인 오류(무시): ${order.orderId}',
                 error: error, stackTrace: stackTrace);
-          }).whenComplete(() {
+          } finally {
             _autoAcceptingOrderIds.remove(order.orderId);
-          });
+          }
 
           // 큐 관리는 QueueManager에서 처리됨
           logger.d('자동접수 처리 완료: ${order.orderId}');

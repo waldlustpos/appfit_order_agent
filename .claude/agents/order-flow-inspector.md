@@ -13,8 +13,9 @@ tools: Read, Glob, Grep, Bash
 
 - **자동접수 3중 가드**: 진입점은 3곳(`_processNewOrder` 소켓 / `_processNewOrdersWhenRefresh` refresh / `_processPollingNewOrders` 폴링). 각 진입점이 모두 다음을 갖춰야 함:
   1. **state 선행 가드** — 로컬 상태가 PREPARING+ 일 때 NEW 자동접수 스킵
-  2. **`_autoAcceptingOrderIds` in-flight 락** — microtask 진입 직전 `add`, `whenComplete`에서 `remove`
-  3. **`Future.microtask().catchError().whenComplete()`** — 흡수 + 락 해제
+  2. **`_autoAcceptingOrderIds` in-flight 락** — `await` 진입 직전 `add`, `finally`에서 `remove`
+  3. **`try { final success = await updateOrderStatus(...); if (success) _outputQueueService.add(...) } catch { 흡수 } finally { 락 해제 }`** — PUT→출력 enqueue 를 `await` 로 직렬화(아래 "자동접수 출력 enqueue 순서" 참조). 과거 `Future.microtask(updateOrderStatus).then(add).catchError().whenComplete()` 패턴은 `add()` 가 PUT 응답 순서로 풀려 인쇄 순서 역전 → **회귀**.
+- **자동접수 출력 enqueue 순서 = 주문번호 정렬 순서**: 3경로 모두 PUT(`updateOrderStatus`)→`_outputQueueService.add()` 를 `await` 로 직렬화해야 함. 소켓은 `OrderQueueManager` emit 루프(`shopOrderNo` 정렬 + throttle 250/500ms)가, 폴링/새로고침은 루프 진입 전 `OrderQueueManager.sortByShopOrderNo` 가 정렬 보장. `Future.microtask().then(add)` 회귀 시 `add()` 가 per-order 네트워크 PUT 응답 도착 순서로 호출 → bulk 부하에서 인접 주문 주문서 인쇄 순서 역전(`_receiptQueue` 는 FIFO 무결, enqueue **순서**가 원인). 내장(Sunmi)·외부 프린터 공통(분기는 enqueue 하위인 `PrintService.printOrderReceipt`).
 - **상태 다운그레이드 차단**: `_resolveMergedStatus()`(`order_provider.dart`)가 모든 머지 지점에 적용되어야 함. 순서는 NEW < PREPARING < READY < DONE, CANCELLED는 터미널.
 - **ProcessedOrderCache API 일관성**: 소켓·폴링 양 경로 모두 `containsOrderStatus` / `addOrderStatus`만 사용. raw `contains`/`add` 잔재가 있으면 키 포맷 불일치로 회귀 발생.
 - **KDS NEW 차단 단일 정책**: 소켓(dispatcher 콜백)·폴링 두 곳 모두 `appfit_core.OrderEventIgnorePolicy.ignoreNewOrderInKdsMode` **직접 호출**. 도메인 래퍼 잔존 시 정책 분기 누락 가능.
@@ -23,7 +24,7 @@ tools: Read, Glob, Grep, Bash
 - **OutputQueueService 로그 prefix**: `[ReceiptQueue]` / `[LabelQueue]` 로 큐별 추적(`output_queue_service.dart:74-99, 167-244`). `[Label] [receipt-queue]` / `[label-queue]` 패턴 회귀 시 grep 분리 어려움. `[Label]` 단독 prefix 는 `OutputService.printOrderLabels` 의 운영 식별자(★ 누락 마커 포함) 전용 — `OutputQueueService` 안에서 재사용 금지.
 - **UI 트리거는 fire-and-forget**: 신규 주문(자동) / 영수증 재출력 / 라벨 재출력 / 주문 취소 영수증 모두 `outputQueueServiceProvider.add*()` 호출 후 즉시 리턴. `PrinterJobQueue` backoff(최대 137s) + `onFinalFailure` 콜백이 결과/재시도 책임. 호출자가 await 하면 다이얼로그/버튼이 137s 까지 안 풀리는 사고(`order_provider.dart:1187-1205` 의 `printCancelReceiptById` 가 `unawaited` 처리된 reference). `await ref.read(outputAppServiceProvider).printCancelReceiptById(...)` 같은 회귀 grep 으로 잡기.
 - **AudioPlayer dispose 가드**: `_isAudioPlayerDisposed` 플래그가 모든 stop/dispose 호출에 가드되어야 함.
-- **정렬 기준**: `orderedAt` (DateTime). 과거 `shopOrderNo` (String) 코드 잔재는 회귀.
+- **정렬 기준 (2종 구분)**: **UI 표시/머지 리스트 정렬 = `orderedAt`** (DateTime) — `order_computed_providers.dart`, `order_provider.dart:997/1657/1687`, `kds_utils.dart` 등. 이 컨텍스트에서 `shopOrderNo` (String) 정렬 잔재는 회귀. **단, 자동접수 출력 큐의 처리/인쇄 순서 정렬은 `shopOrderNo`** (낮은 주문번호 순, User 요구사항) — `OrderQueueManager.compareByShopOrderNo` 단일 진입점(`_flushBuffer` + 폴링/새로고침 자동접수). 두 정렬은 목적이 다른 별개이므로 emit/인쇄 경로의 shopOrderNo 정렬을 orderedAt 으로 "고치는" 것이 오히려 회귀.
 - **이벤트 dispatcher 사용**: `_handleAppFitEvent`가 raw 페이로드 검증을 직접 하지 않고 `SocketEventDispatcher.classify`에 위임. 5 outcome(`accepted`/`invalidPayload`/`unknownEventType`/`ignoredByShopCode`/`ignoredByPolicy`) 분기를 호출자가 모두 처리하는지 확인.
 - **layer 차이 인지**: `SocketEventSuppressor`(키=`${orderId}_${eventType}`, 10초 1회성, 자가 이벤트 필터)와 `ProcessedOrderCache`(키=`${orderId}_${status}`, 30분, 도메인 처리 중복 방지)는 **다른 layer**. 혼동 금지.
 
