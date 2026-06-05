@@ -185,6 +185,50 @@ class PlatformService {
     }
   }
 
+  /// 듀얼모니터(D3 MINI 전면 디스플레이) capability 조회.
+  /// 보조 디스플레이 존재 여부 + 해당 브랜드(slug)의 영상/이미지 콘텐츠 존재 여부.
+  /// Windows 는 noop 채널이 빈 맵을 반환하므로 모두 false → 섹션 미노출.
+  static Future<Map<String, bool>> getDualMonitorCapability(String slug) async {
+    try {
+      final res = await platform.invokeMapMethod<String, dynamic>(
+          'getDualMonitorCapability', {'slug': slug});
+      final cap = {
+        'hasSecondaryDisplay': res?['hasSecondaryDisplay'] == true,
+        'hasVideo': res?['hasVideo'] == true,
+        'hasImage': res?['hasImage'] == true,
+      };
+      logger.d('[DualMonitor] capability slug=$slug raw=$res -> $cap');
+      return cap;
+    } catch (e, s) {
+      logger.e('듀얼모니터 capability 조회 중 오류 발생', error: e, stackTrace: s);
+      return const {
+        'hasSecondaryDisplay': false,
+        'hasVideo': false,
+        'hasImage': false,
+      };
+    }
+  }
+
+  /// 전면 모니터를 검은 화면으로 되돌린다(로그아웃 등). 네이티브가 brand slug 를
+  /// 비우고 재렌더 -> 콘텐츠 없음 -> 검은 화면.
+  static Future<void> clearDualMonitor() async {
+    try {
+      await platform.invokeMethod('clearDualMonitor');
+    } catch (e, s) {
+      logger.e('듀얼모니터 초기화(검은화면) 중 오류 발생', error: e, stackTrace: s);
+    }
+  }
+
+  /// 듀얼모니터 콘텐츠 표시 모드 설정 ("video"/"image"/"none"). 네이티브가
+  /// prefs 에 저장하고 보조 디스플레이를 즉시 다시 렌더한다.
+  static Future<void> setDualMonitorMode(String mode) async {
+    try {
+      await platform.invokeMethod('setDualMonitorMode', {'mode': mode});
+    } catch (e, s) {
+      logger.e('듀얼모니터 모드 설정 중 오류 발생', error: e, stackTrace: s);
+    }
+  }
+
   // 플로팅 버블 표시
   static Future<bool> showBubble() async {
     try {

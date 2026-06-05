@@ -13,6 +13,7 @@ import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/services/windows_bubble_service.dart';
 import 'package:appfit_order_agent/services/preference_service.dart';
 import 'package:appfit_order_agent/utils/brand_registry.dart';
+import 'package:appfit_order_agent/providers/brand_provider.dart';
 import 'package:appfit_order_agent/services/migration/v2_migration_service.dart';
 import 'package:appfit_order_agent/services/appfit/appfit_providers.dart'
     as appfit_providers;
@@ -438,6 +439,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           .login(storeId, _passwordController.text);
 
       if (success) {
+        // 브랜드 전환(로그아웃→다른 브랜드 로그인) 시 캐시형 currentBrandProvider 와
+        // 그에 의존하는 provider(soundGraphHook/labelFilterStrategy)가 stale 되지 않도록
+        // 무효화한다. 이 시점엔 getId()=새 매장이라 재계산이 올바른 브랜드를 반환한다.
+        ref.invalidate(currentBrandProvider);
+
         // 자동 업데이트 강제 브랜드(현재 TPCP) + SUNMI 는 자동 업데이트 체크 ON 유지
         final prefService = PreferenceService();
         if (!prefService.getUpdateTpcpOverrideDone()) {
@@ -576,9 +582,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
   Future<void> _saveStoreIdToNative(
       String storeId, bool isKdsMode, String mainURL) async {
+    // 브랜드 slug(assetFolder)를 네이티브로 전달해 듀얼모니터 콘텐츠를
+    // res/raw·res/drawable 에서 getIdentifier 로 찾게 한다. 미상 매장은 빈 slug
+    // → 검은 화면(tpcp 폴백을 쓰지 않도록 resolveOrNull 사용).
+    final slug = BrandRegistry.resolveOrNull(storeId)?.assetFolder ?? '';
     try {
-      await platform.invokeMethod('saveStoreIdToNative',
-          {'storeId': storeId, 'isKdsMode': isKdsMode, 'mainURL': mainURL});
+      await platform.invokeMethod('saveStoreIdToNative', {
+        'storeId': storeId,
+        'isKdsMode': isKdsMode,
+        'mainURL': mainURL,
+        'slug': slug,
+      });
     } on PlatformException catch (e) {
       logger.w("Failed to _saveStoreIdToNative: '${e.message}'.");
     }

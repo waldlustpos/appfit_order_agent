@@ -134,6 +134,13 @@
                 "mata": "마하테이스트"
             }
         },
+        "dual_monitor": {
+            "title": "전면 모니터 콘텐츠",
+            "desc": "보조 디스플레이에 표시할 브랜드 콘텐츠를 선택합니다.",
+            "option_video": "영상",
+            "option_image": "이미지",
+            "option_none": "노출 안 함"
+        },
         "currency": {
             "title": "화폐단위 설정",
             "desc": "금액 표시에 사용할 화폐단위를 선택합니다.",
@@ -504,5 +511,26 @@
         "empty_pickup": "픽업 대기 중인 주문이 없습니다.",
         "empty_completed": "완료된 주문이 없습니다.",
         "empty_cancelled": "취소된 주문이 없습니다."
+    },
+    "receipt": {
+        "cancel_receipt": "취소영수증",
+        "cancel_order": "취소주문서",
+        "order_no": "주문번호",
+        "datetime": "일시",
+        "col_menu": "메뉴",
+        "col_qty": "수량",
+        "col_amount": "금액",
+        "taxable": "과세금액",
+        "vat": "부가세",
+        "order_amount": "주문금액",
+        "discount_amount": "할인금액",
+        "payment_amount": "결제금액",
+        "kiosk": "키오스크",
+        "customer_suffix": "님",
+        "section_option": "옵션",
+        "section_detail": "상세",
+        "test_port": "포트",
+        "test_board": "보드",
+        "test_ok": "이 영수증이 보이면 정상"
     }
 }

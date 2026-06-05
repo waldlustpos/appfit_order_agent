@@ -20,6 +20,8 @@ description: 새 브랜드를 대화형으로 추가 (brand_registry/brand_theme
 7. **라벨 로고 PNG 경로** (선택) — 절대경로. 입력 시 STEP 3-1 에서 `label_logo.bmp` 로 변환. 없으면 코드만(tokyoplatz 폴백).
 7-2. **영수증 로고 PNG 경로** (선택) — 절대경로. 입력 6 이 "예" 일 때만 의미. 입력 시 STEP 3-2 에서 `receipt_logo.png`(높이 80px 정규화) 생성. 미입력이고 입력 6 이 "예" 면 입력 7(라벨 PNG)을 재사용해 생성, 그것도 없으면 STEP 5 수동 안내. (라벨=정사각 심볼 / 영수증=가로 락업으로 원본이 다른 경우가 많으니 가능하면 별도 지정.)
 8. **특수 분기**(일본/JPY 등) (선택) — 기본 "아니오(한국 live/KRW)". **"예" 면 이 커맨드 범위 밖** → 코드 통합 후 STEP 5 에서 사람에게 안내만.
+9. **듀얼모니터 영상** (선택) — D3 MINI 전면(고객용) 보조 디스플레이에 재생할 `.mp4` 절대경로. 입력 시 STEP 3-3 에서 `android/app/src/main/res/raw/dm_<slug>.mp4` 로 배치.
+10. **듀얼모니터 이미지** (선택) — 같은 디스플레이에 표시할 `.png`(또는 `.jpg`→png 변환) 절대경로. 입력 시 STEP 3-3 에서 `android/app/src/main/res/drawable/dm_<slug>.png` 로 배치. (영상·이미지 둘 다 입력 가능 — 설정 화면에서 운영자가 택1, 미설정 시 영상 우선 자동 표시. 둘 다 없으면 전면 모니터는 검은 화면.)
 
 치환 토큰을 확정한다: `<PREFIX>`(대문자4), `<slug>`, `<KEY>`(enum 키), `<EnumCase>`(BrandTheme 항목명, camelCase, 예: `mahaTaste`), `<KeyPascal>`(인스턴스 헬퍼명, 예: `Maha`→`isMahaStore`), `<NAME_ko/en/ja>`.
 
@@ -35,6 +37,8 @@ grep -n "id: '<KEY>'" lib/constants/brand_theme.dart
 grep -n "options.<KEY>" lib/widgets/settings/settings_brand_theme_section.dart
 grep -n "\"<KEY>\"" lib/i18n/strings_ko.i18n.json lib/i18n/strings_en.i18n.json lib/i18n/strings_ja.i18n.json
 grep -n "assets/images/brand/<slug>/" pubspec.yaml
+ls android/app/src/main/res/raw/dm_<slug>.mp4 2>/dev/null        # 듀얼모니터 영상(선택)
+ls android/app/src/main/res/drawable/dm_<slug>.png 2>/dev/null   # 듀얼모니터 이미지(선택)
 ```
 
 - **전부 MISS** → 신규. STEP 2.
@@ -119,6 +123,18 @@ EOF
 
 > 라벨 PNG 도 없어 폴더가 미생성 상태일 수 있으니 스크립트가 `os.makedirs` 로 폴더를 보장한다. 단 STEP 2-1 의 `BrandMeta.hasReceiptLogo: true` 가 설정돼 있어야 호출부가 이 PNG 를 읽는다(입력 6=예면 이미 반영됨).
 
+### 3-3. 듀얼모니터 콘텐츠 (`res/raw/dm_<slug>.mp4` / `res/drawable/dm_<slug>.png`) — 입력 9/10 이 있을 때만
+
+D3 MINI 전면(고객용) 보조 디스플레이는 **`dm_<slug>` 이름의 네이티브 리소스를 런타임 해석**(`getResources().getIdentifier("dm_" + slug, "raw"|"drawable", pkg)`)해 표시한다(데이터 기반 — Java 코드 수정 불필요). 따라서 **파일명이 곧 `dm_<slug>`** 여야 한다. slug 는 STEP 0 에서 `^[a-z][a-z0-9_]*$` 로 검증되어 유효 Android 리소스명을 보장한다(대문자/하이픈 불가).
+
+> ⚠️ **`dm_` 접두사 필수** — 릴리즈 빌드는 `isShrinkResources=true` 라 `getIdentifier` 동적 참조 리소스를 R8 이 제거한다. `res/raw/keep.xml` 의 `tools:keep="@raw/dm_*,@drawable/dm_*"` 가 `dm_` 접두사 리소스를 보존하므로 **반드시 `dm_<slug>` 로 둘 것**(접두사 없으면 디버그는 되지만 릴리즈에서 사라져 섹션·표시가 안 됨). keep.xml 은 와일드카드라 브랜드 추가 시 수정 불필요.
+
+- **영상(입력 9)**: 원본 `.mp4` 를 `android/app/src/main/res/raw/dm_<slug>.mp4` 로 복사(변환 없음). H.264 mp4 권장, 무음(네이티브가 볼륨 0 처리), 자동 루프. 용량 참고: 기존 mammoth ≈ 585KB. 해상도는 보조 디스플레이 실해상도 권장.
+- **이미지(입력 10)**: `.png` 를 `android/app/src/main/res/drawable/dm_<slug>.png` 로 배치(jpg 입력 시 png 변환). `fitCenter` 표시이며 **배경은 흰색**(여백 포함). 따라서 로고/그래픽은 **밝은 배경용(어두운색 또는 컬러)** 이어야 한다 — 흰색 로고는 흰 배경에서 보이지 않으니 브랜드색/검은색 버전을 사용. (예: mammoth 는 브랜드색 #4A3730, mahataste 는 #e31f26.)
+- 둘 다 없거나 운영자가 "노출안함" 선택 시 → 전면 모니터는 **검은 화면**(모니터는 켜진 채 검정). 콘텐츠가 아예 없으면 설정 섹션도 비노출. (보조 패널만 끄는 표준 API 가 없고, screenBrightness 강제는 메인 화면까지 어둡게 하므로 전원 off 는 하지 않음.)
+- ⚠️ 표시 우선순위(effectiveMode): 운영자 명시 선택이 없으면 **영상 > 이미지 > 노출안함** 자동. 설정 화면 "전면 모니터 콘텐츠" 섹션에서 변경 가능. 배경: **영상=검정(레터박스), 이미지=흰색, 노출안함/무콘텐츠=검정**.
+- ⚠️ 레거시 `*_dual_monitor_logo.{png,jpg}` 네이밍은 **미사용**(런타임 해석 안 됨). 새 규약은 반드시 `dm_<slug>.{mp4,png}`.
+
 ---
 
 ## STEP 4 — 검증
@@ -141,5 +157,9 @@ EOF
 - [ ] (선택) `logo.svg` 배치 → brand_theme `logoAsset` 경로 지정
 - [ ] 색상 placeholder 면 최종 hex 확정 + TODO 제거
 - [ ] `flutter clean && flutter pub get` (신규 asset 인식)
+- [ ] (입력 9/10) 듀얼모니터 콘텐츠는 **네이티브 res 변경 → 풀 리빌드 필요**: `flutter clean && flutter pub get` 후 APK 재빌드(hot reload/restart 로는 반영 안 됨). `dm_<slug>.mp4`/`dm_<slug>.png` 파일명이 `dm_`+slug 와 정확히 일치하는지 확인. **릴리즈 빌드(`--release`)로도 섹션·표시가 나오는지 확인**(접두사 누락 시 릴리즈에서만 사라짐).
+- [ ] 실기기 D3 MINI + 보조 디스플레이: 설정 → "전면 모니터 콘텐츠" 섹션 노출 → 영상/이미지/노출안함 전환 즉시 반영. 배경 확인(영상=검정 레터박스, 이미지=흰색, 노출안함/무콘텐츠=검정). 보조 디스플레이 없는 기기에선 섹션 미노출.
+- [ ] 로그아웃/앱 종료 시 전면 모니터가 흰 이미지 잔류 없이 검정으로 돌아오는지 확인.
+- [ ] APK 비대화 주의: 모든 브랜드의 raw/drawable 이 universal APK 에 번들된다. 영상은 길이/용량 최소화.
 - [ ] 실기기: 해당 prefix 매장 로그인 → 라벨/영수증 테스트 출력, 브랜드 전환 시 캐시 무효화 확인
 - [ ] (입력 8 이 "예" 였다면) 일본/JPY 등은 `BrandMeta.currency`/`serverEnvironment` 로 처리됨. 추가로 다른 동작이 필요하면 `BrandFeature` + Strategy/Hook(라벨필터=`label_filter_strategy.dart`, 외부전송=`soundgraph_hook.dart`) 패턴 참고

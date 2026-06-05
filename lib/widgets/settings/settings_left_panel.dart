@@ -20,6 +20,7 @@ import 'package:appfit_order_agent/widgets/settings/settings_mode_switch.dart';
 import 'package:appfit_order_agent/widgets/settings/builtin_printer_sub_settings.dart';
 import 'package:appfit_order_agent/widgets/settings/external_printer_sub_settings.dart';
 import 'package:appfit_order_agent/widgets/settings/label_printer_sub_settings.dart';
+import 'package:appfit_order_agent/widgets/settings/settings_dual_monitor_section.dart';
 
 /// 설정화면 좌측 패널 — 기기/언어/프린터 설정.
 class SettingsLeftPanel extends ConsumerStatefulWidget {
@@ -248,7 +249,9 @@ class _SettingsLeftPanelState extends ConsumerState<SettingsLeftPanel> {
   @override
   Widget build(BuildContext context) {
     final t = Translations.of(context);
-    final brand = ref.watch(currentBrandProvider);
+    // currentBrandProvider(일반 Provider)는 세션 첫 값을 캐시해 브랜드 전환 시
+    // stale 된다. 매장 ID 를 즉석에서 읽는 currentBrandMeta() 로 현재 브랜드 해석.
+    final brand = currentBrandMeta();
     final canLabelFilter =
         brand?.has(BrandFeature.labelCategoryFilter) ?? false;
     final canSoundGraph = brand?.has(BrandFeature.soundGraphSend) ?? false;
@@ -611,6 +614,13 @@ class _SettingsLeftPanelState extends ConsumerState<SettingsLeftPanel> {
                     ),
                 ],
               ),
+            const SizedBox(height: AppSpacing.s16),
+
+            // ── 전면 모니터 콘텐츠 (D3 MINI 듀얼 모니터) ─────────────────────
+            // 보조 디스플레이 + 현재 브랜드 콘텐츠(영상/이미지)가 있을 때만 섹션
+            // 내부에서 노출(메인/KDS 모드 무관 — 듀얼 모니터는 두 모드 모두 동작).
+            // 없으면 SizedBox.shrink() 로 숨김(모니터는 검은 화면).
+            const SettingsDualMonitorSection(),
             const SizedBox(height: AppSpacing.s16),
           ],
         ),

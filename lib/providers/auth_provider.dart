@@ -276,6 +276,9 @@ class Auth extends _$Auth {
       // 4. 로그인 정보(SharedPreferences) 정리 (캐시된 preferenceService 사용)
       await preferenceService.clearLoginInfo();
 
+      // 5. 전면(듀얼) 모니터 검은 화면 처리 (흰 이미지 배경 등이 남지 않도록)
+      await PlatformService.clearDualMonitor();
+
       logToFile(tag: LogTag.SYSTEM, message: '[Auth] 로그아웃 cleanup 완료');
     } catch (e, s) {
       logger.e('[Auth] 로그아웃 처리 중 오류', error: e, stackTrace: s);

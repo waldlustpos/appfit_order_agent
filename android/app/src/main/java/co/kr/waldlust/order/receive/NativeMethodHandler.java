@@ -335,10 +335,11 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
                 String storeId = call.argument("storeId");
                 boolean isKdsMode = call.argument("isKdsMode");
                 String mainURL = call.argument("mainURL");
+                String slug = call.argument("slug");
 
                 Log.d("isKdsMode", "onMethodCall: isKdsMode" + isKdsMode);
 
-                activity.saveStoreIdToNative(storeId, isKdsMode, mainURL);
+                activity.saveStoreIdToNative(storeId, isKdsMode, mainURL, slug);
                 result.success(null);
                 break;
             }
@@ -498,6 +499,25 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
                     Log.e(TAG, "시스템 회전 설정 실패: " + e.getMessage());
                     result.error("ROTATION_ERROR", e.getMessage(), null);
                 }
+                break;
+            }
+
+            case "getDualMonitorCapability": {
+                String slug = call.argument("slug");
+                result.success(activity.getDualMonitorCapability(slug));
+                break;
+            }
+
+            case "setDualMonitorMode": {
+                String mode = call.argument("mode");
+                activity.setDualMonitorMode(mode != null ? mode : "none");
+                result.success(null);
+                break;
+            }
+
+            case "clearDualMonitor": {
+                activity.clearDualMonitor();
+                result.success(null);
                 break;
             }
 

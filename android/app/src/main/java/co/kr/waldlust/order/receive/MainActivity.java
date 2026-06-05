@@ -104,6 +104,13 @@ public class MainActivity extends FlutterActivity {
     private static final String KEY_USE_PRINT = "KEY_USE_PRINT";
     private static final String KEY_MAIN_URL = "KEY_MAIN_URL";
     private static final String KEY_IS_KDS_MODE = "IS_KDS_MODE";
+    // Dual monitor (D3 MINI front display) - must match Dart PreferenceService constants.
+    private static final String KEY_BRAND_SLUG = "KEY_BRAND_SLUG";
+    private static final String KEY_DUAL_MONITOR_MODE = "KEY_DUAL_MONITOR_MODE";
+    // Brand content resources are named dm_<slug>(.mp4|.png). The dm_ prefix lets
+    // res/raw/keep.xml keep them (tools:keep="@raw/dm_*,@drawable/dm_*") against R8
+    // resource shrinking, since getIdentifier() lookups are invisible to the shrinker.
+    private static final String DUAL_MONITOR_RES_PREFIX = "dm_";
     public static UsbReceiptPrinter receiptPrinter;
 
     public static String versionName = "/api/v2";
@@ -180,8 +187,7 @@ public class MainActivity extends FlutterActivity {
         initPrinters();
 
         // Dual monitor logic for D3 MINI
-        SharedPreferences dualMonitorPrefs = getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE);
-        showDualMonitor(dualMonitorPrefs.getString(KEY_STORE_ID, ""));
+        showDualMonitor();
 
         // Start Foreground Service after checking notification permission
         checkAndStartForegroundService();
@@ -349,10 +355,12 @@ public class MainActivity extends FlutterActivity {
         super.onPause();
         Log.d("MainActivity", "onPause called");
 
-        if (dualMonitorPresentation != null && dualMonitorPresentation.isShowing()) {
-            dualMonitorPresentation.cleanup();
+        // Dismiss (not just cleanup) so the front display window does not linger
+        // showing the last content (e.g. a white image background) while backgrounded.
+        if (dualMonitorPresentation != null) {
+            dualMonitorPresentation.dismiss();
+            dualMonitorPresentation = null;
         }
-        dualMonitorPresentation = null;
     }
 
     @Override
@@ -361,8 +369,7 @@ public class MainActivity extends FlutterActivity {
         Log.d("MainActivity", "onResume called");
 
         if (dualMonitorPresentation == null || !dualMonitorPresentation.isShowing()) {
-            SharedPreferences dualMonitorPrefs = getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE);
-            showDualMonitor(dualMonitorPrefs.getString(KEY_STORE_ID, ""));
+            showDualMonitor();
         }
 
         if (decorView != null) {
@@ -376,6 +383,13 @@ public class MainActivity extends FlutterActivity {
     @Override
     protected void onDestroy() {
         Log.d("MainActivity", "onDestroy called");
+
+        // Tear down the front display so no content (e.g. white image) lingers on exit.
+        if (dualMonitorPresentation != null) {
+            dualMonitorPresentation.dismiss();
+            dualMonitorPresentation = null;
+        }
+
         // Stop Foreground Service
         stopOrderAgentService();
 
@@ -606,13 +620,17 @@ public class MainActivity extends FlutterActivity {
         return deviceList;
     }
 
-    private void showDualMonitor(String id) {
+    private void showDualMonitor() {
+        SharedPreferences prefs = getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE);
+        String storeId = prefs.getString(KEY_STORE_ID, "");
+        String slug = prefs.getString(KEY_BRAND_SLUG, "");
+        String mode = prefs.getString(KEY_DUAL_MONITOR_MODE, "");
         DisplayManager cDisplayManager = (DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
         Display[] cDisplays = cDisplayManager.getDisplays();
         DISPLAY_LENGTH = cDisplays.length;
         Log.e("cDisplays.length", String.valueOf(cDisplays.length));
         if (cDisplays.length > 1) {
-            dualMonitorPresentation = new DualMonitorPresentation(this, cDisplays[1], id);
+            dualMonitorPresentation = new DualMonitorPresentation(this, cDisplays[1], storeId, slug, mode);
             Log.d("MainActivity", "showDualMonitor()");
             dualMonitorPresentation.show();
         } else {
@@ -626,14 +644,17 @@ public class MainActivity extends FlutterActivity {
         private String videoUrl;
         private String packageName;
         private String storeId;
+        private String slug;
+        private String mode;
         private MediaController mediaController;
         private boolean isDestroyed = false;
-        private boolean showImage = false;
 
-        public DualMonitorPresentation(Context outerContext, Display display, String id) {
+        public DualMonitorPresentation(Context outerContext, Display display, String id, String slug, String mode) {
             super(outerContext, display);
             this.packageName = outerContext.getPackageName();
             this.storeId = id;
+            this.slug = slug;
+            this.mode = mode;
         }
 
         @SuppressLint("MissingInflatedId")
@@ -644,8 +665,38 @@ public class MainActivity extends FlutterActivity {
 
             videoView = findViewById(R.id.videoView1);
             imageView = findViewById(R.id.imageView1);
-            if (storeId != null && storeId.toUpperCase().startsWith("MHST")) {
-                setVideo(R.raw.mmth);
+
+            // Data-driven content resolution: slug -> res/raw/<slug>.mp4 (video) or
+            // res/drawable/<slug>.png (image). Brand prefix->slug mapping lives in Dart
+            // (BrandRegistry) and is passed in via SharedPreferences.
+            int rawId = (slug == null || slug.isEmpty())
+                    ? 0
+                    : getContext().getResources().getIdentifier(
+                            DUAL_MONITOR_RES_PREFIX + slug, "raw", packageName);
+            int drawableId = (slug == null || slug.isEmpty())
+                    ? 0
+                    : getContext().getResources().getIdentifier(
+                            DUAL_MONITOR_RES_PREFIX + slug, "drawable", packageName);
+            boolean hasVideo = rawId != 0;
+            boolean hasImage = drawableId != 0;
+            Log.d("DualMonitor", "present slug=" + slug + " mode=" + mode
+                    + " rawId=" + rawId + " drawableId=" + drawableId);
+
+            // effectiveMode: explicit operator choice wins when its content exists;
+            // otherwise auto-default with video priority (video > image > none).
+            // No content / "none" -> black screen (default layout background). True
+            // panel power-off is NOT attempted: a screenBrightness override on this
+            // hardware also dims the MAIN display, so we only show black.
+            if ("none".equals(mode)) {
+                // explicit hide: keep black screen
+            } else if ("image".equals(mode) && hasImage) {
+                setImage(drawableId);
+            } else if ("video".equals(mode) && hasVideo) {
+                setVideo(rawId);
+            } else if (hasVideo) {
+                setVideo(rawId);
+            } else if (hasImage) {
+                setImage(drawableId);
             }
         }
 
@@ -690,6 +741,20 @@ public class MainActivity extends FlutterActivity {
             });
         }
 
+        private void setImage(int imageResource) {
+            // Image content shows on a WHITE background (logos/graphics are designed
+            // for light backgrounds). Only the no-content state stays black.
+            imageView.setBackgroundColor(android.graphics.Color.WHITE);
+            imageView.setImageResource(imageResource);
+            imageView.setVisibility(View.VISIBLE);
+            imageView.setOnTouchListener(new View.OnTouchListener() {
+                @Override
+                public boolean onTouch(View v, MotionEvent event) {
+                    return true;
+                }
+            });
+        }
+
         @Override
         protected void onStop() {
             super.onStop();
@@ -711,6 +776,11 @@ public class MainActivity extends FlutterActivity {
                 videoView.setOnErrorListener(null);
                 videoView.setOnTouchListener(null);
                 videoView = null;
+            }
+            if (imageView != null) {
+                imageView.setImageDrawable(null);
+                imageView.setOnTouchListener(null);
+                imageView = null;
             }
             if (mediaController != null) {
                 mediaController = null;
@@ -827,12 +897,13 @@ public class MainActivity extends FlutterActivity {
         Log.d("MainActivity", "Finished checking old log files.");
     }
 
-    public void saveStoreIdToNative(String storeId, boolean isKdsMode, String mainURL) {
+    public void saveStoreIdToNative(String storeId, boolean isKdsMode, String mainURL, String slug) {
         SharedPreferences prefs = getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = prefs.edit();
         editor.putString(KEY_STORE_ID, storeId);
         editor.putBoolean(KEY_IS_KDS_MODE, isKdsMode);
         editor.putString(KEY_MAIN_URL, mainURL);
+        editor.putString(KEY_BRAND_SLUG, slug != null ? slug : "");
         editor.apply();
 
         runOnUiThread(() -> {
@@ -840,7 +911,54 @@ public class MainActivity extends FlutterActivity {
                 dualMonitorPresentation.dismiss();
                 dualMonitorPresentation = null;
             }
-            showDualMonitor(storeId);
+            showDualMonitor();
+        });
+    }
+
+    // Reports dual monitor capability for the given brand slug: whether a secondary
+    // display is attached and whether video/image content resources exist.
+    public Map<String, Object> getDualMonitorCapability(String slug) {
+        Map<String, Object> result = new HashMap<>();
+        DisplayManager dm = (DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
+        boolean hasSecondaryDisplay = dm != null && dm.getDisplays().length > 1;
+        String pkg = getPackageName();
+        int rawId = (slug == null || slug.isEmpty())
+                ? 0 : getResources().getIdentifier(DUAL_MONITOR_RES_PREFIX + slug, "raw", pkg);
+        int drawableId = (slug == null || slug.isEmpty())
+                ? 0 : getResources().getIdentifier(DUAL_MONITOR_RES_PREFIX + slug, "drawable", pkg);
+        result.put("hasSecondaryDisplay", hasSecondaryDisplay);
+        result.put("hasVideo", rawId != 0);
+        result.put("hasImage", drawableId != 0);
+        Log.d("DualMonitor", "capability slug=" + slug + " secondary=" + hasSecondaryDisplay
+                + " video=" + (rawId != 0) + " image=" + (drawableId != 0));
+        return result;
+    }
+
+    // Blacks out the front display (e.g. on logout): clears the brand slug so no
+    // content resolves, then re-renders to a black screen.
+    public void clearDualMonitor() {
+        SharedPreferences prefs = getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE);
+        prefs.edit().putString(KEY_BRAND_SLUG, "").apply();
+        runOnUiThread(() -> {
+            if (dualMonitorPresentation != null) {
+                dualMonitorPresentation.dismiss();
+                dualMonitorPresentation = null;
+            }
+            showDualMonitor();
+        });
+    }
+
+    // Persists the operator's dual monitor content choice (video/image/none) and
+    // re-renders the presentation immediately.
+    public void setDualMonitorMode(String mode) {
+        SharedPreferences prefs = getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE);
+        prefs.edit().putString(KEY_DUAL_MONITOR_MODE, mode).apply();
+        runOnUiThread(() -> {
+            if (dualMonitorPresentation != null) {
+                dualMonitorPresentation.dismiss();
+                dualMonitorPresentation = null;
+            }
+            showDualMonitor();
         });
     }
 

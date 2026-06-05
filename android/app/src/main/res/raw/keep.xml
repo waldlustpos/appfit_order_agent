@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Dual monitor (D3 MINI front display) brand content is referenced dynamically via
+  Resources.getIdentifier("dm_" + slug, ...), so R8 resource shrinking cannot see a
+  static reference and would strip these in release builds. Keep all dm_* resources.
+  New brands only need to drop res/raw/dm_<slug>.mp4 or res/drawable/dm_<slug>.png -
+  the wildcard covers them automatically (no per-brand edit here).
+-->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@raw/dm_*,@drawable/dm_*" />

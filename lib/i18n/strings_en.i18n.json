@@ -134,6 +134,13 @@
                 "mata": "마하테이스트"
             }
         },
+        "dual_monitor": {
+            "title": "Front Display Content",
+            "desc": "Choose the brand content shown on the secondary display.",
+            "option_video": "Video",
+            "option_image": "Image",
+            "option_none": "Hide"
+        },
         "currency": {
             "title": "Currency Unit",
             "desc": "Select the currency unit for displaying amounts.",
@@ -512,5 +519,26 @@
         "empty_pickup": "No orders awaiting pickup.",
         "empty_completed": "No completed orders.",
         "empty_cancelled": "No cancelled orders."
+    },
+    "receipt": {
+        "cancel_receipt": "Cancellation Receipt",
+        "cancel_order": "Cancellation Order",
+        "order_no": "Order No.",
+        "datetime": "Date",
+        "col_menu": "Menu",
+        "col_qty": "Qty",
+        "col_amount": "Amount",
+        "taxable": "Taxable",
+        "vat": "VAT",
+        "order_amount": "Subtotal",
+        "discount_amount": "Discount",
+        "payment_amount": "Total",
+        "kiosk": "Kiosk",
+        "customer_suffix": "",
+        "section_option": "Option",
+        "section_detail": "Detail",
+        "test_port": "Port",
+        "test_board": "Baud",
+        "test_ok": "Printer is working"
     }
 }

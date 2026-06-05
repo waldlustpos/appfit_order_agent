@@ -134,6 +134,13 @@
                 "mata": "마하테이스트"
             }
         },
+        "dual_monitor": {
+            "title": "フロントモニター表示",
+            "desc": "サブディスプレイに表示するブランドコンテンツを選択します。",
+            "option_video": "動画",
+            "option_image": "画像",
+            "option_none": "非表示"
+        },
         "currency": {
             "title": "通貨単位設定",
             "desc": "金額表示に使用する通貨単位を選択します。",
@@ -504,5 +511,26 @@
         "empty_pickup": "ピックアップ待ちの注文がありません。",
         "empty_completed": "完了した注文がありません。",
         "empty_cancelled": "取消した注文がありません。"
+    },
+    "receipt": {
+        "cancel_receipt": "取消領収書",
+        "cancel_order": "取消注文書",
+        "order_no": "注文番号",
+        "datetime": "日時",
+        "col_menu": "メニュー",
+        "col_qty": "数量",
+        "col_amount": "金額",
+        "taxable": "課税額",
+        "vat": "消費税",
+        "order_amount": "注文金額",
+        "discount_amount": "割引額",
+        "payment_amount": "支払金額",
+        "kiosk": "キオスク",
+        "customer_suffix": "様",
+        "section_option": "オプション",
+        "section_detail": "詳細",
+        "test_port": "ポート",
+        "test_board": "ボーレート",
+        "test_ok": "印刷正常"
     }
 }
