@@ -475,6 +475,62 @@ public class SunmiPrintHelper {
 
     }
 
+    /**
+     * 고객용 LCD(T2mini 등 보조 디스플레이)에 두 줄을 가운데 정렬로 표시한다.
+     * SunmiPrinterService.sendLCDDoubleString(상단, 하단) 을 사용 — 펌웨어가 두 줄을
+     * 자동으로 가운데 정렬하고 굵은/큰 폰트로 렌더한다(상단 약간 작음, 하단 크게).
+     * sendLCDMultiString 은 이 펌웨어에서 좌측정렬·얇은 폰트로 나와 사용하지 않는다.
+     * (예: MHST 브랜드 대기화면 "MAMMOTH" / "COFFEE")
+     */
+    public void sendTextToLcd(String topText, String bottomText) {
+        if (sunmiPrinterService == null) {
+            //TODO Service disconnection processing
+            return;
+        }
+
+        try {
+            sunmiPrinterService.sendLCDDoubleString(topText, bottomText,
+                    new InnerLcdCallback() {
+                        @Override
+                        public void onRunResult(boolean show) throws RemoteException {
+                            //TODO handle result
+                        }
+                    });
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * 고객용 LCD(T2mini 등 보조 디스플레이)에 비트맵을 표시한다. 펌웨어가 LCD 해상도에
+     * 맞춰 출력하므로, 호출 측에서 LCD 비율(보통 128x40)에 맞춰 합성한 비트맵을 넘기면
+     * 가운데/굵기를 정밀하게 제어할 수 있다. (예: MHST 브랜드 로고 대기화면)
+     */
+    public void sendBitmapToLcd(Bitmap bitmap) {
+        if (sunmiPrinterService == null || bitmap == null) {
+            //TODO Service disconnection processing
+            return;
+        }
+
+        try {
+            sunmiPrinterService.sendLCDBitmap(bitmap, new InnerLcdCallback() {
+                @Override
+                public void onRunResult(boolean show) throws RemoteException {
+                    //TODO handle result
+                }
+            });
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * 고객용 LCD 내용을 지운다(로그아웃·비 MHST 매장 등). sendLCDCommand(4) = 화면 내용 클리어.
+     */
+    public void clearLcd() {
+        controlLcd(4);
+    }
+
     public void drawLine(){
 
         try {

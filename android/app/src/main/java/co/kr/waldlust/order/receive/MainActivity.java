@@ -10,6 +10,13 @@ import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.Rect;
+import android.graphics.RectF;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.Uri;
@@ -111,6 +118,14 @@ public class MainActivity extends FlutterActivity {
     // res/raw/keep.xml keep them (tools:keep="@raw/dm_*,@drawable/dm_*") against R8
     // resource shrinking, since getIdentifier() lookups are invisible to the shrinker.
     private static final String DUAL_MONITOR_RES_PREFIX = "dm_";
+    // MHST(매머드커피) 브랜드 고객용 LCD(T2mini 등) 대기화면 식별자. KEY_BRAND_SLUG 는
+    // Dart BrandRegistry 의 assetFolder 를 그대로 받으므로 MHST 매장은 "mammoth".
+    // 로그아웃 시 clearDualMonitor 가 이 slug 를 비워 LCD 도 함께 꺼진다.
+    private static final String MHST_BRAND_SLUG = "mammoth";
+    // Sunmi 고객용 LCD(T2mini 등) 표준 해상도. 로고를 이 비율 캔버스에 가운데 contain 으로
+    // 합성해 보내면 실제 LCD 픽셀수가 달라도 펌웨어가 비례 스케일하여 중앙 정렬이 유지된다.
+    private static final int LCD_WIDTH = 128;
+    private static final int LCD_HEIGHT = 40;
     public static UsbReceiptPrinter receiptPrinter;
 
     public static String versionName = "/api/v2";
@@ -371,6 +386,9 @@ public class MainActivity extends FlutterActivity {
         if (dualMonitorPresentation == null || !dualMonitorPresentation.isShowing()) {
             showDualMonitor();
         }
+
+        // 고객용 LCD(T2mini) 브랜드 대기화면 재적용 (서비스 준비 후).
+        refreshBrandLcd();
 
         if (decorView != null) {
             decorView.setSystemUiVisibility(
@@ -912,6 +930,7 @@ public class MainActivity extends FlutterActivity {
                 dualMonitorPresentation = null;
             }
             showDualMonitor();
+            refreshBrandLcd();
         });
     }
 
@@ -945,7 +964,81 @@ public class MainActivity extends FlutterActivity {
                 dualMonitorPresentation = null;
             }
             showDualMonitor();
+            // slug 를 비웠으므로 LCD 대기화면도 함께 꺼진다.
+            refreshBrandLcd();
         });
+    }
+
+    // 고객용 LCD(T2mini 등 보조 디스플레이) 브랜드 대기화면 갱신. 저장된 brand slug 로
+    // 브랜드를 판별해 MHST 면 "MAMMOTH"/"COFFEE" 두 줄(가운데 정렬)을, 그 외 매장이거나
+    // 로그아웃(slug 비움) 상태면 화면을 지운다. 듀얼모니터 콘텐츠와 동일하게 onResume·
+    // 로그인 저장·로그아웃 시점에 호출된다.
+    private void refreshBrandLcd() {
+        refreshBrandLcd(0);
+    }
+
+    // Sunmi 서비스 바인딩은 비동기라 onResume 직후엔 아직 준비 전일 수 있다. 준비될 때까지
+    // 짧게 재시도(최대 ~3s)해 대기화면이 누락되지 않게 한다.
+    private void refreshBrandLcd(int attempt) {
+        if (!isSunmiDevice()) {
+            return;
+        }
+        SunmiPrintHelper helper = SunmiPrintHelper.getInstance();
+        if (!helper.isReady() && attempt < 30) {
+            new android.os.Handler(android.os.Looper.getMainLooper())
+                    .postDelayed(() -> refreshBrandLcd(attempt + 1), 100);
+            return;
+        }
+        SharedPreferences prefs = getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE);
+        String slug = prefs.getString(KEY_BRAND_SLUG, "");
+        if (MHST_BRAND_SLUG.equals(slug)) {
+            Bitmap lcdLogo = buildLcdLogoBitmap(R.drawable.mmth_print_logo);
+            if (lcdLogo != null) {
+                helper.sendBitmapToLcd(lcdLogo);
+            } else {
+                // 비트맵 디코드 실패 시 텍스트로 폴백.
+                helper.sendTextToLcd("MAMMOTH", "COFFEE");
+            }
+        } else {
+            helper.clearLcd();
+        }
+    }
+
+    // drawable 로고를 고객 LCD 비율(LCD_WIDTH x LCD_HEIGHT) 흰 배경 캔버스에 비율 유지로
+    // contain + 가운데 합성한다. 원본 BMP 는 가로로 긴 워드마크(341x24)라 그대로 보내면
+    // 좌측/상단 치우침·왜곡이 생기므로 중앙 배치 비트맵을 만들어 sendLCDBitmap 으로 넘긴다.
+    private Bitmap buildLcdLogoBitmap(int resId) {
+        try {
+            BitmapFactory.Options opts = new BitmapFactory.Options();
+            opts.inScaled = false; // density 자동 확대 방지 (원본 픽셀 유지)
+            Bitmap src = BitmapFactory.decodeResource(getResources(), resId, opts);
+            if (src == null) {
+                Log.w("MainActivity", "buildLcdLogoBitmap: decode failed res=" + resId);
+                return null;
+            }
+
+            Bitmap canvasBmp = Bitmap.createBitmap(LCD_WIDTH, LCD_HEIGHT, Bitmap.Config.ARGB_8888);
+            Canvas canvas = new Canvas(canvasBmp);
+            canvas.drawColor(Color.WHITE); // 투명 영역 -> 흰색(미점등)
+
+            float scale = Math.min(
+                    (float) LCD_WIDTH / src.getWidth(),
+                    (float) LCD_HEIGHT / src.getHeight());
+            float drawW = src.getWidth() * scale;
+            float drawH = src.getHeight() * scale;
+            float left = (LCD_WIDTH - drawW) / 2f;
+            float top = (LCD_HEIGHT - drawH) / 2f;
+
+            Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+            Rect srcRect = new Rect(0, 0, src.getWidth(), src.getHeight());
+            RectF dstRect = new RectF(left, top, left + drawW, top + drawH);
+            canvas.drawBitmap(src, srcRect, dstRect, paint);
+            src.recycle();
+            return canvasBmp;
+        } catch (Exception e) {
+            Log.e("MainActivity", "buildLcdLogoBitmap error", e);
+            return null;
+        }
     }
 
     // Persists the operator's dual monitor content choice (video/image/none) and
