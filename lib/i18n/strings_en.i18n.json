@@ -96,6 +96,10 @@
             "title": "Use Label Printer",
             "desc": "Use USB-connected label printer. (50mm x 70mm)"
         },
+        "label_qr": {
+            "title": "Print QR Code",
+            "desc": "Print an order-identification QR code on each label."
+        },
         "volume": {
             "title": "Volume",
             "desc": "Adjust notification volume."

@@ -8,15 +8,9 @@
 //   LabelFilterStrategy 에 위임 (TPCP=TpcpLabelFilterStrategy, 그 외=NoOp).
 //   products 카탈로그 필요.
 // - 메뉴 qty 만큼 라벨 펼치기
-// - QR 페이로드 생성 — 라벨마다 다름. 포맷:
-//     "{OrderNo}-{ShopItemId}-{CupIdx}-{ShopCode}-{YYYYMMDD}-{DisplayNo}"
-//     예: ORD-123456-M1-0-SHOP001-20260520-0795
-//   * OrderNo   : 주문 식별자 (orderNo, '-' 포함 가능)
-//   * ShopItemId: 상품(메뉴) 식별자
-//   * CupIdx    : 같은 메뉴 내 0-based sequence (중복 스캔 방지)
-//   * ShopCode  : 매장 코드 (storeId)
-//   * YYYYMMDD  : 매장 영업일 (orderedAt 의 날짜 부분)
-//   * DisplayNo : display no 4자리 (zero-padded)
+// - QR 페이로드 생성 — 라벨마다 다름. 포맷은 브랜드별 QrPayloadStrategy 에 위임
+//   (기본 DefaultQrPayloadStrategy = "{OrderNo}-{ShopItemId}-{CupIdx}").
+//   상세 포맷은 qr_payload_strategy.dart 참고.
 
 import 'package:intl/intl.dart';
 
@@ -24,7 +18,7 @@ import 'package:appfit_order_agent/models/menu_option_model.dart';
 import 'package:appfit_order_agent/models/order_model.dart';
 import 'package:appfit_order_agent/models/product_model.dart';
 import 'package:appfit_order_agent/services/label_printer/label_filter_strategy.dart';
-import 'package:appfit_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/services/label_printer/qr_payload_strategy.dart';
 
 /// 라벨에 동봉되는 주문 식별 정보. 같은 주문의 모든 라벨에서 동일.
 class LabelOrderInfo {
@@ -154,8 +148,7 @@ class LabelPrintData {
 
   final String? memo;
 
-  /// QR 페이로드 (Body 영역 좌측에 그려짐). fromOrder() 가 자동으로 채움.
-  /// 포맷: "{OrderNo}-{ShopItemId}-{CupIdx}-{ShopCode}-{YYYYMMDD}-{DisplayNo}".
+  /// QR 페이로드 (Body 영역 좌측에 그려짐). fromOrder() 가 [QrPayloadStrategy] 로 채움.
   final String? qrData;
 
   /// 한 주문 묶음 안에서 1부터 시작하는 누적 인덱스 (예: 1, 2, 3, 4 ...).
@@ -176,12 +169,15 @@ class LabelPrintData {
   /// [filterMode]: 0=전체, 1=와플만, 2=와플제외 (필터를 쓰는 브랜드에서만 의미).
   /// [strategy]: 브랜드별 메뉴 필터/옵션 분류 동작. 기본 [NoOpLabelFilterStrategy]
   ///             는 필터 없이 단순 평면화 (기존 kokonut 등 동작 유지).
+  /// [qrStrategy]: 브랜드별 QR 페이로드 포맷. 기본 [DefaultQrPayloadStrategy]
+  ///              는 "{OrderNo}-{ShopItemId}-{CupIdx}" (현재 코드 포맷).
   /// [isReprint]: true 면 카테고리 필터링 우회 (재출력은 전체 라벨 인쇄).
   static List<LabelPrintData> fromOrder(
     OrderModel order, {
     List<ProductModel> products = const [],
     int filterMode = 0,
     LabelFilterStrategy strategy = const NoOpLabelFilterStrategy(),
+    QrPayloadStrategy qrStrategy = const DefaultQrPayloadStrategy(),
     bool isReprint = false,
   }) {
     // 1) 메뉴 카테고리 필터링 — 브랜드 전략에 위임 (기본 NoOp = 전체).
@@ -260,38 +256,12 @@ class LabelPrintData {
           orderTotal: totalLabels,
           orderInfo: orderInfo,
           menuInfo: menuInfo,
-          qrData: _buildQrPayload(orderInfo, menuInfo, labelIndex, totalLabels),
+          qrData: qrStrategy.buildPayload(
+              orderInfo, menuInfo, labelIndex, totalLabels),
         ));
       }
     }
     return result;
-  }
-
-  /// 라벨 1장의 QR 페이로드.
-  ///
-  /// 포맷: "{OrderNo}-{ShopItemId}-{CupIdx}-{ShopCode}-{YYYYMMDD}-{DisplayNo}".
-  /// 예: ORD-123456-M1-0-SHOP001-20260520-0795
-  ///
-  /// - OrderNo   : 주문 식별자
-  /// - ShopItemId: 메뉴 식별자
-  /// - CupIdx    : 같은 메뉴 안에서 0-based 라벨 sequence (중복 스캔 방지)
-  /// - ShopCode  : storeId
-  /// - YYYYMMDD  : orderedAt 의 날짜 (별도 영업일 필드가 없어 주문 시각 기준)
-  /// - DisplayNo : display no 4자리 (LabelOrderInfo.displayNum)
-  static String _buildQrPayload(
-    LabelOrderInfo orderInfo,
-    LabelMenuInfo menuInfo,
-    int labelIndex,
-    int labelTotal,
-  ) {
-    final dateStr = DateFormat('yyyyMMdd').format(orderInfo.orderedAt);
-    final cupIdx = menuInfo.labelSeq - 1; // 1-based labelSeq → 0-based cupIdx
-    final payload = '${orderInfo.orderNo}-${menuInfo.shopItemId}-$cupIdx';
-    //'-${orderInfo.storeId}-$dateStr-${orderInfo.displayNum}';
-    logger.d('[Label][QR] $labelIndex/$labelTotal'
-        ' ${menuInfo.itemName} (${menuInfo.labelSeq}/${menuInfo.qty})'
-        ' → $payload');
-    return payload;
   }
 
   /// 테스트 인쇄용 더미 데이터.

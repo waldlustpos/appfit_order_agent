@@ -1,5 +1,5 @@
 ---
-description: 새 브랜드를 대화형으로 추가 (brand_registry/brand_theme/settings/i18n 3로캘/pubspec 5개 지점 편집 + 라벨 BMP/영수증 PNG 로고 자산 변환 + slang 재생성 + analyze + l10n 감사)
+description: 새 브랜드를 대화형으로 추가 (brand_registry/brand_theme/settings/i18n 3로캘/pubspec/qr_payload_strategy 6개 지점 편집 + 라벨 BMP/영수증 PNG 로고 자산 변환 + slang 재생성 + analyze + l10n 감사)
 ---
 
 새 브랜드를 매장 ID prefix 기반으로 앱 전반에 통합한다. 아래 STEP 순서대로 진행한다.
@@ -33,6 +33,7 @@ description: 새 브랜드를 대화형으로 추가 (brand_registry/brand_theme
 
 ```
 grep -n "BrandKey.<KEY>\|storeIdPrefix: '<PREFIX>'\|assetFolder: '<slug>'" lib/utils/brand_registry.dart
+grep -n "BrandKey.<KEY>" lib/services/label_printer/qr_payload_strategy.dart   # QR 전략 exhaustive switch case
 grep -n "id: '<KEY>'" lib/constants/brand_theme.dart
 grep -n "options.<KEY>" lib/widgets/settings/settings_brand_theme_section.dart
 grep -n "\"<KEY>\"" lib/i18n/strings_ko.i18n.json lib/i18n/strings_en.i18n.json lib/i18n/strings_ja.i18n.json
@@ -47,7 +48,7 @@ ls android/app/src/main/res/drawable/dm_<slug>.png 2>/dev/null   # 듀얼모니�
 
 ---
 
-## STEP 2 — 5개 코드 지점 Edit
+## STEP 2 — 6개 코드 지점 Edit
 
 각 파일을 **Edit 전에 Read** 한다. anchor 매칭이 실패하면(이미 적용/구조 변경 신호) 그 지점만 건너뛰고 STEP 5 에 보고한다.
 
@@ -87,6 +88,23 @@ ls android/app/src/main/res/drawable/dm_<slug>.png 2>/dev/null   # 듀얼모니�
 
 ### 2-5. `pubspec.yaml`
 assets 의 마지막 brand 폴더 줄 뒤에 `    - assets/images/brand/<slug>/` (들여쓰기 4칸).
+
+### 2-6. `lib/services/label_printer/qr_payload_strategy.dart` — ⚠️ exhaustive switch (BrandKey 추가의 필연적 후속)
+`qrPayloadStrategyProvider` 의 switch 는 `default:` 없이 모든 `BrandKey` 를 명시한다. 따라서 STEP 2-1 에서 `BrandKey.<KEY>` 를 추가하면 이 switch 가 비망라(non-exhaustive)가 되어 **STEP 4 의 `flutter analyze` 에서 에러**가 난다(의도된 강제 — 새 브랜드의 QR 포맷을 반드시 결정하게 함). 라벨 프린터를 쓰는지와 무관하게 **모든 새 브랜드에 필수**.
+
+새 brand 의 QR 포맷을 정해 case 를 추가한다:
+- **기본 포맷 그대로**(대부분): Default 반환 그룹에 `case BrandKey.<KEY>:` 한 줄 추가.
+```dart
+    case BrandKey.tpcp:
+    case BrandKey.mhst:
+    case BrandKey.mata:
+    case BrandKey.<KEY>:       // ← 추가
+    case null:
+      return const DefaultQrPayloadStrategy();
+```
+- **커스텀 포맷 필요**: `DefaultQrPayloadStrategy` 를 복제해 `class <KeyPascal>QrPayloadStrategy extends QrPayloadStrategy` 를 정의하고 `buildPayload` 본문만 교체한 뒤, switch 에 `case BrandKey.<KEY>: return const <KeyPascal>QrPayloadStrategy();` 추가. payload 에 필요한 필드(orderNo/shopItemId/labelSeq/storeId/orderedAt/displayNum 등)는 `LabelOrderInfo`/`LabelMenuInfo` 에 이미 다 있으므로 모델 수정 불필요.
+
+> QR 출력 ON/OFF 토글 자체는 일반설정(프린터 카드, 라벨프린터 사용 시 노출)의 전 브랜드 공통 운영자 설정이라 브랜드 추가 시 건드릴 게 없다. 브랜드별로 달라지는 건 **payload 포맷뿐**이고 그게 이 전략이다.
 
 ---
 
@@ -141,7 +159,7 @@ D3 MINI 전면(고객용) 보조 디스플레이는 **`dm_<slug>` 이름의 네�
 
 순서대로 Bash 실행:
 1. `flutter pub run slang` — strings.g.dart 재생성. **⚠️ build_runner 아님** (이 프로젝트는 slang_build_runner 미설치라 build_runner 로는 strings.g.dart 가 갱신되지 않음). `dart run slang` 은 Flutter SDK 의존성 때문에 실패하므로 반드시 `flutter pub run` 경로.
-2. `flutter analyze` — 신규 에러 0 확인 (기존 info/warning 은 무시, 새 error 만 본다).
+2. `flutter analyze` — 신규 에러 0 확인 (기존 info/warning 은 무시, 새 error 만 본다). 특히 `qr_payload_strategy.dart` 에 비망라 switch 에러(`The type 'BrandKey?' is not exhaustively matched`)가 보이면 **STEP 2-6 누락** — case 추가로 해소.
 3. `l10n-auditor` 서브에이전트 호출 — ko/en/ja 에 `<KEY>` 가 모두 동기화됐는지 감사.
 
 실패 시 어느 STEP/파일에서 멈췄는지, 부분 적용 상태를 명시한다.
@@ -162,4 +180,5 @@ D3 MINI 전면(고객용) 보조 디스플레이는 **`dm_<slug>` 이름의 네�
 - [ ] 로그아웃/앱 종료 시 전면 모니터가 흰 이미지 잔류 없이 검정으로 돌아오는지 확인.
 - [ ] APK 비대화 주의: 모든 브랜드의 raw/drawable 이 universal APK 에 번들된다. 영상은 길이/용량 최소화.
 - [ ] 실기기: 해당 prefix 매장 로그인 → 라벨/영수증 테스트 출력, 브랜드 전환 시 캐시 무효화 확인
-- [ ] (입력 8 이 "예" 였다면) 일본/JPY 등은 `BrandMeta.currency`/`serverEnvironment` 로 처리됨. 추가로 다른 동작이 필요하면 `BrandFeature` + Strategy/Hook(라벨필터=`label_filter_strategy.dart`, 외부전송=`soundgraph_hook.dart`) 패턴 참고
+- [ ] **QR 페이로드** — STEP 2-6 에서 `BrandKey.<KEY>` case 추가됨(기본 `DefaultQrPayloadStrategy`). 이 브랜드가 다른 QR 포맷이면 커스텀 `<KeyPascal>QrPayloadStrategy` 로 교체했는지 확인. (QR 출력 ON/OFF 는 일반설정 토글이라 코드 변경 없음.)
+- [ ] (입력 8 이 "예" 였다면) 일본/JPY 등은 `BrandMeta.currency`/`serverEnvironment` 로 처리됨. 추가로 다른 동작이 필요하면 `BrandFeature` + Strategy/Hook(라벨필터=`label_filter_strategy.dart`, 외부전송=`soundgraph_hook.dart`, QR페이로드=`qr_payload_strategy.dart`) 패턴 참고

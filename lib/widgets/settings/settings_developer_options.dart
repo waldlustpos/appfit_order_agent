@@ -27,12 +27,10 @@ class SettingsDeveloperOptions extends ConsumerWidget {
     required this.labelUseFeedToTear,
     required this.labelUseBackToPrint,
     required this.labelUseCalibrate,
-    required this.labelUseQrPrint,
     required this.onAutoReplyModeChanged,
     required this.onFeedToTearChanged,
     required this.onBackToPrintChanged,
     required this.onCalibrateChanged,
-    required this.onUseQrPrintChanged,
     required this.isParanmanjanTestRunning,
     required this.onParanmanjanTest,
   });
@@ -46,12 +44,10 @@ class SettingsDeveloperOptions extends ConsumerWidget {
   final bool labelUseFeedToTear;
   final bool labelUseBackToPrint;
   final bool labelUseCalibrate;
-  final bool labelUseQrPrint;
   final void Function(int) onAutoReplyModeChanged;
   final void Function(bool) onFeedToTearChanged;
   final void Function(bool) onBackToPrintChanged;
   final void Function(bool) onCalibrateChanged;
-  final void Function(bool) onUseQrPrintChanged;
   final bool isParanmanjanTestRunning;
   final VoidCallback onParanmanjanTest;
 
@@ -157,12 +153,10 @@ class SettingsDeveloperOptions extends ConsumerWidget {
           labelUseFeedToTear: labelUseFeedToTear,
           labelUseBackToPrint: labelUseBackToPrint,
           labelUseCalibrate: labelUseCalibrate,
-          labelUseQrPrint: labelUseQrPrint,
           onAutoReplyModeChanged: onAutoReplyModeChanged,
           onFeedToTearChanged: onFeedToTearChanged,
           onBackToPrintChanged: onBackToPrintChanged,
           onCalibrateChanged: onCalibrateChanged,
-          onUseQrPrintChanged: onUseQrPrintChanged,
         ),
       ],
     );

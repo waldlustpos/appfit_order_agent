@@ -36,6 +36,7 @@ class SettingsLeftPanel extends ConsumerStatefulWidget {
     required this.isUseBuiltinPrinter,
     required this.isUseExternalPrinter,
     required this.isUseLabelPrinter,
+    required this.isUseQrPrint,
     required this.builtinPrintOrder,
     required this.builtinPrintReceipt,
     required this.externalPrintOrder,
@@ -52,6 +53,7 @@ class SettingsLeftPanel extends ConsumerStatefulWidget {
     required this.onUseBuiltinPrinterChanged,
     required this.onUseExternalPrinterChanged,
     required this.onUseLabelPrinterChanged,
+    required this.onUseQrPrintChanged,
     required this.onBuiltinPrintOrderChanged,
     required this.onBuiltinPrintReceiptChanged,
     required this.onExternalPrintOrderChanged,
@@ -74,6 +76,7 @@ class SettingsLeftPanel extends ConsumerStatefulWidget {
   final bool isUseBuiltinPrinter;
   final bool isUseExternalPrinter;
   final bool isUseLabelPrinter;
+  final bool isUseQrPrint;
   final bool builtinPrintOrder;
   final bool builtinPrintReceipt;
   final bool externalPrintOrder;
@@ -91,6 +94,7 @@ class SettingsLeftPanel extends ConsumerStatefulWidget {
   final void Function(bool) onUseBuiltinPrinterChanged;
   final void Function(bool) onUseExternalPrinterChanged;
   final void Function(bool) onUseLabelPrinterChanged;
+  final void Function(bool) onUseQrPrintChanged;
   final void Function(bool) onBuiltinPrintOrderChanged;
   final void Function(bool) onBuiltinPrintReceiptChanged;
   final void Function(bool) onExternalPrintOrderChanged;
@@ -255,6 +259,11 @@ class _SettingsLeftPanelState extends ConsumerState<SettingsLeftPanel> {
     final canLabelFilter =
         brand?.has(BrandFeature.labelCategoryFilter) ?? false;
     final canSoundGraph = brand?.has(BrandFeature.soundGraphSend) ?? false;
+    // 라벨프린터 하위 아이템(필터/QR) 가시성. 라벨프린터 + 하위 아이템은
+    // divider 없이 한 그룹으로 묶이므로(기존 디자인), 하위가 하나라도 있으면
+    // 라벨프린터 아이템의 하단 divider 를 끈다.
+    final showFilterItem = widget.isUseLabelPrinter && canLabelFilter;
+    final showQrItem = widget.isUseLabelPrinter;
 
     return Scrollbar(
       controller: _scrollController,
@@ -546,9 +555,9 @@ class _SettingsLeftPanelState extends ConsumerState<SettingsLeftPanel> {
                   additionalContent: LabelPrinterSubSettings(
                     isUseLabelPrinter: widget.isUseLabelPrinter,
                   ),
-                  showDivider: !(widget.isUseLabelPrinter && canLabelFilter),
+                  showDivider: !(showFilterItem || showQrItem),
                 ),
-                if (widget.isUseLabelPrinter && canLabelFilter)
+                if (showFilterItem)
                   SettingsItemWidget(
                     title: t.settings.label_filter.title,
                     description: switch (widget.labelFilterMode) {
@@ -569,6 +578,25 @@ class _SettingsLeftPanelState extends ConsumerState<SettingsLeftPanel> {
                         _buildFilterModeButton(
                             t.settings.label_filter.btn_waffle_exclude, 2),
                       ],
+                    ),
+                  ),
+                if (showQrItem)
+                  SettingsItemWidget(
+                    title: t.settings.label_qr.title,
+                    description: t.settings.label_qr.desc,
+                    showDivider: false,
+                    trailing: CustomSwitch(
+                      value: widget.isUseQrPrint,
+                      activeColor: AppStyles.kMainColor,
+                      inactiveColor: AppStyles.gray4,
+                      activeText: t.settings.auto_start.on,
+                      inactiveText: t.settings.auto_start.off,
+                      onChanged: (v) {
+                        logToFile(
+                            tag: LogTag.UI_ACTION,
+                            message: 'QR 코드 출력 변경 -> $v');
+                        widget.onUseQrPrintChanged(v);
+                      },
                     ),
                   ),
               ],

@@ -521,6 +521,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               isUseBuiltinPrinter: _isUseBuiltinPrinter,
               isUseExternalPrinter: _isUseExternalPrinter,
               isUseLabelPrinter: _isUseLabelPrinter,
+              isUseQrPrint: _labelUseQrPrint,
               builtinPrintOrder: _builtinPrintOrder,
               builtinPrintReceipt: _builtinPrintReceipt,
               externalPrintOrder: _externalPrintOrder,
@@ -552,6 +553,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   _setAndSave(() => _isUseExternalPrinter = v),
               onUseLabelPrinterChanged: (v) =>
                   _setAndSave(() => _isUseLabelPrinter = v),
+              onUseQrPrintChanged: (v) =>
+                  _setAndSave(() => _labelUseQrPrint = v),
               onBuiltinPrintOrderChanged: (v) =>
                   _setAndSave(() => _builtinPrintOrder = v),
               onBuiltinPrintReceiptChanged: (v) =>
@@ -595,7 +598,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               labelUseFeedToTear: _labelUseFeedToTear,
               labelUseBackToPrint: _labelUseBackToPrint,
               labelUseCalibrate: _labelUseCalibrate,
-              labelUseQrPrint: _labelUseQrPrint,
               onVolumeChanged: (v) => setState(() => _notificationVolume = v),
               onVolumeChangeEnd: (_) => _saveSettings(),
               onSoundChanged: (v) => _setAndSave(() => _selectedSound = v),
@@ -644,8 +646,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   _setAndSave(() => _labelUseBackToPrint = v),
               onCalibrateChanged: (v) =>
                   _setAndSave(() => _labelUseCalibrate = v),
-              onUseQrPrintChanged: (v) =>
-                  _setAndSave(() => _labelUseQrPrint = v),
               isParanmanjanTestRunning: _isQrTestRunning,
               onParanmanjanTest: _runQrTestSequence,
             ),

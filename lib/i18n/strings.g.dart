@@ -245,6 +245,7 @@ class _StringsSettingsKo {
 	late final _StringsSettingsBuiltinPrinterKo builtin_printer = _StringsSettingsBuiltinPrinterKo._(_root);
 	late final _StringsSettingsExternalPrinterKo external_printer = _StringsSettingsExternalPrinterKo._(_root);
 	late final _StringsSettingsLabelPrinterKo label_printer = _StringsSettingsLabelPrinterKo._(_root);
+	late final _StringsSettingsLabelQrKo label_qr = _StringsSettingsLabelQrKo._(_root);
 	late final _StringsSettingsVolumeKo volume = _StringsSettingsVolumeKo._(_root);
 	late final _StringsSettingsSoundKo sound = _StringsSettingsSoundKo._(_root);
 	late final _StringsSettingsAlertCountKo alert_count = _StringsSettingsAlertCountKo._(_root);
@@ -653,6 +654,17 @@ class _StringsSettingsLabelPrinterKo {
 	// Translations
 	String get title => '라벨 프린터 사용';
 	String get desc => 'USB 연결된 라벨 프린터를 사용합니다. (50mm x 70mm)';
+}
+
+// Path: settings.label_qr
+class _StringsSettingsLabelQrKo {
+	_StringsSettingsLabelQrKo._(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+	String get title => 'QR 코드 출력';
+	String get desc => '라벨에 주문 식별용 QR 코드를 함께 인쇄합니다.';
 }
 
 // Path: settings.volume
@@ -1281,6 +1293,7 @@ class _StringsSettingsEn extends _StringsSettingsKo {
 	@override late final _StringsSettingsBuiltinPrinterEn builtin_printer = _StringsSettingsBuiltinPrinterEn._(_root);
 	@override late final _StringsSettingsExternalPrinterEn external_printer = _StringsSettingsExternalPrinterEn._(_root);
 	@override late final _StringsSettingsLabelPrinterEn label_printer = _StringsSettingsLabelPrinterEn._(_root);
+	@override late final _StringsSettingsLabelQrEn label_qr = _StringsSettingsLabelQrEn._(_root);
 	@override late final _StringsSettingsVolumeEn volume = _StringsSettingsVolumeEn._(_root);
 	@override late final _StringsSettingsSoundEn sound = _StringsSettingsSoundEn._(_root);
 	@override late final _StringsSettingsAlertCountEn alert_count = _StringsSettingsAlertCountEn._(_root);
@@ -1697,6 +1710,17 @@ class _StringsSettingsLabelPrinterEn extends _StringsSettingsLabelPrinterKo {
 	// Translations
 	@override String get title => 'Use Label Printer';
 	@override String get desc => 'Use USB-connected label printer. (50mm x 70mm)';
+}
+
+// Path: settings.label_qr
+class _StringsSettingsLabelQrEn extends _StringsSettingsLabelQrKo {
+	_StringsSettingsLabelQrEn._(_StringsEn root) : this._root = root, super._(root);
+
+	@override final _StringsEn _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'Print QR Code';
+	@override String get desc => 'Print an order-identification QR code on each label.';
 }
 
 // Path: settings.volume
@@ -2325,6 +2349,7 @@ class _StringsSettingsJa extends _StringsSettingsKo {
 	@override late final _StringsSettingsBuiltinPrinterJa builtin_printer = _StringsSettingsBuiltinPrinterJa._(_root);
 	@override late final _StringsSettingsExternalPrinterJa external_printer = _StringsSettingsExternalPrinterJa._(_root);
 	@override late final _StringsSettingsLabelPrinterJa label_printer = _StringsSettingsLabelPrinterJa._(_root);
+	@override late final _StringsSettingsLabelQrJa label_qr = _StringsSettingsLabelQrJa._(_root);
 	@override late final _StringsSettingsVolumeJa volume = _StringsSettingsVolumeJa._(_root);
 	@override late final _StringsSettingsSoundJa sound = _StringsSettingsSoundJa._(_root);
 	@override late final _StringsSettingsAlertCountJa alert_count = _StringsSettingsAlertCountJa._(_root);
@@ -2733,6 +2758,17 @@ class _StringsSettingsLabelPrinterJa extends _StringsSettingsLabelPrinterKo {
 	// Translations
 	@override String get title => 'ラベルプリンター使用';
 	@override String get desc => 'USB接続されたラベルプリンターを使用します。(50mm x 70mm)';
+}
+
+// Path: settings.label_qr
+class _StringsSettingsLabelQrJa extends _StringsSettingsLabelQrKo {
+	_StringsSettingsLabelQrJa._(_StringsJa root) : this._root = root, super._(root);
+
+	@override final _StringsJa _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'QRコード出力';
+	@override String get desc => 'ラベルに注文識別用のQRコードを印刷します。';
 }
 
 // Path: settings.volume

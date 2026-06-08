@@ -6,6 +6,7 @@ import 'package:appfit_order_agent/providers/providers.dart';
 import 'package:appfit_order_agent/providers/product_provider.dart';
 import 'package:appfit_order_agent/services/label_printer/label_filter_strategy.dart';
 import 'package:appfit_order_agent/services/label_printer/label_print_data.dart';
+import 'package:appfit_order_agent/services/label_printer/qr_payload_strategy.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/services/print_service.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
@@ -111,6 +112,7 @@ class OutputService {
         products: allProducts,
         filterMode: prefService.getLabelFilterMode(),
         strategy: ref.read(labelFilterStrategyProvider),
+        qrStrategy: ref.read(qrPayloadStrategyProvider),
         isReprint: isReprint,
       );
 
