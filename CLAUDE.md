@@ -12,7 +12,8 @@
 
 ## 핵심 명령어
 
-- 의존성/코드 생성: `flutter pub get` → `dart run build_runner build --delete-conflicting-outputs`
+- 의존성/코드 생성: `flutter pub get` → `flutter pub run build_runner build --delete-conflicting-outputs` (freezed/riverpod) → `flutter pub run slang` (i18n `strings.g.dart`)
+  - slang 은 standalone(`slang_build_runner` 미사용)이라 **build_runner 로는 `strings.g.dart` 가 갱신되지 않음**. i18n JSON 수정 후엔 `flutter pub run slang` 필수. Flutter 라 `dart run` 대신 `flutter pub run` 사용.
 - 분석: `flutter analyze`
 - 릴리즈 빌드/배포: `./build_main.sh`, `./deploy_apk.sh`
 - 자세한 명령어·환경설정·다국어 워크플로: [docs/BUILD.md](docs/BUILD.md)

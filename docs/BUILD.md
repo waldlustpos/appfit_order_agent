@@ -8,8 +8,11 @@
 # 의존성 설치
 flutter pub get
 
-# 코드 생성 (freezed, json_serializable, riverpod_generator, slang i18n)
-dart run build_runner build --delete-conflicting-outputs
+# 코드 생성 (freezed, json_serializable, riverpod_generator)
+flutter pub run build_runner build --delete-conflicting-outputs
+
+# 다국어 생성 (slang i18n) — standalone 이라 build_runner 와 별개로 실행해야 함
+flutter pub run slang
 
 # 정적 분석
 flutter analyze
@@ -30,7 +33,7 @@ flutter test
 flutter test test/<파일_경로>
 ```
 
-**중요**: 모델(`freezed`/`json_serializable`), 프로바이더(`riverpod_generator`), i18n JSON 파일을 변경한 후에는 반드시 `dart run build_runner build --delete-conflicting-outputs`를 재실행해야 합니다. `.g.dart` 또는 `.freezed.dart`로 끝나는 생성된 파일은 절대 직접 수정하지 않습니다.
+**중요**: 모델(`freezed`/`json_serializable`)·프로바이더(`riverpod_generator`)를 변경한 후에는 `flutter pub run build_runner build --delete-conflicting-outputs`를, i18n JSON(`*.i18n.json`)을 변경한 후에는 `flutter pub run slang`을 재실행해야 합니다. **slang 은 standalone 설정(`slang_build_runner` 미사용)이라 build_runner 로는 `strings.g.dart` 가 갱신되지 않습니다.** Flutter 프로젝트라 `dart run` 은 SDK 해석 에러가 나므로 `flutter pub run` 을 씁니다. `.g.dart` 또는 `.freezed.dart`로 끝나는 생성된 파일은 절대 직접 수정하지 않습니다.
 
 ## Windows 빌드 / 배포 / 인스톨러
 
@@ -85,4 +88,4 @@ Windows 빌드는 추가로 루트의 `version_windows.txt`(`x.y.z+n` 형식)가
 - 소스 파일: `lib/i18n/strings_ko.i18n.json` (기본), `strings_en.i18n.json`, `strings_ja.i18n.json`
 - 생성 파일: `lib/i18n/strings.g.dart` 및 로캘별 파일
 - 사용법: `t.common.confirm`, `t.order.status.new_order` 등
-- `.i18n.json` 파일 편집 후 반드시 build_runner로 재생성
+- 생성 방식: **standalone slang CLI** (`slang_build_runner` 미사용). `.i18n.json` 편집 후 `flutter pub run slang` 으로 재생성한다 — `build_runner` 로는 `strings.g.dart` 가 갱신되지 않으므로 주의.
