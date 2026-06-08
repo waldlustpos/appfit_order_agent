@@ -149,6 +149,7 @@ flutter:
     - assets/images/brand/tokyoplatz/
     - assets/images/brand/mammoth/
     - assets/images/brand/mahataste/
+    - assets/images/brand/paik/
     - assets/icons/
     # - .env
   fonts:

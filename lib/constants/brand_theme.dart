@@ -42,6 +42,19 @@ enum BrandTheme {
       end: Alignment.bottomRight,
       colors: [Color(0xFFe31f26), Color(0xFF9e1418)],
     ),
+  ),
+  paik(
+    id: 'paik',
+    primary: Color(0xFF233BA0),
+    primaryAlpha: Color(0x14233BA0),
+    loginBackground: Color(0xFF233BA0),
+    onLoginBackground: Colors.white,
+    logoAsset: null,
+    loginGradient: LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [Color(0xFF233BA0), Color(0xFF172668)],
+    ),
   );
 
   const BrandTheme({

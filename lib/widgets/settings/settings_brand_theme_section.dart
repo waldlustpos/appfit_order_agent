@@ -72,6 +72,8 @@ class SettingsBrandThemeSection extends ConsumerWidget {
         return t.settings.theme.options.mammoth_coffee;
       case BrandTheme.mata:
         return t.settings.theme.options.mata;
+      case BrandTheme.paik:
+        return t.settings.theme.options.paik;
     }
   }
 

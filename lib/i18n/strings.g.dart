@@ -1156,6 +1156,7 @@ class _StringsSettingsThemeOptionsKo {
 	String get appfit_default => '기본';
 	String get mammoth_coffee => 'Brown';
 	String get mata => '마하테이스트';
+	String get paik => '빽다방재팬';
 }
 
 // Path: settings.developer_options.appfit_test
@@ -2212,6 +2213,7 @@ class _StringsSettingsThemeOptionsEn extends _StringsSettingsThemeOptionsKo {
 	@override String get appfit_default => 'Default';
 	@override String get mammoth_coffee => 'Brown';
 	@override String get mata => '마하테이스트';
+	@override String get paik => '빽다방재팬';
 }
 
 // Path: settings.developer_options.appfit_test
@@ -3260,6 +3262,7 @@ class _StringsSettingsThemeOptionsJa extends _StringsSettingsThemeOptionsKo {
 	@override String get appfit_default => 'デフォルト';
 	@override String get mammoth_coffee => 'Brown';
 	@override String get mata => '마하테이스트';
+	@override String get paik => '빽다방재팬';
 }
 
 // Path: settings.developer_options.appfit_test

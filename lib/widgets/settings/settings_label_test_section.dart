@@ -52,12 +52,15 @@ class _SettingsLabelTestSectionState
     extends ConsumerState<SettingsLabelTestSection> {
   bool _isExpanded = false;
 
-  // ── 주문번호 라벨 테스트 (16장) 데이터 ──────────────────────────────
-  /// QA 용 고정 주문번호 16개. 각 번호당 라벨 1장(QR 없음) 출력.
+  // ── 주문번호 라벨 테스트 데이터 ──────────────────────────────────────
+  /// QA 용 고정 주문번호 16개. 각 번호당 (1/1)(1/2)(1/3) 3장씩 = 48장 출력(QR 없음).
   static const List<String> _orderNoTestNumbers = [
-    '0232', '0593', '0865', '0958', '1236', '1238', '1285', '1323', //
-    '1328', '1532', '1593', '1689', '1859', '1895', '1965', '1989',
+    '0170', '0217', '0617', '0714', '0386', '1186', '1768', '0490', //
+    '0694', '0948', '0407', '0760', '1640', '0364', '1047', '1374',
   ];
+
+  /// 주문번호당 출력 매수. 식별번호를 (1/1)(1/2)(1/3) 로 찍어 순서 표기를 검증.
+  static const int _orderNoTestVersions = 3;
 
   /// 임의 메모 풀 (라벨마다 순환). "detail 부분 임의로 작성" — 일본어, null 은 메모 없는 케이스.
   static const List<String?> _orderNoTestMemoPool = [
@@ -360,7 +363,8 @@ class _SettingsLabelTestSectionState
     }
   }
 
-  /// 지정 주문번호 16개를 실제 보유 상품명 + 임의 옵션/메모로 1장씩 출력 (QR 없음).
+  /// 지정 주문번호 16개를 실제 보유 상품명 + 임의 옵션/메모로 각각 3장씩(총 48장) 출력 (QR 없음).
+  /// 같은 주문번호의 3장은 내용은 동일하고 식별번호만 (1/1)(1/2)(1/3) 로 달라져 순서 표기를 검증한다.
   ///
   /// 자동출력 경로([OutputService.printOrderLabels])와 달리
   /// [LabelPrintData.fromOrder] / 브랜드 필터 전략을 거치지 않고
@@ -432,7 +436,8 @@ class _SettingsLabelTestSectionState
             ' temp=${tempNames.length} size=${sizeNames.length}'
             ' option=${etcOptionNames.length}');
 
-    final total = _orderNoTestNumbers.length;
+    const numbers = _orderNoTestNumbers;
+    final total = numbers.length * _orderNoTestVersions; // 16 × 3 = 48
     final orderTime = DateFormat('MM/dd\nHH:mm:ss').format(DateTime.now());
 
     logToFile(
@@ -440,11 +445,12 @@ class _SettingsLabelTestSectionState
         message: '[OrderNoTest] ====== 주문번호 테스트 출력 시작 ($total장) ======');
 
     int ok = 0;
+    int printed = 0;
     try {
-      for (int i = 0; i < total; i++) {
-        final shopOrderNo = _orderNoTestNumbers[i];
+      for (int i = 0; i < numbers.length; i++) {
+        final shopOrderNo = numbers[i];
         final menuName = menuNames[i % menuNames.length];
-        // option 섹션: 실제 옵션(원두/온도/사이즈 제외)에서 라벨마다 1~3개 순환.
+        // option 섹션: 실제 옵션(원두/온도/사이즈 제외)에서 번호마다 1~3개 순환.
         final optMax = etcOptionNames.length < 3 ? etcOptionNames.length : 3;
         final optCount = optMax == 0 ? 0 : (i % optMax) + 1;
         final options = [
@@ -457,32 +463,37 @@ class _SettingsLabelTestSectionState
         final temp = tempNames.isEmpty ? null : tempNames[i % tempNames.length];
         final size = sizeNames.isEmpty ? null : sizeNames[i % sizeNames.length];
 
-        final imageBytes = await LabelPainter.generateLabelImage(
-          menuName: menuName,
-          options: options,
-          shopOrderNo: shopOrderNo,
-          orderTime: orderTime,
-          beanType: bean,
-          temperature: temp,
-          sizeOption: size,
-          memo: memo,
-          orderIndex: i + 1,
-          orderTotal: total,
-          // 이 테스트는 로캘과 무관하게 섹션 타이틀을 영문 고정.
-          optionTitleOverride: 'option',
-          detailTitleOverride: 'detail',
-        );
-        final result = await printService.printLabel(
-          imageBytes,
-          orderNo: shopOrderNo,
-          labelIndex: i + 1,
-          totalLabels: total,
-        );
-        if (result) ok++;
-        logToFile(
-            tag: result ? LogTag.PLATFORM : LogTag.WARNING,
-            message: '[OrderNoTest] ${i + 1}/$total no=$shopOrderNo'
-                ' menu="$menuName" ${result ? "출력끝" : "실패"}');
+        // 같은 주문번호로 (1/1)(1/2)(1/3) 3장 — 내용 동일, 식별번호만 다름.
+        for (int v = 1; v <= _orderNoTestVersions; v++) {
+          printed++;
+          final imageBytes = await LabelPainter.generateLabelImage(
+            menuName: menuName,
+            options: options,
+            shopOrderNo: shopOrderNo,
+            orderTime: orderTime,
+            beanType: bean,
+            temperature: temp,
+            sizeOption: size,
+            memo: memo,
+            // 식별번호: (1/1), (1/2), (1/3) — orderIndex 고정 1, orderTotal=버전.
+            orderIndex: 1,
+            orderTotal: v,
+            // 이 테스트는 로캘과 무관하게 섹션 타이틀을 영문 고정.
+            optionTitleOverride: 'option',
+            detailTitleOverride: 'detail',
+          );
+          final result = await printService.printLabel(
+            imageBytes,
+            orderNo: shopOrderNo,
+            labelIndex: printed,
+            totalLabels: total,
+          );
+          if (result) ok++;
+          logToFile(
+              tag: result ? LogTag.PLATFORM : LogTag.WARNING,
+              message: '[OrderNoTest] $printed/$total no=$shopOrderNo (1/$v)'
+                  ' menu="$menuName" ${result ? "출력끝" : "실패"}');
+        }
       }
       logToFile(
           tag: LogTag.PLATFORM,
@@ -633,7 +644,7 @@ class _SettingsLabelTestSectionState
                     child: ElevatedButton.icon(
                       onPressed: _printOrderNoTest,
                       icon: const Icon(Icons.confirmation_number, size: 18),
-                      label: const Text('주문번호 테스트 (16장 — 실상품/임의옵션/메모)'),
+                      label: const Text('주문번호 테스트 (48장 — 16번호×3 / 실상품·옵션·메모)'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.teal,
                         foregroundColor: Colors.white,
