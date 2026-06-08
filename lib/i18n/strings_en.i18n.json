@@ -189,7 +189,7 @@
         },
         "kiosk": {
             "visible_title": "Show Kiosk Orders",
-            "visible_desc": "Display kiosk orders on screen. When OFF, internal orders are still processed normally.",
+            "visible_desc": "Display kiosk orders on screen.",
             "sound_title": "Kiosk Order Ticket & Sound",
             "sound_desc": "Print ticket and play notification sound when a kiosk order is received."
         },

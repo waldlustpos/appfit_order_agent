@@ -4,9 +4,9 @@
 /// To regenerate, run: `dart run slang`
 ///
 /// Locales: 3
-/// Strings: 1202 (400 per locale)
+/// Strings: 1211 (403 per locale)
 ///
-/// Built on 2026-06-04 at 23:58 UTC
+/// Built on 2026-06-08 at 05:08 UTC
 
 // coverage:ignore-file
 // ignore_for_file: type=lint
@@ -851,7 +851,7 @@ class _StringsSettingsKioskKo {
 
 	// Translations
 	String get visible_title => '키오스크 주문 노출';
-	String get visible_desc => '키오스크 주문을 화면에 표시합니다. OFF 시 내부 접수는 정상 처리됩니다.';
+	String get visible_desc => '키오스크 주문을 화면에 표시합니다.';
 	String get sound_title => '키오스크 주문 주문서 및 알림소리';
 	String get sound_desc => '키오스크 주문 수신 시 주문서 출력과 알림음을 재생합니다.';
 }
@@ -1908,7 +1908,7 @@ class _StringsSettingsKioskEn extends _StringsSettingsKioskKo {
 
 	// Translations
 	@override String get visible_title => 'Show Kiosk Orders';
-	@override String get visible_desc => 'Display kiosk orders on screen. When OFF, internal orders are still processed normally.';
+	@override String get visible_desc => 'Display kiosk orders on screen.';
 	@override String get sound_title => 'Kiosk Order Ticket & Sound';
 	@override String get sound_desc => 'Print ticket and play notification sound when a kiosk order is received.';
 }
@@ -2957,7 +2957,7 @@ class _StringsSettingsKioskJa extends _StringsSettingsKioskKo {
 
 	// Translations
 	@override String get visible_title => 'キオスク注文の表示';
-	@override String get visible_desc => 'キオスク注文を画面に表示します。OFFの場合も内部受付は通常通り処理されます。';
+	@override String get visible_desc => 'キオスク注文を画面に表示します。';
 	@override String get sound_title => 'キオスク注文の注文票と通知音';
 	@override String get sound_desc => 'キオスク注文受信時に注文票を出力し、通知音を再生します。';
 }
