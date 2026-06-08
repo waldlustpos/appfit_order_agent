@@ -2,10 +2,14 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:appfit_order_agent/constants/app_styles.dart';
+import 'package:appfit_order_agent/constants/order_constants.dart';
 import 'package:appfit_order_agent/models/menu_option_model.dart';
 import 'package:appfit_order_agent/models/order_menu_model.dart';
 import 'package:appfit_order_agent/models/order_model.dart';
+import 'package:appfit_order_agent/models/product_model.dart';
+import 'package:appfit_order_agent/providers/product_provider.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
 import 'package:appfit_order_agent/services/output_queue_service.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
@@ -51,6 +55,30 @@ class SettingsLabelTestSection extends ConsumerStatefulWidget {
 class _SettingsLabelTestSectionState
     extends ConsumerState<SettingsLabelTestSection> {
   bool _isExpanded = false;
+
+  // ── 주문번호 라벨 테스트 (16장) 데이터 ──────────────────────────────
+  /// QA 용 고정 주문번호 16개. 각 번호당 라벨 1장(QR 없음) 출력.
+  static const List<String> _orderNoTestNumbers = [
+    '0232', '0593', '0865', '0958', '1236', '1238', '1285', '1323', //
+    '1328', '1532', '1593', '1689', '1859', '1895', '1965', '1989',
+  ];
+
+  /// 임의 메모 풀 (라벨마다 순환). "detail 부분 임의로 작성" — 일본어, null 은 메모 없는 케이스.
+  static const List<String?> _orderNoTestMemoPool = [
+    '早めにお願いします',
+    'カップホルダーは不要です',
+    '氷少なめ',
+    null,
+    '熱めでお願いします',
+  ];
+
+  /// 보유 상품이 하나도 없을 때만 쓰는 fallback 메뉴명. 실제 상품명은 번역하지 않고
+  /// productProvider 값을 그대로 쓰며, fallback 도 임의 번역 없이 영문 그대로 둔다.
+  static const List<String> _orderNoTestFallbackMenus = [
+    'Americano',
+    'Caffe Latte',
+    'Cappuccino',
+  ];
 
   // 부하 테스트 진행 상태
   bool _isStressRunning = false;
@@ -336,6 +364,148 @@ class _SettingsLabelTestSectionState
     }
   }
 
+  /// 지정 주문번호 16개를 실제 보유 상품명 + 임의 옵션/메모로 1장씩 출력 (QR 없음).
+  ///
+  /// 자동출력 경로([OutputService.printOrderLabels])와 달리
+  /// [LabelPrintData.fromOrder] / 브랜드 필터 전략을 거치지 않고
+  /// [LabelPainter.generateLabelImage] 를 직접 호출한다 → 임의 옵션/메모가
+  /// 그대로 인쇄되고, qrData 를 넘기지 않으므로 QR 토글과 무관하게 QR 미인쇄.
+  Future<void> _printOrderNoTest() async {
+    final printService = ref.read(printServiceProvider);
+    final status = ref.read(printerStatusProvider);
+
+    if (!status.isLabelConnected) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('라벨 프린터가 연결되어 있지 않습니다.')),
+        );
+      }
+      return;
+    }
+
+    // 실제 보유 상품에서 메뉴명 + subinfo(원두/온도/사이즈) 추출.
+    // 메뉴명은 type==item 상품명을 그대로 사용(번역 안 함). subinfo 는 옵션(type==option)을
+    // TpcpLabelFilterStrategy 와 동일하게 categoryCode 로 분류해서 채운다.
+    List<String> menuNames = const [];
+    List<String> beanNames = const [];
+    List<String> tempNames = const [];
+    List<String> sizeNames = const [];
+    List<String> etcOptionNames = const [];
+    try {
+      final products = await ref.read(productProvider.future);
+      menuNames = products
+          .where((p) => p.type == ProductType.item)
+          .map((p) => p.productName)
+          .where((n) => n.isNotEmpty)
+          .toList();
+
+      final optionProducts =
+          products.where((p) => p.type == ProductType.option).toList();
+      List<String> byCodes(Set<String> codes) => optionProducts
+          .where((p) => codes.contains(p.categoryCode))
+          .map((p) => p.productName)
+          .where((n) => n.isNotEmpty)
+          .toList();
+      // subinfo: 원두/온도/사이즈 카테고리 옵션 (TpcpLabelFilterStrategy 동일 기준).
+      beanNames = byCodes(OrderCategoryCodes.beanTypeCodes);
+      tempNames = byCodes(OrderCategoryCodes.temperatureCodes);
+      sizeNames = byCodes(OrderCategoryCodes.sizeOptionCodes);
+
+      // option 섹션: subinfo 로 분류되지 않은 나머지 옵션
+      // (실제 라벨의 remainingOptions 와 동일하게 원두/온도/사이즈는 제외).
+      final subinfoCodes = <String>{
+        ...OrderCategoryCodes.beanTypeCodes,
+        ...OrderCategoryCodes.temperatureCodes,
+        ...OrderCategoryCodes.sizeOptionCodes,
+      };
+      etcOptionNames = optionProducts
+          .where((p) => !subinfoCodes.contains(p.categoryCode))
+          .map((p) => p.productName)
+          .where((n) => n.isNotEmpty)
+          .toList();
+    } catch (e) {
+      logToFile(
+          tag: LogTag.WARNING,
+          message: '[OrderNoTest] 상품 조회 실패 — fallback 사용: $e');
+    }
+    if (menuNames.isEmpty) menuNames = _orderNoTestFallbackMenus;
+
+    logToFile(
+        tag: LogTag.PLATFORM,
+        message: '[OrderNoTest] 후보 bean=${beanNames.length}'
+            ' temp=${tempNames.length} size=${sizeNames.length}'
+            ' option=${etcOptionNames.length}');
+
+    final total = _orderNoTestNumbers.length;
+    final orderTime = DateFormat('MM/dd\nHH:mm:ss').format(DateTime.now());
+
+    logToFile(
+        tag: LogTag.PLATFORM,
+        message: '[OrderNoTest] ====== 주문번호 테스트 출력 시작 ($total장) ======');
+
+    int ok = 0;
+    try {
+      for (int i = 0; i < total; i++) {
+        final shopOrderNo = _orderNoTestNumbers[i];
+        final menuName = menuNames[i % menuNames.length];
+        // option 섹션: 실제 옵션(원두/온도/사이즈 제외)에서 라벨마다 1~3개 순환.
+        final optMax = etcOptionNames.length < 3 ? etcOptionNames.length : 3;
+        final optCount = optMax == 0 ? 0 : (i % optMax) + 1;
+        final options = [
+          for (var k = 0; k < optCount; k++)
+            etcOptionNames[(i + k) % etcOptionNames.length]
+        ];
+        final memo = _orderNoTestMemoPool[i % _orderNoTestMemoPool.length];
+        // subinfo 는 실제 옵션에서 분류한 후보를 순환 사용 (없으면 null → 영역 비움).
+        final bean = beanNames.isEmpty ? null : beanNames[i % beanNames.length];
+        final temp = tempNames.isEmpty ? null : tempNames[i % tempNames.length];
+        final size = sizeNames.isEmpty ? null : sizeNames[i % sizeNames.length];
+
+        final imageBytes = await LabelPainter.generateLabelImage(
+          menuName: menuName,
+          options: options,
+          shopOrderNo: shopOrderNo,
+          orderTime: orderTime,
+          beanType: bean,
+          temperature: temp,
+          sizeOption: size,
+          memo: memo,
+          orderIndex: i + 1,
+          orderTotal: total,
+          // 이 테스트는 로캘과 무관하게 섹션 타이틀을 영문 고정.
+          optionTitleOverride: 'option',
+          detailTitleOverride: 'detail',
+        );
+        final result = await printService.printLabel(
+          imageBytes,
+          orderNo: shopOrderNo,
+          labelIndex: i + 1,
+          totalLabels: total,
+        );
+        if (result) ok++;
+        logToFile(
+            tag: result ? LogTag.PLATFORM : LogTag.WARNING,
+            message: '[OrderNoTest] ${i + 1}/$total no=$shopOrderNo'
+                ' menu="$menuName" ${result ? "출력끝" : "실패"}');
+      }
+      logToFile(
+          tag: LogTag.PLATFORM,
+          message: '[OrderNoTest] ====== 주문번호 테스트 출력 종료 ($ok/$total) ======');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('주문번호 테스트 $ok/$total 출력')),
+        );
+      }
+    } catch (e) {
+      logToFile(tag: LogTag.ERROR, message: '[OrderNoTest] 출력 실패: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('주문번호 테스트 출력 실패: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -463,6 +633,22 @@ class _SettingsLabelTestSectionState
                       label: const Text('재출력 시뮬레이션 (qty=3 mock — 큐 경유)'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.blueGrey.shade700,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.s24,
+                          vertical: AppSpacing.s12,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.s12),
+                  Center(
+                    child: ElevatedButton.icon(
+                      onPressed: _printOrderNoTest,
+                      icon: const Icon(Icons.confirmation_number, size: 18),
+                      label: const Text('주문번호 테스트 (16장 — 실상품/임의옵션/메모)'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.teal,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(
                           horizontal: AppSpacing.s24,

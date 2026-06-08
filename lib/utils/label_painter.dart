@@ -22,6 +22,11 @@ class LabelPainter extends CustomPainter {
   final int? orderIndex; // 현재 라벨 번호 (예: 1)
   final int? orderTotal; // 전체 라벨 수 (예: 10)
 
+  /// 섹션 타이틀 강제 지정 (null 이면 i18n `t.receipt.section_*` 사용).
+  /// 테스트 출력처럼 로캘과 무관하게 영문 'OPTION'/'DETAIL' 을 찍을 때만 사용.
+  final String? optionTitleOverride;
+  final String? detailTitleOverride;
+
   LabelPainter({
     required this.menuName,
     required this.options,
@@ -35,6 +40,8 @@ class LabelPainter extends CustomPainter {
     this.logoImage,
     this.orderIndex,
     this.orderTotal,
+    this.optionTitleOverride,
+    this.detailTitleOverride,
   });
 
   // --- Logo Cache ---
@@ -290,7 +297,7 @@ class LabelPainter extends CustomPainter {
     );
 
     // Title (구분선 아래 정렬 보정)
-    _drawText(canvas, t.receipt.section_option,
+    _drawText(canvas, optionTitleOverride ?? t.receipt.section_option,
         Offset(size.width / 2, startY + spacingSectionSmall),
         fontSize: fsSectionTitle, isBold: true, align: TextAlign.center);
 
@@ -331,7 +338,7 @@ class LabelPainter extends CustomPainter {
     // "detail" 타이틀 (가운데 정렬)
     _drawText(
       canvas,
-      t.receipt.section_detail,
+      detailTitleOverride ?? t.receipt.section_detail,
       Offset(size.width / 2, startY + spacingSectionSmall),
       fontSize: fsSectionTitle,
       isBold: true,
@@ -436,6 +443,8 @@ class LabelPainter extends CustomPainter {
     String? memo,
     int? orderIndex,
     int? orderTotal,
+    String? optionTitleOverride,
+    String? detailTitleOverride,
   }) async {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
@@ -473,6 +482,8 @@ class LabelPainter extends CustomPainter {
       logoImage: logo,
       orderIndex: orderIndex,
       orderTotal: orderTotal,
+      optionTitleOverride: optionTitleOverride,
+      detailTitleOverride: detailTitleOverride,
     );
 
     painter.paint(canvas, const Size(width, height));
