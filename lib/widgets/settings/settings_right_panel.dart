@@ -556,11 +556,16 @@ class _SettingsRightPanelState extends ConsumerState<SettingsRightPanel> {
                   ),
                 ),
                 // 앱 버전 (5번 탭 → 개발자 옵션)
+                // 탭 영역을 넓고 관대하게: 가로 전체 + 넉넉한 padding +
+                // 빈 공간도 히트되도록 opaque. 손이 빗나가도 개발자 옵션 진입 가능.
                 GestureDetector(
                   onTap: widget.onDevOptionsTap,
-                  child: Padding(
+                  behavior: HitTestBehavior.opaque,
+                  child: Container(
+                    width: double.infinity,
+                    alignment: Alignment.center,
                     padding:
-                        const EdgeInsets.symmetric(vertical: AppSpacing.s16),
+                        const EdgeInsets.symmetric(vertical: AppSpacing.s24),
                     child: Platform.isWindows
                         ? Text(
                             'v${const String.fromEnvironment('WINDOWS_APP_VERSION', defaultValue: '0.0.0')} '
