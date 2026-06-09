@@ -58,13 +58,18 @@ class CommonDialog {
       barrierDismissible: true,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text(
-            title ?? t.dialog.status_change.title,
-            style: AppTextStyles.title,
+          title: _dialogTitleWithClose(
+            title: Text(
+              title ?? t.dialog.status_change.title,
+              style: AppTextStyles.title,
+            ),
+            onClose: () => Navigator.of(context).pop(null),
           ),
-          titlePadding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.s24,
-            vertical: AppSpacing.s24,
+          titlePadding: const EdgeInsets.fromLTRB(
+            AppSpacing.s24,
+            AppSpacing.s16,
+            AppSpacing.s16,
+            AppSpacing.s8,
           ),
           contentPadding: const EdgeInsets.fromLTRB(
             AppSpacing.s24,
@@ -103,23 +108,6 @@ class CommonDialog {
             vertical: AppSpacing.s24,
           ),
           actions: <Widget>[
-            // 닫기
-            ElevatedButton(
-              style: AppStyles.outlinedButton(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.s20,
-                  vertical: AppSpacing.s12,
-                ),
-                minimumSize: const Size(100, 45),
-              ),
-              onPressed: () => Navigator.of(context).pop(null),
-              child: Text(
-                t.common.close,
-                style:
-                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-            ),
-
             // 품절/판매 토글
             Builder(
               builder: (context) {
@@ -226,19 +214,24 @@ class CommonDialog {
       barrierDismissible: true,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Row(
-            children: [
-              Icon(Icons.info_outline, color: AppStyles.kMainColor, size: 28),
-              const SizedBox(width: 12),
-              Text(title,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold, fontSize: 22)),
-            ],
+          title: _dialogTitleWithClose(
+            title: Row(
+              children: [
+                Icon(Icons.info_outline, color: AppStyles.kMainColor, size: 28),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(title,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 22)),
+                ),
+              ],
+            ),
+            onClose: () => Navigator.of(context).pop(),
           ),
           titlePadding: const EdgeInsets.fromLTRB(
             AppSpacing.s24,
-            AppSpacing.s24,
-            AppSpacing.s24,
+            AppSpacing.s16,
+            AppSpacing.s16,
             0,
           ),
           contentPadding: const EdgeInsets.fromLTRB(
@@ -295,21 +288,26 @@ class CommonDialog {
       barrierDismissible: true,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Row(
-            children: [
-              Icon(Icons.error_outline, color: AppStyles.kRed, size: 28),
-              const SizedBox(width: 12),
-              Text(title,
-                  style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 22,
-                      color: AppStyles.kRed)),
-            ],
+          title: _dialogTitleWithClose(
+            title: Row(
+              children: [
+                Icon(Icons.error_outline, color: AppStyles.kRed, size: 28),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(title,
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 22,
+                          color: AppStyles.kRed)),
+                ),
+              ],
+            ),
+            onClose: () => Navigator.of(context).pop(),
           ),
           titlePadding: const EdgeInsets.fromLTRB(
             AppSpacing.s24,
-            AppSpacing.s24,
-            AppSpacing.s24,
+            AppSpacing.s16,
+            AppSpacing.s16,
             0,
           ),
           contentPadding: const EdgeInsets.fromLTRB(
@@ -383,6 +381,29 @@ class CommonDialog {
   }
 }
 
+/// AlertDialog 의 `title` 에 넣을 "타이틀 + 우측 상단 X" Row.
+/// 주문상세 팝업과 동일한 닫기 경험을 공용 다이얼로그에 통일하기 위한 헬퍼.
+/// [onClose] 가 null 이면 IconButton 이 자동 비활성화된다(진행 중 닫기 차단 등).
+Widget _dialogTitleWithClose({
+  required Widget title,
+  required VoidCallback? onClose,
+}) {
+  return Row(
+    crossAxisAlignment: CrossAxisAlignment.center,
+    children: [
+      Expanded(child: title),
+      // 탭 영역 40x40 확보(키오스크 터치) + 아이콘은 우측 모서리에 가깝게.
+      IconButton(
+        icon: const Icon(Icons.close, size: 24),
+        splashRadius: AppSpacing.s20,
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+        onPressed: onClose,
+      ),
+    ],
+  );
+}
+
 String _statusKoreanLabel(ProductStatus status) {
   switch (status) {
     case ProductStatus.sale:
@@ -426,10 +447,15 @@ class _UpdateProgressDialogState extends State<_UpdateProgressDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(t.dialog.update.title, style: AppTextStyles.title),
-      titlePadding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.s24,
-        vertical: AppSpacing.s24,
+      title: _dialogTitleWithClose(
+        title: Text(t.dialog.update.title, style: AppTextStyles.title),
+        onClose: _isDownloading ? null : () => Navigator.of(context).pop(false),
+      ),
+      titlePadding: const EdgeInsets.fromLTRB(
+        AppSpacing.s24,
+        AppSpacing.s16,
+        AppSpacing.s16,
+        AppSpacing.s8,
       ),
       contentPadding: const EdgeInsets.fromLTRB(
         AppSpacing.s24,
@@ -728,10 +754,15 @@ class _ConfirmDialogState extends State<_ConfirmDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(widget.title, style: AppTextStyles.title),
-      titlePadding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.s24,
-        vertical: AppSpacing.s24,
+      title: _dialogTitleWithClose(
+        title: Text(widget.title, style: AppTextStyles.title),
+        onClose: _busy ? null : () => Navigator.of(context).pop(false),
+      ),
+      titlePadding: const EdgeInsets.fromLTRB(
+        AppSpacing.s24,
+        AppSpacing.s16,
+        AppSpacing.s16,
+        AppSpacing.s8,
       ),
       contentPadding: const EdgeInsets.fromLTRB(
         AppSpacing.s24,
