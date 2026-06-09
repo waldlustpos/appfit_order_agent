@@ -53,14 +53,14 @@ class _SettingsLabelTestSectionState
   bool _isExpanded = false;
 
   // ── 주문번호 라벨 테스트 데이터 ──────────────────────────────────────
-  /// QA 용 고정 주문번호 16개. 각 번호당 (1/1)(1/2)(1/3) 3장씩 = 48장 출력(QR 없음).
+  /// QA 용 고정 주문번호. 각 번호당 A~Z 26장씩 출력(QR 없음).
   static const List<String> _orderNoTestNumbers = [
-    '0170', '0217', '0617', '0714', '0386', '1186', '1768', '0490', //
-    '0694', '0948', '0407', '0760', '1640', '0364', '1047', '1374',
+    '0235',
+    '0339',
   ];
 
-  /// 주문번호당 출력 매수. 식별번호를 (1/1)(1/2)(1/3) 로 찍어 순서 표기를 검증.
-  static const int _orderNoTestVersions = 3;
+  /// 주문번호당 출력 매수. 주문번호 뒤에 A~Z(26개) 알파벳 접미사를 붙여 26장 출력.
+  static const int _orderNoTestVersions = 26;
 
   /// 임의 메모 풀 (라벨마다 순환). "detail 부분 임의로 작성" — 일본어, null 은 메모 없는 케이스.
   static const List<String?> _orderNoTestMemoPool = [
@@ -363,8 +363,9 @@ class _SettingsLabelTestSectionState
     }
   }
 
-  /// 지정 주문번호 16개를 실제 보유 상품명 + 임의 옵션/메모로 각각 3장씩(총 48장) 출력 (QR 없음).
-  /// 같은 주문번호의 3장은 내용은 동일하고 식별번호만 (1/1)(1/2)(1/3) 로 달라져 순서 표기를 검증한다.
+  /// 지정 주문번호를 실제 보유 상품명 + 임의 옵션/메모로 각각 A~Z 26장씩 출력 (QR 없음).
+  /// 같은 주문번호의 26장은 내용은 동일하고 주문번호 뒤에 A,B,C...Z 알파벳 접미사만 달라진다
+  /// (예: #1009A, #1009B, ... #1009Z). 알파벳 개수(Z=26)를 넘어가는 경우는 고려하지 않는다.
   ///
   /// 자동출력 경로([OutputService.printOrderLabels])와 달리
   /// [LabelPrintData.fromOrder] / 브랜드 필터 전략을 거치지 않고
@@ -437,7 +438,7 @@ class _SettingsLabelTestSectionState
             ' option=${etcOptionNames.length}');
 
     const numbers = _orderNoTestNumbers;
-    final total = numbers.length * _orderNoTestVersions; // 16 × 3 = 48
+    final total = numbers.length * _orderNoTestVersions; // 번호 × 26(A~Z)
     final orderTime = DateFormat('MM/dd\nHH:mm:ss').format(DateTime.now());
 
     logToFile(
@@ -463,35 +464,38 @@ class _SettingsLabelTestSectionState
         final temp = tempNames.isEmpty ? null : tempNames[i % tempNames.length];
         final size = sizeNames.isEmpty ? null : sizeNames[i % sizeNames.length];
 
-        // 같은 주문번호로 (1/1)(1/2)(1/3) 3장 — 내용 동일, 식별번호만 다름.
+        // 같은 주문번호로 26장 — 내용 동일, 주문번호 뒤 알파벳(A~Z)만 다름.
         for (int v = 1; v <= _orderNoTestVersions; v++) {
           printed++;
+          // 주문번호 접미사: 1→A, 2→B, ... 26→Z (Z 초과는 고려하지 않음).
+          final suffix = String.fromCharCode(0x41 + (v - 1));
+          final labelOrderNo = '$shopOrderNo$suffix'; // 예: 1009A
           final imageBytes = await LabelPainter.generateLabelImage(
             menuName: menuName,
             options: options,
-            shopOrderNo: shopOrderNo,
+            shopOrderNo: labelOrderNo,
             orderTime: orderTime,
             beanType: bean,
             temperature: temp,
             sizeOption: size,
             memo: memo,
-            // 식별번호: (1/1), (1/2), (1/3) — orderIndex 고정 1, orderTotal=버전.
-            orderIndex: 1,
-            orderTotal: v,
+            // 헤더 식별번호: (1/26), (2/26) ... (26/26) — 현재 장수/전체 장수.
+            orderIndex: v,
+            orderTotal: _orderNoTestVersions,
             // 이 테스트는 로캘과 무관하게 섹션 타이틀을 영문 고정.
             optionTitleOverride: 'option',
             detailTitleOverride: 'detail',
           );
           final result = await printService.printLabel(
             imageBytes,
-            orderNo: shopOrderNo,
+            orderNo: labelOrderNo,
             labelIndex: printed,
             totalLabels: total,
           );
           if (result) ok++;
           logToFile(
               tag: result ? LogTag.PLATFORM : LogTag.WARNING,
-              message: '[OrderNoTest] $printed/$total no=$shopOrderNo (1/$v)'
+              message: '[OrderNoTest] $printed/$total no=$labelOrderNo'
                   ' menu="$menuName" ${result ? "출력끝" : "실패"}');
         }
       }
@@ -644,7 +648,8 @@ class _SettingsLabelTestSectionState
                     child: ElevatedButton.icon(
                       onPressed: _printOrderNoTest,
                       icon: const Icon(Icons.confirmation_number, size: 18),
-                      label: const Text('주문번호 테스트 (48장 — 16번호×3 / 실상품·옵션·메모)'),
+                      label:
+                          const Text('주문번호 테스트 (2번호 × A~Z = 52장 / 실상품·옵션·메모)'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.teal,
                         foregroundColor: Colors.white,
