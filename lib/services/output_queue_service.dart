@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:appfit_core/appfit_core.dart' show MonitoringService;
 import 'package:appfit_order_agent/models/order_model.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
@@ -77,6 +78,12 @@ class OutputQueueService {
         logger.e('[ReceiptQueue] $num 처리 실패', error: error, stackTrace: stack);
         logToFile(
             tag: LogTag.ERROR, message: '[ReceiptQueue] $num 처리 실패: $error');
+        MonitoringService.instance.captureError(
+          error,
+          stack,
+          hint: '[ReceiptQueue] 처리 실패',
+          extras: {'orderNo': item.order.orderNo, 'displayNum': num},
+        );
       },
     );
     _labelQueue = SerialAsyncQueue(
@@ -86,6 +93,12 @@ class OutputQueueService {
         logger.e('[LabelQueue] $num 처리 실패', error: error, stackTrace: stack);
         logToFile(
             tag: LogTag.ERROR, message: '[LabelQueue] $num 처리 실패: $error');
+        MonitoringService.instance.captureError(
+          error,
+          stack,
+          hint: '[LabelQueue] 처리 실패',
+          extras: {'orderNo': item.order.orderNo, 'displayNum': num},
+        );
       },
     );
   }

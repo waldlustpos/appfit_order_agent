@@ -12,6 +12,7 @@ import 'package:appfit_order_agent/services/print_service.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:appfit_order_agent/core/orders/sound_service.dart';
 import 'package:appfit_order_agent/exceptions/label_print_missing_exception.dart';
+import 'package:appfit_order_agent/exceptions/order_detail_fetch_failed_exception.dart';
 import 'package:appfit_order_agent/utils/label_painter.dart';
 
 import 'package:appfit_core/appfit_core.dart' show MonitoringService;
@@ -43,13 +44,39 @@ class OutputService {
       _orderNotifier.updateBlinkStateExternal();
 
       if (shouldPrintOrderReceipt) {
-        final orderForPrinting = await _prepareOrderForPrinting(order);
-        final printCount = ref.read(preferenceServiceProvider).getPrintCount();
-        for (int i = 0; i < printCount; i++) {
-          await ref.read(printServiceProvider).printOrderReceipt(
-                order: orderForPrinting,
-                type: 'order',
-              );
+        // 메뉴 없는 부분 데이터로 영수증을 인쇄하지 않는다. 상세조회가 실패하면
+        // '내용 누락 영수증' 발행 대신 인쇄를 스킵하고 Sentry 로 보고한다.
+        // 메뉴 복구는 소켓 재시도 래퍼 + refreshOrders 안전망이 담당한다.
+        OrderModel? orderForPrinting;
+        try {
+          orderForPrinting = await _prepareOrderForPrinting(order);
+        } catch (e, s) {
+          logger.e('[Receipt] ${order.displayNum} 상세조회 실패 — 영수증 인쇄 스킵',
+              error: e, stackTrace: s);
+          MonitoringService.instance.captureError(
+            OrderDetailFetchFailedException(
+              orderNo: order.orderNo,
+              eventType: order.orderStatus,
+              source: 'receipt',
+              lastError: e.toString(),
+            ),
+            s,
+            hint: '영수증 상세조회 실패 — 부분 데이터 인쇄 차단',
+            extras: {
+              'orderNo': order.orderNo,
+              'displayNum': order.displayNum,
+            },
+          );
+        }
+        if (orderForPrinting != null) {
+          final printCount =
+              ref.read(preferenceServiceProvider).getPrintCount();
+          for (int i = 0; i < printCount; i++) {
+            await ref.read(printServiceProvider).printOrderReceipt(
+                  order: orderForPrinting,
+                  type: 'order',
+                );
+          }
         }
       }
 

@@ -6,6 +6,7 @@ import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/services/api_service.dart';
 import 'package:appfit_order_agent/models/order_model.dart';
 import 'package:appfit_order_agent/exceptions/api_exceptions.dart';
+import 'package:appfit_order_agent/exceptions/order_detail_fetch_failed_exception.dart';
 
 import 'package:appfit_order_agent/providers/kds/kds_unified_providers.dart';
 import 'package:appfit_order_agent/providers/order/order_cache_manager.dart';
@@ -1405,6 +1406,19 @@ class Order extends _$Order {
       }
     } catch (e, s) {
       logger.e('Error polling new orders', error: e, stackTrace: s);
+      // 폴링은 소켓 누락 주문의 마지막 복구망 — 실패 시 영구 누락 위험을
+      // Sentry 로 가시화한다(logger 만으로는 운영자가 인지 불가).
+      appfit_core.MonitoringService.instance.captureError(
+        OrderDetailFetchFailedException(
+          orderNo: '',
+          eventType: 'POLL',
+          source: 'polling',
+          lastError: e.toString(),
+        ),
+        s,
+        hint: '폴링 안전망 실패 — 누락 주문 복구 지연 가능',
+        extras: {'storeId': storeId},
+      );
     }
   }
 

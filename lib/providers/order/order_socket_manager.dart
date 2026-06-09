@@ -1,12 +1,13 @@
 import 'dart:async';
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
 import 'package:appfit_order_agent/core/orders/order_queue_service.dart';
+import 'package:appfit_order_agent/exceptions/order_detail_fetch_failed_exception.dart';
 import 'package:appfit_order_agent/models/order_model.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
 import 'package:appfit_order_agent/services/appfit/appfit_providers.dart';
-import 'package:appfit_order_agent/services/api_service.dart';
 import 'package:appfit_core/appfit_core.dart' as appfit_core;
 import 'package:appfit_order_agent/utils/socket_event_suppressor.dart';
 
@@ -212,9 +213,8 @@ class OrderSocketManager {
 
       if (shouldFetchDetail) {
         try {
-          var orderModel = await ref
-              .read(apiServiceProvider)
-              .getOrder(orderId, storeId: targetShopCode);
+          var orderModel =
+              await _fetchOrderDetailWithRetry(orderId, targetShopCode);
 
           // [FIX] API 상태가 소켓 이벤트보다 늦게 갱신될 수 있으므로,
           // 이벤트 타입에 따라 강제로 상태를 보정합니다.
@@ -224,6 +224,14 @@ class OrderSocketManager {
           _processNewOrder(orderModel);
         } catch (e, s) {
           logger.e('[AppFit] 주문 상세 조회 실패 ($orderId): $e');
+          _reportDetailFetchFailureAndRecover(
+            orderId: orderId,
+            eventType: eventType,
+            shopCode: targetShopCode,
+            source: 'socket',
+            error: e,
+            stack: s,
+          );
         }
       } else {
         logger.d('[AppFit] 상세 조회 생략, 로컬 상태 업데이트 수행 ($eventType)');
@@ -250,13 +258,20 @@ class OrderSocketManager {
             logger.w(
                 '[AppFit] 로컬 오더 찾을 수 없음 (unexpected), API 호출 시도. ID: $orderId');
             try {
-              var orderModel = await ref
-                  .read(apiServiceProvider)
-                  .getOrder(orderId, storeId: targetShopCode);
+              var orderModel =
+                  await _fetchOrderDetailWithRetry(orderId, targetShopCode);
               orderModel = _enforceStatusFromEvent(orderModel, eventType);
               _processNewOrder(orderModel);
             } catch (e, s) {
               logger.e('[AppFit] Fallback 주문 상세 조회 실패: $e');
+              _reportDetailFetchFailureAndRecover(
+                orderId: orderId,
+                eventType: eventType,
+                shopCode: targetShopCode,
+                source: 'socket_fallback',
+                error: e,
+                stack: s,
+              );
             }
           }
         }
@@ -273,6 +288,101 @@ class OrderSocketManager {
       return eventType == appfit_core.OrderEventType.orderCreated.value;
     // KDS: ORDER_ACCEPTED는 항상 최신 API 조회, 나머지는 캐시 기반 업데이트
     return eventType == appfit_core.OrderEventType.orderAccepted.value;
+  }
+
+  /// 소켓 상세조회 재시도 간격 (transient 한정). 첫 시도 즉시 + 0.5s + 1.5s = 총 3회.
+  /// printer_job_queue.dart:68 defaultBackoffs 패턴의 축약 — 소켓 이벤트 핸들러를
+  /// 길게 점유하지 않도록 누적 cap 을 짧게(~2s) 둔다.
+  List<Duration> _detailFetchBackoffs = const [
+    Duration.zero,
+    Duration(milliseconds: 500),
+    Duration(milliseconds: 1500),
+  ];
+
+  /// 테스트 전용. 프로덕션에서는 호출하지 않는다. 길이/간격 자유.
+  @visibleForTesting
+  set detailFetchBackoffs(List<Duration> value) => _detailFetchBackoffs = value;
+
+  /// 소켓 상세조회 전용 transient-only backoff 래퍼.
+  ///
+  /// 5xx / 타임아웃 / connection 같은 일시적 네트워크 장애만 [_detailFetchBackoffs]
+  /// 간격으로 재시도한다. 4xx(주문없음/권한)·취소·파싱 오류는 즉시 rethrow 해
+  /// 무한 재시도를 막는다. blast radius 를 소켓 상세조회로 국한하기 위해
+  /// ApiService.getOrder 자체가 아닌 이 호출부에서만 감싼다.
+  Future<OrderModel> _fetchOrderDetailWithRetry(
+      String orderId, String shopCode) async {
+    final apiService = ref.read(apiServiceProvider);
+    for (var attempt = 0; attempt < _detailFetchBackoffs.length; attempt++) {
+      final backoff = _detailFetchBackoffs[attempt];
+      if (backoff > Duration.zero) {
+        await Future.delayed(backoff);
+      }
+      try {
+        return await apiService.getOrder(orderId, storeId: shopCode);
+      } catch (e) {
+        final isLast = attempt == _detailFetchBackoffs.length - 1;
+        if (isLast || !isTransientError(e)) rethrow;
+        logger.w('[AppFit] 상세조회 일시 실패(재시도 ${attempt + 1}/'
+            '${_detailFetchBackoffs.length}): $orderId ($e)');
+      }
+    }
+    // 도달 불가 — 루프는 항상 return 또는 rethrow 로 종료된다.
+    throw StateError('unreachable: _fetchOrderDetailWithRetry($orderId)');
+  }
+
+  /// 테스트 전용 — private 재시도 래퍼를 그대로 노출한다.
+  @visibleForTesting
+  Future<OrderModel> fetchOrderDetailForTest(String orderId, String shopCode) =>
+      _fetchOrderDetailWithRetry(orderId, shopCode);
+
+  /// transient 판정: 일시적 네트워크 장애(타임아웃/연결/5xx)만 재시도 대상.
+  /// 4xx·취소·파싱 오류는 재시도해도 동일 실패이므로 false.
+  @visibleForTesting
+  static bool isTransientError(Object e) {
+    if (e is! DioException) return false;
+    switch (e.type) {
+      case DioExceptionType.connectionTimeout:
+      case DioExceptionType.receiveTimeout:
+      case DioExceptionType.sendTimeout:
+      case DioExceptionType.connectionError:
+        return true;
+      default:
+        final code = e.response?.statusCode;
+        return code != null && code >= 500;
+    }
+  }
+
+  /// 소켓 상세조회 실패 시: Sentry 보고 + 폴링 안전망(refreshOrders) 즉시 트리거.
+  ///
+  /// _processNewOrder 를 직접 호출하지 않는다 — 메뉴 없는 부분데이터 state 진입과
+  /// dedup 우회를 막기 위해 복구는 반드시 기존 폴링 경로(refreshOrders →
+  /// _processPollingNewOrders → queueOrderExternal → _outputQueueService.add)로
+  /// 위임한다. refreshOrders 의 _isRefreshing 가드가 동시/중복 트리거를 흡수한다.
+  void _reportDetailFetchFailureAndRecover({
+    required String orderId,
+    required String eventType,
+    required String shopCode,
+    required String source,
+    required Object error,
+    required StackTrace stack,
+  }) {
+    appfit_core.MonitoringService.instance.captureError(
+      OrderDetailFetchFailedException(
+        orderNo: orderId,
+        eventType: eventType,
+        source: source,
+        lastError: error.toString(),
+      ),
+      stack,
+      hint: '소켓 상세조회 실패 — 폴링 안전망 트리거됨',
+      extras: {
+        'orderId': orderId,
+        'eventType': eventType,
+        'shopCode': shopCode,
+      },
+    );
+    // 다음 정기 폴링(최대 60s)을 기다리지 않고 즉시 복구를 시도한다.
+    onRefreshOrders?.call();
   }
 
   /// 이벤트 타입에 따라 주문 모델의 상태를 강제로 보정하는 메서드

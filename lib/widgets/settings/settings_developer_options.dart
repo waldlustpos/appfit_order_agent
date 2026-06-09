@@ -1,9 +1,11 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:appfit_order_agent/constants/app_styles.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
 import 'package:appfit_order_agent/core/orders/order_queue_service.dart';
 import 'package:appfit_order_agent/dev/mock_order_generator.dart' as mock_gen;
+import 'package:appfit_order_agent/dev/order_detail_fault_injector.dart';
 import 'package:appfit_order_agent/screens/appfit_test_screen.dart';
 import 'package:appfit_order_agent/i18n/strings.g.dart';
 import 'package:appfit_order_agent/widgets/settings/settings_section_card.dart';
@@ -126,6 +128,30 @@ class SettingsDeveloperOptions extends ConsumerWidget {
             ],
           ),
         ),
+        // 상세조회 강제 실패 (디버그 fault injection) — debug 빌드에서만 노출/동작
+        if (kDebugMode)
+          SettingsItemWidget(
+            title: '상세조회 강제 실패 (디버그)',
+            description: 'getOrder 를 인위적으로 실패시켜 재시도·복구·부분영수증 차단을 검증합니다. '
+                '실제 소켓으로 들어오는 주문의 상세조회에 적용됩니다 '
+                '(MOCK 대량주문은 상세조회를 거치지 않아 미적용).',
+            isVertical: true,
+            trailing: Wrap(
+              spacing: AppSpacing.s8,
+              runSpacing: AppSpacing.s8,
+              children: [
+                _faultButton(context, '503 x2 (재시도→성공)', 2,
+                    OrderDetailFaultKind.serverError, Colors.deepOrange),
+                _faultButton(context, '503 x99 (소진→복구)', 99,
+                    OrderDetailFaultKind.serverError, Colors.red),
+                _faultButton(context, '404 x1 (즉시실패)', 1,
+                    OrderDetailFaultKind.notFound, Colors.brown),
+                _faultButton(context, '타임아웃 x99', 99,
+                    OrderDetailFaultKind.timeout, Colors.blueGrey),
+                _faultClearButton(context),
+              ],
+            ),
+          ),
         // 파란만잔 브랜드 테스트 (QR 시퀀스 라벨 출력)
         SettingsItemWidget(
           title: '파란만잔 브랜드 테스트',
@@ -163,6 +189,49 @@ class SettingsDeveloperOptions extends ConsumerWidget {
   }
 
   String get _currentEnvName => selectedEnv;
+
+  /// 상세조회 강제 실패 무장 버튼 (디버그 전용).
+  Widget _faultButton(BuildContext context, String label, int count,
+      OrderDetailFaultKind kind, Color color) {
+    return ElevatedButton.icon(
+      onPressed: () {
+        OrderDetailFaultInjector.arm(count, kind);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('상세조회 강제 실패 무장: $label'),
+            duration: const Duration(seconds: 2),
+            backgroundColor: color,
+          ),
+        );
+      },
+      icon: const Icon(Icons.error_outline, size: 18),
+      label: Text(label),
+      style: AppStyles.primaryButton().copyWith(
+        backgroundColor: WidgetStatePropertyAll(color),
+      ),
+    );
+  }
+
+  /// 상세조회 강제 실패 해제 버튼 (디버그 전용).
+  Widget _faultClearButton(BuildContext context) {
+    return ElevatedButton.icon(
+      onPressed: () {
+        OrderDetailFaultInjector.clear();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('상세조회 강제 실패 해제됨'),
+            duration: Duration(seconds: 2),
+            backgroundColor: Colors.green,
+          ),
+        );
+      },
+      icon: const Icon(Icons.check_circle_outline, size: 18),
+      label: const Text('해제'),
+      style: AppStyles.primaryButton().copyWith(
+        backgroundColor: const WidgetStatePropertyAll(Colors.grey),
+      ),
+    );
+  }
 
   Widget _bulkTestButton(BuildContext context, WidgetRef ref, int count) {
     return ElevatedButton.icon(

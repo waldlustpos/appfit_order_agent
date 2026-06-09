@@ -1,6 +1,8 @@
 // import 'package:flutter_dotenv/flutter_dotenv.dart'; // Removed
 import 'package:appfit_order_agent/config/app_env.dart'; // AppEnv 추가
 import 'package:dio/dio.dart'; // Added for DioException
+import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:appfit_order_agent/dev/order_detail_fault_injector.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
@@ -212,6 +214,9 @@ class ApiService {
   }
 
   Future<OrderModel> getOrder(String orderId, {String? storeId}) async {
+    // [DEBUG] 상세조회 강제 실패 주입 — release 빌드에서는 게이트로 비활성.
+    // 개발자 옵션의 "상세조회 강제 실패" 토글로 무장. 프로덕션 영향 없음.
+    if (kDebugMode) OrderDetailFaultInjector.maybeThrow(orderId);
     try {
       final dio = _ref.read(appFitDioProvider);
       // AppFit: /v0/orders/{orderNo}
