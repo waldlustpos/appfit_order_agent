@@ -65,6 +65,10 @@ class Order extends _$Order {
   // 되어 "자가 자동접수 흔적" 으로 false positive 가 난다. 그래서 자가 자동접수 + KDS
   // PREPARING 후행 dedup 전용으로 별도 Set 운영.
   final Set<String> _selfAcceptedOrderIds = <String>{};
+  // 출력 누락(영수증/라벨) 등록 → 메뉴 복구 시점 자동 재발행 대기.
+  // 상세조회 실패로 빈 영수증/라벨이 스킵된 주문을 추적했다가, fetchOrderDetail 이
+  // 메뉴를 복구하는 순간 1회만 재발행한다. 키=orderId(=orderNo alias, order_model.dart:91).
+  final Set<String> _pendingDetailReprint = <String>{};
   // 사용자가 수동으로 취소/완료한 주문의 부활 차단 캐시.
   // appfit_core.RecentRemovalsCache 위임 — DID 와 동일 추상화. 기본 TTL 120초.
   // 폴링/refreshOrders 응답이 서버 replication lag 으로 해당 주문을 아직 살아있는
@@ -1008,6 +1012,12 @@ class Order extends _$Order {
       if (displayOrders.isNotEmpty) {
         _updateLastKnownOrderSequence(displayOrders);
       }
+
+      // 출력 누락 복구 큐 reconcile: state 에서 사라진 주문(영구 미복구 / DONE·CANCELLED
+      // 전이 / 날짜 경계)의 stale 마킹을 정리해 Set 무한 증가를 막는다. 자정 새로고침도
+      // 이 경로(onRefreshOrders→refreshOrders)로 위임되므로 별도 타이머가 필요 없다.
+      _pendingDetailReprint
+          .retainWhere((id) => state.orders.any((o) => o.orderId == id));
 
       logger.d(
           '[refreshOrders] 목록 업데이트 완료 (${displayOrders.length}건). 상세 정보 로딩 시작...');
@@ -2084,6 +2094,18 @@ class Order extends _$Order {
         state = state.copyWith(orders: updatedOrders);
         _orderDetailCache.put(orderId, mergedOrder);
 
+        // 출력 누락 복구: 메뉴가 채워진 API 성공 시점에만 1회 재발행한다.
+        // 캐시 히트 분기에는 두지 않는다(_loadingOrderIds 우회 race 회피 +
+        // 캐시히트=메뉴 확보 이력=복구 대상 아님). remove 의 동기 원자성으로
+        // 동시 다중 fetch 에서도 첫 remove 만 true → _outputQueueService.add 는
+        // 정확히 1회. _inFlightNewOrders 가드(output_queue_service.dart)가
+        // 시간차 중복도 차단. menus.isNotEmpty 가드로 빈 메뉴 재발행 방지.
+        if (mergedOrder.menus.isNotEmpty &&
+            _pendingDetailReprint.remove(orderId)) {
+          logger.d('[PendingReprint] 메뉴 복구 → 자동 재발행: $orderId');
+          _outputQueueService.add(mergedOrder, playSound: false);
+        }
+
         logger.d('[fetchOrderDetail] 로딩 및 상태 업데이트 완료: $orderId');
         return mergedOrder;
       } else {
@@ -2099,6 +2121,15 @@ class Order extends _$Order {
       _loadingOrderIds.remove(orderId);
       return null;
     }
+  }
+
+  /// 출력 누락(영수증/라벨) 등록. 상세조회 실패로 출력이 스킵된 주문을 표시했다가
+  /// 메뉴 복구(fetchOrderDetail 성공) 시점에 자동 재발행한다. OutputService 가
+  /// 보유한 _orderNotifier 를 통해 호출(순환 의존 없음). Set 이라 반복 마킹 멱등.
+  void markPendingReprint(String orderId) {
+    if (orderId.isEmpty) return;
+    _pendingDetailReprint.add(orderId);
+    logger.d('[PendingReprint] 출력누락 등록: $orderId');
   }
 
   // 로그아웃 시 캐시 초기화 (기존 호환성을 위해 유지)
@@ -2148,6 +2179,7 @@ class Order extends _$Order {
     _processedOrderCache.clear();
     _autoAcceptingOrderIds.clear();
     _selfAcceptedOrderIds.clear();
+    _pendingDetailReprint.clear();
     _recentRemovals.clear();
     _lastKnownOrderSequence = "0";
 

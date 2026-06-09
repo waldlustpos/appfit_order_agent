@@ -67,6 +67,11 @@ class OutputService {
               'displayNum': order.displayNum,
             },
           );
+          // 출력 누락 등록 → 메뉴 복구 시 자동 재발행. 마킹 실패가 세션 정리 중
+          // 앱 크래시로 번지지 않도록 격리.
+          try {
+            _orderNotifier.markPendingReprint(order.orderId);
+          } catch (_) {}
         }
         if (orderForPrinting != null) {
           final printCount =
@@ -112,11 +117,28 @@ class OutputService {
         logToFile(
             tag: LogTag.PLATFORM,
             message: '[Label] ${order.displayNum} 메뉴 정보 미보유 — 상세 조회 시도');
-        orderToPrint = await _prepareOrderForPrinting(order);
+        try {
+          orderToPrint = await _prepareOrderForPrinting(order);
+        } catch (e) {
+          // 상세조회 실패로 라벨을 못 내보냄 — 출력 누락 등록 후 조용히 생략한다.
+          // 상위 catch 로 던지지 않아 '라벨 출력 영역 예외'(비정상 예외용) 오탐과
+          // Sentry 중복 보고를 막는다. 영수증 OFF(라벨만) 매장의 라벨 단독 누락도
+          // 이 경로로 복구 큐에 등록된다.
+          logger.w('[Label] ${order.displayNum} 상세조회 실패 — 라벨 생략, 복구 대기 ($e)');
+          try {
+            _orderNotifier.markPendingReprint(order.orderId);
+          } catch (_) {}
+          return;
+        }
       }
 
       if (orderToPrint.menus.isEmpty) {
         logger.w('[Label] ${order.displayNum} 라벨 생략 (메뉴 정보 없음)');
+        // 모든 라벨 경로(_NewOrderLabelTail / LabelOnlyJob / addLabelOnly)가 이
+        // 깔때기로 수렴 — 라벨 단독 누락도 출력 누락으로 등록해 메뉴 복구 시 재발행.
+        try {
+          _orderNotifier.markPendingReprint(order.orderId);
+        } catch (_) {}
         return;
       }
 
