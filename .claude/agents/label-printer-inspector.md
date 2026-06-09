@@ -1,6 +1,6 @@
 ---
 name: label-printer-inspector
-description: OutputQueueService → OutputService → (Android: MethodChannel printLabel → LabelPrinter.java → Caysn SDK | Windows: LabelPrintOrchestrator → LabelPrinterService → autoreplyprint FFI) 데이터 흐름을 진단합니다. 라벨 누락, 중복 인쇄, paper-out/cover-up 정체, 커버열림 stuck 자동 복구(active clear), ACK timeout, paperFetch 비콘, USB stale handle 디버깅 시 컨텍스트 수집용. "라벨 누락", "라벨 디버깅", "프린터 큐", "ACK 누락", "FFI", "autoreplyprint", "커버열림", "noPaperCanceled stuck" 등의 요청에 위임.
+description: OutputQueueService → OutputService → (Android: MethodChannel printLabel → LabelPrinter.java → Caysn SDK | Windows: LabelPrintOrchestrator → LabelPrinterService → autoreplyprint FFI) 데이터 흐름을 진단합니다. 라벨 누락, 중복 인쇄, paper-out/cover-up 정체, 커버열림 stuck 자동 복구(active clear), ACK timeout, paperFetch 비콘, USB stale handle, 상세조회 실패로 메뉴 없는 주문의 라벨 생략·복구 큐 자동 재발행 디버깅 시 컨텍스트 수집용. "라벨 누락", "라벨 디버깅", "프린터 큐", "ACK 누락", "FFI", "autoreplyprint", "커버열림", "noPaperCanceled stuck", "메뉴 없어 라벨 생략", "라벨 재발행", "markPendingReprint", "복구 큐" 등의 요청에 위임.
 tools: Read, Glob, Grep, Bash
 ---
 
@@ -28,7 +28,11 @@ tools: Read, Glob, Grep, Bash
 - **비콘 dedup 캐시 (`lastLoggedPhase`, `91bc149`)**: INFO_PAPERNOFETCH 등 중복 phase 로그 차단용. **buzzer UX는 별도 — dedup이 buzzer까지 차단하면 안 됨** (paper-out 알림 누락 사고). PAPERNOFETCH 비트는 dedup 게이트 조건에서 의도적 제외.
 - **`_printLabelWithRetry` 1회 재시도 + 1.5s 딜레이** (`output_service.dart`): autoReplyMode=1 정착 후로는 이 재시도가 발화하면 거의 항상 진짜 실패. 회수 0회로 줄이지 말 것 (마진 보존). 재시도 늘리면 자동복귀 ERROR에서 다중 인쇄.
 - **Sentry 누락 보고**: 최종 실패 시 `LabelPrintMissingException`(`output_service.dart:409`) 송신. 이 경로 제거 시 라벨 누락 발견 자체가 늦어짐 — production observability의 일부.
-- **logout 정리**: `OrderProvider.cleanupOnLogout()`에 `_outputQueueService.clear()` 포함. 누락 시 로그아웃 후에도 in-flight set/큐 future가 살아 있어 다음 세션과 충돌.
+- **라벨 누락 2종 구분 — 하드웨어 실패 vs 메뉴 없음(상세조회 실패)**: 출력 실패는 원인이 **두 갈래**이고 복구 경로가 다르다.
+  1. **하드웨어/펌웨어 실패**(ACK timeout·paper-out·cover-up·USB stale 등) → 일부 라벨만 실패 시 `LabelPrintMissingException` Sentry 보고 → **운영자 [라벨 재출력] 수동 복구**. 복구 큐(`_pendingDetailReprint`)와 **무관**.
+  2. **메뉴 없음(상세조회 실패)** → `printOrderLabels`(`output_service.dart`)가 `menus.isEmpty` 시 `_prepareOrderForPrinting`(getOrderDetail) 로 메뉴 로드를 시도하고, throw(상세조회 실패) 또는 여전히 빈 메뉴면 **라벨을 조용히 생략**(상위 `라벨 출력 영역 예외` catch 로 던지지 않음) + `_orderNotifier.markPendingReprint(orderId)`. → **복구 큐가 메뉴 복구 시 자동 재발행**(운영자 개입 불필요). 로그: `[Label] {num} 상세조회 실패 — 라벨 생략, 복구 대기` 또는 `[Label] {num} 라벨 생략 (메뉴 정보 없음)` → `[PendingReprint] 출력누락 등록`. 진단 시 이 두 갈래를 먼저 가른다(2번은 라벨 프린터 자체 정상).
+- **복구 큐 재발행은 NewOrderJob 경유**: 메뉴 복구 시 재발행은 `_outputQueueService.add(order, playSound:false)`(NewOrderJob) 로 영수증+라벨을 함께 1회 재발행한다(별도 라벨 전용 재발행 경로 없음). 라벨은 평소대로 `_NewOrderLabelTail` 로 분리돼 라벨 큐에서 처리. 따라서 위 단일 진입점·3-set in-flight 락·autoReplyMode invariant 가 재발행에도 그대로 적용된다.
+- **logout 정리**: `OrderProvider.cleanupOnLogout()`에 `_outputQueueService.clear()`(in-flight set/큐) + `_pendingDetailReprint.clear()`(복구 큐, Order 소유라 별도 clear) 포함. 누락 시 로그아웃 후에도 in-flight set/큐 future 또는 stale 재발행 마킹이 살아 있어 다음 세션과 충돌.
 
 ### Windows (Dart FFI + autoreplyprint.dll)
 
@@ -59,6 +63,9 @@ tools: Read, Glob, Grep, Bash
 
 #### 시나리오 A: 라벨 누락 (Sentry `LabelPrintMissingException`)
 
+0. **먼저 누락 원인 2종을 가른다** (위 invariant "라벨 누락 2종 구분" 참조):
+   - `[Label] {num} 상세조회 실패 — 라벨 생략, 복구 대기` 또는 `라벨 생략 (메뉴 정보 없음)` + `[PendingReprint] 출력누락 등록` 이 보이면 → **메뉴 없음(상세조회 실패)** 케이스. 라벨 프린터 자체는 정상이며, 메뉴 복구 시 복구 큐가 자동 재발행한다. 이 경우 1~5번 하드웨어 진단은 불필요하고, `order-flow-inspector` 시나리오 D(복구 큐)로 넘긴다.
+   - `LabelPrintMissingException` + ERROR/paper/cover 비콘이면 → **하드웨어/펌웨어 실패** 케이스. 아래 1~5번 진행.
 1. 로그에서 `[Label] {displayNum} 큐시작` ↔ `큐완료` 사이 ERROR / 복구대기 / 떼기대기 비콘 추출
 2. `autoReplyMode` 값 확인 — 1이어야 함. 0이면 ACK 미동작으로 false 반환 가능
 3. `_printLabelWithRetry` 호출 흔적 (1.5s 딜레이 → 재호출) 발화 여부 — 발화했다면 진짜 실패에 가까움

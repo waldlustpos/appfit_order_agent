@@ -18,6 +18,8 @@ REST API (폴링)  ───────┘        │
 
 주문은 **WebSocket**(기본, 실시간)과 **REST API 폴링**(폴백)으로 수신됩니다. `OrderProvider`는 `lib/providers/order/order_*.dart` 하위의 매니저 클래스로 분해되어 있습니다. 부수 효과 서비스(알림음, 점멸, 출력)는 `lib/core/orders/`에 위치합니다.
 
+신규 주문 수신 시 상세조회(`getOrder`)가 서버오류·인터넷 순단으로 실패하면 소켓 호출부 재시도 → 폴링 안전망 트리거로 **주문 누락(silent drop)** 을 막고, 출력이 누락된 주문은 메뉴 복구 시 **복구 큐**가 자동 재발행합니다(아래 [주요 패턴](#주요-패턴) "상세조회 실패 대응 + 복구 큐" 참조).
+
 ## 상태 관리: Riverpod
 
 모든 상태는 `flutter_riverpod`를 사용하며, 장기 유지가 필요한 상태에는 `@Riverpod(keepAlive: true)`를 적용합니다. 프로바이더는 도메인별 하위 폴더로 분리됩니다 — 주문 생명주기 매니저는 `lib/providers/order/`, KDS 모드·추적은 `lib/providers/kds/`, 그 외 단일 프로바이더는 `lib/providers/` 직하. `lib/providers/providers.dart` 는 공개 표면 barrel(**export 전용**)이며, 인라인 프로바이더/상태/확장 정의는 `lib/providers/misc_providers.dart` 에 둡니다. 핵심 프로바이더:
@@ -285,6 +287,11 @@ WebSocket 푸시 / 폴링 / 자정 새로고침으로 주문 상태가 빈번히
 - **알림음/점멸/출력**: `lib/core/orders/` — `SoundService`, `BlinkService`, `OutputService`, `AlertManager`가 알림 부수 효과 처리.
 - **라벨 프린터 플랫폼 분기**: `OutputService.printOrderLabels()` 에서 `Platform.isWindows` 로 갈라짐. Windows = `LabelPrintOrchestrator` -> `LabelPrinterService` (FFI), Android = `MethodChannel printLabel` -> `LabelPrinter.java`. `OutputQueueService` 직렬화 + 3-set in-flight 락 + Sentry `LabelPrintMissingException` 은 양 플랫폼 공통. 자세한 흐름은 [라벨 프린터 파이프라인](#라벨-프린터-파이프라인) 섹션.
 - **UI 트리거는 큐 enqueue 만 (fire-and-forget)**: 영수증/라벨 재출력, 주문 취소 영수증, 신규 주문 자동 출력 등 사용자 가시적 트리거는 모두 `outputQueueServiceProvider.add*()` 호출 후 즉시 리턴. `PrinterJobQueue` 의 backoff(최대 137s) 와 `onFinalFailure` 콜백이 출력 결과/재시도 책임을 가지므로 호출자는 결과를 await 하면 안 됨. await 회귀 시 다이얼로그가 137s 까지 안 닫히는 사고. 설정 화면 "테스트 출력" 같이 결과 표시가 필요한 경우만 짧은 timeout(8s) + 시간 초과 시 백그라운드 진행 안내.
+- **상세조회 실패 대응 + 출력 누락 자동 재발행 (복구 큐)**: 서버오류(5xx)·타임아웃·인터넷 순단으로 신규 주문 상세조회(`getOrder`)가 실패할 때의 다층 방어.
+  1. **재시도** — `OrderSocketManager._fetchOrderDetailWithRetry` 가 transient(`isTransientError`: connection/receive/send timeout·connectionError·5xx)만 짧은 backoff(`[0, 0.5s, 1.5s]`, 3회)로 재시도, 4xx/취소/파싱은 즉시 실패. 호출자(소켓 상세조회) 한정 래퍼라 `getOrder` 전역/자동접수 PUT 흐름에는 영향 없음.
+  2. **폴링 안전망** — 재시도 소진 시 catch(1차·fallback)는 `_processNewOrder` 를 **직접 호출하지 않고**(부분데이터 state 진입·dedup 우회 방지) `_reportDetailFetchFailureAndRecover` 로 `OrderDetailFetchFailedException`(전용 마커 예외 — Sentry 5분 쿨다운 키 분리) 보고 + `onRefreshOrders`(=`refreshOrders`) 즉시 트리거. 폴링이 `getNewOrders` 목록으로 주문을 복구해 state 진입. 폴링 catch·출력 큐 onError 도 `captureError` 로 가시화.
+  3. **부분 데이터 차단** — 메뉴를 끝내 못 가져온 주문은 빈 영수증/라벨을 출력하지 않고 스킵(`OutputService` 영수증 분기 catch / `printOrderLabels` 의 `_prepareOrderForPrinting` throw·메뉴 생략). 프린터 하드웨어 출력 실패(`LabelPrintMissingException` 등)와는 별개 경로.
+  4. **복구 큐** — 스킵된 주문을 `Order._pendingDetailReprint` Set 에 `markPendingReprint` 로 마킹했다가, `fetchOrderDetail` 의 **API 성공 분기**(캐시 히트 분기 제외)에서 메뉴 확보 시 `_outputQueueService.add(playSound:false)` 로 영수증+라벨을 **1회** 자동 재발행. 중복 출력 0 = `_pendingDetailReprint.remove()` 동기 원자성(첫 remove 만 true) + `_inFlightNewOrders` 가드 + `menus.isNotEmpty`(빈 메뉴 재발행 차단). stale 정리는 `cleanupOnLogout` 의 `_pendingDetailReprint.clear()` + `refreshOrders` 의 `retainWhere`. 개발 재현: 개발자 옵션 "상세조회 강제 실패"(`lib/dev/order_detail_fault_injector.dart`, `kDebugMode` 게이트로 release 무해).
 - **라벨 backend FFI Isolate boxing**: Windows `WindowsLabelPrinterBackend` 의 `portEnumUsb` / `portOpenUsb` 같은 동기 SDK 호출은 USB 미연결 환경에서 main thread 를 수백ms~수초 block 한다. `_enumerateUsbPortsAsync` / `_tryOpenUsbAsync` 가 `Isolate.run` 으로 boxing 하고 handle 의 raw `address` 만 cross-isolate 로 받아 main isolate 의 instance state(`_hPrinter` / 콜백 플래그 / status beacon) 를 갱신. autoreplyprint SDK 가 cross-isolate handle 을 받아주는 점은 `_doPrintPng` 의 `posQueryPrintResult` Isolate.run 패턴이 운영에서 검증.
 - **모니터링**: `OrderAgentMonitoringContext`가 `appfit_core`의 `MonitoringContext`를 구현하여 Sentry 초기화·오류 캡처·breadcrumb를 단일 진입점에서 처리. `MonitoringSyncProvider`가 사용자/스토어 변경 시 컨텍스트를 동기화.
 - **순차 비동기 큐**: `lib/utils/serial_async_queue.dart`의 `SerialAsyncQueue<T>`로 USB 프린터·TTS 등 공유 자원 경쟁을 방지. `appfit_core`의 동일 클래스(v1.0.6 deprecated)에서 자체 구현으로 이전됨. `OutputQueueService`가 대표 사용처.

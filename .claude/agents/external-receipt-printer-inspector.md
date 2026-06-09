@@ -1,6 +1,6 @@
 ---
 name: external-receipt-printer-inspector
-description: OutputQueueService → ExternalReceiptPrinter → PrinterJobQueue → (Android: AndroidUsbTransport → MethodChannel printReceiptBytes → UsbReceiptPrinter.java → bulkTransfer | Windows: WindowsTransport → ComPortPrintService (COM + DLE EOT 1 probe) → SerialPort writeBytes) 외부 영수증 프린터 파이프라인을 진단합니다. 점유 충돌(BUSY) backoff 7회 (0/2/5/10/20/40/60s 누적 137s), false-success (USB-Serial CDC 가상 COM bus power 살아있음), 좀비 연결(전원 OFF 인데 USB detach broadcast 미발생), USB 인터페이스 분기 오인식 (NXP composite CDC tier 0 / ASIX BLOCKLIST), 재출력 무반응, settle warm/cold, 권한 다이얼로그, COM probe 폴링 등의 진단 시 컨텍스트 수집용. "외부 프린터 영수증 안 나옴", "재출력 무반응", "COM 포트 출력 실패", "USB 좀비 연결", "점유 충돌", "프린터 backoff", "PR800 출력", "D3MINI 출력", "ESC/POS", "DLE EOT", "false-success" 등의 요청에 위임.
+description: OutputQueueService → ExternalReceiptPrinter → PrinterJobQueue → (Android: AndroidUsbTransport → MethodChannel printReceiptBytes → UsbReceiptPrinter.java → bulkTransfer | Windows: WindowsTransport → ComPortPrintService (COM + DLE EOT 1 probe) → SerialPort writeBytes) 외부 영수증 프린터 파이프라인을 진단합니다. 점유 충돌(BUSY) backoff 7회 (0/2/5/10/20/40/60s 누적 137s), false-success (USB-Serial CDC 가상 COM bus power 살아있음), 좀비 연결(전원 OFF 인데 USB detach broadcast 미발생), USB 인터페이스 분기 오인식 (NXP composite CDC tier 0 / ASIX BLOCKLIST), 재출력 무반응, settle warm/cold, 권한 다이얼로그, COM probe 폴링, 상세조회 실패로 메뉴 없는 주문의 영수증 스킵(enqueue 전 차단)·복구 큐 자동 재발행 진단 시 컨텍스트 수집용. "외부 프린터 영수증 안 나옴", "재출력 무반응", "COM 포트 출력 실패", "USB 좀비 연결", "점유 충돌", "프린터 backoff", "PR800 출력", "D3MINI 출력", "ESC/POS", "DLE EOT", "false-success", "메뉴 없어 영수증 스킵", "영수증 재발행", "markPendingReprint", "복구 큐" 등의 요청에 위임.
 tools: Read, Glob, Grep, Bash
 ---
 
@@ -11,7 +11,7 @@ tools: Read, Glob, Grep, Bash
 
 ## 비명시적 Invariant (코드에서 찾기 어려운 규칙)
 
-이것들은 위반해도 컴파일러가 잡지 못하므로 사람이 의식적으로 점검해야 합니다. 총 **9 + 17 + 18 = 44개** (공통 / Android / Windows).
+이것들은 위반해도 컴파일러가 잡지 못하므로 사람이 의식적으로 점검해야 합니다. 총 **10 + 17 + 18 = 45개** (공통 / Android / Windows).
 
 ### 공통 (PrinterJobQueue + UI + 매트릭스)
 
@@ -24,6 +24,7 @@ tools: Read, Glob, Grep, Bash
 - **C7. `PrinterJob.bytes` 는 backoff 재시도 시 동일 Uint8List 재사용**: immutable 이라 race 없음(`printer_job_queue.dart:22-23, 134-184`). 7회 시도 동안 영수증 hex 동일성 보장 — Java native `printReceiptBytes` 가 매번 같은 bytes 로 호출됨.
 - **C8. `PrinterTransportResult` sealed class 4종 — Success/Busy/NoDevice/TransportError**: Busy/NoDevice/TransportError 모두 동일 backoff 대상이지만 로깅 분류용(`printer_transport.dart:13-43`). transport 가 임의의 새 결과 타입 도입 못 함(sealed). 매핑 표를 손대면 backoff 의미가 무너짐.
 - **C9. UI fire-and-forget**: `PrintActionButton` debounce(1초) + `OutputQueueService.addReceiptReprint` 동기 enqueue 구조라 UI progress 가 큐 backoff 137s 에 묶이지 않음(`lib/widgets/common/print_action_button.dart`, `output_queue_service.dart:115-118`). debounce 누락 회귀 시 더블클릭으로 큐 N개 적체.
+- **C10. 영수증 미출력 2종 구분 — PrinterJobQueue 도달 vs enqueue 전 스킵(상세조회 실패→복구 큐)**: "외부 영수증 안 나옴" 의 원인이 **두 갈래**다. (1) **하드웨어/점유**(BUSY backoff 7회·NoDevice·false-success·좀비 연결) → `PrinterJobQueue.enqueue` 까지 **도달**하므로 `[PrinterQueue] enqueue id=... kind=receipt` 로그가 있고 backoff/`onFinalFailure` Sentry 가 따른다. 복구 큐와 무관. (2) **메뉴 없음(상세조회 실패)** → `OutputService.notifyNewOrder` 영수증 분기가 `_prepareOrderForPrinting`(getOrderDetail) throw 를 catch 해 **`printOrderReceipt` 를 아예 호출하지 않고**(=PrinterJobQueue enqueue 안 됨) 영수증을 스킵 + `OrderDetailFetchFailedException`(source:'receipt') Sentry 보고 + `_orderNotifier.markPendingReprint(orderId)`. 로그: `[Receipt] {num} 상세조회 실패 — 영수증 인쇄 스킵` + `[PendingReprint] 출력누락 등록`, **enqueue 로그 없음**. 이 경우 메뉴 복구 시 복구 큐(`_pendingDetailReprint`)가 `_outputQueueService.add(NewOrderJob, playSound:false)` 로 영수증+라벨을 1회 자동 재발행(`order_provider.dart` `fetchOrderDetail` 성공, `[PendingReprint] 메뉴 복구 → 자동 재발행`). **진단 1순위: `enqueue` 로그 유무로 두 갈래를 먼저 가른다** — enqueue 없으면 외부 프린터 자체는 정상이고 상세조회/복구 큐(`order-flow-inspector` 시나리오 D) 문제다. 복구 큐 마킹은 "메뉴 없음" 한정이며 프린터 하드웨어 final-failure 와는 무관(logout 시 `cleanupOnLogout` 의 `_pendingDetailReprint.clear()` 로 정리).
 
 ### Android (UsbReceiptPrinter + MethodChannel)
 

@@ -1,6 +1,6 @@
 ---
 name: order-flow-inspector
-description: WebSocket → OrderProvider → OrderState → UI 데이터 흐름을 진단합니다. 자동접수 race, 상태 다운그레이드, WebSocket/폴링 이중 소스 충돌, 캐시 매니저 디버깅 시 컨텍스트 수집용. "주문 흐름", "WebSocket 디버깅", "상태 추적" 등의 요청에 위임.
+description: WebSocket → OrderProvider → OrderState → UI 데이터 흐름을 진단합니다. 자동접수 race, 상태 다운그레이드, WebSocket/폴링 이중 소스 충돌, 캐시 매니저, 상세조회(getOrder) 실패 시 재시도·폴링 안전망·silent drop 방지, 출력 누락 자동 재발행 복구 큐 디버깅 시 컨텍스트 수집용. "주문 흐름", "WebSocket 디버깅", "상태 추적", "상세조회 실패", "주문 누락", "복구 큐", "출력 재발행", "markPendingReprint", "상세조회 강제 실패 fault injector" 등의 요청에 위임.
 tools: Read, Glob, Grep, Bash
 ---
 
@@ -19,7 +19,9 @@ tools: Read, Glob, Grep, Bash
 - **상태 다운그레이드 차단**: `_resolveMergedStatus()`(`order_provider.dart`)가 모든 머지 지점에 적용되어야 함. 순서는 NEW < PREPARING < READY < DONE, CANCELLED는 터미널.
 - **ProcessedOrderCache API 일관성**: 소켓·폴링 양 경로 모두 `containsOrderStatus` / `addOrderStatus`만 사용. raw `contains`/`add` 잔재가 있으면 키 포맷 불일치로 회귀 발생.
 - **KDS NEW 차단 단일 정책**: 소켓(dispatcher 콜백)·폴링 두 곳 모두 `appfit_core.OrderEventIgnorePolicy.ignoreNewOrderInKdsMode` **직접 호출**. 도메인 래퍼 잔존 시 정책 분기 누락 가능.
-- **logout 정리 항목**: `cleanupOnLogout()`이 `_outputQueueService.clear()` + `_autoAcceptingOrderIds.clear()` + AudioPlayer 안전 dispose를 모두 포함해야 함.
+- **logout 정리 항목**: `cleanupOnLogout()`이 `_outputQueueService.clear()` + `_autoAcceptingOrderIds.clear()` + `_selfAcceptedOrderIds.clear()` + `_pendingDetailReprint.clear()`(복구 큐) + AudioPlayer 안전 dispose를 모두 포함해야 함. `_outputQueueService.clear()` 는 OutputQueueService 내부 Set 만 비우므로 Order 소유 `_pendingDetailReprint` 는 **별도** clear 가 필수(누락 시 다음 세션으로 stale 마킹 누수).
+- **상세조회(getOrder) 실패 대응 — silent drop 방지**: 소켓 신규 주문(`_handleAppFitEvent`)에서 `getOrder` 를 **직접** 부르지 않고 `_fetchOrderDetailWithRetry(orderId, shopCode)` 경유. transient(`isTransientError`: `DioException` 의 connection/receive/send timeout·connectionError·5xx)만 `_detailFetchBackoffs`(`[0, 0.5s, 1.5s]`, 3회) 재시도, 4xx/취소/파싱은 즉시 rethrow. 재시도 소진 시 catch(1차·fallback 양쪽)는 `_processNewOrder` 를 **직접 호출하지 않고** `_reportDetailFetchFailureAndRecover` 로 (1) `OrderDetailFetchFailedException` Sentry 보고 + (2) `onRefreshOrders?.call()`(=refreshOrders 폴링 안전망) 트리거만 수행. catch 에서 `_processNewOrder` 직접 호출은 부분데이터 state 진입 + dedup 우회 회귀. 폴링 catch(`_pollNewOrders`)·출력 큐 onError 도 `captureError` 로 가시화.
+- **출력 누락 자동 재발행 복구 큐**: 상세조회 실패로 빈 영수증/라벨이 스킵된 주문을 `_pendingDetailReprint` Set 에 마킹했다가 메뉴 복구 시 1회 재발행. 마킹 진입점은 **`OutputService` 2곳뿐**(`notifyNewOrder` 영수증 분기 catch / `printOrderLabels` 의 `_prepareOrderForPrinting` throw·메뉴 생략) — 둘 다 "상세조회 실패로 메뉴 없음" 케이스. **프린터 하드웨어 출력 실패(BUSY/용지없음/ACK timeout/`LabelPrintMissingException`)는 이 큐와 무관**(기존 운영자 수동 재출력 경로 유지). 소비는 `fetchOrderDetail` **API 성공 분기 한 곳**(`order_provider.dart`): `if (mergedOrder.menus.isNotEmpty && _pendingDetailReprint.remove(orderId)) _outputQueueService.add(mergedOrder, playSound: false)`. **캐시 히트 분기에는 절대 미삽입**(캐시히트=메뉴 확보 이력=복구 대상 아님 + `_loadingOrderIds` 우회 race 회피). 중복 출력 0 = remove 동기 원자성(첫 remove 만 true) + `_inFlightNewOrders` 가드 + `menus.isNotEmpty`(빈 메뉴 재발행 차단·pending 이월). stale 정리는 `refreshOrders` 의 `retainWhere((id)=>state.orders.any(...))` + `cleanupOnLogout` clear.
 - **OutputQueueService 이중 큐 진짜 병렬화**: `_receiptQueue` / `_labelQueue` 가 별개 `SerialAsyncQueue<OutputJob>` worker. `NewOrderJob._processReceiptItem` 안에서 라벨 부분(`_NewOrderLabelTail`) 을 **영수증 await 보다 먼저** `_labelQueue.add()` 로 enqueue 해야 함(`output_queue_service.dart:160-188`). 영수증 await 후 enqueue 회귀 시 외부 PrinterJobQueue backoff(최대 137s) 동안 라벨 출력이 막히는 사고 직행. 라벨/영수증 별개 본체 가정 — 영수증→라벨 출력 순서 보장 X (의도된 trade-off).
 - **OutputQueueService 로그 prefix**: `[ReceiptQueue]` / `[LabelQueue]` 로 큐별 추적(`output_queue_service.dart:74-99, 167-244`). `[Label] [receipt-queue]` / `[label-queue]` 패턴 회귀 시 grep 분리 어려움. `[Label]` 단독 prefix 는 `OutputService.printOrderLabels` 의 운영 식별자(★ 누락 마커 포함) 전용 — `OutputQueueService` 안에서 재사용 금지.
 - **UI 트리거는 fire-and-forget**: 신규 주문(자동) / 영수증 재출력 / 라벨 재출력 / 주문 취소 영수증 모두 `outputQueueServiceProvider.add*()` 호출 후 즉시 리턴. `PrinterJobQueue` backoff(최대 137s) + `onFinalFailure` 콜백이 결과/재시도 책임. 호출자가 await 하면 다이얼로그/버튼이 137s 까지 안 풀리는 사고(`order_provider.dart:1187-1205` 의 `printCancelReceiptById` 가 `unawaited` 처리된 reference). `await ref.read(outputAppServiceProvider).printCancelReceiptById(...)` 같은 회귀 grep 으로 잡기.
@@ -73,6 +75,17 @@ tools: Read, Glob, Grep, Bash
    ```
    `initState`/`didUpdateWidget`/`ref.listen` 안에서의 호출은 허용. ConsumerWidget 의 `build` 직속에서 등록되는 패턴은 회귀.
 6. **`ListView.builder` ValueKey 확인**: 정렬 가능 리스트(`order_section_widget.dart` 등)의 itemBuilder 반환부에 `ValueKey(item.orderId)` 부여 여부.
+
+### 시나리오 D: 상세조회 실패 → 복구 큐 자동 재발행
+
+서버오류(5xx)·타임아웃·인터넷 불안정으로 주문 상세조회가 실패할 때 "주문/출력 누락 → 메뉴 복구 시 자동 재발행" 흐름을 추적. 개발자 옵션 "상세조회 강제 실패"(`lib/dev/order_detail_fault_injector.dart`, 503/404/timeout) 로 재현 가능.
+
+1. **재시도 게이트**: `order_socket_manager.dart` `_fetchOrderDetailWithRetry` / `isTransientError` — transient 판정(5xx/타임아웃/connection)만 재시도, 4xx 즉시 실패인지. `_detailFetchBackoffs` 길이(3)와 간격. 로그 `[AppFit] 상세조회 일시 실패(재시도 N/3)`.
+2. **소진 후 복구 트리거**: catch 가 `_processNewOrder` 직접 호출이 아니라 `_reportDetailFetchFailureAndRecover`(Sentry 보고 + `onRefreshOrders`) 인지. 로그 `[AppFit] 주문 상세 조회 실패` → `[refreshOrders] 시작`. 폴링이 `getNewOrders`(메뉴 없는 목록)로 주문을 복구해 state 진입.
+3. **누락 마킹**: `output_service.dart` 의 영수증 catch / `printOrderLabels` 에서 `_orderNotifier.markPendingReprint(orderId)`. 로그 `[PendingReprint] 출력누락 등록: {orderId}`. (한 주문이 영수증·라벨 양쪽에서 마킹돼도 Set 멱등.)
+4. **소비/재발행**: `order_provider.dart` `fetchOrderDetail` **API 성공 분기**에서 `menus.isNotEmpty && _pendingDetailReprint.remove(orderId)` → `_outputQueueService.add(playSound:false)`. 로그 `[PendingReprint] 메뉴 복구 → 자동 재발행: {orderId}`. **캐시 히트 분기에 같은 hook 이 들어가 있으면 회귀**(중복/우회).
+5. **중복 출력 0**: 같은 주문에 fetchOrderDetail 이 다중 경로(카드 mount / KDS 폴링 `_fetchDetailsForVisibleOrders`)로 동시 호출돼도 재발행이 1회뿐인지 — remove 원자성 + `_inFlightNewOrders`(output_queue_service.dart) 가드 확인.
+6. **stale 정리**: `cleanupOnLogout` 의 `_pendingDetailReprint.clear()` + `refreshOrders` 의 `retainWhere` 존재 여부(메모리 누수·날짜 경계 collision 방지).
 
 ## 출력 형식
 
