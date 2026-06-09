@@ -61,8 +61,6 @@ class LabelPainter extends CustomPainter {
   static const double fsSubInfo = 22;
   static const double fsMenuName = 28;
   static const double fsOrderNo = 85; //주문번호사이즈
-  // 식별번호(주문 내 순서) 사이즈 — 상품명(28) < 식별번호 < 주문번호(85).
-  static const double fsOrderIndex = 40;
   static const double fsSectionTitle = 22;
   static const double fsOptionItem = 21;
   static const double fsDetailContent = 22;
@@ -134,8 +132,8 @@ class LabelPainter extends CustomPainter {
         _drawText(
           canvas,
           '$orderIndex/$orderTotal',
-          Offset(size.width - defaultMargin, startY),
-          fontSize: fsOrderIndex,
+          Offset(size.width - defaultMargin, startY + 5),
+          fontSize: fsSubInfo,
           isBold: true,
           align: TextAlign.right,
         );
@@ -155,8 +153,8 @@ class LabelPainter extends CustomPainter {
         _drawText(
           canvas,
           '$orderIndex/$orderTotal',
-          Offset(size.width - defaultMargin, startY),
-          fontSize: fsOrderIndex,
+          Offset(size.width - defaultMargin, startY + 5),
+          fontSize: fsSubInfo,
           isBold: true,
           align: TextAlign.right,
         );
