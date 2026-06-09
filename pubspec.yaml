@@ -153,13 +153,6 @@ flutter:
     - assets/icons/
     # - .env
   fonts:
-    - family: SpoqaHanSansNeo
-      fonts:
-        - asset: assets/fonts/SpoqaHanSansNeo-Bold.ttf
-        - asset: assets/fonts/SpoqaHanSansNeo-Light.ttf
-        - asset: assets/fonts/SpoqaHanSansNeo-Medium.ttf
-        - asset: assets/fonts/SpoqaHanSansNeo-Regular.ttf
-        - asset: assets/fonts/SpoqaHanSansNeo-Thin.ttf
     - family: Pretendard
       fonts:
         - asset: assets/fonts/Pretendard-Light.otf
