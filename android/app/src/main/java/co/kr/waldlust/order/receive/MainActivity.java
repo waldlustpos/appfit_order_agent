@@ -644,11 +644,15 @@ public class MainActivity extends FlutterActivity {
         String slug = prefs.getString(KEY_BRAND_SLUG, "");
         String mode = prefs.getString(KEY_DUAL_MONITOR_MODE, "");
         DisplayManager cDisplayManager = (DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
-        Display[] cDisplays = cDisplayManager.getDisplays();
+        // Use the PRESENTATION category so only real external/secondary displays are
+        // returned (the default display and virtual/overlay displays are excluded).
+        // Plain getDisplays() counts virtual displays too, which made non-D3 devices
+        // falsely report a front monitor.
+        Display[] cDisplays = cDisplayManager.getDisplays(DisplayManager.DISPLAY_CATEGORY_PRESENTATION);
         DISPLAY_LENGTH = cDisplays.length;
         Log.e("cDisplays.length", String.valueOf(cDisplays.length));
-        if (cDisplays.length > 1) {
-            dualMonitorPresentation = new DualMonitorPresentation(this, cDisplays[1], storeId, slug, mode);
+        if (cDisplays.length > 0) {
+            dualMonitorPresentation = new DualMonitorPresentation(this, cDisplays[0], storeId, slug, mode);
             Log.d("MainActivity", "showDualMonitor()");
             dualMonitorPresentation.show();
         } else {
@@ -939,7 +943,11 @@ public class MainActivity extends FlutterActivity {
     public Map<String, Object> getDualMonitorCapability(String slug) {
         Map<String, Object> result = new HashMap<>();
         DisplayManager dm = (DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
-        boolean hasSecondaryDisplay = dm != null && dm.getDisplays().length > 1;
+        // Only count presentation-capable secondary displays; plain getDisplays()
+        // includes virtual/overlay displays and falsely reported a front monitor on
+        // non-D3 devices.
+        boolean hasSecondaryDisplay = dm != null
+                && dm.getDisplays(DisplayManager.DISPLAY_CATEGORY_PRESENTATION).length > 0;
         String pkg = getPackageName();
         int rawId = (slug == null || slug.isEmpty())
                 ? 0 : getResources().getIdentifier(DUAL_MONITOR_RES_PREFIX + slug, "raw", pkg);
