@@ -37,11 +37,11 @@
 
 **핵심 발견 (수정 후보 — 테스트 보호 확보됨, 별도 커밋으로)**:
 1. **폴링 전용 경로 dead wiring**: OrderTimerManager 가 onRefreshOrders 만 호출 — `_pollNewOrders→_mergeOrdersIntoUnfilteredList` 전체가 도달 불가. 3-way 유입은 실질 **2-way**. Phase 2 항목 1은 "병합 지점 신설"이 아니라 **dead 경로 삭제 vs 복구 결정**으로 재정의
-2. [코어] `AppFitConfig.packageVersion`(1.0.10) ↔ pubspec(1.0.11) 동기화 누락 재발 — 다음 릴리즈(release.sh)에서 자동 교정되나 v1.0.11 소비자는 잘못된 버전 문자열 보고 중
-3. [코어] TokenManager in-flight 발급 합류 시 shopCode 불일치 검증 없음 — SHOP_B 가 SHOP_A 토큰 수신 가능
-4. [앱] OrderQueueManager 크로스 스테이지 중복 차단이 NEW 대기 중 상태 전이(DONE 등)를 drop — 상태 유실 가능
-5. [앱] 소켓 유입은 append 만(orderedAt 재정렬 없음) — 소켓 단독 유입 구간에서 UI 순서 역전 가능
-6. [앱] fromJson 타입 방어 구멍 목록 확보(orderedAt 숫자 크래시, qty as num, StoreModel as String 등) — **Phase 1 항목 4 후속: 방어 코드 커밋이 다음 작업**
+2. ~~[코어] `AppFitConfig.packageVersion`(1.0.10) ↔ pubspec(1.0.11) 동기화 누락~~ → **해결** (fix/token-shopcode-join 브랜치, 릴리즈 전 선반영)
+3. ~~[코어] TokenManager in-flight 발급 합류 시 shopCode 불일치 검증 없음~~ → **해결** (fix/token-shopcode-join — shopCode 일치 시에만 합류, 테스트 갱신). **코어 변경 누적분(connector seam + 이 수정)은 v1.0.12 minor 릴리즈 필요**
+4. [앱] OrderQueueManager 크로스 스테이지 중복 차단이 NEW 대기 중 상태 전이(DONE 등)를 drop — 상태 유실 가능 (행동 변경 — Phase 2 카나리와 함께)
+5. [앱] 소켓 유입은 append 만(orderedAt 재정렬 없음) — UI 순서 역전 가능 (행동 변경 — Phase 2 정렬 정본 작업과 함께)
+6. ~~[앱] fromJson 타입 방어 구멍~~ → **해결** (fix/fromjson-defense — 방어 코드 + 테스트 기대 갱신. 잔여: updateTime 동일 패턴 미적용)
 7. [앱] settings/login 등 화면별 세부 quirk 은 각 테스트 파일 주석 참조
 
 ## Phase 2 — 중기: 구조 리팩토링 (항목당 독립 릴리즈 + 1매장 카나리 1주 권장)
