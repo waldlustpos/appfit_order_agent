@@ -101,12 +101,16 @@ android/gradle_build_info.txt
 temp_*.java
 appfit_legacy_backup/
 external/
-docs/
+# docs 는 화이트리스트 방식: 디렉토리 자체(docs/)를 제외하면 git 이 하위
+# 재포함(!)을 무시하므로 docs/* 패턴이어야 negation 이 동작한다.
+docs/*
 !docs/FLUTTER_GUIDELINES.md
 !docs/ARCHITECTURE.md
 !docs/BUILD.md
 !docs/WINDOWS_LABEL_PRINTER_GUIDE.md
 !docs/BRAND_ASSETS.md
+!docs/FEATURES.md
+!docs/REFACTORING.md
 
 # AppFit Generated
 lib/services/appfit/*.g.dart

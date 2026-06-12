@@ -32,6 +32,15 @@ REST API (폴링)  ───────┘        │
 
 추가 프로바이더(`brand_theme`, `kds_order_tracking`, `order_detail`, `order_history`, `membership`, `product`, `currency`, `lifecycle`, `rotation`, `store`, `app_info` 등)는 `lib/providers/` 와 그 하위(`order/` · `kds/`)에서 직접 탐색합니다. 화면에서는 `ConsumerWidget` / `ConsumerStatefulWidget`을 사용하여 `ref.watch()` / `ref.read()`로 접근합니다.
 
+### OrderProvider ↔ 매니저 계약
+
+`OrderProvider`(`lib/providers/order/order_provider.dart`)는 6개 매니저에 위임하는 코디네이터입니다. 매니저를 수정할 때 지켜야 할 현재 계약:
+
+- **초기화**: 매니저는 `late` 필드로 선언되고 `build()`에서 정확히 1회 생성됩니다. `build()` 밖에서 재할당 금지.
+- **lifecycle guard**: `BlinkService`/`OrderQueueService` 등 부수 효과 서비스는 `!_isLoggedOut` 가드 하에 조건부 init 되며, `ref.onDispose`도 같은 가드로 정리합니다. 가드 조건을 바꾸면 init/dispose 양쪽을 함께 바꿔야 합니다.
+- **state 변이 방향**: 원칙적으로 `state = state.copyWith(...)` 변이는 provider 본체에서만 수행합니다. 매니저는 값을 반환하거나 콜백(`onRefreshOrders` 등)으로 provider 에 위임합니다. 현재 일부 콜백 경로가 양방향(매니저→provider→매니저)으로 얽혀 있으며, 이 단일화는 [REFACTORING.md](REFACTORING.md) Phase 2 과제입니다 — 새 코드가 이 얽힘을 늘리지 않도록 주의.
+- **데이터 유입 3경로**: 소켓(`queueOrderExternal`) / 폴링(`_processPollingNewOrders`) / 수동(`refreshOrders`)이 각자 dedup·정렬을 수행합니다. 정렬 기준의 정본은 `orderedAt` 입니다(`shopOrderNo`는 단조증가 비보장 — order_provider.dart 내 주석 참조). 새 유입 경로 추가 금지, 기존 3경로의 가드(`ProcessedOrderCache`, `RecentRemovals`)를 우회하는 빠른 경로 추가 금지.
+
 > 개발 전용 코드(`mock_order_generator`, `socket_burst_test` 등 출고 빌드에 불필요한 도구)는 프로덕션 코드와 섞지 않고 `lib/dev/` 에 격리합니다.
 
 ## 서비스 레이어 (`lib/services/`)

@@ -60,7 +60,9 @@
 ### Riverpod 사용 규칙
 - 새 프로바이더는 `@Riverpod` 어노테이션 + `riverpod_generator` 사용
 - 앱 생명주기 동안 유지해야 하는 상태에는 `@Riverpod(keepAlive: true)` 적용
+- **keepAlive 판단 기준**: 화면 전환·구독 해제 후에도 값이 유지되어야 하면 `keepAlive: true`(도메인 상태·설정·모드 토글 등 대부분), 화면을 벗어나면 초기화되는 것이 맞는 일시 상태만 autoDispose(기본값). 같은 도메인의 프로바이더 그룹(예: `kds_unified_providers.dart`) 안에서는 keepAlive 여부를 통일
 - 간단한 상태에는 `StateProvider` 사용 가능 (예: `homeTabIndexProvider`)
+- 수동 `StateNotifierProvider`는 예외적으로만 허용 — 유일한 예외는 `BlinkStateNotifier`(생성자에서 `Timer.periodic` + `ref.listen` 초기화가 `@riverpod build()` 구조와 맞지 않음). 새 프로바이더에 수동 패턴을 쓰려면 같은 수준의 구조적 사유가 필요
 - 비동기 데이터 로딩에는 `AsyncValue` 타입으로 로딩/에러 상태를 명확히 처리
 - UI에서의 구분: 상태 구독은 `ref.watch()`, 일회성 읽기는 `ref.read()` 사용
 - 프로바이더 생성 후 반드시 `dart run build_runner build --delete-conflicting-outputs` 실행
@@ -71,6 +73,13 @@
 - `toJson()` 메서드와 `copyWith()` 메서드 수동 구현
 - JSON 파싱 실패에 대비한 `try-catch`, `tryParse()` 등 안전한 파싱 적용
 - Enum은 `fromCode()` 팩토리로 서버 코드와 매핑 (예: `OrderStatus.fromCode('2003')`)
+
+### 모델 동등성 구현 (==/hashCode)
+- 모델에 `operator ==`를 정의하면 `hashCode`도 반드시 함께 정의 — `a == b`이면 `a.hashCode == b.hashCode` 계약 유지
+- List 필드는 `listEquals()`로 깊은 비교, hashCode 에는 `Object.hashAll(list)` 사용 — `list.length`만 비교/해시하면 내용이 다른 객체가 equal 판정됨 (OrderMenuModel.options 실버그 사례)
+- 중첩 모델(예: `MenuOptionModel`)도 값 기반 `==`/`hashCode`를 정의해야 상위 모델의 `listEquals`가 의미를 가짐
+- 비교 키에서 의도적으로 제외하는 필드(mutable 필드, 내부 캐시, 파생값)는 `OrderModel.==` 상단처럼 주석으로 명시
+- `==` 변경 시 사용처 영향 사전 확인: Set/Map 키 사용, `contains`/`indexOf`/`remove`, `listEquals` 호출 지점을 grep — 동등성 테스트(`test/models/`)에 케이스 추가 필수
 
 ### Navigator 라우팅
 - `MaterialApp`의 `routes` 맵에 고정 라우트 정의 (`/login`, `/home`, `/settings`)
