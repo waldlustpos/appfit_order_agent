@@ -46,4 +46,17 @@ class MenuOptionModel {
   String toString() {
     return 'MenuOptionModel: $shopOptionId : $optionName : $optionPrice : $qty';
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is MenuOptionModel &&
+        shopOptionId == other.shopOptionId &&
+        optionName == other.optionName &&
+        optionPrice == other.optionPrice &&
+        qty == other.qty;
+  }
+
+  @override
+  int get hashCode => Object.hash(shopOptionId, optionName, optionPrice, qty);
 }

@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import 'package:appfit_order_agent/models/menu_option_model.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 
@@ -114,7 +116,7 @@ class OrderMenuModel {
         totalAmount == other.totalAmount &&
         discPrc == other.discPrc &&
         vatPrc == other.vatPrc &&
-        options.length == other.options.length;
+        listEquals(options, other.options);
   }
 
   @override
@@ -127,6 +129,6 @@ class OrderMenuModel {
         totalAmount,
         discPrc,
         vatPrc,
-        options.length,
+        Object.hashAll(options),
       );
 }

@@ -1,8 +1,13 @@
+import 'package:appfit_order_agent/models/menu_option_model.dart';
 import 'package:appfit_order_agent/models/order_menu_model.dart';
 import 'package:appfit_order_agent/models/order_model.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-OrderMenuModel _menu({String shopItemId = 'sku-1', int qty = 2}) {
+OrderMenuModel _menu({
+  String shopItemId = 'sku-1',
+  int qty = 2,
+  List<MenuOptionModel> options = const [],
+}) {
   return OrderMenuModel(
     orderNo: 'order-1',
     shopItemId: shopItemId,
@@ -12,7 +17,7 @@ OrderMenuModel _menu({String shopItemId = 'sku-1', int qty = 2}) {
     totalAmount: 4500.0 * qty,
     discPrc: 0,
     vatPrc: 0,
-    options: const [],
+    options: options,
   );
 }
 
@@ -71,10 +76,25 @@ void main() {
       expect(a == b, isFalse);
     });
 
-    test('menus 동일 → ==', () {
+    test('menus 동일 → == + hashCode 동일', () {
       final a = _build(menus: [_menu(), _menu(shopItemId: 'sku-2')]);
       final b = _build(menus: [_menu(), _menu(shopItemId: 'sku-2')]);
       expect(a, equals(b));
+      expect(a.hashCode, equals(b.hashCode));
+    });
+
+    test('menus의 옵션 내용만 다르면 != (개수 동일, 깊은 비교)', () {
+      final optA = MenuOptionModel(
+          shopOptionId: 'opt-a', optionName: '샷 추가', optionPrice: 500, qty: 1);
+      final optB = MenuOptionModel(
+          shopOptionId: 'opt-b', optionName: '시럽 추가', optionPrice: 300, qty: 1);
+      final a = _build(menus: [
+        _menu(options: [optA])
+      ]);
+      final b = _build(menus: [
+        _menu(options: [optB])
+      ]);
+      expect(a == b, isFalse);
     });
   });
 

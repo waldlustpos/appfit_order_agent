@@ -587,8 +587,8 @@ class OrderModel {
           orderType,
           storeId,
           userId,
-          menus.length,
-          discountTypes.length,
+          Object.hashAll(menus),
+          Object.hashAll(discountTypes),
         ),
       );
 }
