@@ -84,9 +84,6 @@ SignKey
 LightsailDefaultKey-ap-northeast-3.pem
 *.apk
 *.aab
-.env
-.env
-!.env
 
 
 
