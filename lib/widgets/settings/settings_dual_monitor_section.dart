@@ -4,7 +4,7 @@ import 'package:appfit_order_agent/i18n/strings.g.dart';
 import 'package:appfit_order_agent/constants/app_styles.dart';
 import 'package:appfit_order_agent/providers/brand_provider.dart';
 import 'package:appfit_order_agent/providers/dual_monitor_provider.dart';
-import 'package:appfit_order_agent/services/preference_service.dart';
+import 'package:appfit_order_agent/providers/preference_provider.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/widgets/settings/settings_section_card.dart';
 import 'package:appfit_order_agent/widgets/settings/settings_item_widget.dart';
@@ -34,7 +34,7 @@ class _SettingsDualMonitorSectionState
   @override
   void initState() {
     super.initState();
-    _explicitMode = PreferenceService().getDualMonitorMode();
+    _explicitMode = ref.read(preferenceServiceProvider).getDualMonitorMode();
   }
 
   @override
@@ -131,7 +131,7 @@ class _SettingsDualMonitorSectionState
   }
 
   Future<void> _onSelect(_DualMode mode) async {
-    await PreferenceService().setDualMonitorMode(mode.name);
+    await ref.read(preferenceServiceProvider).setDualMonitorMode(mode.name);
     await PlatformService.setDualMonitorMode(mode.name);
     logToFile(tag: LogTag.UI_ACTION, message: '듀얼모니터 콘텐츠 모드 변경: ${mode.name}');
     if (!mounted) return;

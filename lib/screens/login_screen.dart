@@ -102,7 +102,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     _checkUsbDevices();
 
     // 저장된 서버 환경 로드
-    _selectedEnv = PreferenceService().getEnvironment();
+    _selectedEnv = ref.read(preferenceServiceProvider).getEnvironment();
 
     // 텍스트 필드 리스너는 불필요 — 로그인 버튼에서 ListenableBuilder로 처리
 
@@ -119,7 +119,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
       // 업데이트 체크 (권한 요청 후) - 자동 업데이트 설정에 따라 게이팅
       if (mounted) {
-        final preferenceService = PreferenceService();
+        final preferenceService = ref.read(preferenceServiceProvider);
         if (preferenceService.getAutoCheckUpdate()) {
           await _checkForUpdate(); // 내부에서 _performAutoLogin() 호출
         } else {
@@ -191,7 +191,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   }
 
   Future<void> _loadSavedLoginInfo() async {
-    final preferenceService = PreferenceService();
+    final preferenceService = ref.read(preferenceServiceProvider);
 
     // V2 마이그레이션: 구앱 ID 매핑 처리
     await _handleV2IdMapping(preferenceService);
@@ -254,7 +254,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   }
 
   Future<void> _saveLoginInfo() async {
-    final preferenceService = PreferenceService();
+    final preferenceService = ref.read(preferenceServiceProvider);
 
     logger.i('로그인 정보 저장: _isKdsMode=$_isKdsMode');
 
@@ -363,7 +363,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   /// 자동 로그인 수행
   Future<void> _performAutoLogin() async {
     try {
-      final preferenceService = PreferenceService();
+      final preferenceService = ref.read(preferenceServiceProvider);
       final isAutoLogin = preferenceService.getIsAutoLogin();
       final savedId = preferenceService.getId();
 
@@ -405,7 +405,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   }
 
   Future<void> _loadKdsModeSetting() async {
-    final preferenceService = PreferenceService();
+    final preferenceService = ref.read(preferenceServiceProvider);
     final isKdsMode = preferenceService.getKdsMode();
     setState(() {
       _isKdsMode = isKdsMode;
@@ -448,7 +448,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         ref.invalidate(currentBrandProvider);
 
         // 자동 업데이트 강제 브랜드(현재 TPCP) + SUNMI 는 자동 업데이트 체크 ON 유지
-        final prefService = PreferenceService();
+        final prefService = ref.read(preferenceServiceProvider);
         if (!prefService.getUpdateTpcpOverrideDone()) {
           final forceAutoUpdate = BrandRegistry.resolveOrNull(storeId)
                   ?.has(BrandFeature.autoUpdateForce) ??
@@ -1134,7 +1134,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     // 이전 환경 잔존 상태 제거: WebSocket 해제 → 자격증명/토큰 정리 → Provider invalidate
     ref.read(authProvider.notifier).unauthenticate();
 
-    final preferenceService = PreferenceService();
+    final preferenceService = ref.read(preferenceServiceProvider);
     await preferenceService.setEnvironment(selected);
 
     final newEnvironment = switch (selected) {

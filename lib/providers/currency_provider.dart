@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:appfit_order_agent/i18n/strings.g.dart';
 import 'package:appfit_order_agent/providers/locale_provider.dart';
-import 'package:appfit_order_agent/services/preference_service.dart';
+import 'package:appfit_order_agent/providers/preference_provider.dart';
 import 'package:appfit_order_agent/utils/currency_unit.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 
@@ -12,14 +12,14 @@ part 'currency_provider.g.dart';
 class CurrencyNotifier extends _$CurrencyNotifier {
   @override
   CurrencyUnit build() {
-    final saved = PreferenceService().getCurrency();
+    final saved = ref.read(preferenceServiceProvider).getCurrency();
     logger.i('[CurrencyNotifier] 화폐단위 로드: ${saved.name}');
     return saved;
   }
 
   Future<void> changeCurrency(CurrencyUnit unit) async {
     state = unit;
-    await PreferenceService().setCurrency(unit);
+    await ref.read(preferenceServiceProvider).setCurrency(unit);
     logger.i('[CurrencyNotifier] 화폐단위 변경 및 저장: ${unit.name}');
   }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:appfit_order_agent/providers/preference_provider.dart';
 import 'package:appfit_order_agent/services/preference_service.dart';
 import 'package:appfit_order_agent/utils/brand_registry.dart';
 
@@ -14,9 +15,10 @@ BrandMeta? currentBrandMeta() =>
 
 /// 현재 브랜드 [BrandMeta]? 를 노출하는 Riverpod Provider (미지의 매장은 null).
 ///
-/// 무상태 [currentBrandMeta] 를 감싸기만 한다. 브랜드는 세션당 안정적이며
-/// (로그인 시 1회 결정), 로그아웃/서버전환은 위젯 트리를 재구성하므로 별도
-/// invalidation 후크가 필요 없다. 상태를 보유하지 않으므로 `Auth.logout()`/
-/// `disconnect()` 이후 dependency 가 outdated 되는 문제(서버 전환 재로그인 크래시)와
-/// 무관하다.
-final currentBrandProvider = Provider<BrandMeta?>((ref) => currentBrandMeta());
+/// [currentBrandMeta] 와 동일한 해석을 [preferenceServiceProvider] 경유로 수행한다
+/// (테스트 override 가능). 브랜드는 세션당 안정적이며 (로그인 시 1회 결정),
+/// 로그아웃/서버전환은 위젯 트리를 재구성하므로 별도 invalidation 후크가 필요
+/// 없다. 상태를 보유하지 않으므로 `Auth.logout()`/`disconnect()` 이후
+/// dependency 가 outdated 되는 문제(서버 전환 재로그인 크래시)와 무관하다.
+final currentBrandProvider = Provider<BrandMeta?>((ref) =>
+    BrandRegistry.resolveOrNull(ref.read(preferenceServiceProvider).getId()));

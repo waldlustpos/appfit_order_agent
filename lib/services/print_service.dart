@@ -67,7 +67,8 @@ class PrintService {
 
   var tag = '프린트';
 
-  PrintService(this.ref) : _preferenceService = PreferenceService() {
+  PrintService(this.ref)
+      : _preferenceService = ref.read(preferenceServiceProvider) {
     // 초기 설정값 로드
     _loadPrinterSettings();
     // 외부 프린터 출력 큐의 transport 와 최종 실패 콜백을 등록.

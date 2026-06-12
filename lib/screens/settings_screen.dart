@@ -32,7 +32,7 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-  final PreferenceService _preferenceService = PreferenceService();
+  late final PreferenceService _preferenceService;
 
   // ── 상태 변수 ──────────────────────────────────────────────────────────────
   bool _isAutoStart = false;
@@ -76,13 +76,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _isAutoCheckUpdate = true;
   bool _isCheckingUpdate = false;
   UpdateInfo? _updateInfo;
-  String _selectedEnv = PreferenceService().getEnvironment();
+  late String _selectedEnv;
   bool _isSoundGraphEnabled = false;
   String _soundGraphMarketId = '';
 
   @override
   void initState() {
     super.initState();
+    _preferenceService = ref.read(preferenceServiceProvider);
+    _selectedEnv = _preferenceService.getEnvironment();
     _setWindowSoftInputMode('resize');
     _loadSettings();
     WidgetsBinding.instance.addPostFrameCallback((_) {

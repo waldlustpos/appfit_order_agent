@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:appfit_order_agent/i18n/strings.g.dart';
-import 'package:appfit_order_agent/services/preference_service.dart';
+import 'package:appfit_order_agent/providers/preference_provider.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 
 part 'locale_provider.g.dart';
@@ -11,7 +11,7 @@ class LocaleNotifier extends _$LocaleNotifier {
   @override
   AppLocale build() {
     // 1. 저장된 언어 확인
-    final savedLocale = PreferenceService().getLocale();
+    final savedLocale = ref.read(preferenceServiceProvider).getLocale();
     if (savedLocale != null) {
       try {
         final locale = AppLocale.values.firstWhere(
@@ -39,7 +39,7 @@ class LocaleNotifier extends _$LocaleNotifier {
   Future<void> changeLocale(AppLocale newLocale) async {
     state = newLocale;
     LocaleSettings.setLocale(newLocale);
-    await PreferenceService().setLocale(newLocale.languageCode);
+    await ref.read(preferenceServiceProvider).setLocale(newLocale.languageCode);
     logger.i('[LocaleNotifier] 언어 변경 및 저장: ${newLocale.languageCode}');
   }
 }

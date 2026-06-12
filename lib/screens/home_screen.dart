@@ -182,7 +182,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   // 알림음 설정 로드
   Future<void> _loadSoundSettings() async {
-    _preferenceService = PreferenceService();
+    _preferenceService = ref.read(preferenceServiceProvider);
     _notificationSound = _preferenceService.getSound();
     final volumeValue = _preferenceService.getVolume();
     _volume = volumeValue / 15.0;

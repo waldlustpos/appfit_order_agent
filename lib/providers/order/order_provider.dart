@@ -295,13 +295,13 @@ class Order extends _$Order {
 
   // 주문을 UI에 표시할지 여부 확인 (키오스크 노출 설정 반영)
   bool _shouldShowOrder(OrderModel order) {
-    final showKiosk = PreferenceService().getShowKioskOrder();
+    final showKiosk = _preferenceService.getShowKioskOrder();
     return _helper.shouldShowOrder(order, showKiosk);
   }
 
   // 주문에 대해 소리/알림/인쇄를 할지 여부 확인 (키오스크 출력/알람 설정 반영)
   bool _shouldNotifyForOrder(OrderModel order) {
-    final kioskPrintAndSound = PreferenceService().getKioskPrintAndSound();
+    final kioskPrintAndSound = _preferenceService.getKioskPrintAndSound();
     return _helper.shouldNotifyForOrder(order, kioskPrintAndSound);
   }
 

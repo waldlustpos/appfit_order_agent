@@ -59,7 +59,7 @@ class _ExternalPrinterSubSettingsState
   static const String _defaultComPort = 'COM3';
   static const int _defaultBaudRate = 9600;
 
-  final PreferenceService _pref = PreferenceService();
+  late final PreferenceService _pref;
 
   List<String> _comPorts = const [];
   String _selectedComPort = _defaultComPort;
@@ -71,6 +71,7 @@ class _ExternalPrinterSubSettingsState
   @override
   void initState() {
     super.initState();
+    _pref = ref.read(preferenceServiceProvider);
     _baudRate = _pref.getComPortBaudRate();
     _selectedComPort = _pref.getComPortName() ?? _defaultComPort;
     if (Platform.isWindows) {

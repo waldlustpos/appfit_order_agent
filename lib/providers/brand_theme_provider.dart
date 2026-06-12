@@ -1,7 +1,7 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:appfit_order_agent/constants/app_styles.dart';
 import 'package:appfit_order_agent/constants/brand_theme.dart';
-import 'package:appfit_order_agent/services/preference_service.dart';
+import 'package:appfit_order_agent/providers/preference_provider.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 
 part 'brand_theme_provider.g.dart';
@@ -17,7 +17,7 @@ class BrandThemeNotifier extends _$BrandThemeNotifier {
   BrandTheme build() => AppStyles.activeBrand;
 
   Future<void> selectTheme(BrandTheme theme) async {
-    await PreferenceService().setBrandThemeId(theme.id);
+    await ref.read(preferenceServiceProvider).setBrandThemeId(theme.id);
     state = theme;
     logger.i('[BrandThemeNotifier] 테마 선택 저장: ${theme.id}');
   }
