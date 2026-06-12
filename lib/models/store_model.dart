@@ -19,11 +19,23 @@ class StoreModel {
     this.businessNumber,
   });
 
+  /// 필수 필드(strId/name)가 누락/비문자열이면 [FormatException] throw.
+  /// silent 기본값('')은 빈 storeId 가 초기 로드 가드를 조용히 통과하므로 더 위험.
   factory StoreModel.fromJson(Map<String, dynamic> json) {
+    final strId = json['strId'];
+    if (strId is! String) {
+      throw FormatException(
+          'StoreModel.fromJson: strId 누락/비문자열 (strId=$strId)');
+    }
+    final name = json['name'];
+    if (name is! String) {
+      throw FormatException('StoreModel.fromJson: name 누락/비문자열 (name=$name)');
+    }
     return StoreModel(
-      storeId: json['strId'] as String,
-      name: json['name'] as String,
-      isOpen: json['orderStatus'] == 8 ? true : false,
+      storeId: strId,
+      name: name,
+      // 서버가 '8' 문자열로 보내는 경우도 수용
+      isOpen: int.tryParse(json['orderStatus']?.toString() ?? '') == 8,
     );
   }
 

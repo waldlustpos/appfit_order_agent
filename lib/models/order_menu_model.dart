@@ -30,23 +30,23 @@ class OrderMenuModel {
   factory OrderMenuModel.fromJson(Map<String, dynamic> json) {
     logger.d('OrderMenuModel.fromJson 입력: $json');
 
-    List<MenuOptionModel> options = [];
-    if (json.containsKey('options') && json['options'] != null) {
-      try {
-        final optionsList = json['options'] as List;
-        options = optionsList.map((opt) {
-          return MenuOptionModel.fromJson(opt);
-        }).toList();
-      } catch (e, s) {
-        logger.e('옵션 목록 파싱 오류', error: e, stackTrace: s);
+    // 옵션 목록 파싱 (항목별 격리: 1건 손상 시 해당 항목만 스킵, 정상 항목 유지)
+    final List<MenuOptionModel> options = [];
+    final optionsRaw = json['options'];
+    if (optionsRaw is List) {
+      for (final opt in optionsRaw) {
+        try {
+          options.add(MenuOptionModel.fromJson(opt));
+        } catch (e, s) {
+          logger.e('옵션 항목 파싱 오류 (스킵): $opt', error: e, stackTrace: s);
+        }
       }
+    } else if (optionsRaw != null) {
+      logger.e('옵션 목록 파싱 오류: options 가 List 가 아님 ($optionsRaw)');
     }
 
     // AppFit response uses 'qty'
-    int parsedCount = 0;
-    if (json['qty'] != null) {
-      parsedCount = (json['qty'] as num).toInt();
-    }
+    final parsedCount = int.tryParse(json['qty']?.toString() ?? '0') ?? 0;
 
     final result = OrderMenuModel(
       orderNo: json['orderNo']?.toString() ?? '',

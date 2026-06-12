@@ -4,9 +4,9 @@ import 'package:flutter_test/flutter_test.dart';
 
 /// OrderModel.fromJson / OrderMenuModel.fromJson characterization 테스트.
 ///
-/// 서버 응답 형태를 fromJson 코드에서 역산한 픽스처로 "현재 파싱 동작"을 고정한다.
-/// 버그처럼 보이는 동작(타입 어긋남 크래시, 부분 손상 시 전체 드랍 등)도
-/// 수정하지 않고 그대로 고정하며 '현재 동작 고정(버그 의심)' 으로 표기한다.
+/// 서버 응답 형태를 fromJson 코드에서 역산한 픽스처로 파싱 동작을 고정한다.
+/// 타입 어긋남 입력은 toString 후 tryParse 로 무해화하고, menus/options 는
+/// 항목별 try-catch 로 격리해 손상 항목만 스킵하는 방어 동작을 검증한다.
 Map<String, dynamic> _fullOrderJson() => {
       'orderNo': 'ORD-1001',
       'shopOrderNo': '12',
@@ -185,7 +185,7 @@ void main() {
     });
   });
 
-  group('OrderModel.fromJson — 타입 어긋남 (현재 동작 고정)', () {
+  group('OrderModel.fromJson — 타입 어긋남 방어', () {
     test('숫자 필드가 문자열로 와도 tryParse 로 수용', () {
       final o = OrderModel.fromJson({
         'totalAmount': '12345.5',
@@ -202,45 +202,51 @@ void main() {
       expect(o.totalAmount, 0.0);
     });
 
-    test('현재 동작 고정(버그 의심): orderedAt 이 숫자(epoch)면 TypeError 크래시', () {
-      // DateTime.tryParse(json['orderedAt'] ?? '') 는 String 외 타입에 방어가 없다.
+    test('orderedAt 이 숫자(epoch)면 크래시 없이 DateTime.now() fallback', () {
+      // toString 후 tryParse — epoch 밀리초 문자열은 ISO 가 아니라 파싱 실패 → now()
+      final o = OrderModel.fromJson({'orderedAt': 1735780200000});
       expect(
-        () => OrderModel.fromJson({'orderedAt': 1735780200000}),
-        throwsA(isA<TypeError>()),
-      );
+          DateTime.now().difference(o.orderedAt).inSeconds.abs(), lessThan(5));
     });
 
-    test('현재 동작 고정(버그 의심): paidAt 이 숫자면 TypeError 크래시', () {
-      expect(
-        () => OrderModel.fromJson({'paidAt': 1735780200000}),
-        throwsA(isA<TypeError>()),
-      );
+    test('paidAt 이 숫자면 크래시 없이 null', () {
+      final o = OrderModel.fromJson({'paidAt': 1735780200000});
+      expect(o.paidAt, isNull);
     });
 
-    test('현재 동작 고정(버그 의심): orderType 이 숫자면 TypeError 크래시 (toString 누락)', () {
-      // orderType 은 다른 문자열 필드와 달리 ?.toString() 없이 그대로 할당된다.
-      expect(
-        () => OrderModel.fromJson({'orderType': 1}),
-        throwsA(isA<TypeError>()),
-      );
+    test('orderType 이 숫자면 크래시 없이 toString 수용', () {
+      final o = OrderModel.fromJson({'orderType': 1});
+      expect(o.orderType, '1');
     });
 
-    test('현재 동작 고정(버그 의심): isDetailLoaded 가 문자열이면 TypeError 크래시', () {
+    test('isDetailLoaded 비-bool 입력은 false 로 무해화, bool 은 그대로 사용', () {
+      // 문자열 'true' 는 bool true 가 아니므로 == true 비교로 false
+      expect(OrderModel.fromJson({'isDetailLoaded': 'true'}).isDetailLoaded,
+          isFalse);
       expect(
-        () => OrderModel.fromJson({'isDetailLoaded': 'true'}),
-        throwsA(isA<TypeError>()),
-      );
+          OrderModel.fromJson({'isDetailLoaded': 1}).isDetailLoaded, isFalse);
+      // 명시적 bool 값은 메뉴 유무와 무관하게 그대로 사용
+      expect(
+          OrderModel.fromJson({'isDetailLoaded': true}).isDetailLoaded, isTrue);
+      expect(
+          OrderModel.fromJson({
+            'isDetailLoaded': false,
+            'menus': [
+              {'shopItemId': 'sku-1', 'qty': 1, 'itemName': '아메리카노'},
+            ],
+          }).isDetailLoaded,
+          isFalse);
     });
   });
 
-  group('OrderModel.fromJson — menus 파싱 오류 처리 (현재 동작 고정)', () {
+  group('OrderModel.fromJson — menus 파싱 오류 처리', () {
     test('menus 가 List 가 아니면 조용히 빈 목록으로 대체 (크래시 없음)', () {
       final o = OrderModel.fromJson({'menus': 'not-a-list'});
       expect(o.menus, isEmpty);
       expect(o.isDetailLoaded, isFalse);
     });
 
-    test('현재 동작 고정(버그 의심): 메뉴 1건만 손상돼도 전체 menus 가 [] 로 드랍', () {
+    test('메뉴 1건 손상 시 해당 항목만 스킵, 정상 메뉴는 유지 (항목별 격리)', () {
       final o = OrderModel.fromJson({
         'menus': [
           {
@@ -249,20 +255,22 @@ void main() {
             'itemName': '정상 메뉴',
             'itemPrice': 1000,
           },
-          'corrupted-item', // Map 이 아닌 항목 → 전체 catch
+          'corrupted-item', // Map 이 아닌 항목 → 해당 항목만 스킵
         ],
       });
-      expect(o.menus, isEmpty); // 정상 메뉴까지 함께 유실되는 현재 동작
+      expect(o.menus, hasLength(1));
+      expect(o.menus.first.itemName, '정상 메뉴');
+      expect(o.isDetailLoaded, isTrue); // 정상 메뉴가 남아 있으므로 true
     });
 
-    test('현재 동작 고정(버그 의심): 메뉴의 qty 가 문자열이면 전체 menus 드랍', () {
-      // OrderMenuModel.fromJson 의 (qty as num) TypeError 가 상위 catch 로 전파.
+    test('메뉴의 qty 가 문자열이어도 tryParse 수용 (menus 드랍 없음)', () {
       final o = OrderModel.fromJson({
         'menus': [
           {'shopItemId': 'sku-1', 'qty': '2', 'itemName': '아메리카노'},
         ],
       });
-      expect(o.menus, isEmpty);
+      expect(o.menus, hasLength(1));
+      expect(o.menus.first.qty, 2);
     });
   });
 
@@ -334,16 +342,14 @@ void main() {
       expect(m.totalAmount, 4500.5);
     });
 
-    test('현재 동작 고정(버그 의심): qty 가 문자열이면 TypeError 크래시 (qty 만 num 캐스트)', () {
-      // itemPrice 등은 tryParse 인데 qty 는 (json['qty'] as num) 직캐스트.
-      expect(
-        () => OrderMenuModel.fromJson({'qty': '3'}),
-        throwsA(isA<TypeError>()),
-      );
+    test('qty 가 문자열이어도 tryParse 수용, 파싱 불가면 0', () {
+      // 다른 숫자 필드와 동일하게 toString 후 tryParse 패턴.
+      expect(OrderMenuModel.fromJson({'qty': '3'}).qty, 3);
+      expect(OrderMenuModel.fromJson({'qty': 'abc'}).qty, 0);
     });
 
-    test('옵션 파싱 오류 시 로그만 남기고 options=[] 유지 (L38-40 catch 고정)', () {
-      // options 가 List 가 아닌 경우
+    test('옵션 파싱 오류 시 로그만 남기고 손상 항목만 스킵 (항목별 격리)', () {
+      // options 가 List 가 아닌 경우 → 빈 목록
       final notList = OrderMenuModel.fromJson({
         'shopItemId': 'sku-1',
         'qty': 1,
@@ -363,8 +369,9 @@ void main() {
           {'shopOptionId': 123, 'optionName': '손상 옵션'},
         ],
       });
-      // 현재 동작 고정(버그 의심): 손상 1건 때문에 정상 옵션까지 전체 드랍
-      expect(corruptedItem.options, isEmpty);
+      // 손상 항목만 스킵하고 정상 옵션은 유지
+      expect(corruptedItem.options, hasLength(1));
+      expect(corruptedItem.options.first.optionName, '정상 옵션');
     });
   });
 }

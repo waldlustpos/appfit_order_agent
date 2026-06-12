@@ -72,6 +72,9 @@
 - 각 모델에 `factory fromJson(Map<String, dynamic> json)` 팩토리 생성자 구현
 - `toJson()` 메서드와 `copyWith()` 메서드 수동 구현
 - JSON 파싱 실패에 대비한 `try-catch`, `tryParse()` 등 안전한 파싱 적용
+- 타입 어긋남 방어: 숫자/날짜는 `json['key']?.toString()` 후 `tryParse` (직캐스트 `as String`/`as num` 금지)
+- 목록 파싱은 항목별 try-catch 로 격리 — 1건 손상 시 해당 항목만 `logger.e` 로그 후 스킵, 정상 항목 유지
+- 필수 필드(예: StoreModel.strId/name)는 silent 기본값 대신 누락 키를 명시한 `FormatException` throw
 - Enum은 `fromCode()` 팩토리로 서버 코드와 매핑 (예: `OrderStatus.fromCode('2003')`)
 
 ### 모델 동등성 구현 (==/hashCode)

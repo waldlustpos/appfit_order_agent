@@ -3,9 +3,9 @@ import 'package:flutter_test/flutter_test.dart';
 
 /// StoreModel.fromJson characterization 테스트.
 ///
-/// 필수 필드(strId/name)는 `as String` 직캐스트라 누락/타입 어긋남 시
-/// TypeError 크래시가 현재 동작이다 — 방어 코드 추가는 다음 커밋으로 미루고
-/// 여기서는 크래시 자체를 throwsA 로 고정한다.
+/// 필수 필드(strId/name)는 누락/비문자열 시 명시적 FormatException throw.
+/// 매장 정보는 silent 기본값('')이 더 위험(빈 storeId 가 초기 로드 가드를
+/// 조용히 통과)하므로 명확한 실패를 방어 동작으로 고정한다.
 void main() {
   group('StoreModel.fromJson — 정상 매핑', () {
     test('strId/name 매핑 + orderStatus == 8(int) 이면 isOpen true', () {
@@ -35,14 +35,13 @@ void main() {
           isFalse);
     });
 
-    test('현재 동작 고정(버그 의심): orderStatus 가 문자열 "8" 이면 isOpen false (== 8 정수 비교)',
-        () {
+    test('orderStatus 가 문자열 "8" 이어도 isOpen true (tryParse 수용)', () {
       final s = StoreModel.fromJson({
         'strId': 's',
         'name': 'n',
         'orderStatus': '8',
       });
-      expect(s.isOpen, isFalse); // 서버가 문자열로 보내면 영업 종료로 오인되는 현재 동작
+      expect(s.isOpen, isTrue); // 서버가 문자열로 보내도 영업 중으로 인식
     });
   });
 
@@ -65,32 +64,34 @@ void main() {
     });
   });
 
-  group('StoreModel.fromJson — 필수 필드 누락/타입 어긋남 크래시 (현재 동작 고정)', () {
-    test('현재 동작 고정(버그 의심): strId 누락 → TypeError 크래시 (as String 직캐스트)', () {
+  group('StoreModel.fromJson — 필수 필드 누락/타입 어긋남 시 명시적 FormatException', () {
+    test('strId 누락 → FormatException (메시지에 strId 명시)', () {
       expect(
         () => StoreModel.fromJson({'name': 'n', 'orderStatus': 8}),
-        throwsA(isA<TypeError>()),
+        throwsA(isA<FormatException>()
+            .having((e) => e.message, 'message', contains('strId'))),
       );
     });
 
-    test('현재 동작 고정(버그 의심): name 이 null → TypeError 크래시', () {
+    test('name 이 null → FormatException (메시지에 name 명시)', () {
       expect(
         () => StoreModel.fromJson({'strId': 's', 'name': null}),
-        throwsA(isA<TypeError>()),
+        throwsA(isA<FormatException>()
+            .having((e) => e.message, 'message', contains('name'))),
       );
     });
 
-    test('현재 동작 고정(버그 의심): strId 가 숫자면 TypeError 크래시', () {
+    test('strId 가 숫자면 FormatException', () {
       expect(
         () => StoreModel.fromJson({'strId': 123, 'name': 'n'}),
-        throwsA(isA<TypeError>()),
+        throwsA(isA<FormatException>()),
       );
     });
 
-    test('빈 JSON {} → TypeError 크래시', () {
+    test('빈 JSON {} → FormatException', () {
       expect(
         () => StoreModel.fromJson(<String, dynamic>{}),
-        throwsA(isA<TypeError>()),
+        throwsA(isA<FormatException>()),
       );
     });
   });

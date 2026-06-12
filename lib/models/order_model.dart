@@ -138,17 +138,21 @@ class OrderModel {
       }
     }
 
-    // 주문 메뉴 목록 파싱
-    List<OrderMenuModel> menus = [];
+    // 주문 메뉴 목록 파싱 (항목별 격리: 1건 손상 시 해당 항목만 스킵, 정상 항목 유지)
     // Handle both 'menus' (AppFit) and 'ordrPrdList' (Internal/Legacy) keys
-    var menuListRaw = json['menus'];
-    if (menuListRaw != null) {
-      try {
-        menus = List<OrderMenuModel>.from(
-            (menuListRaw as List).map((x) => OrderMenuModel.fromJson(x)));
-      } catch (e, s) {
-        logger.e('Error parsing menu list', error: e, stackTrace: s);
+    final List<OrderMenuModel> menus = [];
+    final menuListRaw = json['menus'];
+    if (menuListRaw is List) {
+      for (final item in menuListRaw) {
+        try {
+          menus.add(OrderMenuModel.fromJson(item));
+        } catch (e, s) {
+          logger.e('Error parsing menu item (skipped): $item',
+              error: e, stackTrace: s);
+        }
       }
+    } else if (menuListRaw != null) {
+      logger.e('Error parsing menu list: menus is not a List ($menuListRaw)');
     }
 
     // Mapping fields
@@ -159,7 +163,8 @@ class OrderModel {
     String _displayOrderNo = (json['displayOrderNo'])?.toString() ?? '';
     String _orderStatus = (json['orderStatus'])?.toString() ?? '';
     DateTime _orderedAt =
-        DateTime.tryParse(json['orderedAt'] ?? '') ?? DateTime.now();
+        DateTime.tryParse(json['orderedAt']?.toString() ?? '') ??
+            DateTime.now();
     double _totalAmount =
         double.tryParse(json['totalAmount']?.toString() ?? '0') ?? 0.0;
     String _userId = (json['userId'])?.toString() ?? '';
@@ -171,7 +176,7 @@ class OrderModel {
         double.tryParse(json['discountAmount']?.toString() ?? '0') ?? 0.0;
     String _paymentType = (json['paymentType'])?.toString() ?? '';
     String _paymentCode = (json['paymentCode'])?.toString() ?? '';
-    DateTime? _paidAt = DateTime.tryParse(json['paidAt'] ?? '');
+    DateTime? _paidAt = DateTime.tryParse(json['paidAt']?.toString() ?? '');
 
     final tempOrder = OrderModel(
       orderNo: _orderNo,
@@ -200,13 +205,15 @@ class OrderModel {
       paymentCode: _paymentCode,
       paidAt: _paidAt,
       menus: menus,
-      orderType: json['orderType'] ?? json['order_type'] ?? '',
+      orderType: (json['orderType'] ?? json['order_type'])?.toString() ?? '',
       kdsOrderType: 0, // 임시값
       updateTime: DateTime.tryParse(json['updateTime'] ?? '') ?? DateTime.now(),
       kioskId: (json['kioskId'])?.toString() ?? '',
       source: (json['orderSource'] ?? json['source'])?.toString() ?? '',
-      isDetailLoaded:
-          json['isDetailLoaded'] ?? (menus.isNotEmpty), // JSON에 없으면 메뉴 유무로 판단
+      // JSON에 없으면 메뉴 유무로 판단, 있으면 비-bool 입력도 == true 비교로 무해화
+      isDetailLoaded: json['isDetailLoaded'] != null
+          ? json['isDetailLoaded'] == true
+          : (menus.isNotEmpty),
       discountTypes:
           (json['discountTypes'] as List?)?.map((e) => e.toString()).toList() ??
               const [],
