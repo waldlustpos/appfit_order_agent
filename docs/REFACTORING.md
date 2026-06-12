@@ -24,10 +24,25 @@
 3. **분리된 매니저 단위 테스트**: order_queue/timer/cache_manager (이미 분리돼 있어 즉시 가능)
 4. **fromJson 방어**: order_model/store_model 필수 필드 `as String` 무방비 캐스트 → 실서버 응답 픽스처 기반 회귀 테스트와 함께
 5. PreferenceService 직접 생성(12곳) → provider 경유 전환
-6. appfit_core 미사용 export `@Deprecated` 마킹 (제거는 v2.0.0 — **BatchMergeBuffer 는 DID 앱이 사용 중이므로 제거 금지**, export 정리 시 양 앱 grep 필수)
+6. ~~appfit_core 미사용 export `@Deprecated` 마킹~~ → **2026-06-12 재검증으로 사실상 완료/무효화**: `SerialAsyncQueue` 는 이미 `@Deprecated`(v1.0.6), `OtaUpdateManager`/`OtaStatus` 는 주문 에이전트·DID 양쪽 사용 중(감사 오판), `ApiHttpException` 은 인터셉터가 던지는 공개 예외 타입이라 유지, `AppFitTimeouts` 는 공개 설정 상수라 유지. **소비자는 3개(주문 에이전트 + DID + kiosk, RELEASE.md 참조)** — v2.0.0 제거 대상은 SerialAsyncQueue 뿐이며 kiosk grep 확인 필수
 7. 테스트 작성 가이드/전용 서브에이전트 신설 검토 (이 시점에 재평가)
 
 원칙: **"현재 동작"을 테스트로 고정** — 버그처럼 보여도 일단 고정하고, 수정은 별도 커밋으로.
+
+### Phase 1 진행 현황 (2026-06-12)
+
+**완료**: 코어 66케이스(crypto/ApiHttpException/Dio 401 retry/NotifierService 재연결 + connector seam — 다음 릴리즈 minor), 앱 94케이스(매니저 3종 51 + fromJson 31 + 유입 characterization 12), PreferenceService 27곳 provider 경유 전환. 전체 suite: 코어 99 / 앱 180 그린.
+
+**미커버 (seam 필요)**: 자동접수 ON 체인(PreferenceService 전역 싱글톤 per-test 제어 불가), Sentry 쿨다운(hub 주입 없음), 캐시 merge 분기(_orderDetailCache private). **Phase 2 seam 목록**: PreferenceService 생성자/프로바이더 주입, AudioPlayer 주입(필드 이니셜라이저 생성), clock 주입(큐 1s/배치 200ms 실시간 대기 의존), OrderDetailCache 주입, Sentry hub 주입.
+
+**핵심 발견 (수정 후보 — 테스트 보호 확보됨, 별도 커밋으로)**:
+1. **폴링 전용 경로 dead wiring**: OrderTimerManager 가 onRefreshOrders 만 호출 — `_pollNewOrders→_mergeOrdersIntoUnfilteredList` 전체가 도달 불가. 3-way 유입은 실질 **2-way**. Phase 2 항목 1은 "병합 지점 신설"이 아니라 **dead 경로 삭제 vs 복구 결정**으로 재정의
+2. [코어] `AppFitConfig.packageVersion`(1.0.10) ↔ pubspec(1.0.11) 동기화 누락 재발 — 다음 릴리즈(release.sh)에서 자동 교정되나 v1.0.11 소비자는 잘못된 버전 문자열 보고 중
+3. [코어] TokenManager in-flight 발급 합류 시 shopCode 불일치 검증 없음 — SHOP_B 가 SHOP_A 토큰 수신 가능
+4. [앱] OrderQueueManager 크로스 스테이지 중복 차단이 NEW 대기 중 상태 전이(DONE 등)를 drop — 상태 유실 가능
+5. [앱] 소켓 유입은 append 만(orderedAt 재정렬 없음) — 소켓 단독 유입 구간에서 UI 순서 역전 가능
+6. [앱] fromJson 타입 방어 구멍 목록 확보(orderedAt 숫자 크래시, qty as num, StoreModel as String 등) — **Phase 1 항목 4 후속: 방어 코드 커밋이 다음 작업**
+7. [앱] settings/login 등 화면별 세부 quirk 은 각 테스트 파일 주석 참조
 
 ## Phase 2 — 중기: 구조 리팩토링 (항목당 독립 릴리즈 + 1매장 카나리 1주 권장)
 
@@ -36,7 +51,7 @@
 3. 3개 캐시(Processed/Detail/RecentRemovals) 갱신을 OrderCacheManager 로 집중, 상태·캐시 롤백 일관화
 4. UI 분해: common_dialog(→다이얼로그별 파일) → login_screen 자체 다이얼로그 공용화 → order_detail_popup 상태변경 로직 provider 이동 → app_bar_widget 분할
 5. settings_label_test_section 의 스트레스 테스트/mock 생성 로직 → `lib/dev/` 격리
-6. appfit_core v2.0.0 (deprecated export 제거 — 양 앱 동시 마이그레이션)
+6. appfit_core v2.0.0 (deprecated export 제거 — **소비자 3개 앱(주문 에이전트·DID·kiosk) 동시 grep 확인 + 마이그레이션**)
 
 주의: Phase 2 진행 중에는 주문 도메인(OrderProvider 반경) 기능 작업을 같은 스프린트에 두지 않는다.
 
