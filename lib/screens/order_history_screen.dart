@@ -93,6 +93,8 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen> {
   }
 
   void _showOrderDetails(order) {
+    // 닫힌 후 별도 갱신 불필요: 오늘 날짜 목록/건수는 build 의
+    // ref.watch(orderProvider) 가 상태 변경을 자동 반영한다.
     showDialog(
       barrierDismissible: true,
       context: context,
@@ -100,16 +102,7 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen> {
         order: order,
         isFromHistory: true,
       ),
-    ).then((_) {
-      // 다이얼로그가 닫힌 후 오늘 날짜인 경우 상태를 다시 가져오기
-      final selectedDate = ref.read(selectedDateProvider);
-      if (selectedDate == todayDateString()) {
-        // 오늘 날짜이면 orderProvider의 상태를 반영
-        setState(() {
-          // 화면 갱신 트리거
-        });
-      }
-    });
+    );
   }
 
   void _onDaySelectedInCalendar(DateTime newSelectedDay, DateTime focusedDay) {
