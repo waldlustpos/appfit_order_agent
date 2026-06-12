@@ -43,7 +43,7 @@ class KdsTabIndex extends _$KdsTabIndex {
 }
 
 /// KDS 전용 정렬 방향 관리
-@riverpod
+@Riverpod(keepAlive: true)
 class KdsSortDirection extends _$KdsSortDirection {
   @override
   OrderSortDirection build() => OrderSortDirection.ASC;

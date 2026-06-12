@@ -59,14 +59,14 @@ final kdsTabIndexProvider = NotifierProvider<KdsTabIndex, int>.internal(
 );
 
 typedef _$KdsTabIndex = Notifier<int>;
-String _$kdsSortDirectionHash() => r'7497bb98b5387c92940e8c49d22df425e8878759';
+String _$kdsSortDirectionHash() => r'498cbee89e083babb945c6527ceb07274c9b092c';
 
 /// KDS 전용 정렬 방향 관리
 ///
 /// Copied from [KdsSortDirection].
 @ProviderFor(KdsSortDirection)
 final kdsSortDirectionProvider =
-    AutoDisposeNotifierProvider<KdsSortDirection, OrderSortDirection>.internal(
+    NotifierProvider<KdsSortDirection, OrderSortDirection>.internal(
   KdsSortDirection.new,
   name: r'kdsSortDirectionProvider',
   debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
@@ -76,7 +76,7 @@ final kdsSortDirectionProvider =
   allTransitiveDependencies: null,
 );
 
-typedef _$KdsSortDirection = AutoDisposeNotifier<OrderSortDirection>;
+typedef _$KdsSortDirection = Notifier<OrderSortDirection>;
 String _$kdsTabSortDirectionsHash() =>
     r'77e6d0aa75f3b9f20fc78d5ff4006533f99883ae';
 
