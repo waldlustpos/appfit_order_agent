@@ -29,13 +29,11 @@ class OrderTimerManager {
   int _currentPollingIntervalSeconds = socketConnectedIntervalSeconds;
 
   // 콜백 함수들
-  final VoidCallback? onPollNewOrders;
   final VoidCallback? onRefreshOrders;
   final VoidCallback? onCacheCleanup;
 
   OrderTimerManager(
     this.ref, {
-    this.onPollNewOrders,
     this.onRefreshOrders,
     this.onCacheCleanup,
   });

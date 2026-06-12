@@ -77,8 +77,9 @@ class Order extends _$Order {
   final appfit_core.RecentRemovalsCache _recentRemovals =
       appfit_core.RecentRemovalsCache();
   bool _isAudioPlayerDisposed = false; // AudioPlayer dispose 상태 추적
+  // NOTE: 소켓/refresh 경로가 갱신만 하고 현재 소비자는 없음 (폴링 전용
+  // 경로 삭제로 잔존 — 후속 정리 후보, docs/REFACTORING.md 참조)
   String _lastKnownOrderSequence = "0";
-  List<OrderModel> _unfilteredOrders = []; // 필터링되지 않은 전체 주문 목록
 
   bool _isInitialLoadComplete = false; // 초기 로딩 완료 여부 플래그
 
@@ -124,7 +125,6 @@ class Order extends _$Order {
     );
     _timerManager = OrderTimerManager(
       ref,
-      onPollNewOrders: _pollNewOrders,
       onRefreshOrders: () => refreshOrders(),
       onCacheCleanup: () => _cacheManager.cleanupExpiredEntries(),
     );
@@ -640,11 +640,11 @@ class Order extends _$Order {
         return;
       }
       _autoAcceptingOrderIds.add(order.orderId);
-      // 소켓 ↔ 폴링 race 차단: 폴링 경로(_processPollingNewOrders)의
-      // L1707 _processedOrderCache.containsOrderStatus 가드가 활성화되도록 NEW 키를 등록.
+      // 소켓 ↔ 후행 유입 race 차단: queueOrderExternal 의
+      // _processedOrderCache.containsOrderStatus 가드가 활성화되도록 NEW 키를 등록.
       // queueOrderExternal 을 거치지 않는 소켓 직진입 케이스(KDS 자동접수 ON)에서
-      // 폴링 후행 enqueue 를 큐 진입 단계에서 차단하기 위함. 자동접수 완료 후 race 는
-      // 위 currentInState.status != NEW 가드가 차단함.
+      // 소켓 재전달 등 후행 enqueue 를 큐 진입 단계에서 차단하기 위함. 자동접수 완료 후
+      // race 는 위 currentInState.status != NEW 가드가 차단함.
       _processedOrderCache.addOrderStatus(order.orderId, OrderStatus.NEW);
       logger.d('$modeText: 자동 접수 진행: ${order.orderId}');
       // 사용자 피드백을 위해 블링크는 즉시 반영 (UI는 NEW 상태로 유지)
@@ -1392,65 +1392,6 @@ class Order extends _$Order {
 
   bool get hasPendingExternal => _queueManager.hasPending;
 
-  // 폴링으로 주기적 주문 처리
-  Future<void> _pollNewOrders() async {
-    if (_isLoggedOut) {
-      logger.i('로그아웃 상태이므로 폴링을 건너뜁니다.');
-      return;
-    }
-
-    final storeId = ref.read(storeProvider).value?.storeId ?? '';
-    if (storeId.isEmpty) return;
-
-    final today = todayDateString();
-
-    try {
-      final newOrders = await _apiService.getNewOrders(storeId,
-          startDate: today, endDate: _lastKnownOrderSequence);
-
-      if (newOrders.isNotEmpty) {
-        logger.i('폴링으로 주문 수신: ${newOrders.length}건.');
-        _mergeOrdersIntoUnfilteredList(newOrders);
-        _updateLastKnownOrderSequence(
-            _unfilteredOrders); // Update sequence from full list
-        _processPollingNewOrders(newOrders);
-      }
-    } catch (e, s) {
-      logger.e('Error polling new orders', error: e, stackTrace: s);
-      // 폴링은 소켓 누락 주문의 마지막 복구망 — 실패 시 영구 누락 위험을
-      // Sentry 로 가시화한다(logger 만으로는 운영자가 인지 불가).
-      appfit_core.MonitoringService.instance.captureError(
-        OrderDetailFetchFailedException(
-          orderNo: '',
-          eventType: 'POLL',
-          source: 'polling',
-          lastError: e.toString(),
-        ),
-        s,
-        hint: '폴링 안전망 실패 — 누락 주문 복구 지연 가능',
-        extras: {'storeId': storeId},
-      );
-    }
-  }
-
-  // 폴링된 주문을 _unfilteredOrders에 병합하는 헬퍼 메서드
-  void _mergeOrdersIntoUnfilteredList(List<OrderModel> newOrders) {
-    if (newOrders.isEmpty) return;
-
-    final Map<String, OrderModel> orderMap = {
-      for (var order in _unfilteredOrders) order.orderId: order
-    };
-
-    for (var newOrder in newOrders) {
-      // 최신 정보로 업데이트 (같은 ID가 있으면 교체, 없으면 추가)
-      orderMap[newOrder.orderId] = newOrder;
-    }
-
-    _unfilteredOrders = orderMap.values.toList();
-    // 선택 사항: 병합 후 정렬 (필요하다면)
-    // _unfilteredOrders.sort((a, b) => b.updateTime.compareTo(a.updateTime));
-  }
-
   void _updateLastKnownOrderSequence(List<OrderModel> orders) {
     if (orders.isEmpty) return;
     // Ensure the list passed here is the unfiltered list when needed
@@ -1728,221 +1669,6 @@ class Order extends _$Order {
         '업데이트 후 주문 ID 목록: ${state.orders.map((o) => '${o.orderId}(${o.status})').join(', ')}');
   }
 
-  // 폴링으로 주문 처리 시 중복 체크를 위한 메서드
-  void _processPollingNewOrders(List<OrderModel> newOrders) async {
-    logger.d('주문 ${newOrders.length}건 처리 중...');
-
-    // 큐 정보는 QueueManager에서 관리됨
-    logger.d('주문 처리 시작: ${newOrders.length}건');
-
-    // 주문 처리 중복 방지를 위한 이미 처리된 ID 세트 (이번 배치 내에서)
-    final Set<String> processedOrderIds = {};
-
-    // 소켓 연결 상태 확인 (폴링으로 주문이 감지되었을 때 소켓 상태를 죽이지 않기 위함)
-    final isSocketConnected =
-        ref.read(appFitNotifierServiceProvider).isConnected;
-    bool latencyDetected = false;
-
-    // replication lag 대응 — RecentRemovalsCache 만료 청소 + 부활 차단 ID 셋 준비.
-    final removedIds = _recentRemovals.snapshotIds();
-
-    // [출력 순서 보장] 자동접수 enqueue 를 정렬 순서로 직렬화하기 위해 정렬된 복사본 순회.
-    // (원본 newOrders 는 호출부의 선행 처리와 alias 되어 있어 in-place 정렬 대신 복사.)
-    final sortedNewOrders = List<OrderModel>.of(newOrders)
-      ..sort(OrderQueueManager.compareByShopOrderNo);
-    for (final order in sortedNewOrders) {
-      // 0. 최근 종결(DONE/CANCELLED) 처리한 주문이 stale 응답으로 *active* 상태로
-      // 부활하는 경우만 차단. 서버가 CANCELLED/DONE 등 종결 상태로 응답한 경우는
-      // 정상 동기화 경로이므로 통과시킨다.
-      if (removedIds.contains(order.orderId) &&
-          _helper.isActiveOrderStatus(order.status)) {
-        logger.w(
-            '[Polling] 서버 부활 차단(최근 DONE/CANCELLED → active 응답): ${order.orderId} status=${order.status}');
-        continue;
-      }
-
-      // 1. 글로벌 캐시 확인 (소켓 등 이미 같은 (id, status) 로 처리된 주문인지 확인)
-      if (_processedOrderCache.containsOrderStatus(
-          order.orderId, order.status)) {
-        // 이미 처리된 주문은 로그만 남기고 스킵 (너무 많으면 로그 생략 가능)
-        continue;
-      }
-
-      // 2. 이번 배치 내 중복 확인
-      if (processedOrderIds.contains(order.orderId)) {
-        continue;
-      }
-      processedOrderIds.add(order.orderId);
-
-      // 3. 소켓 연결 상태인데 폴링으로 새로운 주문이 발견된 경우 (지연 감지)
-      if (isSocketConnected) {
-        logger.w(
-            '[OrderProvider] Socket latency detected: Polling found new order ${order.orderId} while socket is connected.');
-        latencyDetected = true;
-        // 여기서 소켓을 재연결하지 않음 (기존 로직 개선)
-      }
-
-      // 큐에 추가 (중복 체크 후) - 외부 큐 서비스 경유
-      // queueOrderExternal 내부에서도 캐시 체크를 하지만, 여기서 명시적으로 호출
-      queueOrderExternal(order);
-
-      // 즉시 상태 반영이 필요한 주문 처리 (NEW->ACCEPTED 자동 접수 등)
-      if (order.status == OrderStatus.NEW) {
-        // KDS NEW 차단 정책 — appfit_core 공통 정책 진입점 (DID 와 동일 호출 형태).
-        // KDS 자동접수(isKdsAcceptOrders) 토글이 ON 이면 단독 운영 시나리오로 보고
-        // 차단 해제 (정책 결합은 호출자 측에서 수행 — appfit_core 시그니처 미변경).
-        if (appfit_core.OrderEventIgnorePolicy.ignoreNewOrderInKdsMode(
-                ref.read(kdsModeProvider)) &&
-            !state.isKdsAcceptOrders) {
-          continue;
-        }
-
-        // 서버 PUT 반영 지연으로 폴링이 구버전 NEW 를 돌려주는 경우, 로컬 state 가
-        // 이미 진행 상태(PREPARING 등)라면 자동접수 재시도를 차단한다. _processNewOrdersWhenRefresh
-        // 와 동일 정신의 가드로, _resolveMergedStatus 를 거치지 않는 이 별도 폴링 경로에서도
-        // "이미 수락된 주문입니다" 400 을 사전 방지한다.
-        final existingInState = state.orders.firstWhere(
-          (o) => o.orderId == order.orderId,
-          orElse: () => order,
-        );
-        if (existingInState.status != OrderStatus.NEW) {
-          logger.d(
-              '[Polling] 자동접수 스킵 - 로컬 상태=${existingInState.status}: ${order.orderId}');
-          continue;
-        }
-
-        processedOrderIds.add(order.orderId);
-
-        // 자동 접수 조건 확인 (설정 기반)
-        final bool shouldAutoAccept = state.isAutoReceipt;
-        if (shouldAutoAccept) {
-          // in-flight 락: 동일 orderId 자동접수 microtask 가 진행 중이면 추가 진입 차단.
-          if (_autoAcceptingOrderIds.contains(order.orderId)) {
-            logger.d('[Polling] 자동 접수 in-flight 중복 진입 차단: ${order.orderId}');
-            continue;
-          }
-          _autoAcceptingOrderIds.add(order.orderId);
-          logger.d('새로고침으로 받은 주문 자동 접수 시작: ${order.orderId}');
-
-          // 1) 즉시 UI 상태 업데이트 (ACCEPTED 상태로 변경)
-          final acceptedOrder = order.copyWith(
-            status: OrderStatus.PREPARING,
-            orderStatus: '',
-            updateTime: DateTime.now(),
-          );
-
-          // UI 상태 즉시 업데이트
-          final existingIndex =
-              state.orders.indexWhere((o) => o.orderId == order.orderId);
-          if (existingIndex != -1) {
-            final updatedOrders = List<OrderModel>.from(state.orders);
-            updatedOrders[existingIndex] = acceptedOrder;
-            state = state.copyWith(
-              orders: updatedOrders,
-              activeOrderCount: _calculateActiveOrderCount(updatedOrders),
-            );
-            logger.d('자동접수 주문 UI 상태 즉시 업데이트: ${order.orderId} -> ACCEPTED');
-          }
-
-          // 2) 비동기 API 호출 (UI는 이미 업데이트됨)
-          // [출력 순서 보장] 자동접수 PUT→출력 enqueue 를 await 로 직렬화.
-          // 정렬된 sortedNewOrders 를 for 루프가 한 건씩 await 하므로 enqueue 순서 = 정렬 순서.
-          // (이전: Future.microtask 로 분리되어 PUT 응답 순서대로 enqueue → 순서 역전.)
-          try {
-            final success =
-                await updateOrderStatus(order, OrderStatus.PREPARING);
-            if (success) {
-              logger.d('새로고침 주문 자동 접수 성공: ${order.orderId}');
-              // 자기 자신이 자동접수한 주문은 후행 PREPARING 이벤트의 L555 라벨 핸들러에서
-              // 라벨 중복 출력되지 않도록 PREPARING 캐시 미리 등록.
-              _processedOrderCache.addOrderStatus(
-                  order.orderId, OrderStatus.PREPARING);
-              // 접수 성공 시: 프린트만 실행 (큐를 통해 처리)
-              _outputQueueService.add(acceptedOrder, playSound: true);
-
-              // 플랫폼 알림 (앱이 백그라운드일 때)
-              ref.read(alertManagerProvider).triggerNewOrderAlert(
-                    playSound: true,
-                    triggerOverlay: true,
-                    triggerAppBar: true,
-                  );
-            } else {
-              logger.w('새로고침 주문 자동 접수 실패: ${order.orderId}');
-              // 실패 시 NEW 상태로 롤백
-              final rollbackOrder = order.copyWith(
-                status: OrderStatus.NEW,
-                orderStatus: '',
-                updateTime: DateTime.now(),
-              );
-              if (existingIndex != -1) {
-                final rollbackOrders = List<OrderModel>.from(state.orders);
-                rollbackOrders[existingIndex] = rollbackOrder;
-                state = state.copyWith(
-                  orders: rollbackOrders,
-                  activeOrderCount: _calculateActiveOrderCount(rollbackOrders),
-                );
-                logger.w('자동접수 실패로 상태 롤백: ${order.orderId} -> NEW');
-              }
-            }
-          } catch (error, stackTrace) {
-            // updateOrderStatus 의 ApiException rethrow 로 unhandled async 가 나지 않도록 흡수.
-            logger.w('새로고침 주문 자동 접수 체인 오류(무시): ${order.orderId}',
-                error: error, stackTrace: stackTrace);
-          } finally {
-            _autoAcceptingOrderIds.remove(order.orderId);
-          }
-
-          // 큐 관리는 QueueManager에서 처리됨
-          logger.d('자동접수 처리 완료: ${order.orderId}');
-          continue; // 다음 주문으로 넘어감
-        } else {
-          // 자동 접수가 아닌 경우
-          // 이 주문이 새로고침/폴링을 통해 '새롭게' 발견된 것인지 확인
-          // (즉, 현재 state.orders 목록에 아직 없는지 확인)
-          final isTrulyNewToThisProvider =
-              !state.orders.any((o) => o.orderId == order.orderId);
-          if (isTrulyNewToThisProvider) {
-            // 상태 목록에 없었으므로 진짜 '새로운' NEW 주문임 -> 알림 재생
-            logger.d('새로고침/폴링으로 처음 발견된 NEW 주문 알림 재생: ${order.orderId}');
-            // 블링크 시작 추가
-            _updateBlinkState();
-
-            // 알람소리는 notifyNewOrder에서 처리하므로 여기서는 재생하지 않음
-            // 플랫폼 알림 (앱이 백그라운드일 때)
-            ref.read(alertManagerProvider).triggerNewOrderAlert(
-                  playSound: true,
-                  triggerOverlay: true,
-                  triggerAppBar: true,
-                );
-          } else {
-            // 이미 상태 목록에 존재하는 주문 (NEW 상태일 것임) -> 알림 재생 안함
-            logger.d('새로고침/폴링 시 이미 존재하는 NEW 주문 알림 건너뜀: ${order.orderId}');
-          }
-        }
-      } else if (order.status == OrderStatus.PREPARING) {
-        // PREPARING 상태 주문 처리 - 앱 시작 시 이미 처리되었으므로 건너뜀
-        logger.d('PREPARING 주문 확인: ${order.orderId} - 앱 시작 시 이미 처리됨으로 건너뜀');
-
-        // 앱 시작 시 _handleAppStartupPrintAndAlarm에서 이미 처리되었으므로
-        // 여기서는 추가 프린트/알람 처리하지 않음
-        continue;
-      }
-
-      // 즉시 UI 상태 업데이트는 하지 않음 (refreshOrders에서 _mergeWithExistingDetails로 처리됨)
-      // _performImmediateUIUpdate(order, existingIndex);
-    }
-
-    // 폴링 로직 개선: 소켓이 연결되어 있지 않은 상태에서 폴링으로 주문을 찾았다면,
-    // 소켓 연결에 문제가 있을 수 있으므로 재연결 시도 (기존 로직 유지하되 조건부 실행)
-    if (!isSocketConnected && newOrders.isNotEmpty && !latencyDetected) {
-      logger.i(
-          '[OrderProvider] Polling found orders while socket disconnected. Triggering socket check.');
-      _socketManager.checkAndFixSocketConnection(_isLoggedOut);
-    }
-
-    logger.d('${newOrders.length}건 주문 처리 큐 추가 및 즉시 처리 완료');
-  }
-
   // DEPRECATED: Use AlertManager.triggerNewOrderAlert instead
   // void blinkBubble() { ... }
 
@@ -2176,7 +1902,6 @@ class Order extends _$Order {
     }
 
     // 5. 인메모리 캐시 초기화
-    _unfilteredOrders.clear();
     _processedOrderCache.clear();
     _autoAcceptingOrderIds.clear();
     _selfAcceptedOrderIds.clear();

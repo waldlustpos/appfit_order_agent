@@ -506,14 +506,11 @@ void main() {
     });
   });
 
-  group('폴링 타이머 wiring — OrderTimerManager (현재 동작 고정)', () {
-    // OrderProvider 는 onPollNewOrders: _pollNewOrders 를 주입하지만,
-    // OrderTimerManager 의 어떤 타이머도 onPollNewOrders 를 호출하지 않는다.
-    // 즉 "폴링 전용 경로"(_pollNewOrders → _processPollingNewOrders →
-    // _mergeOrdersIntoUnfilteredList)는 현재 dead wiring 이고,
-    // 폴링은 전부 refreshOrders 로 위임된다.
+  group('폴링 타이머 wiring — OrderTimerManager', () {
+    // 폴링은 설계상 refreshOrders 로 단일화되어 있다. 과거 폴링 전용 경로
+    // (_pollNewOrders → _processPollingNewOrders → _mergeOrdersIntoUnfilteredList)는
+    // dead wiring 으로 확인되어 삭제됨 (docs/REFACTORING.md Phase 2-1).
     OrderTimerManager buildManager({
-      required void Function() onPoll,
       required void Function() onRefresh,
     }) {
       final container = ProviderContainer();
@@ -521,21 +518,16 @@ void main() {
       final provider = Provider<OrderTimerManager>(
         (ref) => OrderTimerManager(
           ref,
-          onPollNewOrders: onPoll,
           onRefreshOrders: onRefresh,
         ),
       );
       return container.read(provider);
     }
 
-    test(
-        '현재 동작 고정(버그 의심): restartPolling 주기 타이머는 onRefreshOrders 만 호출 — '
-        'onPollNewOrders(폴링 전용 경로)는 발화되지 않음', () {
+    test('restartPolling 주기 타이머는 onRefreshOrders 를 지정 간격으로 호출', () {
       fakeAsync((async) {
-        var polls = 0;
         var refreshes = 0;
         final m = buildManager(
-          onPoll: () => polls++,
           onRefresh: () => refreshes++,
         );
 
@@ -543,17 +535,14 @@ void main() {
         async.elapse(const Duration(seconds: 16));
 
         expect(refreshes, 3); // 5s 주기 3회
-        expect(polls, 0); // _pollNewOrders 경로는 어디서도 미호출 (dead wiring)
         m.dispose();
       });
     });
 
-    test('setupPollingTimer 도 30s 스타트업 후 주기적으로 onRefreshOrders 만 호출', () {
+    test('setupPollingTimer 는 30s 스타트업 후 주기적으로 onRefreshOrders 호출', () {
       fakeAsync((async) {
-        var polls = 0;
         var refreshes = 0;
         final m = buildManager(
-          onPoll: () => polls++,
           onRefresh: () => refreshes++,
         );
 
@@ -565,7 +554,6 @@ void main() {
         // 30s 후 connected 간격(60s) 주기 시작.
         async.elapse(const Duration(seconds: 1 + 60));
         expect(refreshes, 1);
-        expect(polls, 0);
         m.dispose();
       });
     });

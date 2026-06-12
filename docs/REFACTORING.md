@@ -46,7 +46,7 @@
 
 ## Phase 2 — 중기: 구조 리팩토링 (항목당 독립 릴리즈 + 1매장 카나리 1주 권장)
 
-1. **데이터 유입 단일 병합 지점**: 병합·dedup·정렬(`orderedAt` 정본) 순수 함수 추출 → 폴링/수동/소켓 경로를 4단계 분리 배포로 전환. Phase 1-2 테스트가 머지 게이트
+1. ~~**데이터 유입 단일 병합 지점**~~ → **1단계 완료 (2026-06-12)**: dead 폴링 경로(_pollNewOrders/_processPollingNewOrders/_mergeOrdersIntoUnfilteredList, _unfilteredOrders, onPollNewOrders — 275줄) 삭제. 유입은 소켓 + refreshOrders 2-way 로 확정. 잔여: 소켓 append vs refreshOrders 정렬(orderedAt) 이원화 통일 + `_lastKnownOrderSequence`(현재 write-only) 정리. ApiService.getNewOrders 도 앱 내 호출처 소멸 — 코어 v2.0.0 정리 후보
 2. **OrderProvider 슬리밍** (Strangler): seam 확보 → characterization 고정 → 같은 파일 내 순수 함수 추출 → 매니저로 이동 → 콜백 양방향 변이 제거. **추출과 이동은 별도 커밋** (diff 리뷰 가능성 유지). 목표 ~800L 코디네이터
 3. 3개 캐시(Processed/Detail/RecentRemovals) 갱신을 OrderCacheManager 로 집중, 상태·캐시 롤백 일관화
 4. UI 분해: common_dialog(→다이얼로그별 파일) → login_screen 자체 다이얼로그 공용화 → order_detail_popup 상태변경 로직 provider 이동 → app_bar_widget 분할

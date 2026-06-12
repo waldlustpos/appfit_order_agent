@@ -22,7 +22,6 @@ import 'package:flutter_test/flutter_test.dart';
 /// fakeAsync 로 시간을 흘려도 벽시계는 고정이다. 테스트는 실제 now 기준으로
 /// 다음 자정까지의 간격을 역산해 검증한다.
 OrderTimerManager _manager({
-  VoidCallback? onPollNewOrders,
   VoidCallback? onRefreshOrders,
   VoidCallback? onCacheCleanup,
 }) {
@@ -31,7 +30,6 @@ OrderTimerManager _manager({
   final provider = Provider<OrderTimerManager>(
     (ref) => OrderTimerManager(
       ref,
-      onPollNewOrders: onPollNewOrders,
       onRefreshOrders: onRefreshOrders,
       onCacheCleanup: onCacheCleanup,
     ),
@@ -72,25 +70,6 @@ void main() {
         expect(refreshCount, 1);
         async.elapse(const Duration(seconds: 60)); // 151s
         expect(refreshCount, 2);
-        m.dispose();
-      });
-    });
-
-    test('현재 동작 고정(버그 의심): onPollNewOrders 콜백은 어떤 타이머에서도 호출되지 않음', () {
-      // order_provider 는 onPollNewOrders 를 주입하지만 OrderTimerManager 내부에는
-      // 이를 호출하는 코드가 없다 (폴링은 항상 onRefreshOrders 만 호출). dead callback.
-      fakeAsync((async) {
-        var pollCount = 0;
-        var refreshCount = 0;
-        final m = _manager(
-          onPollNewOrders: () => pollCount++,
-          onRefreshOrders: () => refreshCount++,
-        );
-        m.setupPollingTimer(false);
-        m.setupCacheCleanupTimer();
-        async.elapse(const Duration(hours: 2));
-        expect(refreshCount, greaterThan(0));
-        expect(pollCount, 0); // 주입돼도 영원히 미사용
         m.dispose();
       });
     });
