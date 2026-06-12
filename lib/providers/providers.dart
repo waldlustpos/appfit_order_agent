@@ -14,5 +14,4 @@ export 'package:appfit_order_agent/providers/order/order_detail_provider.dart';
 export 'package:appfit_order_agent/providers/app_info_provider.dart';
 export 'package:appfit_order_agent/providers/kds/kds_unified_providers.dart';
 export 'package:appfit_order_agent/providers/brand_theme_provider.dart';
-export 'package:appfit_order_agent/core/orders/alert_manager.dart'; // AlertManager export
 export 'package:appfit_order_agent/providers/misc_providers.dart';

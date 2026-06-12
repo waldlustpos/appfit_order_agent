@@ -17,6 +17,7 @@ import 'package:appfit_order_agent/providers/order/order_queue_manager.dart';
 import 'package:appfit_order_agent/providers/order/order_socket_manager.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:appfit_order_agent/core/orders/alert_manager.dart';
 import 'package:appfit_order_agent/core/orders/sound_service.dart';
 import 'package:appfit_order_agent/core/orders/blink_service.dart';
 import 'package:appfit_order_agent/core/orders/output_service.dart';
