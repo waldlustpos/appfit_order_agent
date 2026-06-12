@@ -114,6 +114,7 @@ dev_dependencies:
   json_serializable: ^6.7.1
   riverpod_generator: ^2.6.3
   dotted_line: ^3.2.3
+  mocktail: ^1.0.5
 
 
 # For information on the generic Dart part of this file, see the
