@@ -11,6 +11,8 @@ import 'package:appfit_order_agent/models/order_model.dart';
 import 'package:appfit_order_agent/models/product_model.dart';
 import 'package:appfit_order_agent/providers/product_provider.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
+import 'package:appfit_order_agent/services/label_printer/label_print_data.dart';
+import 'package:appfit_order_agent/services/label_printer/qr_payload_strategy.dart';
 import 'package:appfit_order_agent/services/output_queue_service.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/services/print_service.dart';
@@ -362,17 +364,22 @@ class _SettingsLabelTestSectionState
     }
   }
 
-  /// 지정 주문번호 1개를 실제 보유 상품명 + 임의 옵션/메모로 -1~-20 숫자 접미사로 20장 출력 (QR 없음).
+  /// 지정 주문번호 1개를 실제 보유 상품명 + 임의 옵션/메모로 -1~-20 숫자 접미사로 20장 출력.
   /// 20장은 내용은 동일하고 주문번호 뒤에 -1, -2, ... -20 숫자 접미사만 달라진다
-  /// (예: #1023-1, #1023-2, ... #1023-20).
+  /// (예: 1023-1, 1023-2, ... 1023-20 — '#' 없음).
   ///
   /// 자동출력 경로([OutputService.printOrderLabels])와 달리
   /// [LabelPrintData.fromOrder] / 브랜드 필터 전략을 거치지 않고
   /// [LabelPainter.generateLabelImage] 를 직접 호출한다 → 임의 옵션/메모가
-  /// 그대로 인쇄되고, qrData 를 넘기지 않으므로 QR 토글과 무관하게 QR 미인쇄.
+  /// 그대로 인쇄된다. QR 토글(getLabelUseQrPrint)을 반영해 ON 이면 QR 도 함께 출력하며,
+  /// QR 페이로드는 운영과 동일한 브랜드 전략([qrPayloadStrategyProvider])으로
+  /// {OrderNo}-{ShopItemId}-{CupIdx} 포맷을 담는다 → 실제 스캔/레이아웃을 동일하게 검증.
   Future<void> _printOrderNoTest() async {
     final printService = ref.read(printServiceProvider);
     final status = ref.read(printerStatusProvider);
+    // QR 토글 반영 — ON 이면 각 라벨에 운영과 동일 포맷의 QR 페이로드를 넘긴다.
+    final useQr = ref.read(preferenceServiceProvider).getLabelUseQrPrint();
+    final qrStrategy = ref.read(qrPayloadStrategyProvider);
 
     if (!status.isLabelConnected) {
       if (mounted) {
@@ -387,17 +394,19 @@ class _SettingsLabelTestSectionState
     // 메뉴명은 type==item 상품명을 그대로 사용(번역 안 함). subinfo 는 옵션(type==option)을
     // TpcpLabelFilterStrategy 와 동일하게 categoryCode 로 분류해서 채운다.
     List<String> menuNames = const [];
+    List<String> menuIds =
+        const []; // 메뉴별 shopItemId(internalId) — QR 페이로드용 (menuNames 와 동일 순서)
     List<String> beanNames = const [];
     List<String> tempNames = const [];
     List<String> sizeNames = const [];
     List<String> etcOptionNames = const [];
     try {
       final products = await ref.read(productProvider.future);
-      menuNames = products
-          .where((p) => p.type == ProductType.item)
-          .map((p) => p.productName)
-          .where((n) => n.isNotEmpty)
+      final itemProducts = products
+          .where((p) => p.type == ProductType.item && p.productName.isNotEmpty)
           .toList();
+      menuNames = itemProducts.map((p) => p.productName).toList();
+      menuIds = itemProducts.map((p) => p.internalId).toList();
 
       final optionProducts =
           products.where((p) => p.type == ProductType.option).toList();
@@ -428,7 +437,10 @@ class _SettingsLabelTestSectionState
           tag: LogTag.WARNING,
           message: '[OrderNoTest] 상품 조회 실패 — fallback 사용: $e');
     }
-    if (menuNames.isEmpty) menuNames = _orderNoTestFallbackMenus;
+    if (menuNames.isEmpty) {
+      menuNames = _orderNoTestFallbackMenus;
+      menuIds = const ['ITEM1', 'ITEM2', 'ITEM3'];
+    }
 
     logToFile(
         tag: LogTag.PLATFORM,
@@ -450,6 +462,8 @@ class _SettingsLabelTestSectionState
       for (int i = 0; i < numbers.length; i++) {
         final shopOrderNo = numbers[i];
         final menuName = menuNames[i % menuNames.length];
+        final shopItemId =
+            menuIds.isEmpty ? 'ITEM' : menuIds[i % menuIds.length];
         // option 섹션: 실제 옵션(원두/온도/사이즈 제외)에서 번호마다 1~3개 순환.
         final optMax = etcOptionNames.length < 3 ? etcOptionNames.length : 3;
         final optCount = optMax == 0 ? 0 : (i % optMax) + 1;
@@ -468,6 +482,27 @@ class _SettingsLabelTestSectionState
           printed++;
           // 주문번호 접미사: -1, -2, ... -20.
           final labelOrderNo = '$shopOrderNo-$v'; // 예: 1023-1
+          // QR 페이로드: 운영과 동일 전략 → {OrderNo}-{ShopItemId}-{CupIdx}.
+          // cupIdx = labelSeq-1 이므로 labelSeq=v → '$shopOrderNo-$shopItemId-${v-1}'.
+          final qrPayload = qrStrategy.buildPayload(
+            LabelOrderInfo(
+              orderNo: shopOrderNo,
+              displayNum: labelOrderNo,
+              shopOrderNo: shopOrderNo,
+              storeId: 'ORDERNO_TEST',
+              orderedAt: DateTime.now(),
+            ),
+            LabelMenuInfo(
+              shopItemId: shopItemId,
+              itemName: menuName,
+              itemPrice: 0,
+              qty: _orderNoTestVersions,
+              labelSeq: v,
+              options: const [],
+            ),
+            printed,
+            total,
+          );
           final imageBytes = await LabelPainter.generateLabelImage(
             menuName: menuName,
             options: options,
@@ -476,6 +511,8 @@ class _SettingsLabelTestSectionState
             beanType: bean,
             temperature: temp,
             sizeOption: size,
+            // QR 토글 ON 이면 운영과 동일 포맷의 QR 동반 출력 (박스 90×90 고정 → 내용 길이 무관).
+            qrData: useQr ? qrPayload : null,
             memo: memo,
             // 헤더 식별번호: (1/20), (2/20) ... (20/20) — 현재 장수/전체 장수.
             orderIndex: v,
@@ -647,7 +684,7 @@ class _SettingsLabelTestSectionState
                       onPressed: _printOrderNoTest,
                       icon: const Icon(Icons.confirmation_number, size: 18),
                       label: const Text(
-                          '주문번호 테스트 (1번호 × -1~-20 = 20장 / 실상품·옵션·메모)'),
+                          '주문번호 테스트 (1번호 × -1~-20 = 20장 / 실상품·옵션·메모 / QR 토글 반영)'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.teal,
                         foregroundColor: Colors.white,

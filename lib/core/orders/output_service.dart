@@ -169,21 +169,29 @@ class OutputService {
 
       final totalLabels = labels.first.orderTotal;
 
+      // QR 코드 출력 토글. ON 이면 ① QR 동반 인쇄 + ② 주문번호 뒤 순번 접미사(-1, -2 ...)
+      // 를 함께 적용한다. (예: 0029 → 0029-1, 0029-2). OFF 면 둘 다 미적용.
+      final useQr = prefService.getLabelUseQrPrint();
+
       // 누락 카운터 — 한 주문 내에서 자동 재시도(1회) 마저 실패한 라벨 추적
       int failedLabels = 0;
       final List<int> failedIndices = [];
 
       for (final data in labels) {
         final genStart = DateTime.now();
+        // 토글 ON 시 주문번호에 누적 순번(orderIndex, 1..orderTotal)을 접미사로 붙인다.
+        final shopOrderNo = (useQr && data.shopOrderNo != null)
+            ? '${data.shopOrderNo}-${data.orderIndex}'
+            : data.shopOrderNo;
         final imageBytes = await LabelPainter.generateLabelImage(
           menuName: data.menuName,
           options: data.options,
-          shopOrderNo: data.shopOrderNo,
+          shopOrderNo: shopOrderNo,
           orderTime: data.orderTime,
           beanType: data.beanType,
           temperature: data.temperature,
           sizeOption: data.sizeOption,
-          qrData: prefService.getLabelUseQrPrint() ? data.qrData : null,
+          qrData: useQr ? data.qrData : null,
           memo: data.memo,
           orderIndex: data.orderIndex,
           orderTotal: data.orderTotal,

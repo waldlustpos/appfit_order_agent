@@ -60,7 +60,8 @@ class LabelPainter extends CustomPainter {
   static const double fsHeaderTime = 16;
   static const double fsSubInfo = 22;
   static const double fsMenuName = 28;
-  static const double fsOrderNo = 85; //주문번호사이즈
+  static const double fsOrderNo = 85; //주문번호사이즈 (QR 없을 때)
+  static const double fsOrderNoWithQr = 69; //주문번호사이즈 (QR 동반 시 — 겹침 방지용 조정 노브)
   static const double fsSectionTitle = 22;
   static const double fsOptionItem = 21;
   static const double fsDetailContent = 22;
@@ -275,11 +276,34 @@ class LabelPainter extends CustomPainter {
     }
 
     if (shopOrderNo != null) {
+      // QR 동반 시: 폰트를 줄여 QR(좌측 90×90)과 겹치지 않게 한다.
+      final bool hasQr = qrData != null;
+      final double orderNoFont = hasQr ? fsOrderNoWithQr : fsOrderNo;
+
+      // _drawText 는 top 기준이라, 폰트를 줄이면 QR(90px) 상단에 붙어 보인다.
+      // QR 동반 시 텍스트 실제 높이를 측정해 QR 높이 세로 중앙에 맞춘다.
+      double drawY = y;
+      if (hasQr) {
+        final measure = TextPainter(
+          text: TextSpan(
+            text: shopOrderNo!,
+            style: const TextStyle(
+              fontSize: fsOrderNoWithQr,
+              fontWeight: FontWeight.w600,
+              fontFamily: 'Pretendard',
+            ),
+          ),
+          textDirection: TextDirection.ltr,
+          maxLines: 1,
+        )..layout();
+        drawY = y + (qrSizeDefault - measure.height) / 2;
+      }
+
       _drawText(
         canvas,
-        "#$shopOrderNo",
-        Offset(size.width - defaultMargin, y),
-        fontSize: fsOrderNo,
+        shopOrderNo!, // '#' 제거
+        Offset(size.width - defaultMargin, drawY),
+        fontSize: orderNoFont,
         isBold: true,
         align: TextAlign.right,
       );
