@@ -111,6 +111,7 @@ docs/*
 !docs/BRAND_ASSETS.md
 !docs/FEATURES.md
 !docs/REFACTORING.md
+!docs/TESTING.md
 
 # AppFit Generated
 lib/services/appfit/*.g.dart

@@ -33,5 +33,6 @@
 - 아키텍처(데이터 흐름·Riverpod·서비스·UI·네이티브·브랜드 테마·주요 패턴): [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - 빌드/배포/환경설정/다국어(Slang): [docs/BUILD.md](docs/BUILD.md)
 - Flutter/Dart 코드 스타일·Riverpod·라우팅·로깅·테마·테스트·접근성 규약: [docs/FLUTTER_GUIDELINES.md](docs/FLUTTER_GUIDELINES.md)
+- 테스트 작성·실행 방법(characterization 전략·PreferenceService seam·fake 패턴): [docs/TESTING.md](docs/TESTING.md)
 - 브랜드별 라벨/영수증 로고 자원 분기·BMP 사양·새 브랜드 추가 절차: [docs/BRAND_ASSETS.md](docs/BRAND_ASSETS.md)
 - 리팩토링 로드맵(Phase 0~3·하지 말 것 목록·작업 규율): [docs/REFACTORING.md](docs/REFACTORING.md)

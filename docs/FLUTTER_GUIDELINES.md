@@ -143,6 +143,7 @@
 - **패턴**: AAA(Arrange-Act-Assert) 또는 Given-When-Then 패턴 준수
 - **Mock 선호도**: Mock보다 Fake/Stub 우선 사용, 필요 시 `mocktail` 활용
 - **테스트 실행**: `flutter test` 또는 `flutter test test/<파일_경로>`
+- **상세**: 실행 옵션·characterization 전략·PreferenceService seam·fake/`fakeAsync` 패턴은 [TESTING.md](TESTING.md) 참고
 
 ## 접근성 (A11Y)
 
