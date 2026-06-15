@@ -31,6 +31,7 @@ import 'package:appfit_order_agent/providers/kds/kds_unified_providers.dart';
 import 'package:appfit_order_agent/providers/order/order_provider.dart';
 import 'package:flutter/foundation.dart'; // For kDebugMode if needed
 import 'package:appfit_order_agent/i18n/strings.g.dart';
+import 'package:appfit_order_agent/exceptions/api_error_mapper.dart'; // 예외 → 친화 메시지
 import 'package:appfit_order_agent/providers/locale_provider.dart';
 import 'package:appfit_order_agent/utils/label_painter.dart';
 import 'package:appfit_order_agent/config/ota_config.dart';
@@ -534,8 +535,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     } catch (e, s) {
       logToFile(tag: LogTag.ERROR, message: '로그인 중 오류 발생: $s');
       if (mounted) {
+        // raw e.toString()(긴 DioException 영문) 대신 친화 메시지로 표시.
+        final content = mapDioErrorToApiException(e, s, context: '로그인').message;
         CommonDialog.showErrorDialog(
-            context: context, title: t.login.fail_title, content: e.toString());
+            context: context, title: t.login.fail_title, content: content);
       }
     } finally {
       if (mounted) {

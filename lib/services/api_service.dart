@@ -19,6 +19,7 @@ import 'package:appfit_core/appfit_core.dart'; // import 추가
 // import 'appfit/api_routes.dart'; // Removed
 import 'package:appfit_order_agent/models/enums/order_action.dart';
 import 'package:appfit_order_agent/exceptions/api_exceptions.dart'; // Added for precise error catching
+import 'package:appfit_order_agent/exceptions/api_error_mapper.dart'; // DioException → 친화 ApiException 변환
 import 'package:appfit_order_agent/services/platform_service.dart'; // logToFile, LogTag 사용 위해 추가
 
 part 'api_service.g.dart';
@@ -95,7 +96,10 @@ class ApiService {
         throw Exception('프로젝트 정보 조회 실패: ${response.statusCode}');
       }
     } catch (e, s) {
-      rethrow;
+      // 서버가 내려준 친화 message(서버별 로케일)를 추출해 ApiException 으로
+      // 변환한다. raw DioException.toString() 의 긴 영문이 다이얼로그까지
+      // 노출되던 문제를 차단(서버 응답 body 없으면 i18n 폴백).
+      throw mapDioErrorToApiException(e, s, context: '프로젝트 정보 조회');
     }
   }
 
@@ -180,33 +184,26 @@ class ApiService {
         final data = e.response?.data;
         if (data is Map<String, dynamic> &&
             data['code'] == 'INVALID_ORDER_STATUS') {
-          String message = data['message']?.toString() ?? '유효하지 않은 주문 상태입니다.';
+          // 이 메서드 고유 비즈니스 로직: 현재 주문 상태를 재조회해 더 구체적인
+          // 한국어 메시지로 보강한다(서버 message 추출/breadcrumb 은 매퍼 위임).
+          String? overrideMsg;
           try {
             final currentOrder = await getOrder(orderId);
-            message = switch (currentOrder.status) {
+            overrideMsg = switch (currentOrder.status) {
               OrderStatus.CANCELLED => '취소된 주문입니다.',
               OrderStatus.READY => '이미 픽업 요청된 주문입니다.',
               OrderStatus.DONE => '이미 완료된 주문입니다.',
               OrderStatus.PREPARING => '이미 수락된 주문입니다.',
-              _ => message,
+              _ => null,
             };
           } catch (_) {
-            // 조회 실패 시 원본 서버 메시지 유지
+            // 조회 실패 시 매퍼가 추출한 서버 메시지 사용
           }
-          // 친절 메시지를 Sentry 추적 trail 에 남긴다. core 인터셉터가 이 400 을
-          // 양성(benign)으로 분류해 issue 는 만들지 않으므로, 사람이 읽기 쉬운
-          // 한국어 메시지를 breadcrumb 으로 보강해 추적 시 맥락을 제공한다.
-          MonitoringService.instance.addBreadcrumb(
-            '주문 상태 변경 거부: $message',
-            category: 'order',
-            data: {
-              'order_id': orderId,
-              'server_code': data['code'],
-              'server_message': data['message'],
-              'friendly_message': message,
-            },
-          );
-          throw ApiException(message, e, e.stackTrace);
+          // 공통 매퍼로 서버 message 추출 + breadcrumb 기록. core 인터셉터가
+          // 이 400 을 양성(benign)으로 분류해 issue 는 만들지 않으므로, 매퍼가
+          // 사람이 읽기 쉬운 메시지를 breadcrumb 으로 보강해 추적 맥락을 제공한다.
+          final apiEx = mapDioErrorToApiException(e, s, context: '주문 상태 변경');
+          throw ApiException(overrideMsg ?? apiEx.message, e, s);
         }
       }
       return false;

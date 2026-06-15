@@ -6,6 +6,8 @@ import 'package:appfit_order_agent/providers/providers.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:appfit_order_agent/services/appfit/appfit_providers.dart'; // appFitTokenManagerProvider
 import 'package:appfit_order_agent/services/api_service.dart';
+import 'package:appfit_order_agent/exceptions/api_error_mapper.dart'; // DioException → 친화 ApiException 변환
+import 'package:appfit_order_agent/i18n/strings.g.dart'; // t (네트워크/타임아웃 i18n 폴백)
 import 'package:appfit_order_agent/services/platform_service.dart'; // logToFile, LogTag 사용 위해 추가
 import 'package:appfit_order_agent/services/secure_storage_service.dart'; // 로그아웃 cleanup용
 
@@ -104,7 +106,8 @@ class Auth extends _$Auth {
 
       try {
         // AppFit Token Manager를 통해 토큰 발급 (로그인)
-        final t = await tokenManager.getValidToken(storeId, password: password);
+        // 발급된 토큰은 TokenManager 가 내부 캐시/보안저장하므로 반환값은 사용하지 않음.
+        await tokenManager.getValidToken(storeId, password: password);
         // 추가: 장시간 세션 토큰 갱신용 - SecureStorage에 비밀번호 보안 저장
         await tokenManager.savePassword(password);
 
@@ -133,12 +136,16 @@ class Auth extends _$Auth {
               message: '[Auth] V2 Store Info Validation Success');
         } catch (e, s) {
           logger.e('[Auth] V2 Data Fetch Failed', error: e, stackTrace: s);
+          // getProjectInfo 가 친화 ApiException 을 던지므로 매퍼는 그대로 통과(멱등).
+          // raw '데이터 조회 실패: $e'(긴 DioException 영문) 대신 친화 메시지 노출.
+          final errorMsg =
+              mapDioErrorToApiException(e, s, context: '프로젝트 정보 조회').message;
           // stale 토큰/projectId/apiKey/password 잔존 차단 — 다음 시도 깨끗한 상태
           await _cleanupCredentials(tokenManager);
           state = state.copyWith(
               connectionStatus: ConnectionStatus.disconnected,
-              errorMessage: '데이터 조회 실패: $e');
-          return (false, null, '데이터 조회 실패: $e');
+              errorMessage: errorMsg);
+          return (false, null, errorMsg);
         }
 
         // V2: AppFit WebSocket 연결 시작
@@ -180,13 +187,9 @@ class Auth extends _$Auth {
 
         return (true, null, null);
       } catch (e, s) {
-        String errorMsg = e.toString().replaceAll('Exception: ', '');
-
-        // DioException이 포함된 경우 type/error/host 등 진단 정보 수집
-        // (token_manager.dart는 Exception('로그인 API 오류: ${e.message}')로
-        //  rethrow하므로, 원본 DioException을 얻으려면 stackTrace 흐름이 아닌
-        //  현재 호출 위치에서 별도로 잡지 못한다. 따라서 여기서는 가능한 한
-        //  많은 컨텍스트를 함께 기록한다.)
+        // DioException 진단 정보 수집 (원본 보존 — 아래 logToFile 용으로 유지).
+        // token_manager 는 Exception('로그인 API 오류: ...') 로 감싸 rethrow 하므로
+        // 여기서 원본 DioException 을 직접 얻지 못할 수 있어 가능한 컨텍스트를 함께 기록.
         final baseUrl = appfit_core.AppFitConfig.baseUrl;
         DioException? dioErr;
         if (e is DioException) dioErr = e;
@@ -197,12 +200,32 @@ class Auth extends _$Auth {
                 'inner=${dioErr.error?.runtimeType}:${dioErr.error} '
                 'status=${dioErr.response?.statusCode}';
 
-        // 네트워크 관련 에러인 경우 추가 매핑
-        if (errorMsg.contains('Connection') || errorMsg.contains('Network')) {
-          errorMsg = '네트워크 연결 상태를 확인해주세요.';
-        } else if (errorMsg.contains('sign-in')) {
-          // 구체적인 메시지가 없는 경우의 폴백
-          errorMsg = '아이디 또는 비밀번호가 일치하지 않습니다.';
+        // 사용자 노출 메시지 결정.
+        // - DioException 이 직접 올라온 경우: 매퍼가 서버 message/status 폴백 처리.
+        // - token_manager 가 'Exception: 로그인 API 오류: <msg>' 로 감싼 경우:
+        //   접두어를 제거해 서버가 준 친화 message(서버별 로케일)를 노출.
+        //   단, token_manager 는 네트워크 오류도 평문 Exception 으로 collapse 하므로
+        //   네트워크/타임아웃 신호만 i18n 폴백으로 보정한다(서버 message 없는 경우).
+        String errorMsg;
+        if (e is DioException) {
+          errorMsg = mapDioErrorToApiException(e, s, context: '로그인').message;
+        } else {
+          errorMsg = e
+              .toString()
+              .replaceAll('Exception: ', '')
+              .replaceAll('로그인 API 오류: ', '')
+              .replaceAll('로그인 실패: ', '')
+              .trim();
+          final lower = errorMsg.toLowerCase();
+          if (errorMsg.isEmpty || errorMsg == 'null') {
+            errorMsg = t.common.api_error.generic;
+          } else if (lower.contains('connection') ||
+              lower.contains('network') ||
+              lower.contains('socketexception')) {
+            errorMsg = t.common.api_error.network;
+          } else if (lower.contains('timeout')) {
+            errorMsg = t.common.api_error.timeout;
+          }
         }
 
         logToFile(
@@ -216,7 +239,7 @@ class Auth extends _$Auth {
       }
     } catch (e, s) {
       logger.e('Native login error', error: e, stackTrace: s);
-      final errorMsg = '로그인 중 오류가 발생했습니다: $e';
+      final errorMsg = mapDioErrorToApiException(e, s, context: '로그인').message;
       await _cleanupCredentials(tokenManager);
       state = state.copyWith(
           connectionStatus: ConnectionStatus.disconnected,

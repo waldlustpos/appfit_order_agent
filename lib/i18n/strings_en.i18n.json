@@ -15,7 +15,15 @@
         "yes": "Yes",
         "no": "No",
         "unknown": "Unknown",
-        "later": "Later"
+        "later": "Later",
+        "api_error": {
+            "network": "Please check your network connection.",
+            "timeout": "The server is taking too long to respond. Please try again later.",
+            "auth": "Your session has expired. Please sign in again.",
+            "not_found": "The requested information could not be found.",
+            "server": "A temporary server error occurred. Please try again later.",
+            "generic": "We couldn't process your request. Please try again later."
+        }
     },
     "login": {
         "title": "Login",

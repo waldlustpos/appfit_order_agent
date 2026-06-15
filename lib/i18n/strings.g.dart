@@ -4,9 +4,9 @@
 /// To regenerate, run: `dart run slang`
 ///
 /// Locales: 3
-/// Strings: 1211 (403 per locale)
+/// Strings: 1229 (409 per locale)
 ///
-/// Built on 2026-06-08 at 05:08 UTC
+/// Built on 2026-06-15 at 07:39 UTC
 
 // coverage:ignore-file
 // ignore_for_file: type=lint
@@ -190,6 +190,7 @@ class _StringsCommonKo {
 	String get no => '아니요';
 	String get unknown => '알 수 없음';
 	String get later => '나중에';
+	late final _StringsCommonApiErrorKo api_error = _StringsCommonApiErrorKo._(_root);
 }
 
 // Path: login
@@ -543,6 +544,21 @@ class _StringsReceiptKo {
 	String get test_port => '포트';
 	String get test_board => '보드';
 	String get test_ok => '이 영수증이 보이면 정상';
+}
+
+// Path: common.api_error
+class _StringsCommonApiErrorKo {
+	_StringsCommonApiErrorKo._(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+	String get network => '네트워크 연결 상태를 확인해주세요.';
+	String get timeout => '서버 응답이 지연되고 있습니다. 잠시 후 다시 시도해주세요.';
+	String get auth => '인증이 만료되었습니다. 다시 로그인해주세요.';
+	String get not_found => '요청한 정보를 찾을 수 없습니다.';
+	String get server => '일시적인 서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
+	String get generic => '요청을 처리하지 못했습니다. 잠시 후 다시 시도해주세요.';
 }
 
 // Path: login.tabs
@@ -1239,6 +1255,7 @@ class _StringsCommonEn extends _StringsCommonKo {
 	@override String get no => 'No';
 	@override String get unknown => 'Unknown';
 	@override String get later => 'Later';
+	@override late final _StringsCommonApiErrorEn api_error = _StringsCommonApiErrorEn._(_root);
 }
 
 // Path: login
@@ -1600,6 +1617,21 @@ class _StringsReceiptEn extends _StringsReceiptKo {
 	@override String get test_port => 'Port';
 	@override String get test_board => 'Baud';
 	@override String get test_ok => 'Printer is working';
+}
+
+// Path: common.api_error
+class _StringsCommonApiErrorEn extends _StringsCommonApiErrorKo {
+	_StringsCommonApiErrorEn._(_StringsEn root) : this._root = root, super._(root);
+
+	@override final _StringsEn _root; // ignore: unused_field
+
+	// Translations
+	@override String get network => 'Please check your network connection.';
+	@override String get timeout => 'The server is taking too long to respond. Please try again later.';
+	@override String get auth => 'Your session has expired. Please sign in again.';
+	@override String get not_found => 'The requested information could not be found.';
+	@override String get server => 'A temporary server error occurred. Please try again later.';
+	@override String get generic => 'We couldn\'t process your request. Please try again later.';
 }
 
 // Path: login.tabs
@@ -2296,6 +2328,7 @@ class _StringsCommonJa extends _StringsCommonKo {
 	@override String get no => 'いいえ';
 	@override String get unknown => '不明';
 	@override String get later => '後で';
+	@override late final _StringsCommonApiErrorJa api_error = _StringsCommonApiErrorJa._(_root);
 }
 
 // Path: login
@@ -2649,6 +2682,21 @@ class _StringsReceiptJa extends _StringsReceiptKo {
 	@override String get test_port => 'ポート';
 	@override String get test_board => 'ボーレート';
 	@override String get test_ok => '印刷正常';
+}
+
+// Path: common.api_error
+class _StringsCommonApiErrorJa extends _StringsCommonApiErrorKo {
+	_StringsCommonApiErrorJa._(_StringsJa root) : this._root = root, super._(root);
+
+	@override final _StringsJa _root; // ignore: unused_field
+
+	// Translations
+	@override String get network => 'ネットワーク接続を確認してください。';
+	@override String get timeout => 'サーバーの応答が遅れています。しばらくしてからもう一度お試しください。';
+	@override String get auth => '認証の有効期限が切れました。再度ログインしてください。';
+	@override String get not_found => 'リクエストされた情報が見つかりませんでした。';
+	@override String get server => '一時的なサーバーエラーが発生しました。しばらくしてからもう一度お試しください。';
+	@override String get generic => 'リクエストを処理できませんでした。しばらくしてからもう一度お試しください。';
 }
 
 // Path: login.tabs
