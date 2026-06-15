@@ -34,10 +34,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// 우회한 외부 의존:
 /// - audioplayers: OrderProvider 필드 이니셜라이저가 AudioPlayer() 를 즉시 생성하므로
 ///   메서드 채널 4종('xyz.luan/audioplayers*')을 mock handler 로 무력화.
-/// - PreferenceService: factory 싱글톤 + `PreferenceService()` 직접 호출 2곳
-///   (_shouldShowOrder/_shouldNotifyForOrder) 때문에 provider override 만으로는
-///   대체 불가 → SharedPreferences.setMockInitialValues + 실제 init() 로 우회.
-///   KEY_AUTO_RECEIPT=false 로 자동접수 사이드이펙트(PUT 체인)를 차단.
+/// - PreferenceService: preferenceServiceProvider 로 주입되며 getter 가
+///   SharedPreferences 를 라이브로 읽는다(캐싱 없음). 대부분의 테스트는
+///   KEY_AUTO_RECEIPT=false 로 자동접수 PUT 체인을 차단하고 유입 경로만 관찰하며,
+///   그룹 (e) 는 setAutoReceipt(true) 로 토글해 자동접수 ON 분기를 검증한다.
 /// - ApiService/AlertManager/OutputQueueService/PrintService/SoundService 는
 ///   수동 fake (noSuchMethod fallback — 예기치 않은 호출은 즉시 표면화).
 ///
@@ -488,6 +488,43 @@ void main() {
 
       final state = h.container.read(orderProvider);
       expect(state.orders.map((o) => o.orderId).toList(), ['B', 'A']);
+    });
+  });
+
+  group('(e) 자동접수 ON 체인 — PreferenceService seam', () {
+    // PreferenceService 는 preferenceServiceProvider 로 주입되고 getter 가
+    // SharedPreferences 를 라이브로 읽으므로(캐싱 없음), setAutoReceipt 로
+    // 값을 토글한 뒤 build 하면 자동접수 ON 분기를 그대로 탈 수 있다.
+    // (Phase 1 에서 '싱글톤이라 per-test 제어 불가' 로 미커버였던 경로)
+    test('자동접수 ON + 비-KDS 면 신규 NEW 주문을 PREPARING 으로 PUT (updateOrderStatus 호출)',
+        () async {
+      await PreferenceService().setAutoReceipt(true);
+      addTearDown(() => PreferenceService().setAutoReceipt(false));
+
+      final h = await _buildProvider();
+      h.notifier.queueOrderExternal(_order(orderNo: 'A'));
+      await _wait(1600); // 버퍼(1s) flush + emit + 자동접수 microtask + PUT
+
+      // 자동접수 → updateOrderStatus(A, PREPARING) 가 ApiService 로 호출됨.
+      expect(h.api.statusUpdates, contains(('A', OrderStatus.PREPARING)));
+      // 로컬 상태도 PREPARING 으로 전이.
+      expect(
+        h.container.read(orderProvider).orders.single.status,
+        OrderStatus.PREPARING,
+      );
+    });
+
+    test('자동접수 OFF 면 신규 NEW 주문에 updateOrderStatus 를 호출하지 않음', () async {
+      // setUpAll 기본값(false) — 명시적으로 대비군 고정.
+      final h = await _buildProvider();
+      h.notifier.queueOrderExternal(_order(orderNo: 'A'));
+      await _wait(1600);
+
+      expect(h.api.statusUpdates, isEmpty);
+      expect(
+        h.container.read(orderProvider).orders.single.status,
+        OrderStatus.NEW,
+      );
     });
   });
 

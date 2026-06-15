@@ -33,7 +33,7 @@
 
 **완료**: 코어 66케이스(crypto/ApiHttpException/Dio 401 retry/NotifierService 재연결 + connector seam — 다음 릴리즈 minor), 앱 94케이스(매니저 3종 51 + fromJson 31 + 유입 characterization 12), PreferenceService 27곳 provider 경유 전환. 전체 suite: 코어 99 / 앱 180 그린.
 
-**미커버 (seam 필요)**: 자동접수 ON 체인(PreferenceService 전역 싱글톤 per-test 제어 불가), Sentry 쿨다운(hub 주입 없음), 캐시 merge 분기(_orderDetailCache private). **Phase 2 seam 목록**: PreferenceService 생성자/프로바이더 주입, AudioPlayer 주입(필드 이니셜라이저 생성), clock 주입(큐 1s/배치 200ms 실시간 대기 의존), OrderDetailCache 주입, Sentry hub 주입.
+**미커버 (seam 필요)**: ~~자동접수 ON 체인~~(✅ 커버 — PreferenceService 는 이미 provider 주입돼 있고 getter 가 SharedPreferences 라이브 read 라 setAutoReceipt 토글로 검증), Sentry 쿨다운(hub 주입 없음), ~~캐시 merge 분기~~(✅ OrderDetailCache seam 으로 커버). **Phase 2 seam 진행**: ~~PreferenceService 주입~~(이미 존재 — 31981c5), ~~AudioPlayer 주입~~(✅ audioPlayerFactoryProvider), ~~OrderDetailCache 주입~~(✅), clock 주입(큐 1s/배치 200ms 실시간 대기 — 잔여), Sentry hub 주입(잔여).
 
 **핵심 발견 (수정 후보 — 테스트 보호 확보됨, 별도 커밋으로)**:
 1. **폴링 전용 경로 dead wiring**: OrderTimerManager 가 onRefreshOrders 만 호출 — `_pollNewOrders→_mergeOrdersIntoUnfilteredList` 전체가 도달 불가. 3-way 유입은 실질 **2-way**. Phase 2 항목 1은 "병합 지점 신설"이 아니라 **dead 경로 삭제 vs 복구 결정**으로 재정의
