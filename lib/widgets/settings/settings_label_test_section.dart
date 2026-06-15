@@ -511,7 +511,7 @@ class _SettingsLabelTestSectionState
             beanType: bean,
             temperature: temp,
             sizeOption: size,
-            // QR 토글 ON 이면 운영과 동일 포맷의 QR 동반 출력 (박스 90×90 고정 → 내용 길이 무관).
+            // QR 토글 ON 이면 운영과 동일 포맷의 QR 동반 출력.
             qrData: useQr ? qrPayload : null,
             memo: memo,
             // 헤더 식별번호: (1/20), (2/20) ... (20/20) — 현재 장수/전체 장수.

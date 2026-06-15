@@ -61,7 +61,7 @@ class LabelPainter extends CustomPainter {
   static const double fsSubInfo = 22;
   static const double fsMenuName = 28;
   static const double fsOrderNo = 85; //주문번호사이즈 (QR 없을 때)
-  static const double fsOrderNoWithQr = 69; //주문번호사이즈 (QR 동반 시 — 겹침 방지용 조정 노브)
+  static const double fsOrderNoWithQr = 71; //주문번호사이즈 (QR 동반 시 — 겹침 방지용 조정 노브)
   static const double fsSectionTitle = 22;
   static const double fsOptionItem = 21;
   static const double fsDetailContent = 22;
@@ -280,33 +280,66 @@ class LabelPainter extends CustomPainter {
       final bool hasQr = qrData != null;
       final double orderNoFont = hasQr ? fsOrderNoWithQr : fsOrderNo;
 
+      final String text = shopOrderNo!;
+      final int dashIndex = text.indexOf('-');
+
+      InlineSpan textSpan;
+      if (dashIndex != -1) {
+        final String mainPart = text.substring(0, dashIndex);
+        final String suffixPart = text.substring(dashIndex); // '-' 포함
+
+        textSpan = TextSpan(
+          children: [
+            TextSpan(
+              text: mainPart,
+              style: TextStyle(
+                fontSize: orderNoFont,
+                fontWeight: FontWeight.w600,
+                fontFamily: 'Pretendard',
+                color: Colors.black,
+              ),
+            ),
+            TextSpan(
+              text: suffixPart,
+              style: TextStyle(
+                fontSize: orderNoFont * 0.85, // 15% 축소
+                fontWeight: FontWeight.w600,
+                fontFamily: 'Pretendard',
+                color: Colors.black,
+              ),
+            ),
+          ],
+        );
+      } else {
+        textSpan = TextSpan(
+          text: text,
+          style: TextStyle(
+            fontSize: orderNoFont,
+            fontWeight: FontWeight.w600,
+            fontFamily: 'Pretendard',
+            color: Colors.black,
+          ),
+        );
+      }
+
+      final textPainter = TextPainter(
+        text: textSpan,
+        textDirection: TextDirection.ltr,
+        textAlign: TextAlign.right,
+        maxLines: 1,
+      );
+
+      textPainter.layout();
+
       // _drawText 는 top 기준이라, 폰트를 줄이면 QR(90px) 상단에 붙어 보인다.
       // QR 동반 시 텍스트 실제 높이를 측정해 QR 높이 세로 중앙에 맞춘다.
       double drawY = y;
       if (hasQr) {
-        final measure = TextPainter(
-          text: TextSpan(
-            text: shopOrderNo!,
-            style: const TextStyle(
-              fontSize: fsOrderNoWithQr,
-              fontWeight: FontWeight.w600,
-              fontFamily: 'Pretendard',
-            ),
-          ),
-          textDirection: TextDirection.ltr,
-          maxLines: 1,
-        )..layout();
-        drawY = y + (qrSizeDefault - measure.height) / 2;
+        drawY = y + (qrSizeDefault - textPainter.height) / 2;
       }
 
-      _drawText(
-        canvas,
-        shopOrderNo!, // '#' 제거
-        Offset(size.width - defaultMargin, drawY),
-        fontSize: orderNoFont,
-        isBold: true,
-        align: TextAlign.right,
-      );
+      final double drawX = size.width - defaultMargin - textPainter.width;
+      textPainter.paint(canvas, Offset(drawX, drawY));
     }
   }
 
