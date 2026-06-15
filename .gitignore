@@ -115,6 +115,9 @@ docs/*
 # AppFit Generated
 lib/services/appfit/*.g.dart
 
+# Test coverage 출력 (flutter test --coverage)
+coverage/
+
 # Environment and Config (Local)
 .env
 /.env
