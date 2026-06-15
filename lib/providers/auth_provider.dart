@@ -188,8 +188,6 @@ class Auth extends _$Auth {
         return (true, null, null);
       } catch (e, s) {
         // DioException 진단 정보 수집 (원본 보존 — 아래 logToFile 용으로 유지).
-        // token_manager 는 Exception('로그인 API 오류: ...') 로 감싸 rethrow 하므로
-        // 여기서 원본 DioException 을 직접 얻지 못할 수 있어 가능한 컨텍스트를 함께 기록.
         final baseUrl = appfit_core.AppFitConfig.baseUrl;
         DioException? dioErr;
         if (e is DioException) dioErr = e;
@@ -201,30 +199,18 @@ class Auth extends _$Auth {
                 'status=${dioErr.response?.statusCode}';
 
         // 사용자 노출 메시지 결정.
-        // - DioException 이 직접 올라온 경우: 매퍼가 서버 message/status 폴백 처리.
-        // - token_manager 가 'Exception: 로그인 API 오류: <msg>' 로 감싼 경우:
-        //   접두어를 제거해 서버가 준 친화 message(서버별 로케일)를 노출.
-        //   단, token_manager 는 네트워크 오류도 평문 Exception 으로 collapse 하므로
-        //   네트워크/타임아웃 신호만 i18n 폴백으로 보정한다(서버 message 없는 경우).
+        // appfit_core v1.0.13+ 부터 token_manager 가 로그인 실패 시 원본
+        // DioException 을 그대로 전파하므로(과거의 평문 'Exception: 로그인 API
+        // 오류:' collapse 제거), 토큰/네트워크/타임아웃 오류는 모두 매퍼가
+        // 서버 message/status/type 으로 깔끔히 처리한다. else 분기는 도메인
+        // 검증(비밀번호 누락 등)·WebSocket 등 비-Dio 예외용 폴백.
         String errorMsg;
         if (e is DioException) {
           errorMsg = mapDioErrorToApiException(e, s, context: '로그인').message;
         } else {
-          errorMsg = e
-              .toString()
-              .replaceAll('Exception: ', '')
-              .replaceAll('로그인 API 오류: ', '')
-              .replaceAll('로그인 실패: ', '')
-              .trim();
-          final lower = errorMsg.toLowerCase();
+          errorMsg = e.toString().replaceAll('Exception: ', '').trim();
           if (errorMsg.isEmpty || errorMsg == 'null') {
             errorMsg = t.common.api_error.generic;
-          } else if (lower.contains('connection') ||
-              lower.contains('network') ||
-              lower.contains('socketexception')) {
-            errorMsg = t.common.api_error.network;
-          } else if (lower.contains('timeout')) {
-            errorMsg = t.common.api_error.timeout;
           }
         }
 
