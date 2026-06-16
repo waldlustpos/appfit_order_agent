@@ -83,7 +83,7 @@ class ExternalReceiptPrinter {
     }
     if (Platform.isWindows) {
       await _ensureWinTransport();
-      return win_transport.isConnected();
+      return await win_transport.isConnected();
     }
     return false;
   }

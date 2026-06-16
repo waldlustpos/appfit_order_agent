@@ -205,16 +205,21 @@ print_label(png, w, h, opts, tag):
 
 ### 6.3 VID / PID 화이트리스트
 
-enumerate 결과가 비어도 알려진 디바이스 4종을 시도:
+enumerate 결과가 비어도 알려진 라벨 디바이스 3종을 시도:
 
 ```
-VID:0x4B43,PID:0x3538       # Caysn D2 계열
-VID:0x4B43,PID:0x3830       # Caysn D3 계열
+VID:0x4B43,PID:0x3538       # Caysn D2 계열 (검증 디바이스)
+VID:0x4B43,PID:0x3830       # Caysn D3 계열 (검증 디바이스)
 VID:0x0FE6,PID:0x811E       # 운영 모델 REXOD RXLA-561
-VID:0x067B,PID:0x2303
 ```
 
-새 디바이스 모델 추가 시 이 목록에 VID/PID 추가.
+새 라벨 디바이스 모델 추가 시 이 목록에 VID/PID 추가.
+
+> **금지**: 범용 USB-Serial 브리지 칩(예: Prolific PL2303 = `VID:0x067B,PID:0x2303`,
+> ICPlus 등) 을 이 목록에 넣지 말 것. 외부 ESC/POS 영수증 프린터가 그런 칩으로
+> 연결되면 라벨 백엔드가 해당 포트를 라벨로 오인 점유 → **라벨 연결 오탐** +
+> **라벨 테스트가 외부 프린터로 송출** 되는 사고가 난다. (과거 `0x067B:0x2303`
+> 가 무주석으로 등재돼 있던 것을 제거함.) 라벨은 항상 고정 모델만 등재한다.
 
 ### 6.4 stale handle 검사
 

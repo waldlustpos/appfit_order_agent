@@ -114,11 +114,12 @@ public class LabelPrinter {
                     hPrinter = Pointer.NULL;
                 }
 
+                // 라벨 전용 고정 모델만. 범용 USB-Serial 칩(PL2303 0x067B:0x2303 등)
+                // 은 넣지 말 것 — 외부 ESC/POS 영수증 프린터를 라벨로 오인 점유한다.
                 String[] ports = {
-                        "VID:0x4B43,PID:0x3538",
-                        "VID:0x4B43,PID:0x3830",
-                        "VID:0x0FE6,PID:0x811E",
-                        "VID:0x067B,PID:0x2303"
+                        "VID:0x4B43,PID:0x3538", // Caysn D2
+                        "VID:0x4B43,PID:0x3830", // Caysn D3
+                        "VID:0x0FE6,PID:0x811E"  // REXOD RXLA-561 (운영 모델)
                 };
 
                 for (String port : ports) {

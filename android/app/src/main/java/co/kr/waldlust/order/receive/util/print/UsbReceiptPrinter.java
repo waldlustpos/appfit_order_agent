@@ -577,15 +577,19 @@ public class UsbReceiptPrinter {
     /**
      * 라벨 프린터(LabelPrinter.java 를 통해 autoreplyprint.aar 가 담당)는
      * 영수증 프린터 탐색에서 제외해야 한다. VID/PID 목록은 LabelPrinter 가
-     * 지원하는 모델 그대로다.
+     * 지원하는 고정 모델 그대로다.
+     *
+     * 주의: 범용 USB-Serial 브리지 칩(예: Prolific PL2303 = 0x067B:0x2303) 은
+     * 절대 넣지 말 것. 외부 ESC/POS 영수증 프린터가 그런 칩으로 연결되면 여기서
+     * 라벨로 오인되어 영수증 탐색에서 continue 스킵 → 외부 프린터 미탐(false
+     * negative) 이 된다. (Windows _kUsbPortCandidates 와 동일 정책.)
      */
     private boolean isLabelPrinter(UsbDevice d) {
         if (d == null) return false;
         int vid = d.getVendorId();
         int pid = d.getProductId();
         return (vid == 0x4B43 && (pid == 0x3538 || pid == 0x3830))
-                || (vid == 0x0FE6 && pid == 0x811E)
-                || (vid == 0x067B && pid == 0x2303);
+                || (vid == 0x0FE6 && pid == 0x811E);
     }
 
     private void logDeviceDescriptor(UsbDevice d) {

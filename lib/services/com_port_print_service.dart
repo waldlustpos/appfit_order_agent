@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ffi';
 import 'dart:typed_data';
 
@@ -90,6 +91,44 @@ class ComPortPrintService {
   static const Duration _settleCold = Duration(milliseconds: 1500);
   static const Duration _settleFailureCooldown = Duration(milliseconds: 250);
 
+  /// 연결 검증(probeConnection) 의 open 직후 1차 안정화 대기. 이후 핑이 실패하면
+  /// [_probeRetryInterval] 간격으로 [_probeMaxAttempts] 회까지 재시도하므로 짧게
+  /// 둔다. (살아있는 프린터는 1차 시도에 즉시 통과, 죽은 프린터만 한도까지 대기.)
+  static const Duration _settleProbe = Duration(milliseconds: 250);
+
+  /// probeConnection 핑 재시도 간격 / 최대 횟수. open 직후 USB-Serial 재인식 ·
+  /// 펌웨어 idle 회복 타이밍 편차(수백ms~1.5s) 를 흡수하기 위함. 실제 출력
+  /// 경로(sendRaw cold settle 1.5s) 와 달리 "살아있으면 빨리, 죽었으면 확실히"
+  /// 를 위해 고정 대기 대신 점진적 재시도를 쓴다.
+  static const Duration _probeRetryInterval = Duration(milliseconds: 250);
+  static const int _probeMaxAttempts = 5;
+
+  /// 최근 성공 출력 직후엔 프린터가 살아있음이 입증된 상태이므로 포트를 다시
+  /// 열어 핑하지 않고(불필요한 포트 토글로 인한 간섭 방지) 연결됨으로 본다.
+  static const Duration _recentSendConnectedWindow = Duration(seconds: 20);
+
+  /// Win32 GetCommModemStatus 비트마스크 (win32 패키지 상수에 의존하지 않고 직접
+  /// 정의 -- 값은 Win32 API 에서 영구 고정). 시리얼 프린터 전원/온라인 판정용.
+  static const int _msCtsOn = 0x0010; // MS_CTS_ON  : Clear-To-Send
+  static const int _msDsrOn = 0x0020; // MS_DSR_ON  : Data-Set-Ready
+  static const int _msRingOn = 0x0040; // MS_RING_ON
+  static const int _msRlsdOn = 0x0080; // MS_RLSD_ON : Carrier Detect
+
+  /// COM 포트 open~close 임계구역 직렬화 락 (Future 체이닝 mutex).
+  /// [sendRaw] (실제 출력) 와 [probeConnection] (연결 검증) 이 같은 COM 포트를
+  /// 동시에 열어 ACCESS_DENIED / 핸들 경합을 일으키지 않도록 보장한다.
+  /// 단일 isolate 라 일반 필드로 충분.
+  static Future<void> _portLock = Future<void>.value();
+
+  /// [_portLock] 으로 [action] 을 직렬 실행. action 이 throw 해도 락은 항상
+  /// 해제(다음 대기자 진행)된다.
+  static Future<T> _synchronized<T>(Future<T> Function() action) {
+    final completer = Completer<void>();
+    final prev = _portLock;
+    _portLock = completer.future;
+    return prev.then((_) => action()).whenComplete(completer.complete);
+  }
+
   /// COM 포트 목록 조회 (예: ['COM1', 'COM2', 'COM3'])
   static List<String> getAvailableComPorts() {
     try {
@@ -130,8 +169,18 @@ class ComPortPrintService {
     }
   }
 
-  /// COM 포트로 바이트 데이터 전송
+  /// COM 포트로 바이트 데이터 전송. [probeConnection] 과 포트 락을 공유해
+  /// 출력 중 연결 검증이 같은 포트를 동시에 열지 않도록 직렬화한다.
   static Future<bool> sendRaw(
+    Uint8List data, {
+    String comPort = defaultComPort,
+    int baudRate = defaultBaudRate,
+  }) {
+    return _synchronized(
+        () => _sendRawLocked(data, comPort: comPort, baudRate: baudRate));
+  }
+
+  static Future<bool> _sendRawLocked(
     Uint8List data, {
     String comPort = defaultComPort,
     int baudRate = defaultBaudRate,
@@ -234,16 +283,19 @@ class ComPortPrintService {
       await Future.delayed(settle);
 
       try {
-        // ESC/POS DLE EOT 1 핑으로 디바이스 생존 확인. probe 실패 = 오프라인
-        // 또는 응답 안 함 → sendRaw false → PrinterJobQueue backoff 재시도.
+        // 디바이스 생존 확인: ESC/POS DLE EOT 1 핑이 권위 신호.
+        // 모뎀 DSR/CTS 는 어댑터/배선에 따라 신호를 안 넘기거나(현장 PR800+CDC 는
+        // 0x00) 항상 high 로 고정돼 신뢰 불가 -- 판정엔 쓰지 않고 raw 비트만
+        // 진단 로깅한다. probe 실패 = 오프라인 → false → 큐 backoff 재시도.
+        _readModemAlive(port); // 진단 로깅(DSR/CTS) 용
         final alive = await _probePrinter(port);
         if (!alive) {
-          // _probePrinter 내부에서 _lastFailureReason 을 'probe-timeout' /
+          // _probePrinter 가 _lastFailureReason 을 'probe-timeout' /
           // 'probe-write-failed' 로 이미 세팅.
           _lastFailureAt = DateTime.now();
           logger.w(
-              '[ComPortPrint] Probe failed: no response from $comPort within '
-              '${_probeTimeout.inMilliseconds}ms — printer offline?');
+              '[ComPortPrint] 생존 확인 실패: $comPort DLE EOT 무응답 '
+              '-- printer offline?');
           return false;
         }
 
@@ -372,6 +424,132 @@ class ComPortPrintService {
     } finally {
       calloc.free(errors);
       calloc.free(status);
+    }
+  }
+
+  /// COM 포트의 모뎀 상태(DSR/CTS) 로 프린터 전원/온라인 여부를 판정한다.
+  ///
+  /// PR800 등 일부 ESC/POS 프린터는 DLE EOT 실시간 상태 명령에 응답하지 않아
+  /// [_probePrinter] 만으로는 살아있어도 항상 오프라인으로 오판된다. 시리얼
+  /// 프린터는 전원이 켜지면 보통 DSR(또는 CTS) 라인을 assert 하고, 본체 전원을
+  /// 끄면 내려가므로 USB-Serial CDC 칩이 살아있어도 전원/온라인 여부를 구분할 수
+  /// 있다.
+  ///
+  /// raw 비트를 항상 로깅해 어댑터/배선별로 어떤 신호가 유효한지 현장 검증한다.
+  /// 반환: DSR 또는 CTS 가 assert 되어 있으면 true.
+  static bool _readModemAlive(SerialPort port) {
+    final handle = port.handler;
+    if (handle == null) {
+      logger.w('[ComPortPrint] modem: handler null');
+      return false;
+    }
+    final stat = calloc<Uint32>();
+    try {
+      final ok = GetCommModemStatus(handle, stat);
+      if (ok == 0) {
+        logger.w('[ComPortPrint] GetCommModemStatus 실패 (rc=0)');
+        return false;
+      }
+      final bits = stat.value;
+      final cts = (bits & _msCtsOn) != 0;
+      final dsr = (bits & _msDsrOn) != 0;
+      final ring = (bits & _msRingOn) != 0;
+      final rlsd = (bits & _msRlsdOn) != 0;
+      final alive = dsr || cts;
+      logger.i(
+          '[ComPortPrint] 모뎀상태 0x${bits.toRadixString(16).padLeft(2, '0')} '
+          'DSR=$dsr CTS=$cts RING=$ring RLSD=$rlsd -> alive=$alive');
+      return alive;
+    } finally {
+      calloc.free(stat);
+    }
+  }
+
+  /// 외부 ESC/POS 프린터의 실제 연결(생존) 여부를 검증한다.
+  ///
+  /// 단순히 COM 포트가 enumerate 되는지가 아니라, 포트를 열어 [_probePrinter]
+  /// 의 DLE EOT 1 핑을 보내고 응답을 확인한다. USB-Serial CDC 칩은 프린터 본체
+  /// 전원이 꺼져도 PC USB bus power 로 살아 포트가 유지되므로, 포트 존재만으로는
+  /// "연결됨" 을 단정할 수 없다(false-positive). 핑 응답이 있어야 print head 가
+  /// 살아있다고 판정한다.
+  ///
+  /// [sendRaw] 와 [_portLock] 을 공유하므로 실제 출력 중에는 검증이 대기한다.
+  static Future<bool> probeConnection({
+    String comPort = defaultComPort,
+    int baudRate = defaultBaudRate,
+  }) {
+    return _synchronized(
+        () => _probeConnectionLocked(comPort: comPort, baudRate: baudRate));
+  }
+
+  static Future<bool> _probeConnectionLocked({
+    required String comPort,
+    required int baudRate,
+  }) async {
+    // Fast-path: 최근에 실제 출력이 성공했다면 프린터 생존이 이미 입증된 상태.
+    // 포트를 다시 열어 핑하면 USB-Serial 토글로 오히려 간섭만 주므로 생략.
+    final lastOk = _lastSuccessfulSendAt;
+    if (lastOk != null &&
+        DateTime.now().difference(lastOk) < _recentSendConnectedWindow) {
+      logger.d('[ComPortPrint] probeConnection: $comPort 최근 출력 성공 → connected');
+      return true;
+    }
+
+    SerialPort? port;
+    try {
+      // 진입 가드: 현재 USB stack 에 노드 자체가 없으면 즉시 false.
+      List<String> ports = const [];
+      try {
+        ports = SerialPort.getAvailablePorts();
+      } catch (_) {}
+      if (!ports.contains(comPort)) {
+        logger.d('[ComPortPrint] probeConnection: $comPort 미enumerate → false');
+        return false;
+      }
+
+      port = SerialPort(comPort, openNow: false);
+      // 드물게 이미 열려있으면 닫고 OS release 대기 후 재오픈.
+      if (port.isOpened) {
+        try {
+          port.close();
+        } catch (_) {}
+        await _waitPortEnumerated(comPort);
+      }
+
+      port.openWithSettings(
+        BaudRate: baudRate,
+        ByteSize: 8,
+        StopBits: 1,
+        Parity: 0,
+      );
+      if (!port.isOpened) {
+        logger.d('[ComPortPrint] probeConnection: $comPort open 실패 → false');
+        return false;
+      }
+
+      // open 직후 1차 안정화 후, DLE EOT 핑이 응답하면 통과 / 아니면 점진 재시도.
+      // (PR800 처럼 멈춤 상태였다가 회복되는 케이스의 타이밍 편차를 재시도로 흡수.)
+      // 모뎀 DSR/CTS 는 판정에 쓰지 않고 raw 비트만 진단 로깅한다.
+      await Future.delayed(_settleProbe);
+      for (int attempt = 1; attempt <= _probeMaxAttempts; attempt++) {
+        _readModemAlive(port); // 진단 로깅(DSR/CTS) 용
+        if (await _probePrinter(port)) {
+          logger.d(
+              '[ComPortPrint] probeConnection: $comPort alive[probe] (attempt $attempt/$_probeMaxAttempts)');
+          return true;
+        }
+        if (attempt < _probeMaxAttempts) {
+          await Future.delayed(_probeRetryInterval);
+        }
+      }
+      logger.i('[ComPortPrint] probeConnection: $comPort 무응답 '
+          '($_probeMaxAttempts회 시도, reason=$_lastFailureReason) → disconnected');
+      return false;
+    } catch (e) {
+      logger.w('[ComPortPrint] probeConnection 예외: $e');
+      return false;
+    } finally {
+      if (port != null) _safeClose(port);
     }
   }
 

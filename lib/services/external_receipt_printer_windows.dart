@@ -73,11 +73,20 @@ class WindowsTransport implements PrinterTransport {
   }
 }
 
-/// COM 포트가 설정되어 있고 현재 enumerate 결과에 존재하는지로 연결 여부 판단.
-bool isConnected() {
-  final comPort = PreferenceService().getComPortName();
+/// 외부 ESC/POS 프린터의 실제 연결(생존) 여부 판단.
+///
+/// 포트 enumerate 존재만으로는 USB-Serial CDC 칩이 프린터 본체 전원 OFF 에도
+/// PC USB bus power 로 살아있어 false-positive 가 된다(설정 화면 "연결됨" 오탐).
+/// [ComPortPrintService.probeConnection] 이 DLE EOT 1 핑으로 print head 생존까지
+/// 검증하므로 정확하다. (Android 의 verifyConnection ESC @ 핑과 대칭.)
+Future<bool> isConnected() async {
+  final pref = PreferenceService();
+  final comPort = pref.getComPortName();
   if (comPort == null || comPort.isEmpty) return false;
-  return ComPortPrintService.getAvailableComPorts().contains(comPort);
+  return ComPortPrintService.probeConnection(
+    comPort: comPort,
+    baudRate: pref.getComPortBaudRate(),
+  );
 }
 
 /// Windows 설정 UI 에서 COM 포트 드롭다운 채우는 용도.

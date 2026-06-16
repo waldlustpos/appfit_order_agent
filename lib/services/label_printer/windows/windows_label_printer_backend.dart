@@ -416,14 +416,18 @@ class WindowsLabelPrinterBackend {
   // 포트 / 상태 콜백 관리
   // ---------------------------------------------------------------------------
 
-  /// appfit Android 와 동일한 VID:PID 화이트리스트.
+  /// 라벨 프린터 전용 VID:PID 화이트리스트.
   /// SDK 의 `CP_Port_OpenUsb(name, ...)` 가 NULL name 을 안전하게 처리하지 않을
-  /// 가능성이 있어 명시적으로 4종을 순회 시도한다.
+  /// 가능성이 있어 명시적으로 후보를 순회 시도한다.
+  ///
+  /// 주의: 범용 USB-Serial 브리지 칩(예: Prolific PL2303 = VID:0x067B,PID:0x2303)
+  /// 은 절대 추가하지 말 것. 외부 ESC/POS 영수증 프린터가 그런 칩으로 연결되면
+  /// 라벨 백엔드가 그 포트를 라벨로 오인 점유 → 라벨 연결 오탐 + 라벨 테스트가
+  /// 외부 프린터로 송출되는 사고가 발생한다. 라벨 프린터는 고정 모델만 등재한다.
   static const List<String> _kUsbPortCandidates = [
-    'VID:0x4B43,PID:0x3538',
-    'VID:0x4B43,PID:0x3830',
-    'VID:0x0FE6,PID:0x811E',
-    'VID:0x067B,PID:0x2303',
+    'VID:0x4B43,PID:0x3538', // Caysn D2 (검증 디바이스)
+    'VID:0x4B43,PID:0x3830', // Caysn D3 (검증 디바이스)
+    'VID:0x0FE6,PID:0x811E', // REXOD RXLA-561 (운영 모델)
   ];
 
   Future<bool> _ensurePortOpen(int autoReplyMode) async {
@@ -460,6 +464,12 @@ class WindowsLabelPrinterBackend {
       await Future.delayed(const Duration(milliseconds: 200));
       enumeratedNames = await _enumerateUsbPortsAsync();
     }
+
+    // 진단: SDK 가 surface 하는 디바이스 목록을 로그에 남긴다. 외부 ESC/POS
+    // 직렬장비가 라벨 enumerate 결과에 섞여 나오는지(= 라벨 오인 점유 위험) 를
+    // 현장 로그로 검증하기 위함.
+    logger.i(
+        '[LabelPrinter] CP_Port_EnumUsb 결과(${enumeratedNames.length}): $enumeratedNames');
 
     // OS 디바이스 인스턴스 경로(`\\?\usb#...`)가 SDK 의 OpenUsb 가 실제로 받아
     // 들이는 형식이다. 짧은 `VID:0xXXXX,PID:0xYYYY` 형식은 enumerate 결과로
