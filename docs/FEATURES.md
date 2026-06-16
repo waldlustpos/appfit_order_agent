@@ -69,8 +69,8 @@ flowchart LR
 | 1 | Version 1 | Android Native | 미운영 |
 | 2 | Version 2 | Flutter 기반 Android 전환 | 매머드커피 운영 (현재 939개 기기 설치)
 | 3 | Version 3 | Version 2 를 기반으로 백엔드를 PHP → AppFit 으로 전환 및 UI 개편 | 도쿄플라츠 운영
-| 4 | Version 2 Windows | 매머드 동대문구청점 운영
-| 5 | Version 3 Windows | Version 2 Windows 환경으로 포팅 작업의 일환으로 AppFit에도 적용 |
+| 4 | Version 2 Windows 포팅 | 매머드 동대문구청점 운영
+| 5 | Version 3 Windows 포팅 | Version 2 Windows 환경으로 포팅 작업의 일환으로 AppFit에도 적용 |
 
 > 현재 **Version 2(PHP)** 와 **Version 3(AppFit)** 모두 **Android · Windows 환경을 지원**.
 
