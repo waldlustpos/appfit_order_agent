@@ -54,21 +54,22 @@ class LabelPainter extends CustomPainter {
   static const double height = 600;
   static const double defaultMargin = 60;
   static const double offsetX = -0; // 우측 쏠림 보정 (음수: 좌측 이동)
-  static const double offsetY = -30;
+  static const double offsetY = -60; // 콘텐츠 전체 상향 (QR 확대로 밀린 하단 디테일 잘림 보정)
 
   // Font Sizes
   static const double fsHeaderTime = 16;
   static const double fsSubInfo = 22;
   static const double fsMenuName = 28;
   static const double fsOrderNo = 85; //주문번호사이즈 (QR 없을 때)
-  static const double fsOrderNoWithQr = 71; //주문번호사이즈 (QR 동반 시 — 겹침 방지용 조정 노브)
+  static const double fsOrderNoWithQr =
+      65; //주문번호사이즈 (QR 동반 시 — 겹침 방지용 조정 노브, QR 확대로 좁아진 가로폭만 보정)
   static const double fsSectionTitle = 22;
   static const double fsOptionItem = 21;
   static const double fsDetailContent = 22;
 
   // Dimensions & Spacings
   static const double logoWidthDefault = 50;
-  static const double qrSizeDefault = 90;
+  static const double qrSizeDefault = 120; // QR 크기 (기본 90 → 120 확대)
   static const double spacingSectionSmall = 15;
   static const double spacingSectionLarge = 30;
 
@@ -171,7 +172,9 @@ class LabelPainter extends CustomPainter {
   }
 
   double _drawBody(Canvas canvas, Size size, double startY) {
-    double currentY = startY + (spacingSectionLarge - spacingSectionSmall);
+    // 헤더 구분선 바로 아래 시작 (간격 = 헤더 return 의 spacingSectionSmall 만).
+    // QR 확대(120)로 콘텐츠 높이가 늘어, 위쪽 여백을 줄여 옵션 구분선 침범을 흡수한다.
+    double currentY = startY;
 
     // 1. Sub Info (with Reverse effect)
     _drawSubInfo(canvas, size, currentY);
@@ -189,9 +192,14 @@ class LabelPainter extends CustomPainter {
     );
 
     // 3. QR Code & Order Number
-    _drawQrAndOrderNo(canvas, size, currentY + 65);
+    // 메뉴명(currentY+30, fsMenuName) 하단과 QR 상단 사이 여백 확보용 오프셋.
+    // 그리기와 아래 return 예약에 동일 값이 쓰여야 어긋나지 않으므로 상수로 묶는다.
+    const double qrTopOffset = 75;
+    _drawQrAndOrderNo(canvas, size, currentY + qrTopOffset);
 
-    return currentY + 65 + 96 + spacingSectionSmall;
+    // QR 예약 높이를 qrSizeDefault 로 추적 → 옵션 구분선이 항상 QR 아래 + spacingSectionSmall.
+    // (이전엔 고정값 96 이라 QR 확대 시 구분선을 침범했음)
+    return currentY + qrTopOffset + qrSizeDefault + spacingSectionSmall;
   }
 
   void _drawSubInfo(Canvas canvas, Size size, double y) {
