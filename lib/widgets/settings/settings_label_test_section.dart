@@ -60,8 +60,12 @@ class _SettingsLabelTestSectionState
     '1023',
   ];
 
-  /// 주문번호당 출력 매수. 주문번호 뒤에 -1, -2 ... -20 숫자 접미사를 붙여 20장 출력.
+  /// 한 주문이 20잔(-1~-20)이라는 전제는 유지하되, 종이 절약을 위해 실제 출력은
+  /// 아래 접미사들만 5장 뽑는다. 두 자리 접미사 렌더링 케이스 확인용으로 -20 은 반드시 포함.
   static const int _orderNoTestVersions = 20;
+
+  /// 실제로 출력할 접미사 목록 (총 5장). -20 두 자리 케이스 포함.
+  static const List<int> _orderNoTestPrintVersions = [1, 5, 10, 15, 20];
 
   /// 임의 메모 풀 (라벨마다 순환). "detail 부분 임의로 작성" — 일본어, null 은 메모 없는 케이스.
   static const List<String?> _orderNoTestMemoPool = [
@@ -449,7 +453,7 @@ class _SettingsLabelTestSectionState
             ' option=${etcOptionNames.length}');
 
     const numbers = _orderNoTestNumbers;
-    final total = numbers.length * _orderNoTestVersions; // 번호 × 20(-1~-20)
+    final total = numbers.length * _orderNoTestPrintVersions.length; // 번호 × 5장
     final orderTime = DateFormat('MM/dd\nHH:mm:ss').format(DateTime.now());
 
     logToFile(
@@ -477,8 +481,8 @@ class _SettingsLabelTestSectionState
         final temp = tempNames.isEmpty ? null : tempNames[i % tempNames.length];
         final size = sizeNames.isEmpty ? null : sizeNames[i % sizeNames.length];
 
-        // 같은 주문번호로 20장 — 내용 동일, 주문번호 뒤 숫자 접미사(-1~-20)만 다름.
-        for (int v = 1; v <= _orderNoTestVersions; v++) {
+        // 같은 주문번호로 5장 — 내용 동일, 주문번호 뒤 숫자 접미사(-1,-5,-10,-15,-20)만 다름.
+        for (final v in _orderNoTestPrintVersions) {
           printed++;
           // 주문번호 접미사: -1, -2, ... -20.
           final labelOrderNo = '$shopOrderNo-$v'; // 예: 1023-1
@@ -684,7 +688,7 @@ class _SettingsLabelTestSectionState
                       onPressed: _printOrderNoTest,
                       icon: const Icon(Icons.confirmation_number, size: 18),
                       label: const Text(
-                          '주문번호 테스트 (1번호 × -1~-20 = 20장 / 실상품·옵션·메모 / QR 토글 반영)'),
+                          '주문번호 테스트 (1번호 × -1·-5·-10·-15·-20 = 5장 / 실상품·옵션·메모 / QR 토글 반영)'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.teal,
                         foregroundColor: Colors.white,
