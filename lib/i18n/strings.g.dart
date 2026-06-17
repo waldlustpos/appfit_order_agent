@@ -4,9 +4,9 @@
 /// To regenerate, run: `dart run slang`
 ///
 /// Locales: 3
-/// Strings: 1229 (409 per locale)
+/// Strings: 1220 (406 per locale)
 ///
-/// Built on 2026-06-15 at 07:39 UTC
+/// Built on 2026-06-17 at 04:11 UTC
 
 // coverage:ignore-file
 // ignore_for_file: type=lint
@@ -1043,7 +1043,6 @@ class _StringsMembershipSearchKo {
 	String get btn_other_member => '검색 초기화';
 	String get btn_save_stamp => '스탬프 적립';
 	String get btn_use_coupon => '쿠폰사용';
-	String get btn_validate_coupon => '쿠폰검증';
 	String get btn_scan => '바코드 스캔';
 }
 
@@ -1120,8 +1119,6 @@ class _StringsMembershipDialogKo {
 	String get input_error_title => '입력 오류';
 	String get stamp_input_error => '스탬프 개수는 1 이상의 숫자로 입력해주세요.';
 	String get stamp_limit_error => '스탬프 개수는 20개 이하로 입력해주세요.';
-	String get coupon_info_title => '쿠폰 정보';
-	String coupon_info_content({required Object name, required Object benefit}) => '쿠폰명: ${name}\n혜택: ${benefit}\n사용 가능합니다.';
 	String get processing_complete => '처리 완료';
 	String get notification => '알림';
 }
@@ -2116,7 +2113,6 @@ class _StringsMembershipSearchEn extends _StringsMembershipSearchKo {
 	@override String get btn_other_member => 'Reset Search';
 	@override String get btn_save_stamp => 'Save Stamp';
 	@override String get btn_use_coupon => 'Use Coupon';
-	@override String get btn_validate_coupon => 'Validate Coupon';
 	@override String get btn_scan => 'Scan Barcode';
 }
 
@@ -2193,8 +2189,6 @@ class _StringsMembershipDialogEn extends _StringsMembershipDialogKo {
 	@override String get input_error_title => 'Input Error';
 	@override String get stamp_input_error => 'Please enter 1 or more stamps.';
 	@override String get stamp_limit_error => '20 stamps or less.';
-	@override String get coupon_info_title => 'Coupon Info';
-	@override String coupon_info_content({required Object name, required Object benefit}) => 'Name: ${name}\nBenefit: ${benefit}\nAvailable.';
 	@override String get processing_complete => 'Complete';
 	@override String get notification => 'Notification';
 }
@@ -3181,7 +3175,6 @@ class _StringsMembershipSearchJa extends _StringsMembershipSearchKo {
 	@override String get btn_other_member => '検索リセット';
 	@override String get btn_save_stamp => 'スタンプ積立';
 	@override String get btn_use_coupon => 'クーポン使用';
-	@override String get btn_validate_coupon => 'クーポン検証';
 	@override String get btn_scan => 'バーコードスキャン';
 }
 
@@ -3258,8 +3251,6 @@ class _StringsMembershipDialogJa extends _StringsMembershipDialogKo {
 	@override String get input_error_title => '入力エラー';
 	@override String get stamp_input_error => 'スタンプ個数は1以上の数字で入力してください。';
 	@override String get stamp_limit_error => 'スタンプ個数は20個以下で入力してください。';
-	@override String get coupon_info_title => 'クーポン情報';
-	@override String coupon_info_content({required Object name, required Object benefit}) => 'クーポン名: ${name}\n特典: ${benefit}\n使用可能です。';
 	@override String get processing_complete => '完了';
 	@override String get notification => '通知';
 }

@@ -433,7 +433,6 @@
             "btn_other_member": "검색 초기화",
             "btn_save_stamp": "스탬프 적립",
             "btn_use_coupon": "쿠폰사용",
-            "btn_validate_coupon": "쿠폰검증",
             "btn_scan": "바코드 스캔"
         },
         "customer": {
@@ -482,8 +481,6 @@
             "input_error_title": "입력 오류",
             "stamp_input_error": "스탬프 개수는 1 이상의 숫자로 입력해주세요.",
             "stamp_limit_error": "스탬프 개수는 20개 이하로 입력해주세요.",
-            "coupon_info_title": "쿠폰 정보",
-            "coupon_info_content": "쿠폰명: {name}\n혜택: {benefit}\n사용 가능합니다.",
             "processing_complete": "처리 완료",
             "notification": "알림"
         },

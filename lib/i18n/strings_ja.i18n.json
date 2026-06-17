@@ -433,7 +433,6 @@
             "btn_other_member": "検索リセット",
             "btn_save_stamp": "スタンプ積立",
             "btn_use_coupon": "クーポン使用",
-            "btn_validate_coupon": "クーポン検証",
             "btn_scan": "バーコードスキャン"
         },
         "customer": {
@@ -482,8 +481,6 @@
             "input_error_title": "入力エラー",
             "stamp_input_error": "スタンプ個数は1以上の数字で入力してください。",
             "stamp_limit_error": "スタンプ個数は20個以下で入力してください。",
-            "coupon_info_title": "クーポン情報",
-            "coupon_info_content": "クーポン名: {name}\n特典: {benefit}\n使用可能です。",
             "processing_complete": "完了",
             "notification": "通知"
         },

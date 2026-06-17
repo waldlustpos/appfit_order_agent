@@ -675,7 +675,7 @@ class ApiService {
       // AppFit: items가 필요하므로 빈 리스트 또는 기본값 전달
       // 실제 주문 시에는 validateCoupon/useCoupon을 직접 사용하므로
       // 여기서는 회원 조회 화면에서의 개별 사용을 가정 (AppFit 정책에 따라 다를 수 있음)
-      final result = await useCoupon(couponId, storeId, items: []);
+      final result = await useCoupon(couponId, storeId);
       return result.isNotEmpty;
     } catch (e, s) {
       logger.e('[AppFit API] useCouponWithUserID 오류: $e');
@@ -801,52 +801,21 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> validateCoupon(
-    String couponNo,
-    String storeId, {
-    required List<Map<String, dynamic>> items,
-  }) async {
-    try {
-      final dio = _ref.read(appFitDioProvider);
-      final secureStorage = SecureStorageService();
-      final projectId =
-          await secureStorage.read(SecureStorageService.appFitProjectId);
-
-      final response =
-          await dio.post(ApiRoutes.couponValidate(couponNo), data: {
-        'projectId': projectId,
-        'shopCode': storeId,
-        'requestSource': 'AGENT',
-        'items': items,
-      });
-
-      if (response.statusCode == 200) {
-        return response.data['data'] as Map<String, dynamic>;
-      } else {
-        throw Exception('쿠폰 검증 실패: ${response.statusCode}');
-      }
-    } catch (e, s) {
-      logger.e('[AppFit API] validateCoupon 오류: $e');
-      _handleError(e, '쿠폰 검증에 실패했습니다.');
-    }
-  }
-
   Future<Map<String, dynamic>> useCoupon(
     String couponNo,
-    String storeId, {
-    required List<Map<String, dynamic>> items,
-  }) async {
+    String storeId,
+  ) async {
     try {
       final dio = _ref.read(appFitDioProvider);
       final secureStorage = SecureStorageService();
       final projectId =
           await secureStorage.read(SecureStorageService.appFitProjectId);
 
+      // use-without-item 엔드포인트: items 없이 쿠폰을 즉시 사용한다.
       final response = await dio.post(ApiRoutes.couponUse(couponNo), data: {
         'projectId': projectId,
         'shopCode': storeId,
         'requestSource': 'AGENT',
-        'items': items,
       });
 
       if (response.statusCode == 200) {

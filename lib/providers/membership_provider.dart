@@ -250,8 +250,7 @@ class Membership extends _$Membership {
         clearErrorMessage: true,
         clearSuccessMessage: true);
     try {
-      final successData =
-          await _apiService.useCoupon(couponId, _storeId, items: []);
+      final successData = await _apiService.useCoupon(couponId, _storeId);
       final success = successData.isNotEmpty;
       if (success) {
         logger.i('쿠폰 사용 성공: $couponId');
@@ -480,35 +479,6 @@ class Membership extends _$Membership {
       availableCouponsVisibleCount:
           state.availableCouponsVisibleCount + MembershipState.pageSize,
     );
-  }
-
-  Future<Map<String, dynamic>?> validateCoupon(String couponNo) async {
-    if (_storeId.isEmpty) {
-      state = state.copyWith(errorMessage: '매장 ID를 찾을 수 없습니다.');
-      return null;
-    }
-
-    state = state.copyWith(
-        isLoading: true, clearErrorMessage: true, clearSuccessMessage: true);
-
-    try {
-      // NOTE: items는 현재 비어있는 리스트로 전달 (AGENT에서 단순 조회 용도)
-      // 실제 주문 시에는 주문 내역의 items가 포함되어야 함
-      final couponData = await _apiService.validateCoupon(
-        couponNo,
-        _storeId,
-        items: [],
-      );
-      state = state.copyWith(isLoading: false);
-      return couponData;
-    } catch (e, s) {
-      logger.e('쿠폰 검증 중 오류 발생', error: e, stackTrace: s);
-      state = state.copyWith(
-        errorMessage: e.toString().replaceFirst('Exception: ', ''),
-        isLoading: false,
-      );
-      return null;
-    }
   }
 
   void clearError() {

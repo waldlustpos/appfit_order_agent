@@ -382,28 +382,23 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
                 inputText.isNotEmpty &&
                 inputText[0] != '0';
 
-            // 좌측 버튼: 쿠폰 모드면 '쿠폰검증'(항상 노출), 아니면 '바코드 스캔'.
-            // 스캔 버튼은 Sunmi 내장 스캐너가 가용한 단말에서만 노출한다.
+            // 좌측 버튼: '바코드 스캔' 전용. 쿠폰 모드에서는 노출하지 않고
+            // 우측 '쿠폰사용' 버튼만 사용한다. 스캔 버튼은 Sunmi 내장 스캐너가
+            // 가용한 단말에서만 노출한다.
             final hasScanner =
                 ref.watch(hasBuiltinScannerProvider).valueOrNull ?? false;
-            final showLeftButton = isCouponMode || hasScanner;
+            final showLeftButton = !isCouponMode && hasScanner;
 
             return Row(
               children: [
                 if (showLeftButton) ...[
                   Expanded(
                     child: ElevatedButton.icon(
-                      icon: Icon(isCouponMode
-                          ? Icons.fact_check
-                          : Icons.barcode_reader),
-                      label: Text(isCouponMode
-                          ? t.membership.search.btn_validate_coupon
-                          : t.membership.search.btn_scan),
+                      icon: const Icon(Icons.barcode_reader),
+                      label: Text(t.membership.search.btn_scan),
                       onPressed: isLoading
                           ? null
-                          : (isCouponMode
-                              ? () => _validateCoupon(inputText)
-                              : (isCustomerSearched ? null : _scanBarcode)),
+                          : (isCustomerSearched ? null : _scanBarcode),
                       style: AppStyles.outlinedButton(
                         padding: const EdgeInsets.symmetric(
                             vertical: AppSpacing.s16),
@@ -825,34 +820,6 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
       if (success && mounted) {
         _inputController.clear();
       }
-    }
-  }
-
-  Future<void> _validateCoupon(String couponCode) async {
-    if (couponCode.isEmpty) {
-      CommonDialog.showInfoDialog(
-          context: context,
-          title: t.membership.dialog.notification,
-          content: t.membership.dialog.enter_coupon_code);
-      return;
-    }
-
-    logToFile(tag: LogTag.UI_ACTION, message: '쿠폰검증 버튼 클릭: $couponCode');
-
-    final couponData =
-        await ref.read(membershipProvider.notifier).validateCoupon(couponCode);
-
-    if (couponData != null && mounted) {
-      final title = couponData['couponTitle'] ?? '알 수 없는 쿠폰';
-      final discount = couponData['discountAmount'] ?? 0;
-      final method = couponData['discountMethod'] == 'FIXED' ? '원 할인' : '% 할인';
-
-      CommonDialog.showInfoDialog(
-        context: context,
-        title: t.membership.dialog.coupon_info_title,
-        content: t.membership.dialog
-            .coupon_info_content(name: title, benefit: '$discount$method'),
-      );
     }
   }
 

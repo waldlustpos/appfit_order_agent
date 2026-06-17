@@ -439,7 +439,6 @@
             "btn_other_member": "Reset Search",
             "btn_save_stamp": "Save Stamp",
             "btn_use_coupon": "Use Coupon",
-            "btn_validate_coupon": "Validate Coupon",
             "btn_scan": "Scan Barcode"
         },
         "customer": {
@@ -488,8 +487,6 @@
             "input_error_title": "Input Error",
             "stamp_input_error": "Please enter 1 or more stamps.",
             "stamp_limit_error": "20 stamps or less.",
-            "coupon_info_title": "Coupon Info",
-            "coupon_info_content": "Name: {name}\nBenefit: {benefit}\nAvailable.",
             "processing_complete": "Complete",
             "notification": "Notification"
         },

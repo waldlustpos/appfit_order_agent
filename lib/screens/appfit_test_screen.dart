@@ -402,86 +402,6 @@ ${orders.length > 5 ? '...외 ${orders.length - 5}개 더 있음' : ''}
     }
   }
 
-  /// 쿠폰 유효성 검증 테스트
-  Future<void> _testCouponValidation() async {
-    if (!AppFitConfig.isConfigured()) {
-      _showError('환경 변수가 올바르게 설정되지 않았습니다.');
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-      _result = '쿠폰 유효성 검증 중...';
-    });
-
-    try {
-      final pref = ref.read(preferenceServiceProvider);
-      final testShopCode = pref.getId() ?? 'TPCP00002';
-
-      // 1. 상품 목록 조회 및 TKP0005 상품 찾기
-      final apiService = ref.read(apiServiceProvider);
-      final products = await apiService.getShopCategories(testShopCode);
-
-      final targetProduct = products.firstWhere(
-        (p) => p.productId == 'TKP0005',
-        orElse: () => throw Exception('상품 목록에서 TKP0005 상품을 찾을 수 없습니다.'),
-      );
-
-      // 3. 테스트 데이터 구성
-      const testCouponNo = '5001868426241491';
-      final List<Map<String, dynamic>> testItems = [
-        {
-          'posId': targetProduct.productId,
-          'price': targetProduct.menuPrice,
-          'quantity': 1,
-          'couponUseCount': 0,
-        }
-      ];
-
-      // 4. API 호출
-      final couponData = await apiService.validateCoupon(
-        testCouponNo,
-        testShopCode,
-        items: testItems,
-      );
-
-      // 5. 결과 출력
-      setState(() {
-        _result = '''
-✅ 쿠폰 검증 성공!
-
-쿠폰명: ${couponData['couponTitle']}
-할인대상: ${couponData['discountTarget']}
-할인방식: ${couponData['discountMethod']}
-할인금액: ${couponData['discountAmount']}원
-대상아이템: ${couponData['targetItemId']}
-
-상세 응답 데이터는 로그를 확인하세요.
-''';
-      });
-
-      logger.i('[AppFit 테스트] 쿠폰 검증 성공: ${couponData['couponTitle']}');
-    } catch (e, s) {
-      logger.e('[AppFit 테스트] 쿠폰 검증 실패', error: e, stackTrace: s);
-      setState(() {
-        _result = '''
-❌ 쿠폰 검증 실패
-
-에러: $e
-
-해결 방법:
-1. 쿠폰 번호(${"WELCOME2024"})가 유효한지 확인
-2. 해당 매장에서 사용 가능한 쿠폰인지 확인
-3. 서버 URL 및 네트워크 확인
-''';
-      });
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
-
   /// 쿠폰 사용 테스트
   Future<void> _testCouponUse() async {
     if (!AppFitConfig.isConfigured()) {
@@ -497,35 +417,18 @@ ${orders.length > 5 ? '...외 ${orders.length - 5}개 더 있음' : ''}
     try {
       final pref = ref.read(preferenceServiceProvider);
       final testShopCode = pref.getId() ?? 'TPCP00002';
-
-      // 1. 상품 목록 조회 및 TKP0005 상품 찾기
       final apiService = ref.read(apiServiceProvider);
-      final products = await apiService.getShopCategories(testShopCode);
 
-      final targetProduct = products.firstWhere(
-        (p) => p.productId == 'TKP0005',
-        orElse: () => throw Exception('상품 목록에서 TKP0005 상품을 찾을 수 없습니다.'),
-      );
-
-      // 2. 테스트 데이터 구성
+      // 1. 테스트 데이터 구성 (use-without-item: items 불필요)
       const testCouponNo = '5001868426241491';
-      final List<Map<String, dynamic>> testItems = [
-        {
-          'posId': targetProduct.productId,
-          'price': targetProduct.menuPrice,
-          'quantity': 1,
-          'couponUseCount': 0,
-        }
-      ];
 
-      // 3. API 호출
+      // 2. API 호출
       final couponData = await apiService.useCoupon(
         testCouponNo,
         testShopCode,
-        items: testItems,
       );
 
-      // 4. 결과 출력
+      // 3. 결과 출력
       setState(() {
         _result = '''
 ✅ 쿠폰 사용 성공!
@@ -1248,11 +1151,6 @@ ${orders.length > 5 ? '...외 ${orders.length - 5}개 더 있음' : ''}
                     label: '옵션 마이그레이션',
                     onPressed: _isLoading ? null : _testMigrationOptions,
                     backgroundColor: Colors.indigo,
-                  ),
-                  _buildTestButton(
-                    icon: Icons.confirmation_number,
-                    label: '쿠폰 검증',
-                    onPressed: _isLoading ? null : _testCouponValidation,
                   ),
                   _buildTestButton(
                     icon: Icons.check_circle,
