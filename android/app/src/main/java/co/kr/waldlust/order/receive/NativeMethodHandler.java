@@ -10,6 +10,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.hardware.camera2.CameraManager;
 import android.os.Build;
 import android.util.Base64;
 import android.util.Log;
@@ -425,13 +426,26 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
                 break;
 
             case "hasBuiltinScanner": {
-                // startQRScan 이 시도하는 두 intent action 을 그대로 resolve 해,
                 // 바코드 스캔 버튼이 실제로 동작하는 단말에서만 true 를 반환한다.
+                // (1) startQRScan 이 시도하는 intent action 이 resolve 되는지(=스캐너 앱 설치),
+                // (2) 실제 카메라가 존재하는지. 둘 다 충족해야 한다.
+                // D2s 처럼 Sunmi 스캐너 앱은 깔려 있어도 카메라가 없는 단말은 버튼을
+                // 눌러봤자 "no camera detect" 토스트만 뜨므로 카메라 존재까지 확인한다.
                 boolean available = false;
                 try {
-                    PackageManager pm = activity.getApplicationContext().getPackageManager();
-                    available = pm.resolveActivity(new Intent("com.sunmi.scanner.qrscanner"), 0) != null
+                    Context ctx = activity.getApplicationContext();
+                    PackageManager pm = ctx.getPackageManager();
+                    boolean scannerAppResolves =
+                            pm.resolveActivity(new Intent("com.sunmi.scanner.qrscanner"), 0) != null
                             || pm.resolveActivity(new Intent("com.summi.scan"), 0) != null;
+
+                    boolean hasCamera = false;
+                    CameraManager cm = (CameraManager) ctx.getSystemService(Context.CAMERA_SERVICE);
+                    if (cm != null) {
+                        hasCamera = cm.getCameraIdList().length > 0;
+                    }
+
+                    available = scannerAppResolves && hasCamera;
                 } catch (Exception e) {
                     available = false;
                 }
