@@ -5,8 +5,8 @@
 
     <queries>
         <package android:name="woyou.aidlservice.jiuiv5" />
-        <!-- Sunmi built-in scanner: required on Android 11+ so resolveActivity()
-             can detect the scanner app for the hasBuiltinScanner capability. -->
+        <!-- Sunmi 내장 스캐너: Android 11+ 에서 resolveActivity() 가 스캐너 앱을
+             감지할 수 있도록 선언(hasBuiltinScanner capability 용). -->
         <package android:name="com.sunmi.scanner" />
         <intent>
             <action android:name="com.sunmi.scanner.qrscanner" />

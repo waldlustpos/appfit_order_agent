@@ -425,8 +425,8 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
                 break;
 
             case "hasBuiltinScanner": {
-                // Resolve the same intent actions that startQRScan attempts, so the
-                // capability reflects whether the scan button would actually work.
+                // startQRScan 이 시도하는 두 intent action 을 그대로 resolve 해,
+                // 바코드 스캔 버튼이 실제로 동작하는 단말에서만 true 를 반환한다.
                 boolean available = false;
                 try {
                     PackageManager pm = activity.getApplicationContext().getPackageManager();
