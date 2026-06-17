@@ -185,6 +185,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         context: context,
         title: t.login.internet_error_title,
         content: t.login.internet_error_msg,
+        dedupeKey: 'internet_connection_error',
       );
     }
 

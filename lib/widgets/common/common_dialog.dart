@@ -7,6 +7,10 @@ import 'package:appfit_core/appfit_core.dart';
 /// 공통 다이얼로그 위젯
 /// 상태 변경 및 확인용 다이얼로그
 class CommonDialog {
+  /// 동일 내용의 정보/에러 다이얼로그가 이미 떠 있으면 중복 표시를 막기 위한 활성 키 집합.
+  /// 다이얼로그가 닫히면(=showDialog future 완료) finally 에서 키를 해제한다.
+  static final Set<String> _activeDialogKeys = <String>{};
+
   /// 확인/취소 버튼이 있는 기본 다이얼로그.
   ///
   /// [onConfirm] 이 주어지면 confirm 버튼이 비동기 액션을 직접 실행한다.
@@ -207,72 +211,82 @@ class CommonDialog {
     required String title,
     required String content,
     String? confirmText,
+    String? dedupeKey,
   }) async {
     confirmText ??= t.common.confirm;
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: true,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: _dialogTitleWithClose(
-            title: Row(
-              children: [
-                Icon(Icons.info_outline, color: AppStyles.kMainColor, size: 28),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(title,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 22)),
-                ),
-              ],
-            ),
-            onClose: () => Navigator.of(context).pop(),
-          ),
-          titlePadding: const EdgeInsets.fromLTRB(
-            AppSpacing.s24,
-            AppSpacing.s16,
-            AppSpacing.s16,
-            0,
-          ),
-          contentPadding: const EdgeInsets.fromLTRB(
-            AppSpacing.s24,
-            AppSpacing.s16,
-            AppSpacing.s24,
-            AppSpacing.s8,
-          ),
-          content: ConstrainedBox(
-            constraints: const BoxConstraints(minWidth: 400),
-            child: Text(
-              content,
-              style: const TextStyle(fontSize: 18, color: Colors.black87),
-            ),
-          ),
-          actionsPadding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.s24,
-            vertical: AppSpacing.s24,
-          ),
-          actions: <Widget>[
-            ElevatedButton(
-              style: AppStyles.primaryButton(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.s24,
-                  vertical: AppSpacing.s12,
-                ),
-                minimumSize: const Size(100, 45),
+    // 같은 내용의 정보 다이얼로그가 이미 떠 있으면 중복 표시를 막는다.
+    final key = dedupeKey ?? 'info $title $content';
+    if (_activeDialogKeys.contains(key)) return;
+    _activeDialogKeys.add(key);
+    try {
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: true,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: _dialogTitleWithClose(
+              title: Row(
+                children: [
+                  Icon(Icons.info_outline,
+                      color: AppStyles.kMainColor, size: 28),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(title,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 22)),
+                  ),
+                ],
               ),
-              onPressed: () => Navigator.of(context).pop(),
+              onClose: () => Navigator.of(context).pop(),
+            ),
+            titlePadding: const EdgeInsets.fromLTRB(
+              AppSpacing.s24,
+              AppSpacing.s16,
+              AppSpacing.s16,
+              0,
+            ),
+            contentPadding: const EdgeInsets.fromLTRB(
+              AppSpacing.s24,
+              AppSpacing.s16,
+              AppSpacing.s24,
+              AppSpacing.s8,
+            ),
+            content: ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 400),
               child: Text(
-                confirmText!,
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold),
+                content,
+                style: const TextStyle(fontSize: 18, color: Colors.black87),
               ),
             ),
-          ],
-        );
-      },
-    );
+            actionsPadding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.s24,
+              vertical: AppSpacing.s24,
+            ),
+            actions: <Widget>[
+              ElevatedButton(
+                style: AppStyles.primaryButton(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.s24,
+                    vertical: AppSpacing.s12,
+                  ),
+                  minimumSize: const Size(100, 45),
+                ),
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(
+                  confirmText!,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+    } finally {
+      _activeDialogKeys.remove(key);
+    }
   }
 
   /// 에러 전용 다이얼로그 (빨간색 강조)
@@ -281,79 +295,88 @@ class CommonDialog {
     required String title,
     required String content,
     String? confirmText,
+    String? dedupeKey,
   }) async {
     confirmText ??= t.common.confirm;
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: true,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: _dialogTitleWithClose(
-            title: Row(
-              children: [
-                Icon(Icons.error_outline, color: AppStyles.kRed, size: 28),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(title,
-                      style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 22,
-                          color: AppStyles.kRed)),
-                ),
-              ],
-            ),
-            onClose: () => Navigator.of(context).pop(),
-          ),
-          titlePadding: const EdgeInsets.fromLTRB(
-            AppSpacing.s24,
-            AppSpacing.s16,
-            AppSpacing.s16,
-            0,
-          ),
-          contentPadding: const EdgeInsets.fromLTRB(
-            AppSpacing.s24,
-            AppSpacing.s16,
-            AppSpacing.s24,
-            AppSpacing.s8,
-          ),
-          content: ConstrainedBox(
-            constraints: const BoxConstraints(minWidth: 400),
-            child: Text(
-              content,
-              style: const TextStyle(fontSize: 18, color: Colors.black87),
-            ),
-          ),
-          actionsPadding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.s24,
-            vertical: AppSpacing.s24,
-          ),
-          actions: <Widget>[
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppStyles.kRed,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.s24,
-                  vertical: AppSpacing.s12,
-                ),
-                minimumSize: const Size(100, 45),
-                shape: RoundedRectangleBorder(
-                  borderRadius: AppRadius.bSm,
-                ),
+    // 같은 내용의 에러 다이얼로그가 이미 떠 있으면 중복 표시를 막는다.
+    final key = dedupeKey ?? 'error $title $content';
+    if (_activeDialogKeys.contains(key)) return;
+    _activeDialogKeys.add(key);
+    try {
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: true,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: _dialogTitleWithClose(
+              title: Row(
+                children: [
+                  Icon(Icons.error_outline, color: AppStyles.kRed, size: 28),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(title,
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 22,
+                            color: AppStyles.kRed)),
+                  ),
+                ],
               ),
-              onPressed: () => Navigator.of(context).pop(),
+              onClose: () => Navigator.of(context).pop(),
+            ),
+            titlePadding: const EdgeInsets.fromLTRB(
+              AppSpacing.s24,
+              AppSpacing.s16,
+              AppSpacing.s16,
+              0,
+            ),
+            contentPadding: const EdgeInsets.fromLTRB(
+              AppSpacing.s24,
+              AppSpacing.s16,
+              AppSpacing.s24,
+              AppSpacing.s8,
+            ),
+            content: ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 400),
               child: Text(
-                confirmText!,
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold),
+                content,
+                style: const TextStyle(fontSize: 18, color: Colors.black87),
               ),
             ),
-          ],
-        );
-      },
-    );
+            actionsPadding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.s24,
+              vertical: AppSpacing.s24,
+            ),
+            actions: <Widget>[
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppStyles.kRed,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.s24,
+                    vertical: AppSpacing.s12,
+                  ),
+                  minimumSize: const Size(100, 45),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: AppRadius.bSm,
+                  ),
+                ),
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(
+                  confirmText!,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+    } finally {
+      _activeDialogKeys.remove(key);
+    }
   }
 
   /// 업데이트 진행 상황 다이얼로그

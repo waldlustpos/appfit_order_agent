@@ -47,10 +47,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       _connectivitySubscription; // 구독 변수 추가
 
   // 인터넷 연결 상태 관련 변수 추가
-  DateTime? _lastConnectionLostTime;
   DateTime? _lastDialogShownTime;
   Timer? _connectionCheckTimer;
-  bool _isCheckingConnection = false;
   static const int _connectionCheckDelay = 3; // 연결 끊김 확인 지연시간(초)
   static const int _minDialogInterval = 30; // 다이얼로그 표시 최소 간격(초)
 
@@ -151,9 +149,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   // 연결이 끊겼을 때 처리
   void _handleConnectionLost() {
-    final now = DateTime.now();
-    _lastConnectionLostTime = now;
-
     // 이미 타이머가 실행 중이면 취소하고 새로 시작
     _connectionCheckTimer?.cancel();
 
@@ -168,7 +163,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   // 연결이 복구되었을 때 처리
   void _handleConnectionRestored() {
-    _lastConnectionLostTime = null;
     _connectionCheckTimer?.cancel();
 
     // 소켓 재연결이 자동으로 refreshOrders()를 호출하므로 여기서는 호출하지 않음.
@@ -464,41 +458,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   void _showConnectionLostDialog() {
-    final now = DateTime.now();
+    // 위젯이 사라졌거나 이미 온라인 복구됐으면 표시하지 않는다.
+    if (!mounted || _isOnline) return;
 
+    // 직전 표시 후 최소 간격 이내면 과도한 반복 알림을 막기 위해 스킵.
+    final now = DateTime.now();
     if (_lastDialogShownTime != null &&
         now.difference(_lastDialogShownTime!).inSeconds < _minDialogInterval) {
-      int remainingSeconds =
-          _minDialogInterval - now.difference(_lastDialogShownTime!).inSeconds;
-      Timer(Duration(seconds: remainingSeconds), () {
-        if (!_isOnline && mounted) {
-          _showConnectionLostDialog();
-        }
-      });
       return;
     }
 
     _lastDialogShownTime = now;
-
     _playNotificationSound();
+    logToFile(tag: LogTag.SYSTEM, message: '인터넷 연결 오류 다이얼로그 표시');
 
-    if (mounted) {
-      logToFile(tag: LogTag.SYSTEM, message: '인터넷 연결 오류 다이얼로그 표시');
-
-      CommonDialog.showInfoDialog(
-        context: context,
-        title: t.login.internet_error_title,
-        content: t.login.internet_error_msg,
-      ).then((_) {
-        if (!_isOnline && mounted) {
-          Timer(Duration(seconds: _minDialogInterval), () {
-            if (!_isOnline && mounted) {
-              _showConnectionLostDialog();
-            }
-          });
-        }
-      });
-    }
+    // 동일 다이얼로그가 이미 떠 있으면 CommonDialog 의 dedupe 가드가 중복 표시를 차단한다.
+    // (인터넷 flapping 시 다이얼로그가 화면에 쌓이는 문제 방지)
+    CommonDialog.showInfoDialog(
+      context: context,
+      title: t.login.internet_error_title,
+      content: t.login.internet_error_msg,
+      dedupeKey: 'internet_connection_error',
+    );
   }
 }
 
