@@ -67,6 +67,16 @@ class BrandMeta {
   /// capability 게이팅 진입점.
   bool has(BrandFeature f) => features.contains(f);
 
+  /// 일반 설정에서 사용자가 고를 수 있는 테마 목록 = 기본 테마 + 브랜드 고유 테마.
+  ///
+  /// 브랜드 고유 테마가 없는(= [BrandTheme.appfitDefault] 인) 브랜드는
+  /// [BrandTheme.appfitDefault] 한 개만 반환한다. UI 는 선택지가 1개면 picker 를
+  /// 숨겨(무의미한 단일 선택 방지) "브랜드 테마 없음"을 우아하게 처리한다.
+  /// 신규 브랜드는 BrandRegistry 의 [theme] 만 채우면 자동으로 2종이 노출된다.
+  List<BrandTheme> get selectableThemes => theme == BrandTheme.appfitDefault
+      ? const [BrandTheme.appfitDefault]
+      : [BrandTheme.appfitDefault, theme];
+
   String get _assetBase => 'assets/images/brand/$assetFolder';
 
   /// 라벨 로고 BMP 경로 (모든 브랜드 필수).

@@ -10,10 +10,15 @@ import 'package:appfit_order_agent/widgets/settings/settings_item_widget.dart';
 
 /// 설정 화면의 "테마(브랜드)" 섹션.
 ///
-/// 사용자는 `기본` / `매머드커피` 중 선택. 선택 시 PreferenceService 에 저장되고
-/// 앱 재시작 후 색상/로고가 반영된다.
+/// 선택 시 PreferenceService 에 저장되고 앱 재시작 후 색상/로고가 반영된다.
+///
+/// [themes] 가 주어지면 그 목록만 노출한다(일반 설정의 브랜드별 `기본 + 브랜드테마`
+/// 2종). null 이면 [BrandTheme.values] 전체를 노출한다(개발자 옵션용).
 class SettingsBrandThemeSection extends ConsumerWidget {
-  const SettingsBrandThemeSection({super.key});
+  const SettingsBrandThemeSection({super.key, this.themes});
+
+  /// 노출할 테마 목록. null 이면 전체([BrandTheme.values]).
+  final List<BrandTheme>? themes;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -33,7 +38,7 @@ class SettingsBrandThemeSection extends ConsumerWidget {
             width: double.infinity,
             child: Row(
               children: [
-                for (final theme in BrandTheme.values)
+                for (final theme in (themes ?? BrandTheme.values))
                   Padding(
                     padding: const EdgeInsets.only(right: AppSpacing.s8),
                     child: ElevatedButton(

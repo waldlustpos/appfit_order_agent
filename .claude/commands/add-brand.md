@@ -83,6 +83,13 @@ ls android/app/src/main/res/drawable/dm_<slug>.png 2>/dev/null   # 듀얼모니�
         return t.settings.theme.options.<KEY>;
 ```
 
+> 별도 편집점 없음. STEP 2-2 에서 추가한 `BrandTheme` 는 개발자 옵션 picker(전체)뿐 아니라
+> **일반 설정에도 자동 노출**된다 — `BrandMeta.selectableThemes`(brand_registry.dart)가
+> `[기본, 브랜드테마]` 2종을 파생하고, 해당 prefix 매장 로그인 시 설정 오른쪽 패널 상단에
+> 테마 카드로 뜬다. `theme` 를 `BrandTheme.appfitDefault` 로 두면(고유 테마 없음) 선택지가
+> 1개라 일반 설정 picker 는 자동 숨김(개발자 picker 에는 여전히 노출). 즉 색상을 placeholder
+> 핑크로 두더라도 **별도 `BrandTheme.<EnumCase>` 항목(2-2)** 만 추가하면 운영자에게 노출된다.
+
 ### 2-4. i18n `strings_ko` / `strings_en` / `strings_ja` (3파일 모두)
 각 파일 `settings.theme.options` 의 마지막 키 끝에 콤마를 추가하고 새 줄 `                "<KEY>": "<NAME_xx>"` 추가(들여쓰기 16칸). **3파일 누락 없이.**
 
@@ -180,5 +187,6 @@ D3 MINI 전면(고객용) 보조 디스플레이는 **`dm_<slug>` 이름의 네�
 - [ ] 로그아웃/앱 종료 시 전면 모니터가 흰 이미지 잔류 없이 검정으로 돌아오는지 확인.
 - [ ] APK 비대화 주의: 모든 브랜드의 raw/drawable 이 universal APK 에 번들된다. 영상은 길이/용량 최소화.
 - [ ] 실기기: 해당 prefix 매장 로그인 → 라벨/영수증 테스트 출력, 브랜드 전환 시 캐시 무효화 확인
+- [ ] **테마 노출** — 해당 prefix 매장 로그인 → 설정 오른쪽 패널 상단에 테마 카드(`기본 / <NAME>`) 2종 노출 확인. 색상 placeholder 면 핑크로 보이지만 노출은 정상(STEP 2-2 항목만 있으면 동작). `theme: BrandTheme.appfitDefault` 로 둔 브랜드는 일반 설정 picker 미노출이 정상.
 - [ ] **QR 페이로드** — STEP 2-6 에서 `BrandKey.<KEY>` case 추가됨(기본 `DefaultQrPayloadStrategy`). 이 브랜드가 다른 QR 포맷이면 커스텀 `<KeyPascal>QrPayloadStrategy` 로 교체했는지 확인. (QR 출력 ON/OFF 는 일반설정 토글이라 코드 변경 없음.)
 - [ ] (입력 8 이 "예" 였다면) 일본/JPY 등은 `BrandMeta.currency`/`serverEnvironment` 로 처리됨. 추가로 다른 동작이 필요하면 `BrandFeature` + Strategy/Hook(라벨필터=`label_filter_strategy.dart`, 외부전송=`soundgraph_hook.dart`, QR페이로드=`qr_payload_strategy.dart`) 패턴 참고

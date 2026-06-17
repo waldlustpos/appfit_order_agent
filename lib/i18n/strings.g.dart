@@ -6,7 +6,7 @@
 /// Locales: 3
 /// Strings: 1220 (406 per locale)
 ///
-/// Built on 2026-06-17 at 04:11 UTC
+/// Built on 2026-06-17 at 07:45 UTC
 
 // coverage:ignore-file
 // ignore_for_file: type=lint
@@ -1167,7 +1167,7 @@ class _StringsSettingsThemeOptionsKo {
 
 	// Translations
 	String get appfit_default => '기본';
-	String get mammoth_coffee => 'Brown';
+	String get mammoth_coffee => '매머드커피';
 	String get mata => '마하테이스트';
 	String get paik => '빽다방재팬';
 }
@@ -2237,7 +2237,7 @@ class _StringsSettingsThemeOptionsEn extends _StringsSettingsThemeOptionsKo {
 
 	// Translations
 	@override String get appfit_default => 'Default';
-	@override String get mammoth_coffee => 'Brown';
+	@override String get mammoth_coffee => '매머드커피';
 	@override String get mata => '마하테이스트';
 	@override String get paik => '빽다방재팬';
 }
@@ -3299,7 +3299,7 @@ class _StringsSettingsThemeOptionsJa extends _StringsSettingsThemeOptionsKo {
 
 	// Translations
 	@override String get appfit_default => 'デフォルト';
-	@override String get mammoth_coffee => 'Brown';
+	@override String get mammoth_coffee => '매머드커피';
 	@override String get mata => '마하테이스트';
 	@override String get paik => '빽다방재팬';
 }

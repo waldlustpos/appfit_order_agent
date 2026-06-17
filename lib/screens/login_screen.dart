@@ -449,6 +449,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         // 무효화한다. 이 시점엔 getId()=새 매장이라 재계산이 올바른 브랜드를 반환한다.
         ref.invalidate(currentBrandProvider);
 
+        // 다른 브랜드로 로그인했는데 이전 브랜드 전용 테마가 저장돼 있으면 기본
+        // 테마로 되돌린다(호환 테마/같은 브랜드면 no-op). 색상의 실제 화면 반영은
+        // 다음 앱 시작 시점이다(테마 변경은 재시작 기반). 로컬 storeId 사용 —
+        // save-id/auto-login OFF 라 getId() 가 비어도 항상 정확한 매장을 가리킴.
+        await ref
+            .read(brandThemeNotifierProvider.notifier)
+            .reconcileForStore(storeId);
+
         // 자동 업데이트 강제 브랜드(현재 TPCP) + SUNMI 는 자동 업데이트 체크 ON 유지
         final prefService = ref.read(preferenceServiceProvider);
         if (!prefService.getUpdateTpcpOverrideDone()) {

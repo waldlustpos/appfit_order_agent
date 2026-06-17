@@ -4,7 +4,9 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:appfit_order_agent/constants/app_styles.dart';
+import 'package:appfit_order_agent/constants/brand_theme.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
+import 'package:appfit_order_agent/providers/brand_provider.dart';
 import 'package:appfit_order_agent/services/local_server_service.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
@@ -247,6 +249,16 @@ class _SettingsRightPanelState extends ConsumerState<SettingsRightPanel> {
   Widget build(BuildContext context) {
     final t = Translations.of(context);
 
+    // currentBrandProvider 는 세션 첫 값을 캐시해 브랜드 전환 시 stale 되므로,
+    // 매장 ID 를 즉석에서 읽는 currentBrandMeta() 로 현재 브랜드를 해석한다
+    // (settings_left_panel 의 SoundGraph/라벨필터 게이팅과 동일 관용구).
+    final brand = currentBrandMeta();
+    final brandThemes = brand?.selectableThemes ?? const <BrandTheme>[];
+    // 일반 사용자용 테마 picker: 브랜드 고유 테마가 있을 때만(기본+브랜드 2종),
+    // 개발자 옵션 OFF 일 때만. 개발자 옵션 ON 이면 하단의 전체 4종 picker 만 노출.
+    final showBrandThemePicker =
+        brandThemes.length > 1 && !widget.isDevOptionsVisible;
+
     return Scrollbar(
       controller: _scrollController,
       thumbVisibility: true,
@@ -258,6 +270,11 @@ class _SettingsRightPanelState extends ConsumerState<SettingsRightPanel> {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
+            // ── 테마 설정 카드 (브랜드별 기본+브랜드테마 2종) ──────────────────
+            if (showBrandThemePicker) ...[
+              SettingsBrandThemeSection(themes: brandThemes),
+              const SizedBox(height: AppSpacing.s16),
+            ],
             // ── 알림 설정 카드 ─────────────────────────────────────────────
             SettingsSectionCard(
               title: t.settings.section_sound,
