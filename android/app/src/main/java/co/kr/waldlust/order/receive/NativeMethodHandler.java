@@ -424,6 +424,21 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
                 }
                 break;
 
+            case "hasBuiltinScanner": {
+                // Resolve the same intent actions that startQRScan attempts, so the
+                // capability reflects whether the scan button would actually work.
+                boolean available = false;
+                try {
+                    PackageManager pm = activity.getApplicationContext().getPackageManager();
+                    available = pm.resolveActivity(new Intent("com.sunmi.scanner.qrscanner"), 0) != null
+                            || pm.resolveActivity(new Intent("com.summi.scan"), 0) != null;
+                } catch (Exception e) {
+                    available = false;
+                }
+                result.success(available);
+                break;
+            }
+
             case "checkOverlayPermission":
                 result.success(OverlayHelper.canDrawOverlays(activity));
                 break;

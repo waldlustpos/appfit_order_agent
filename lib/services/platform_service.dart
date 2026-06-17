@@ -185,6 +185,20 @@ class PlatformService {
     }
   }
 
+  /// Sunmi 내장 스캐너(바코드 스캔 버튼) 가용 여부 조회.
+  /// 네이티브가 startQRScan 이 시도하는 두 intent action 을 resolve 해, 버튼이
+  /// 실제로 동작하는 단말에서만 true 를 반환한다. Windows 는 noop 채널이 null 을
+  /// 반환하므로 false → 버튼 미노출.
+  static Future<bool> hasBuiltinScanner() async {
+    try {
+      return await platform.invokeMethod<bool>('hasBuiltinScanner') ?? false;
+    } catch (e, s) {
+      logger.w('[PlatformService] hasBuiltinScanner 실패',
+          error: e, stackTrace: s);
+      return false;
+    }
+  }
+
   /// 듀얼모니터(D3 MINI 전면 디스플레이) capability 조회.
   /// 보조 디스플레이 존재 여부 + 해당 브랜드(slug)의 영상/이미지 콘텐츠 존재 여부.
   /// Windows 는 noop 채널이 빈 맵을 반환하므로 모두 false → 섹션 미노출.

@@ -5,6 +5,15 @@
 
     <queries>
         <package android:name="woyou.aidlservice.jiuiv5" />
+        <!-- Sunmi built-in scanner: required on Android 11+ so resolveActivity()
+             can detect the scanner app for the hasBuiltinScanner capability. -->
+        <package android:name="com.sunmi.scanner" />
+        <intent>
+            <action android:name="com.sunmi.scanner.qrscanner" />
+        </intent>
+        <intent>
+            <action android:name="com.summi.scan" />
+        </intent>
     </queries>
 
     <uses-permission android:name="android.permission.INTERNET" />

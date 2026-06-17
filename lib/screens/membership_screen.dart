@@ -27,34 +27,35 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
   final TextEditingController _inputController = TextEditingController();
   final FocusNode _inputFocusNode = FocusNode();
 
+  /// 외부 물리 키보드 / HID 키보드 모드 바코드 스캐너 입력을 가로채는 포커스 노드.
+  /// 입력 필드(_inputFocusNode)는 canRequestFocus:false 로 두고, 화면 전체를 감싼
+  /// Focus 가 primary focus 를 유지하며 하드웨어 키 이벤트를 직접 처리한다.
+  final FocusNode _keyboardFocusNode =
+      FocusNode(debugLabel: 'membershipHardwareKeys');
+
+  /// 하드웨어 키 입력에서 허용할 한 자리 숫자.
+  static final RegExp _digit = RegExp(r'^[0-9]$');
+
   @override
   void initState() {
     super.initState();
     _setupMethodChannel();
+    // 첫 프레임 이후 하드웨어 키 캡처 노드에 포커스를 확보한다.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _keyboardFocusNode.requestFocus();
+    });
   }
 
   void _setupMethodChannel() {
     platform.setMethodCallHandler((MethodCall call) async {
       if (call.method == 'onQRScanResult') {
-        String scanResult = call.arguments;
+        final String scanResult = call.arguments as String;
         logToFile(
           tag: LogTag.UI_ACTION,
           message: '바코드 스캔 결과: $scanResult',
         );
-
-        if (scanResult.startsWith('37400013')) {
-          _searchMembership(memberId: scanResult);
-        } else if (scanResult.startsWith('313')) {
-          _useCouponDirectly(scanResult);
-        } else {
-          if (mounted) {
-            CommonDialog.showInfoDialog(
-              context: context,
-              title: t.membership.dialog.notification,
-              content: t.membership.dialog.invalid_barcode,
-            );
-          }
-        }
+        // 네이티브(Sunmi) 스캐너: 알 수 없는 prefix 는 invalid-barcode 처리.
+        _routeCode(scanResult, fromScanner: true);
       }
       return null;
     });
@@ -64,6 +65,7 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
   void dispose() {
     _inputController.dispose();
     _inputFocusNode.dispose();
+    _keyboardFocusNode.dispose();
     super.dispose();
   }
 
@@ -105,7 +107,7 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
       if (shouldRefocus) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
-            FocusScope.of(context).requestFocus(_inputFocusNode);
+            FocusScope.of(context).requestFocus(_keyboardFocusNode);
             logger.d('Refocus requested after state change (no dialog)');
           }
         });
@@ -122,7 +124,7 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
           if (context.mounted) {
             ref.read(membershipProvider.notifier).clearError();
             _inputController.clear();
-            FocusScope.of(context).requestFocus(_inputFocusNode);
+            FocusScope.of(context).requestFocus(_keyboardFocusNode);
             logger.d('Error dialog dismissed, input cleared, focus requested.');
           }
         });
@@ -136,7 +138,7 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
         ).then((_) {
           if (context.mounted) {
             ref.read(membershipProvider.notifier).clearSuccessMessage();
-            FocusScope.of(context).requestFocus(_inputFocusNode);
+            FocusScope.of(context).requestFocus(_keyboardFocusNode);
             logger.d('Success dialog dismissed, focus requested.');
           }
         });
@@ -149,20 +151,28 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
       }
     });
 
-    return Scaffold(
-      body: ColoredBox(
-        color: AppStyles.gray1,
-        child: Row(
-          children: [
-            Expanded(
-              flex: 1,
-              child: _buildLeftCard(),
-            ),
-            Expanded(
-              flex: 2,
-              child: _buildRightCard(),
-            ),
-          ],
+    // 화면 전체를 Focus 로 감싸 외부 키보드/HID 스캐너의 하드웨어 키를 직접 가로챈다.
+    // onKeyEvent 가 KeyEventResult 를 반환하므로 처리한 키(숫자/Enter/Backspace)를
+    // handled 로 소비해 기본 동작·미처리 비프음을 막는다.
+    return Focus(
+      focusNode: _keyboardFocusNode,
+      autofocus: true,
+      onKeyEvent: (node, event) => _handleKeyEvent(event),
+      child: Scaffold(
+        body: ColoredBox(
+          color: AppStyles.gray1,
+          child: Row(
+            children: [
+              Expanded(
+                flex: 1,
+                child: _buildLeftCard(),
+              ),
+              Expanded(
+                flex: 2,
+                child: _buildRightCard(),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -271,7 +281,7 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
                     message: 'Clear membership button pressed.');
                 ref.read(membershipProvider.notifier).clearMembership();
                 _inputController.clear();
-                FocusScope.of(context).requestFocus(_inputFocusNode);
+                FocusScope.of(context).requestFocus(_keyboardFocusNode);
               },
               style: TextButton.styleFrom(
                 foregroundColor: AppStyles.gray6,
@@ -301,7 +311,12 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
           focusNode: _inputFocusNode,
           readOnly: true,
           showCursor: true,
-          autofocus: true,
+          // 화면을 감싼 Focus(_keyboardFocusNode)가 하드웨어 키를 처리하므로
+          // 입력 필드는 절대 primary focus 를 가져가지 않게 한다. 이렇게 하면
+          // IME 가 열리지 않아 소프트 키보드 차단이 더 견고하다.
+          autofocus: false,
+          canRequestFocus: false,
+          enableInteractiveSelection: false,
           keyboardType:
               isCustomerSearched ? TextInputType.number : TextInputType.none,
           decoration: AppStyles.outlinedInputDecoration(
@@ -367,43 +382,52 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
                 inputText.isNotEmpty &&
                 inputText[0] != '0';
 
+            // 좌측 버튼: 쿠폰 모드면 '쿠폰검증'(항상 노출), 아니면 '바코드 스캔'.
+            // 스캔 버튼은 Sunmi 내장 스캐너가 가용한 단말에서만 노출한다.
+            final hasScanner =
+                ref.watch(hasBuiltinScannerProvider).valueOrNull ?? false;
+            final showLeftButton = isCouponMode || hasScanner;
+
             return Row(
               children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    icon: Icon(
-                        isCouponMode ? Icons.fact_check : Icons.barcode_reader),
-                    label: Text(isCouponMode
-                        ? t.membership.search.btn_validate_coupon
-                        : t.membership.search.btn_scan),
-                    onPressed: isLoading
-                        ? null
-                        : (isCouponMode
-                            ? () => _validateCoupon(inputText)
-                            : (isCustomerSearched ? null : _scanBarcode)),
-                    style: AppStyles.outlinedButton(
-                      padding:
-                          const EdgeInsets.symmetric(vertical: AppSpacing.s16),
-                      borderColor: AppStyles.gray3,
-                    ).copyWith(
-                      textStyle: WidgetStatePropertyAll(
-                        AppTextStyles.body
-                            .copyWith(fontWeight: FontWeight.w500),
-                      ),
-                      backgroundColor: WidgetStateProperty.resolveWith(
-                        (states) => states.contains(WidgetState.disabled)
-                            ? AppStyles.gray3
-                            : Colors.white,
-                      ),
-                      foregroundColor: WidgetStateProperty.resolveWith(
-                        (states) => states.contains(WidgetState.disabled)
-                            ? AppStyles.gray6
-                            : AppStyles.gray9,
+                if (showLeftButton) ...[
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      icon: Icon(isCouponMode
+                          ? Icons.fact_check
+                          : Icons.barcode_reader),
+                      label: Text(isCouponMode
+                          ? t.membership.search.btn_validate_coupon
+                          : t.membership.search.btn_scan),
+                      onPressed: isLoading
+                          ? null
+                          : (isCouponMode
+                              ? () => _validateCoupon(inputText)
+                              : (isCustomerSearched ? null : _scanBarcode)),
+                      style: AppStyles.outlinedButton(
+                        padding: const EdgeInsets.symmetric(
+                            vertical: AppSpacing.s16),
+                        borderColor: AppStyles.gray3,
+                      ).copyWith(
+                        textStyle: WidgetStatePropertyAll(
+                          AppTextStyles.body
+                              .copyWith(fontWeight: FontWeight.w500),
+                        ),
+                        backgroundColor: WidgetStateProperty.resolveWith(
+                          (states) => states.contains(WidgetState.disabled)
+                              ? AppStyles.gray3
+                              : Colors.white,
+                        ),
+                        foregroundColor: WidgetStateProperty.resolveWith(
+                          (states) => states.contains(WidgetState.disabled)
+                              ? AppStyles.gray6
+                              : AppStyles.gray9,
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: AppSpacing.s8),
+                  const SizedBox(width: AppSpacing.s8),
+                ],
                 Expanded(
                   child: ElevatedButton.icon(
                     icon: Icon(buttonIcon),
@@ -625,6 +649,97 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
     }
   }
 
+  // ─── 하드웨어 키 입력(외부 키보드 / HID 스캐너) ────────────────────────────
+
+  /// 화면을 감싼 Focus 의 onKeyEvent 핸들러.
+  /// 외부 물리 키보드와 HID 키보드 모드 바코드 스캐너(문자를 빠르게 입력 후 Enter
+  /// 전송)의 키를 처리한다. 숫자는 키패드 로직(_onKeypadPressed)을 그대로 재사용해
+  /// stamp-mode 규칙(선행 0 거부·2자리 제한)이 동일하게 적용된다.
+  KeyEventResult _handleKeyEvent(KeyEvent event) {
+    // KeyDownEvent 만 처리(KeyRepeat/KeyUp 무시) → 키 홀드/스캐너 중복 입력 방지.
+    if (event is! KeyDownEvent) {
+      return KeyEventResult.ignored;
+    }
+
+    final isLoading =
+        ref.read(membershipProvider.select((state) => state.isLoading));
+    final key = event.logicalKey;
+
+    // Enter / NumpadEnter → 현재 입력 제출(스캐너의 종단 Enter 포함).
+    if (key == LogicalKeyboardKey.enter ||
+        key == LogicalKeyboardKey.numpadEnter) {
+      if (!isLoading) _handleSubmittedInput();
+      return KeyEventResult.handled;
+    }
+
+    // Backspace → 마지막 글자 삭제.
+    if (key == LogicalKeyboardKey.backspace) {
+      if (!isLoading) _onDeletePressed();
+      return KeyEventResult.handled;
+    }
+
+    // 숫자: number-row/numpad 둘 다 character 가 '0'..'9' 로 수렴.
+    final ch = event.character;
+    if (ch != null && ch.length == 1 && _digit.hasMatch(ch)) {
+      if (!isLoading) _onKeypadPressed(ch);
+      return KeyEventResult.handled;
+    }
+
+    // 그 외(Tab, 방향키, 문자, 스캐너 prefix 기호 등)는 통과.
+    return KeyEventResult.ignored;
+  }
+
+  /// Enter 제출 라우팅. 버튼 onPressed 로직을 미러링한다.
+  void _handleSubmittedInput() {
+    final text = _inputController.text.trim();
+    // 빈 입력 가드(스캐너 CR+LF 로 인한 이중 Enter 도 여기서 무력화).
+    if (text.isEmpty) return;
+    // 이전 제출과의 race 방지를 위해 시점에 맞춰 재확인.
+    if (ref.read(membershipProvider.select((state) => state.isLoading))) {
+      return;
+    }
+
+    final customerName =
+        ref.read(membershipProvider.select((state) => state.customerName));
+    // 고객이 이미 조회된 상태면 항상 스탬프 적립 모드.
+    if (customerName.isNotEmpty) {
+      _saveStamp(text);
+      return;
+    }
+
+    _routeCode(text, fromScanner: false);
+  }
+
+  /// prefix 라우팅의 단일 소스. 네이티브 onQRScanResult 와 하드웨어 키 제출이 공유한다.
+  /// [fromScanner] true  → 알 수 없는 코드는 invalid-barcode(네이티브 스캐너 의미).
+  /// [fromScanner] false → 알 수 없는 코드는 수기 입력 heuristic(0 시작=전화, 그 외=쿠폰).
+  void _routeCode(String code, {required bool fromScanner}) {
+    if (code.startsWith('37400013')) {
+      _searchMembership(memberId: code);
+      return;
+    }
+    if (code.startsWith('313')) {
+      _useCouponDirectly(code);
+      return;
+    }
+    if (fromScanner) {
+      if (mounted) {
+        CommonDialog.showInfoDialog(
+          context: context,
+          title: t.membership.dialog.notification,
+          content: t.membership.dialog.invalid_barcode,
+        );
+      }
+      return;
+    }
+    // 수기 입력 heuristic.
+    if (code.startsWith('0')) {
+      _searchMembership(); // 전화번호 검색(_inputController.text 사용).
+    } else {
+      _useCouponDirectly(code); // 쿠폰 코드.
+    }
+  }
+
   // ─── 회원 조회 ────────────────────────────────────────────────────────────
 
   void _searchMembership({String memberId = ''}) async {
@@ -821,7 +936,7 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
         title: t.membership.dialog.input_error_title,
         content: t.membership.dialog.stamp_input_error,
       );
-      FocusScope.of(context).requestFocus(_inputFocusNode);
+      FocusScope.of(context).requestFocus(_keyboardFocusNode);
       return;
     }
 
@@ -831,7 +946,7 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
         title: t.membership.dialog.input_error_title,
         content: t.membership.dialog.stamp_limit_error,
       );
-      FocusScope.of(context).requestFocus(_inputFocusNode);
+      FocusScope.of(context).requestFocus(_keyboardFocusNode);
       return;
     }
 
@@ -843,7 +958,7 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
     if (success && mounted) {
       _inputController.clear();
     } else if (!success && mounted) {
-      FocusScope.of(context).requestFocus(_inputFocusNode);
+      FocusScope.of(context).requestFocus(_keyboardFocusNode);
     }
   }
 }
