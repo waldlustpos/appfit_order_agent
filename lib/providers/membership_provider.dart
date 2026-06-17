@@ -257,7 +257,12 @@ class Membership extends _$Membership {
         // Set success message BEFORE refreshing data
         state = state.copyWith(
             successMessage: '쿠폰 사용이 완료되었습니다.', clearLoadingActionId: true);
-        await search(userId); // Refresh data
+        // 회원 컨텍스트가 있을 때만 내역을 갱신한다. 키패드/스캔으로 쿠폰번호만
+        // 입력하는 직접 사용(익명)은 조회할 회원이 없고, 빈 userId 로 search 하면
+        // "회원 정보를 찾을 수 없습니다" 에러가 방금 띄운 성공 메시지를 덮어쓴다.
+        if (userId.isNotEmpty) {
+          await search(userId); // Refresh data
+        }
         return true; // Return true after state is set
       } else {
         logger.w('쿠폰 사용 실패 (API 반환 false?): $couponId');

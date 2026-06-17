@@ -54,8 +54,9 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
           tag: LogTag.UI_ACTION,
           message: '바코드 스캔 결과: $scanResult',
         );
-        // 네이티브(Sunmi) 스캐너: 알 수 없는 prefix 는 invalid-barcode 처리.
-        _routeCode(scanResult, fromScanner: true);
+        // 자동 라우팅하지 않는다. 스캔 결과를 입력란에 채우고, 사용자가
+        // [회원조회]/[쿠폰사용] 버튼으로 명시 조작한다.
+        _fillInput(scanResult);
       }
       return null;
     });
@@ -353,113 +354,127 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
             final customerName = membershipState.customerName;
             final inputText = textValue.text;
             final isCustomerSearched = customerName.isNotEmpty;
+            final hasInput = inputText.isNotEmpty;
 
-            bool isButtonEnabled = !isLoading && inputText.isNotEmpty;
-            String buttonText = t.membership.search.btn_search;
-            IconData buttonIcon = Icons.search;
-            VoidCallback? onPressedAction;
-
+            // 회원이 이미 조회된 상태: 스탬프 적립 단일 버튼(가로 full-width).
             if (isCustomerSearched) {
-              buttonText = t.membership.search.btn_save_stamp;
-              buttonIcon = Icons.add_circle_outline;
-              onPressedAction = () => _saveStamp(inputText);
-              isButtonEnabled = !isLoading && inputText.isNotEmpty;
-            } else {
-              final isCouponMode = inputText.isNotEmpty && inputText[0] != '0';
-              if (isCouponMode) {
-                buttonText = t.membership.search.btn_use_coupon;
-                buttonIcon = Icons.sell_outlined;
-                onPressedAction = () => _useCouponDirectly(inputText);
-              } else {
-                buttonText = t.membership.search.btn_search;
-                buttonIcon = Icons.search;
-                onPressedAction = _searchMembership;
-              }
-              isButtonEnabled = !isLoading && inputText.isNotEmpty;
+              return SizedBox(
+                width: double.infinity,
+                child: _primaryActionButton(
+                  label: t.membership.search.btn_save_stamp,
+                  icon: Icons.add_circle_outline,
+                  color: AppStyles.kMainColor,
+                  onPressed: (!isLoading && hasInput)
+                      ? () => _saveStamp(inputText)
+                      : null,
+                ),
+              );
             }
 
-            final isCouponMode = !isCustomerSearched &&
-                inputText.isNotEmpty &&
-                inputText[0] != '0';
-
-            // 좌측 버튼: '바코드 스캔' 전용. 쿠폰 모드에서는 노출하지 않고
-            // 우측 '쿠폰사용' 버튼만 사용한다. 스캔 버튼은 Sunmi 내장 스캐너가
-            // 가용한 단말에서만 노출한다.
+            // 회원 미조회 상태: 자동 판정 없이 [회원조회]/[쿠폰사용] 을 모두 노출하고
+            // 입력이 있으면 둘 다 활성화한다(사용자가 명시 선택). Sunmi 내장 스캐너가
+            // 있으면 위에 [바코드 스캔] 트리거를 둔다.
             final hasScanner =
                 ref.watch(hasBuiltinScannerProvider).valueOrNull ?? false;
-            final showLeftButton = !isCouponMode && hasScanner;
+            final actionEnabled = !isLoading && hasInput;
 
-            return Row(
+            return Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                if (showLeftButton) ...[
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      icon: const Icon(Icons.barcode_reader),
-                      label: Text(t.membership.search.btn_scan),
-                      onPressed: isLoading
-                          ? null
-                          : (isCustomerSearched ? null : _scanBarcode),
-                      style: AppStyles.outlinedButton(
-                        padding: const EdgeInsets.symmetric(
-                            vertical: AppSpacing.s16),
-                        borderColor: AppStyles.gray3,
-                      ).copyWith(
-                        textStyle: WidgetStatePropertyAll(
-                          AppTextStyles.body
-                              .copyWith(fontWeight: FontWeight.w500),
-                        ),
-                        backgroundColor: WidgetStateProperty.resolveWith(
-                          (states) => states.contains(WidgetState.disabled)
-                              ? AppStyles.gray3
-                              : Colors.white,
-                        ),
-                        foregroundColor: WidgetStateProperty.resolveWith(
-                          (states) => states.contains(WidgetState.disabled)
-                              ? AppStyles.gray6
-                              : AppStyles.gray9,
-                        ),
-                      ),
-                    ),
+                if (hasScanner) ...[
+                  SizedBox(
+                    width: double.infinity,
+                    child: _scanTriggerButton(enabled: !isLoading),
                   ),
-                  const SizedBox(width: AppSpacing.s8),
+                  const SizedBox(height: AppSpacing.s8),
                 ],
-                Expanded(
-                  child: ElevatedButton.icon(
-                    icon: Icon(buttonIcon),
-                    label: Text(buttonText),
-                    onPressed: isButtonEnabled ? onPressedAction : null,
-                    style: AppStyles.primaryButton(
-                      padding:
-                          const EdgeInsets.symmetric(vertical: AppSpacing.s16),
-                      elevation: 2,
-                    ).copyWith(
-                      backgroundColor: WidgetStateProperty.resolveWith(
-                        (states) {
-                          if (states.contains(WidgetState.disabled)) {
-                            return AppStyles.gray3;
-                          }
-                          return isCouponMode
-                              ? AppStyles.kAmber
-                              : AppStyles.kMainColor;
-                        },
-                      ),
-                      foregroundColor: WidgetStateProperty.resolveWith(
-                        (states) => states.contains(WidgetState.disabled)
-                            ? AppStyles.gray6
-                            : Colors.white,
-                      ),
-                      textStyle: WidgetStatePropertyAll(
-                        AppTextStyles.body
-                            .copyWith(fontWeight: FontWeight.bold),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _primaryActionButton(
+                        label: t.membership.search.btn_search,
+                        icon: Icons.search,
+                        color: AppStyles.kMainColor,
+                        onPressed: actionEnabled ? _searchMembership : null,
                       ),
                     ),
-                  ),
+                    const SizedBox(width: AppSpacing.s8),
+                    Expanded(
+                      child: _primaryActionButton(
+                        label: t.membership.search.btn_use_coupon,
+                        icon: Icons.sell_outlined,
+                        color: AppStyles.kAmber,
+                        onPressed: actionEnabled
+                            ? () => _useCouponDirectly(inputText)
+                            : null,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             );
           },
         ),
       ],
+    );
+  }
+
+  /// 하단 주요 액션 버튼(회원조회/쿠폰사용/스탬프적립) 공통 스타일.
+  /// onPressed 가 null 이면 비활성(회색) 표시.
+  Widget _primaryActionButton({
+    required String label,
+    required IconData icon,
+    required Color color,
+    required VoidCallback? onPressed,
+  }) {
+    return ElevatedButton.icon(
+      icon: Icon(icon),
+      label: Text(label),
+      onPressed: onPressed,
+      style: AppStyles.primaryButton(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.s16),
+        elevation: 2,
+      ).copyWith(
+        backgroundColor: WidgetStateProperty.resolveWith(
+          (states) =>
+              states.contains(WidgetState.disabled) ? AppStyles.gray3 : color,
+        ),
+        foregroundColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.disabled)
+              ? AppStyles.gray6
+              : Colors.white,
+        ),
+        textStyle: WidgetStatePropertyAll(
+          AppTextStyles.body.copyWith(fontWeight: FontWeight.bold),
+        ),
+      ),
+    );
+  }
+
+  /// Sunmi 내장 스캐너 트리거 버튼(outlined). 스캔 결과는 입력란만 채운다.
+  Widget _scanTriggerButton({required bool enabled}) {
+    return ElevatedButton.icon(
+      icon: const Icon(Icons.barcode_reader),
+      label: Text(t.membership.search.btn_scan),
+      onPressed: enabled ? _scanBarcode : null,
+      style: AppStyles.outlinedButton(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.s16),
+        borderColor: AppStyles.gray3,
+      ).copyWith(
+        textStyle: WidgetStatePropertyAll(
+          AppTextStyles.body.copyWith(fontWeight: FontWeight.w500),
+        ),
+        backgroundColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.disabled)
+              ? AppStyles.gray3
+              : Colors.white,
+        ),
+        foregroundColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.disabled)
+              ? AppStyles.gray6
+              : AppStyles.gray9,
+        ),
+      ),
     );
   }
 
@@ -644,6 +659,18 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
     }
   }
 
+  /// 스캔 결과를 입력란에 채운다(교체). 자동 제출하지 않으며, 사용자가 버튼으로
+  /// 회원조회/쿠폰사용을 선택한다. 하드웨어 키 캡처 포커스를 유지한다.
+  void _fillInput(String code) {
+    _inputController.text = code;
+    _inputController.selection = TextSelection.fromPosition(
+      TextPosition(offset: _inputController.text.length),
+    );
+    if (mounted) {
+      FocusScope.of(context).requestFocus(_keyboardFocusNode);
+    }
+  }
+
   // ─── 하드웨어 키 입력(외부 키보드 / HID 스캐너) ────────────────────────────
 
   /// 화면을 감싼 Focus 의 onKeyEvent 핸들러.
@@ -660,10 +687,11 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
         ref.read(membershipProvider.select((state) => state.isLoading));
     final key = event.logicalKey;
 
-    // Enter / NumpadEnter → 현재 입력 제출(스캐너의 종단 Enter 포함).
+    // Enter / NumpadEnter → 무동작. 자동 제출하지 않고(스캐너 종단 Enter 포함)
+    // 입력란 값은 그대로 둔 채 사용자가 버튼으로 조작한다. handled 로 소비해
+    // 기본 동작·미처리 비프음만 막는다.
     if (key == LogicalKeyboardKey.enter ||
         key == LogicalKeyboardKey.numpadEnter) {
-      if (!isLoading) _handleSubmittedInput();
       return KeyEventResult.handled;
     }
 
@@ -682,57 +710,6 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
 
     // 그 외(Tab, 방향키, 문자, 스캐너 prefix 기호 등)는 통과.
     return KeyEventResult.ignored;
-  }
-
-  /// Enter 제출 라우팅. 버튼 onPressed 로직을 미러링한다.
-  void _handleSubmittedInput() {
-    final text = _inputController.text.trim();
-    // 빈 입력 가드(스캐너 CR+LF 로 인한 이중 Enter 도 여기서 무력화).
-    if (text.isEmpty) return;
-    // 이전 제출과의 race 방지를 위해 시점에 맞춰 재확인.
-    if (ref.read(membershipProvider.select((state) => state.isLoading))) {
-      return;
-    }
-
-    final customerName =
-        ref.read(membershipProvider.select((state) => state.customerName));
-    // 고객이 이미 조회된 상태면 항상 스탬프 적립 모드.
-    if (customerName.isNotEmpty) {
-      _saveStamp(text);
-      return;
-    }
-
-    _routeCode(text, fromScanner: false);
-  }
-
-  /// prefix 라우팅의 단일 소스. 네이티브 onQRScanResult 와 하드웨어 키 제출이 공유한다.
-  /// [fromScanner] true  → 알 수 없는 코드는 invalid-barcode(네이티브 스캐너 의미).
-  /// [fromScanner] false → 알 수 없는 코드는 수기 입력 heuristic(0 시작=전화, 그 외=쿠폰).
-  void _routeCode(String code, {required bool fromScanner}) {
-    if (code.startsWith('37400013')) {
-      _searchMembership(memberId: code);
-      return;
-    }
-    if (code.startsWith('313')) {
-      _useCouponDirectly(code);
-      return;
-    }
-    if (fromScanner) {
-      if (mounted) {
-        CommonDialog.showInfoDialog(
-          context: context,
-          title: t.membership.dialog.notification,
-          content: t.membership.dialog.invalid_barcode,
-        );
-      }
-      return;
-    }
-    // 수기 입력 heuristic.
-    if (code.startsWith('0')) {
-      _searchMembership(); // 전화번호 검색(_inputController.text 사용).
-    } else {
-      _useCouponDirectly(code); // 쿠폰 코드.
-    }
   }
 
   // ─── 회원 조회 ────────────────────────────────────────────────────────────
@@ -812,11 +789,13 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
     );
 
     if (confirmed == true) {
+      // use-without-item: 회원 조회 없이 쿠폰번호만으로 사용 처리한다.
+      // 회원이 조회돼 있으면(예: 스캔 시) 그 id 로 사용 후 내역을 갱신하고,
+      // 없으면(키패드/스캔 직접 입력) 익명으로 사용한다.
       final membership = ref.read(membershipProvider).membershipInfo;
-      if (membership == null) return;
       final success = await ref
           .read(membershipProvider.notifier)
-          .useCoupon(membership.id, couponCode);
+          .useCoupon(membership?.id ?? '', couponCode);
       if (success && mounted) {
         _inputController.clear();
       }
