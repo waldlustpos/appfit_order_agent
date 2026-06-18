@@ -51,8 +51,17 @@ class NumericKeypadWidget extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final aspectRatio =
-              (constraints.maxWidth / 3) / ((constraints.maxHeight - 60) / 4);
+          // 3열 x 4행 그리드. 행/열 간격(AppSpacing.s8)을 정확히 빼서 셀 크기를
+          // 산출해야 콘텐츠가 뷰포트를 넘지 않는다. 고정 상수(-60)를 쓰면
+          // 바코드 스캔 버튼 노출로 키패드 높이가 줄어든 가로 화면에서
+          // 음수가 되어 행이 거대해지고 키패드가 버튼 영역을 덮는다.
+          const cols = 3;
+          const rows = 4;
+          final cellWidth =
+              (constraints.maxWidth - AppSpacing.s8 * (cols - 1)) / cols;
+          final cellHeight =
+              (constraints.maxHeight - AppSpacing.s8 * (rows - 1)) / rows;
+          final aspectRatio = cellHeight > 0 ? cellWidth / cellHeight : 1.0;
 
           return GridView.count(
             crossAxisCount: 3,

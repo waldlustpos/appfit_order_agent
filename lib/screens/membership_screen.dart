@@ -308,6 +308,8 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
 
         return TextField(
           style: AppTextStyles.title,
+          textAlign: TextAlign.center,
+          textAlignVertical: TextAlignVertical.center,
           controller: _inputController,
           focusNode: _inputFocusNode,
           readOnly: true,
@@ -322,7 +324,7 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
               isCustomerSearched ? TextInputType.number : TextInputType.none,
           decoration: AppStyles.outlinedInputDecoration(
             hintText: hintText,
-            hintStyle: AppTextStyles.body.copyWith(color: AppStyles.gray6),
+            hintStyle: AppTextStyles.title.copyWith(color: AppStyles.gray6),
           ).copyWith(
             contentPadding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.s12,
@@ -346,6 +348,7 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
             deleteLabel: t.membership.keypad.delete,
           ),
         ),
+        const SizedBox(height: AppSpacing.s8),
         ValueListenableBuilder<TextEditingValue>(
           valueListenable: _inputController,
           builder: (context, textValue, child) {
