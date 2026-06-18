@@ -43,6 +43,7 @@ class SettingsLeftPanel extends ConsumerStatefulWidget {
     required this.externalPrintReceipt,
     required this.labelFilterMode,
     required this.isShowOrderTypeBadge,
+    required this.isOrderSourceColor,
     required this.onModeSwitch,
     required this.onRotated180Changed,
     required this.onAutoStartChanged,
@@ -60,6 +61,7 @@ class SettingsLeftPanel extends ConsumerStatefulWidget {
     required this.onExternalPrintReceiptChanged,
     required this.onLabelFilterModeChanged,
     required this.onShowOrderTypeBadgeChanged,
+    required this.onOrderSourceColorChanged,
     required this.isSoundGraphEnabled,
     required this.soundGraphMarketId,
     required this.onSoundGraphEnabledChanged,
@@ -83,6 +85,7 @@ class SettingsLeftPanel extends ConsumerStatefulWidget {
   final bool externalPrintReceipt;
   final int labelFilterMode;
   final bool isShowOrderTypeBadge;
+  final bool isOrderSourceColor;
 
   final VoidCallback onModeSwitch;
   final void Function(bool) onRotated180Changed;
@@ -101,6 +104,7 @@ class SettingsLeftPanel extends ConsumerStatefulWidget {
   final void Function(bool) onExternalPrintReceiptChanged;
   final void Function(int) onLabelFilterModeChanged;
   final void Function(bool) onShowOrderTypeBadgeChanged;
+  final void Function(bool) onOrderSourceColorChanged;
   final bool isSoundGraphEnabled;
   final String soundGraphMarketId;
   final void Function(bool) onSoundGraphEnabledChanged;
@@ -369,6 +373,23 @@ class _SettingsLeftPanelState extends ConsumerState<SettingsLeftPanel> {
                       logToFile(
                           tag: LogTag.UI_ACTION, message: '매장/포장 표시 변경 -> $v');
                       widget.onShowOrderTypeBadgeChanged(v);
+                    },
+                  ),
+                ),
+                // 3-1. 주문 출처별 색상 (앱/키오스크) — 메인·KDS 공통
+                SettingsItemWidget(
+                  title: t.settings.order_source_color.title,
+                  description: t.settings.order_source_color.desc,
+                  trailing: CustomSwitch(
+                    value: widget.isOrderSourceColor,
+                    activeColor: AppStyles.kMainColor,
+                    inactiveColor: AppStyles.gray4,
+                    activeText: t.settings.auto_start.on,
+                    inactiveText: t.settings.auto_start.off,
+                    onChanged: (v) {
+                      logToFile(
+                          tag: LogTag.UI_ACTION, message: '주문 출처별 색상 변경 -> $v');
+                      widget.onOrderSourceColorChanged(v);
                     },
                   ),
                 ),

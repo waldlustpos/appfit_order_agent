@@ -4,9 +4,9 @@
 /// To regenerate, run: `dart run slang`
 ///
 /// Locales: 3
-/// Strings: 1220 (406 per locale)
+/// Strings: 1226 (408 per locale)
 ///
-/// Built on 2026-06-17 at 07:45 UTC
+/// Built on 2026-06-18 at 02:08 UTC
 
 // coverage:ignore-file
 // ignore_for_file: type=lint
@@ -257,6 +257,7 @@ class _StringsSettingsKo {
 	late final _StringsSettingsCurrencyKo currency = _StringsSettingsCurrencyKo._(_root);
 	late final _StringsSettingsDisplayRotateKo display_rotate = _StringsSettingsDisplayRotateKo._(_root);
 	late final _StringsSettingsOrderTypeBadgeKo order_type_badge = _StringsSettingsOrderTypeBadgeKo._(_root);
+	late final _StringsSettingsOrderSourceColorKo order_source_color = _StringsSettingsOrderSourceColorKo._(_root);
 	late final _StringsSettingsKdsIgnoreStatusKo kds_ignore_status = _StringsSettingsKdsIgnoreStatusKo._(_root);
 	late final _StringsSettingsKdsAcceptOrdersKo kds_accept_orders = _StringsSettingsKdsAcceptOrdersKo._(_root);
 	late final _StringsSettingsLabelFilterKo label_filter = _StringsSettingsLabelFilterKo._(_root);
@@ -808,6 +809,17 @@ class _StringsSettingsOrderTypeBadgeKo {
 	String get desc => '주문 상세 헤더에 매장/포장 구분 배지를 표시합니다.';
 }
 
+// Path: settings.order_source_color
+class _StringsSettingsOrderSourceColorKo {
+	_StringsSettingsOrderSourceColorKo._(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+	String get title => '주문 출처별 색상';
+	String get desc => '앱 주문과 키오스크 주문을 카드 배경색으로 구분합니다.';
+}
+
 // Path: settings.kds_ignore_status
 class _StringsSettingsKdsIgnoreStatusKo {
 	_StringsSettingsKdsIgnoreStatusKo._(this._root);
@@ -1319,6 +1331,7 @@ class _StringsSettingsEn extends _StringsSettingsKo {
 	@override late final _StringsSettingsCurrencyEn currency = _StringsSettingsCurrencyEn._(_root);
 	@override late final _StringsSettingsDisplayRotateEn display_rotate = _StringsSettingsDisplayRotateEn._(_root);
 	@override late final _StringsSettingsOrderTypeBadgeEn order_type_badge = _StringsSettingsOrderTypeBadgeEn._(_root);
+	@override late final _StringsSettingsOrderSourceColorEn order_source_color = _StringsSettingsOrderSourceColorEn._(_root);
 	@override late final _StringsSettingsKdsIgnoreStatusEn kds_ignore_status = _StringsSettingsKdsIgnoreStatusEn._(_root);
 	@override late final _StringsSettingsKdsAcceptOrdersEn kds_accept_orders = _StringsSettingsKdsAcceptOrdersEn._(_root);
 	@override late final _StringsSettingsLabelFilterEn label_filter = _StringsSettingsLabelFilterEn._(_root);
@@ -1878,6 +1891,17 @@ class _StringsSettingsOrderTypeBadgeEn extends _StringsSettingsOrderTypeBadgeKo 
 	@override String get desc => 'Display a dine-in or takeout badge on the order detail header.';
 }
 
+// Path: settings.order_source_color
+class _StringsSettingsOrderSourceColorEn extends _StringsSettingsOrderSourceColorKo {
+	_StringsSettingsOrderSourceColorEn._(_StringsEn root) : this._root = root, super._(root);
+
+	@override final _StringsEn _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'Color by Order Source';
+	@override String get desc => 'Distinguish app and kiosk orders by card background color.';
+}
+
 // Path: settings.kds_ignore_status
 class _StringsSettingsKdsIgnoreStatusEn extends _StringsSettingsKdsIgnoreStatusKo {
 	_StringsSettingsKdsIgnoreStatusEn._(_StringsEn root) : this._root = root, super._(root);
@@ -2389,6 +2413,7 @@ class _StringsSettingsJa extends _StringsSettingsKo {
 	@override late final _StringsSettingsCurrencyJa currency = _StringsSettingsCurrencyJa._(_root);
 	@override late final _StringsSettingsDisplayRotateJa display_rotate = _StringsSettingsDisplayRotateJa._(_root);
 	@override late final _StringsSettingsOrderTypeBadgeJa order_type_badge = _StringsSettingsOrderTypeBadgeJa._(_root);
+	@override late final _StringsSettingsOrderSourceColorJa order_source_color = _StringsSettingsOrderSourceColorJa._(_root);
 	@override late final _StringsSettingsKdsIgnoreStatusJa kds_ignore_status = _StringsSettingsKdsIgnoreStatusJa._(_root);
 	@override late final _StringsSettingsKdsAcceptOrdersJa kds_accept_orders = _StringsSettingsKdsAcceptOrdersJa._(_root);
 	@override late final _StringsSettingsLabelFilterJa label_filter = _StringsSettingsLabelFilterJa._(_root);
@@ -2938,6 +2963,17 @@ class _StringsSettingsOrderTypeBadgeJa extends _StringsSettingsOrderTypeBadgeKo 
 	// Translations
 	@override String get title => '店内/持ち帰り表示';
 	@override String get desc => '注文詳細ヘッダーに店内/持ち帰りバッジを表示します。';
+}
+
+// Path: settings.order_source_color
+class _StringsSettingsOrderSourceColorJa extends _StringsSettingsOrderSourceColorKo {
+	_StringsSettingsOrderSourceColorJa._(_StringsJa root) : this._root = root, super._(root);
+
+	@override final _StringsJa _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => '注文元別の色分け';
+	@override String get desc => 'アプリ注文とキオスク注文をカード背景色で区別します。';
 }
 
 // Path: settings.kds_ignore_status

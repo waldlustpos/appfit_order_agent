@@ -58,6 +58,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _isKioskOrderVisible = false;
   bool _isKioskOrderSoundEnabled = false;
   bool _isShowOrderTypeBadge = false;
+  bool _isOrderSourceColor = false;
   bool _isOrderHistoryScroll = true;
   bool _isIgnoreOtherDeviceKds = false;
   bool _isKdsAcceptOrders = false;
@@ -123,6 +124,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _isKioskOrderVisible = _preferenceService.getShowKioskOrder();
       _isKioskOrderSoundEnabled = _preferenceService.getKioskPrintAndSound();
       _isShowOrderTypeBadge = _preferenceService.getShowOrderTypeBadge();
+      _isOrderSourceColor = _preferenceService.getOrderSourceColor();
       _isOrderHistoryScroll = _preferenceService.getOrderHistoryScroll();
       _isIgnoreOtherDeviceKds =
           _preferenceService.getIgnoreOtherDeviceTasksKds();
@@ -163,6 +165,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await _preferenceService.setShowKioskOrder(_isKioskOrderVisible);
       await _preferenceService.setKioskPrintAndSound(_isKioskOrderSoundEnabled);
       await _preferenceService.setShowOrderTypeBadge(_isShowOrderTypeBadge);
+      await _preferenceService.setOrderSourceColor(_isOrderSourceColor);
       await _preferenceService.setOrderHistoryScroll(_isOrderHistoryScroll);
       await _preferenceService
           .setIgnoreOtherDeviceTasksKds(_isIgnoreOtherDeviceKds);
@@ -177,6 +180,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
       ref.read(orderHistoryScrollProvider.notifier).state =
           _isOrderHistoryScroll;
+      ref.read(orderSourceColorProvider.notifier).state = _isOrderSourceColor;
     } catch (e) {
       logger.e('Error saving settings: $e');
       if (mounted) {
@@ -530,6 +534,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               externalPrintReceipt: _externalPrintReceipt,
               labelFilterMode: _labelFilterMode,
               isShowOrderTypeBadge: _isShowOrderTypeBadge,
+              isOrderSourceColor: _isOrderSourceColor,
               onModeSwitch: _handleModeSwitch,
               onRotated180Changed: (v) => setState(() => _isRotated180 = v),
               onAutoStartChanged: (v) => _setAndSave(() => _isAutoStart = v),
@@ -569,6 +574,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   _setAndSave(() => _labelFilterMode = v),
               onShowOrderTypeBadgeChanged: (v) =>
                   _setAndSave(() => _isShowOrderTypeBadge = v),
+              onOrderSourceColorChanged: (v) =>
+                  _setAndSave(() => _isOrderSourceColor = v),
               isSoundGraphEnabled: _isSoundGraphEnabled,
               soundGraphMarketId: _soundGraphMarketId,
               onSoundGraphEnabledChanged: (v) =>

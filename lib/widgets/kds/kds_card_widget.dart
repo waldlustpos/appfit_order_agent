@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import 'package:appfit_order_agent/constants/app_styles.dart';
 import 'package:appfit_order_agent/constants/card_types.dart';
 import 'package:appfit_order_agent/i18n/strings.g.dart';
 import 'package:appfit_order_agent/models/order_model.dart';
+import 'package:appfit_order_agent/providers/providers.dart';
 
 /// KDS 주문 카드 헤더.
 ///
@@ -12,7 +14,7 @@ import 'package:appfit_order_agent/models/order_model.dart';
 /// - 총 아이템 수: 보조 위계 (bodySm)로 격하
 /// - 시간: 가장 가벼운 위계 (caption)
 /// - 색상은 [AppStyles.orderPalette]가 제공하는 (배경, 전경) 팔레트 1쌍을 따른다.
-class KdsCardHeaderWidget extends StatelessWidget {
+class KdsCardHeaderWidget extends ConsumerWidget {
   final OrderModel order;
   final OrderModel detailedOrder;
   final CardType cardType;
@@ -32,7 +34,18 @@ class KdsCardHeaderWidget extends StatelessWidget {
     return total;
   }
 
-  OrderPalette _palette() {
+  OrderPalette _palette(bool useSourceColor) {
+    // '주문 출처별 색상' 설정 ON 이면 매장/포장 색 대신 앱/키오스크 출처 색으로.
+    if (useSourceColor) {
+      final source = detailedOrder.source;
+      return switch (cardType) {
+        CardType.progress => AppStyles.orderSourcePalette(source),
+        CardType.pickup => AppStyles.orderSourcePalette(source, muted: true),
+        CardType.completed => AppStyles.orderSourcePalette(source, muted: true),
+        CardType.cancelled =>
+          AppStyles.orderSourcePalette(source, isCancelled: true),
+      };
+    }
     final type = detailedOrder.detectSpecialProductType();
     return switch (cardType) {
       CardType.progress => AppStyles.orderPalette(type),
@@ -43,8 +56,8 @@ class KdsCardHeaderWidget extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final palette = _palette();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = _palette(ref.watch(orderSourceColorProvider));
 
     return Container(
       decoration: BoxDecoration(

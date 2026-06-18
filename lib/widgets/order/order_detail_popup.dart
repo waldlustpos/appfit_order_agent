@@ -778,13 +778,13 @@ class _SourcePill extends StatelessWidget {
     final ({String label, Color bg, Color fg})? spec = switch (source) {
       'WALD_APPFIT' => (
           label: 'APP',
-          bg: AppStyles.kBlueAlpha,
-          fg: AppStyles.kBlue,
+          bg: AppStyles.kAppOrderBg,
+          fg: AppStyles.kAppOrderFg,
         ),
       'WALD_KIOSK' => (
           label: 'KIOSK',
-          bg: AppStyles.kSubAlpha,
-          fg: AppStyles.kSub,
+          bg: AppStyles.kBlueAlpha,
+          fg: AppStyles.kBlue,
         ),
       _ => null,
     };
@@ -821,13 +821,13 @@ class _OrderTypePill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = Translations.of(context);
-    // IN_SHOP=매장 식사(차분한 그린), TAKE_OUT=포장 픽업(강조 앰버).
-    // _SourcePill 의 kBlue/kSub 와 충돌하지 않는 색 풀에서 선택.
+    // IN_SHOP=매장(보라), TAKE_OUT=포장(앰버).
+    // _SourcePill 의 연두(APP)/파랑(KIOSK) 와 충돌하지 않는 색 풀에서 선택.
     final spec = switch (orderType.toUpperCase()) {
       'IN_SHOP' => (
           label: t.order.type_dine_in,
-          bg: AppStyles.green100Alpha,
-          fg: AppStyles.green100,
+          bg: AppStyles.kSubAlpha,
+          fg: AppStyles.kSub,
         ),
       'TAKE_OUT' => (
           label: t.order.type_takeout,

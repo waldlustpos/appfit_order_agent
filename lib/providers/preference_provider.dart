@@ -21,3 +21,8 @@ final orderHistoryScrollProvider = StateProvider<bool>((ref) {
   final preferenceService = PreferenceService();
   return preferenceService.getOrderHistoryScroll();
 });
+
+// 주문 출처별(앱/키오스크) 카드 배경색 설정 — 카드가 실시간 watch
+final orderSourceColorProvider = StateProvider<bool>((ref) {
+  return PreferenceService().getOrderSourceColor();
+});

@@ -88,9 +88,13 @@ class _OrderCardWidgetState extends ConsumerState<OrderCardWidget> {
         break;
     }
 
-    // 상태별 색상 및 스타일 결정
-    final palette =
-        AppStyles.orderPalette(type, isCancelled: isCancelled, muted: isDone);
+    // 상태별 색상 및 스타일 결정.
+    // '주문 출처별 색상' 설정 ON 이면 매장/포장 색 대신 앱/키오스크 출처 색으로 칠한다.
+    final useSourceColor = ref.watch(orderSourceColorProvider);
+    final palette = useSourceColor
+        ? AppStyles.orderSourcePalette(orderToCheck.source,
+            isCancelled: isCancelled, muted: isDone)
+        : AppStyles.orderPalette(type, isCancelled: isCancelled, muted: isDone);
     final backgroundColor = palette.bg;
     final orderNumberColor =
         isCancelled || isDone ? AppStyles.gray6 : palette.fg;

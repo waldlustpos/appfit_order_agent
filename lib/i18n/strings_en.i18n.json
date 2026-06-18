@@ -168,6 +168,10 @@
             "title": "Show Dine-in / Takeout Badge",
             "desc": "Display a dine-in or takeout badge on the order detail header."
         },
+        "order_source_color": {
+            "title": "Color by Order Source",
+            "desc": "Distinguish app and kiosk orders by card background color."
+        },
         "kds_ignore_status": {
             "title": "Ignore Other Device Status Updates",
             "desc": "Orders on this screen will not refresh when other KDS devices update pickup or progress status. (Use when you want to control status updates manually)"
