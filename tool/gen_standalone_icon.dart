@@ -4,11 +4,13 @@
 // topLeft #fb3e7e -> bottomRight #9843cb)을 아이콘 배경에 적용한다.
 //
 // 산출물:
-//   assets/icons/app_icon_standalone_bg.png  - 그라데이션만 (adaptive 배경 레이어)
-//   assets/icons/app_icon_standalone.png     - 그라데이션 + 흰색 로고 합성 (레거시 아이콘)
+//   assets/icons/app_icon_standalone_bg.png        - 그라데이션만 (Android adaptive 배경 레이어)
+//   assets/icons/app_icon_standalone.png           - 그라데이션 + 흰색 로고 합성 (Android 레거시 아이콘)
+//   windows/runner/resources/app_icon_standalone.ico - Windows 런처/설치 아이콘
 //
 // 실행: dart run tool/gen_standalone_icon.dart
-// 이후: flutter pub run flutter_launcher_icons -f standalone
+// 이후(Android): flutter pub run flutter_launcher_icons -f standalone
+// (Windows ico 는 Runner.rc 가 APPFIT_VARIANT_STANDALONE 일 때 직접 참조하므로 추가 단계 없음)
 //
 // image 는 flutter_launcher_icons 의 전이 의존성이라 직접 의존성 선언 없이 사용한다.
 // ignore_for_file: depend_on_referenced_packages
@@ -66,8 +68,15 @@ void main() {
   File('assets/icons/app_icon_standalone.png')
       .writeAsBytesSync(img.encodePng(composite));
 
+  // Windows 런처/설치 아이콘(.ico) — 합성본을 256px ICO 로 인코딩.
+  // 기존 update 변형 ico(flutter_launcher_icons icon_size: 256)와 동일 규격.
+  final ico = img.copyResize(composite, width: 256, height: 256);
+  File('windows/runner/resources/app_icon_standalone.ico')
+      .writeAsBytesSync(img.encodeIco(ico));
+
   stdout.writeln(
     '생성 완료: assets/icons/app_icon_standalone_bg.png, '
-    'assets/icons/app_icon_standalone.png',
+    'assets/icons/app_icon_standalone.png, '
+    'windows/runner/resources/app_icon_standalone.ico',
   );
 }

@@ -71,7 +71,11 @@ Compression=lzma2/ultra
 SolidCompression=yes
 
 ; === Wizard UI ===
+#ifdef Standalone
+SetupIconFile=..\windows\runner\resources\app_icon_standalone.ico
+#else
 SetupIconFile=..\windows\runner\resources\app_icon.ico
+#endif
 UninstallDisplayIcon={app}\{#MyAppExeName}
 UninstallDisplayName={#MyAppName}
 WizardStyle=modern
