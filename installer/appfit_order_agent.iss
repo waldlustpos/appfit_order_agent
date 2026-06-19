@@ -24,7 +24,7 @@
 #endif
 
 #ifdef Standalone
-  #define MyAppName        "Appfit 주문 접수(신규)"
+  #define MyAppName        "Appfit Order Agent"
   #define MyAppExeName     "appfit_order_agent_standalone.exe"
   #define MyAppMutex       "Global\AppfitOrderAgentStandalone_SingleInstance_Mutex"
   #define MyAppId          "{{E448C213-990C-AEED-03A8-6A695F9EED14}"
