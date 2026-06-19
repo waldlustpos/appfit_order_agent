@@ -68,12 +68,12 @@
         "section_update": "업데이트",
         "mode_switch": {
             "to_main": "메인 시스템으로 전환",
-            "to_kds": "KDS 모드로 전환",
+            "to_kds": "주방모니터(KDS)로 전환",
             "confirm_to_main": "메인 시스템(일반 접수)으로 전환하시겠습니까?",
-            "confirm_to_kds": "주방모니터(KDS) 전용 시스템으로 전환하시겠습니까?",
+            "confirm_to_kds": "상태별 카드로 보는 주방 전용 화면입니다.\n'주문 접수'가 OFF라 처리되지 않습니다.\n받으려면 '주문 접수'를 ON 하세요.",
             "btn_switch": "전환하기",
             "desc_to_main": "일반 접수 화면으로 변경합니다.",
-            "desc_to_kds": "주방 전용 모니터로 변경합니다."
+            "desc_to_kds": "주방모니터(KDS) 화면으로 변경합니다."
         },
         "auto_start": {
             "title": "PC시작 시 자동 실행",
@@ -102,7 +102,7 @@
         },
         "label_printer": {
             "title": "라벨 프린터 사용",
-            "desc": "USB 연결된 라벨 프린터를 사용합니다. (50mm x 70mm)"
+            "desc": "USB 연결된 라벨 프린터를 사용합니다. (50mm x 70mm)\nREXOD RXLA-561 모델만 지원합니다."
         },
         "label_qr": {
             "title": "QR 코드 출력",
@@ -174,13 +174,13 @@
         },
         "kds_ignore_status": {
             "title": "타 기기 진행상태 알림 무시",
-            "desc": "다른 KDS에서 픽업 요청 등 진행상태를 변경해도 내 화면의 주문이 새로고침되지 않습니다. (진행상태 최신화를 수동으로 통제하고 싶을 때 사용)"
+            "desc": "다른 주방모니터(KDS)에서 픽업 요청 등 진행상태를 변경해도 내 화면의 주문이 새로고침되지 않습니다. (진행상태 최신화를 수동으로 통제하고 싶을 때 사용)"
         },
         "kds_accept_orders": {
             "title": "주문 접수",
-            "desc": "KDS모드에서 주문을 직접 자동접수처리 합니다. 다른 메인주문 접수 프로그램과 중복 사용을 확인해주세요",
+            "desc": "주방모니터(KDS)에서 주문을 직접 자동접수처리 합니다. 반드시 다른 메인주문 접수 프로그램과 중복 사용 되지 않도록 확인해주세요",
             "confirm_title": "주문 접수 활성화",
-            "confirm_content": "KDS에서 직접 주문 자동접수를 수행합니다.\n다른 메인주문 접수 프로그램과의 중복 사용을 확인해주세요.\n활성화 하시겠습니까?"
+            "confirm_content": "주방모니터(KDS)에서 직접 주문 자동접수를 수행합니다.\n반드시 다른 메인주문 접수 프로그램과 중복 사용 되지 않도록 확인해주세요.\n활성화 하시겠습니까?"
         },
         "label_filter": {
             "title": "라벨 출력 필터",
@@ -259,7 +259,7 @@
         "new_order_count(plural, arg=n)": {
             "other": "신규 {n} 건"
         },
-        "kds_mode": "주방모니터",
+        "kds_mode": "주방모니터(KDS)",
         "order_toggle": "오더",
         "order_start_confirm_title": "오더 시작 확인",
         "order_stop_confirm_title": "오더 중지 확인",

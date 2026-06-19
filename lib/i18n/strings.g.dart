@@ -6,7 +6,7 @@
 /// Locales: 3
 /// Strings: 1226 (408 per locale)
 ///
-/// Built on 2026-06-18 at 02:08 UTC
+/// Built on 2026-06-19 at 07:55 UTC
 
 // coverage:ignore-file
 // ignore_for_file: type=lint
@@ -296,7 +296,7 @@ class _StringsAppBarKo {
 	String new_order_count({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ko'))(n,
 		other: '신규 ${n} 건',
 	);
-	String get kds_mode => '주방모니터';
+	String get kds_mode => '주방모니터(KDS)';
 	String get order_toggle => '오더';
 	String get order_start_confirm_title => '오더 시작 확인';
 	String get order_stop_confirm_title => '오더 중지 확인';
@@ -594,12 +594,12 @@ class _StringsSettingsModeSwitchKo {
 
 	// Translations
 	String get to_main => '메인 시스템으로 전환';
-	String get to_kds => 'KDS 모드로 전환';
+	String get to_kds => '주방모니터(KDS)로 전환';
 	String get confirm_to_main => '메인 시스템(일반 접수)으로 전환하시겠습니까?';
-	String get confirm_to_kds => '주방모니터(KDS) 전용 시스템으로 전환하시겠습니까?';
+	String get confirm_to_kds => '상태별 카드로 보는 주방 전용 화면입니다.\n\'주문 접수\'가 OFF라 처리되지 않습니다.\n받으려면 \'주문 접수\'를 ON 하세요.';
 	String get btn_switch => '전환하기';
 	String get desc_to_main => '일반 접수 화면으로 변경합니다.';
-	String get desc_to_kds => '주방 전용 모니터로 변경합니다.';
+	String get desc_to_kds => '주방모니터(KDS) 화면으로 변경합니다.';
 }
 
 // Path: settings.auto_start
@@ -670,7 +670,7 @@ class _StringsSettingsLabelPrinterKo {
 
 	// Translations
 	String get title => '라벨 프린터 사용';
-	String get desc => 'USB 연결된 라벨 프린터를 사용합니다. (50mm x 70mm)';
+	String get desc => 'USB 연결된 라벨 프린터를 사용합니다. (50mm x 70mm)\nREXOD RXLA-561 모델만 지원합니다.';
 }
 
 // Path: settings.label_qr
@@ -828,7 +828,7 @@ class _StringsSettingsKdsIgnoreStatusKo {
 
 	// Translations
 	String get title => '타 기기 진행상태 알림 무시';
-	String get desc => '다른 KDS에서 픽업 요청 등 진행상태를 변경해도 내 화면의 주문이 새로고침되지 않습니다. (진행상태 최신화를 수동으로 통제하고 싶을 때 사용)';
+	String get desc => '다른 주방모니터(KDS)에서 픽업 요청 등 진행상태를 변경해도 내 화면의 주문이 새로고침되지 않습니다. (진행상태 최신화를 수동으로 통제하고 싶을 때 사용)';
 }
 
 // Path: settings.kds_accept_orders
@@ -839,9 +839,9 @@ class _StringsSettingsKdsAcceptOrdersKo {
 
 	// Translations
 	String get title => '주문 접수';
-	String get desc => 'KDS모드에서 주문을 직접 자동접수처리 합니다. 다른 메인주문 접수 프로그램과 중복 사용을 확인해주세요';
+	String get desc => '주방모니터(KDS)에서 주문을 직접 자동접수처리 합니다. 반드시 다른 메인주문 접수 프로그램과 중복 사용 되지 않도록 확인해주세요';
 	String get confirm_title => '주문 접수 활성화';
-	String get confirm_content => 'KDS에서 직접 주문 자동접수를 수행합니다.\n다른 메인주문 접수 프로그램과의 중복 사용을 확인해주세요.\n활성화 하시겠습니까?';
+	String get confirm_content => '주방모니터(KDS)에서 직접 주문 자동접수를 수행합니다.\n반드시 다른 메인주문 접수 프로그램과 중복 사용 되지 않도록 확인해주세요.\n활성화 하시겠습니까?';
 }
 
 // Path: settings.label_filter
@@ -1371,7 +1371,7 @@ class _StringsAppBarEn extends _StringsAppBarKo {
 		one: '1 New Order',
 		other: '${n} New Orders',
 	);
-	@override String get kds_mode => 'KDS Mode';
+	@override String get kds_mode => 'Kitchen Display (KDS)';
 	@override String get order_toggle => 'Order';
 	@override String get order_start_confirm_title => 'Confirm Order Start';
 	@override String get order_stop_confirm_title => 'Confirm Order Stop';
@@ -1676,12 +1676,12 @@ class _StringsSettingsModeSwitchEn extends _StringsSettingsModeSwitchKo {
 
 	// Translations
 	@override String get to_main => 'Switch to Main';
-	@override String get to_kds => 'Switch to KDS Mode';
+	@override String get to_kds => 'Switch to Kitchen Display (KDS)';
 	@override String get confirm_to_main => 'Switch to main (order reception) mode?';
-	@override String get confirm_to_kds => 'Switch to KDS (kitchen display) mode?';
+	@override String get confirm_to_kds => 'A kitchen-only screen showing orders as cards.\n\'Order Reception\' is OFF, so orders are not processed.\nTurn \'Order Reception\' ON to receive them.';
 	@override String get btn_switch => 'Switch';
 	@override String get desc_to_main => 'Changes to order reception screen.';
-	@override String get desc_to_kds => 'Changes to kitchen display screen.';
+	@override String get desc_to_kds => 'Changes to the Kitchen Display (KDS) screen.';
 }
 
 // Path: settings.auto_start
@@ -1752,7 +1752,7 @@ class _StringsSettingsLabelPrinterEn extends _StringsSettingsLabelPrinterKo {
 
 	// Translations
 	@override String get title => 'Use Label Printer';
-	@override String get desc => 'Use USB-connected label printer. (50mm x 70mm)';
+	@override String get desc => 'Use USB-connected label printer. (50mm x 70mm)\nOnly the REXOD RXLA-561 model is supported.';
 }
 
 // Path: settings.label_qr
@@ -1910,7 +1910,7 @@ class _StringsSettingsKdsIgnoreStatusEn extends _StringsSettingsKdsIgnoreStatusK
 
 	// Translations
 	@override String get title => 'Ignore Other Device Status Updates';
-	@override String get desc => 'Orders on this screen will not refresh when other KDS devices update pickup or progress status. (Use when you want to control status updates manually)';
+	@override String get desc => 'Orders on this screen will not refresh when other Kitchen Display (KDS) devices update pickup or progress status. (Use when you want to control status updates manually)';
 }
 
 // Path: settings.kds_accept_orders
@@ -1921,9 +1921,9 @@ class _StringsSettingsKdsAcceptOrdersEn extends _StringsSettingsKdsAcceptOrdersK
 
 	// Translations
 	@override String get title => 'Accept Orders';
-	@override String get desc => 'Automatically accept incoming orders directly in KDS mode. Make sure you are not running another main order-receiving program in parallel.';
+	@override String get desc => 'Automatically accept incoming orders directly in Kitchen Display (KDS) mode. Be sure NOT to run another main order-receiving program in parallel.';
 	@override String get confirm_title => 'Enable Order Acceptance';
-	@override String get confirm_content => 'KDS will automatically accept incoming orders directly.\nPlease verify that no other main order-receiving program is running in parallel.\nEnable this option?';
+	@override String get confirm_content => 'Kitchen Display (KDS) will automatically accept incoming orders directly.\nBe sure NOT to run another main order-receiving program in parallel.\nEnable this option?';
 }
 
 // Path: settings.label_filter
@@ -2452,7 +2452,7 @@ class _StringsAppBarJa extends _StringsAppBarKo {
 	@override String new_order_count({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ja'))(n,
 		other: '新規 ${n} 件',
 	);
-	@override String get kds_mode => '厨房モニター';
+	@override String get kds_mode => 'キッチンモニター(KDS)';
 	@override String get order_toggle => 'オーダー';
 	@override String get order_start_confirm_title => 'オーダー開始確認';
 	@override String get order_stop_confirm_title => 'オーダー停止確認';
@@ -2750,12 +2750,12 @@ class _StringsSettingsModeSwitchJa extends _StringsSettingsModeSwitchKo {
 
 	// Translations
 	@override String get to_main => 'メインに切替';
-	@override String get to_kds => 'KDSモードに切替';
+	@override String get to_kds => 'キッチンモニター(KDS)に切替';
 	@override String get confirm_to_main => 'メイン（注文受付）に切り替えますか？';
-	@override String get confirm_to_kds => 'KDS（キッチンモニター）に切り替えますか？';
+	@override String get confirm_to_kds => '状態別カードで表示するキッチン専用画面です。\n「注文受付」がOFFのため処理されません。\n受け付けるには「注文受付」をONにします。';
 	@override String get btn_switch => '切替';
 	@override String get desc_to_main => '注文受付画面に変更します。';
-	@override String get desc_to_kds => 'キッチン専用モニターに変更します。';
+	@override String get desc_to_kds => 'キッチンモニター(KDS)画面に変更します。';
 }
 
 // Path: settings.auto_start
@@ -2826,7 +2826,7 @@ class _StringsSettingsLabelPrinterJa extends _StringsSettingsLabelPrinterKo {
 
 	// Translations
 	@override String get title => 'ラベルプリンター使用';
-	@override String get desc => 'USB接続されたラベルプリンターを使用します。(50mm x 70mm)';
+	@override String get desc => 'USB接続されたラベルプリンターを使用します。(50mm x 70mm)\nREXOD RXLA-561モデルのみ対応しています。';
 }
 
 // Path: settings.label_qr
@@ -2984,7 +2984,7 @@ class _StringsSettingsKdsIgnoreStatusJa extends _StringsSettingsKdsIgnoreStatusK
 
 	// Translations
 	@override String get title => '他端末の進行状態通知を無視';
-	@override String get desc => '他のKDSでピックアップ要請などの進行状態を変更しても、この画面の注文は更新されません。(進行状態の更新を手動で管理したい場合に使用)';
+	@override String get desc => '他のキッチンモニター(KDS)でピックアップ要請などの進行状態を変更しても、この画面の注文は更新されません。(進行状態の更新を手動で管理したい場合に使用)';
 }
 
 // Path: settings.kds_accept_orders
@@ -2995,9 +2995,9 @@ class _StringsSettingsKdsAcceptOrdersJa extends _StringsSettingsKdsAcceptOrdersK
 
 	// Translations
 	@override String get title => '注文受付';
-	@override String get desc => 'KDSモードで注文を直接自動受付処理します。他のメイン注文受付プログラムとの併用にご注意ください。';
+	@override String get desc => 'キッチンモニター(KDS)で注文を直接自動受付処理します。他のメイン注文受付プログラムと併用しないよう必ずご確認ください。';
 	@override String get confirm_title => '注文受付を有効化';
-	@override String get confirm_content => 'KDSで注文の自動受付を直接実行します。\n他のメイン注文受付プログラムとの併用にご注意ください。\n有効にしますか?';
+	@override String get confirm_content => 'キッチンモニター(KDS)で注文の自動受付を直接実行します。\n他のメイン注文受付プログラムと併用しないよう必ずご確認ください。\n有効にしますか?';
 }
 
 // Path: settings.label_filter
