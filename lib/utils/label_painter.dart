@@ -52,9 +52,12 @@ class LabelPainter extends CustomPainter {
   // --- Constants (Layout & Sizes) ---
   static const double width = 490;
   static const double height = 600;
-  static const double defaultMargin = 60;
+  static const double defaultMargin = 75; // 좌우 여백 (60 → 75, 용지 쏠림 시 가장자리 잘림 방지)
   static const double offsetX = -0; // 우측 쏠림 보정 (음수: 좌측 이동)
-  static const double offsetY = -60; // 콘텐츠 전체 상향 (QR 확대로 밀린 하단 디테일 잘림 보정)
+  static const double offsetY =
+      -60; // 콘텐츠 세로 위치(전체 상향). defaultMargin(=콘텐츠 시작 Y, 75)에 연동.
+  //      현재값 기준 상단 ~15px / 하단 ~49px (메모 2줄에도 하단 잘림 없음).
+  //      음수 크기를 키우면 콘텐츠가 위로(상단↓·하단↑), 줄이면 반대. 상하 균등은 -43.
 
   // Font Sizes
   static const double fsHeaderTime = 16;
@@ -62,7 +65,7 @@ class LabelPainter extends CustomPainter {
   static const double fsMenuName = 28;
   static const double fsOrderNo = 85; //주문번호사이즈 (QR 없을 때)
   static const double fsOrderNoWithQr =
-      65; //주문번호사이즈 (QR 동반 시 — 겹침 방지용 조정 노브, QR 확대로 좁아진 가로폭만 보정)
+      57; //주문번호사이즈 (QR 동반 시 — 겹침 방지용 조정 노브, QR 확대로 좁아진 가로폭만 보정)
   static const double fsSectionTitle = 22;
   static const double fsOptionItem = 21;
   static const double fsDetailContent = 22;
@@ -142,7 +145,7 @@ class LabelPainter extends CustomPainter {
       }
 
       // Header Divider
-      double dividerY = startY + logoHeight + 10;
+      double dividerY = startY + logoHeight + 6;
       canvas.drawLine(
         Offset(defaultMargin, dividerY),
         Offset(size.width - defaultMargin, dividerY),
@@ -161,7 +164,7 @@ class LabelPainter extends CustomPainter {
           align: TextAlign.right,
         );
       }
-      double dividerY = startY + logoWidthDefault + 10;
+      double dividerY = startY + logoWidthDefault + 6;
       canvas.drawLine(
         Offset(defaultMargin, dividerY),
         Offset(size.width - defaultMargin, dividerY),
@@ -194,7 +197,7 @@ class LabelPainter extends CustomPainter {
     // 3. QR Code & Order Number
     // 메뉴명(currentY+30, fsMenuName) 하단과 QR 상단 사이 여백 확보용 오프셋.
     // 그리기와 아래 return 예약에 동일 값이 쓰여야 어긋나지 않으므로 상수로 묶는다.
-    const double qrTopOffset = 75;
+    const double qrTopOffset = 70;
     _drawQrAndOrderNo(canvas, size, currentY + qrTopOffset);
 
     // QR 예약 높이를 qrSizeDefault 로 추적 → 옵션 구분선이 항상 QR 아래 + spacingSectionSmall.
