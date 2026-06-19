@@ -27,6 +27,13 @@ target_compile_definitions(${BINARY_NAME} PRIVATE "FLUTTER_VERSION_MINOR=${FLUTT
 target_compile_definitions(${BINARY_NAME} PRIVATE "FLUTTER_VERSION_PATCH=${FLUTTER_VERSION_PATCH}")
 target_compile_definitions(${BINARY_NAME} PRIVATE "FLUTTER_VERSION_BUILD=${FLUTTER_VERSION_BUILD}")
 
+# Variant selection (standalone vs update) for coexisting installs. Mirrors the
+# APPFIT_WINDOWS_VARIANT switch driving BINARY_NAME in the top-level
+# CMakeLists.txt. This definition reaches both the C++ sources and Runner.rc.
+if(DEFINED ENV{APPFIT_WINDOWS_VARIANT} AND "$ENV{APPFIT_WINDOWS_VARIANT}" STREQUAL "standalone")
+  target_compile_definitions(${BINARY_NAME} PRIVATE "APPFIT_VARIANT_STANDALONE=1")
+endif()
+
 # Disable Windows macros that collide with C++ standard library functions.
 target_compile_definitions(${BINARY_NAME} PRIVATE "NOMINMAX")
 

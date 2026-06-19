@@ -46,6 +46,22 @@ android {
         targetSdk = 35
     }
 
+    // 배포 변형: update(구앱 덮어쓰기, 기존 패키지 유지) / standalone(구앱과 병존 설치)
+    // namespace 는 그대로 두고 applicationId 만 suffix 로 분기한다.
+    flavorDimensions += "distribution"
+
+    productFlavors {
+        create("update") {
+            dimension = "distribution"
+            // applicationId 그대로: co.kr.waldlust.order.receive
+        }
+        create("standalone") {
+            dimension = "distribution"
+            applicationIdSuffix = ".appfit"  // -> co.kr.waldlust.order.receive.appfit
+            // versionNameSuffix 미사용 (두 변형 동일 버전 공유)
+        }
+    }
+
     signingConfigs {
         create("release") {
             keyAlias = keystoreProperties.getProperty("keyAlias")

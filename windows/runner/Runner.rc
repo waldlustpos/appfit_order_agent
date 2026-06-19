@@ -72,6 +72,19 @@ IDI_APP_ICON            ICON                    "resources\\app_icon.ico"
 #define VERSION_AS_STRING "1.0.0"
 #endif
 
+// Variant-specific product identity. ProductName drives the per-user data
+// directory chosen by path_provider_windows (%APPDATA%\CompanyName\ProductName),
+// so a distinct ProductName isolates SharedPreferences and app-support files
+// between the update and standalone variants. Keep ASCII only.
+// APPFIT_VARIANT_STANDALONE is injected by CMake (see runner/CMakeLists.txt).
+#if defined(APPFIT_VARIANT_STANDALONE)
+#define APPFIT_PRODUCT_NAME "appfit_order_agent_standalone"
+#define APPFIT_EXE_NAME     "appfit_order_agent_standalone.exe"
+#else
+#define APPFIT_PRODUCT_NAME "appfit_order_agent"
+#define APPFIT_EXE_NAME     "appfit_order_agent.exe"
+#endif
+
 VS_VERSION_INFO VERSIONINFO
  FILEVERSION VERSION_AS_NUMBER
  PRODUCTVERSION VERSION_AS_NUMBER
@@ -90,12 +103,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "co.kr.waldlust.order" "\0"
-            VALUE "FileDescription", "appfit_order_agent" "\0"
+            VALUE "FileDescription", APPFIT_PRODUCT_NAME "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "appfit_order_agent" "\0"
+            VALUE "InternalName", APPFIT_PRODUCT_NAME "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 co.kr.waldlust.order. All rights reserved." "\0"
-            VALUE "OriginalFilename", "appfit_order_agent.exe" "\0"
-            VALUE "ProductName", "appfit_order_agent" "\0"
+            VALUE "OriginalFilename", APPFIT_EXE_NAME "\0"
+            VALUE "ProductName", APPFIT_PRODUCT_NAME "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

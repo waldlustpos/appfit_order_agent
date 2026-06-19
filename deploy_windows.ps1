@@ -2,13 +2,38 @@
 # Flutter Windows Release 빌드 후 Lightsail(EC2) 서버에 ZIP 업로드 및
 # Windows 버전 JSON 자동 업데이트 스크립트 (PowerShell)
 #
-# 사용법: .\deploy_windows.ps1
+# 사용법: .\deploy_windows.ps1 [-Variant update|standalone]
 ###############################################################################
+
+param(
+    [ValidateSet('update','standalone')]
+    [string]$Variant = 'update'
+)
 
 # 콘솔/파이프라인 인코딩 UTF-8 고정 (한글 출력 깨짐 방지)
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $OutputEncoding = [System.Text.Encoding]::UTF8
 chcp 65001 > $null
+
+# === Deploy variant selection ===
+# standalone makes CMake branch the exe name (BINARY_NAME) and compile macros.
+# CMake freezes BINARY_NAME at configure time, so if the previous build used a
+# different variant, wipe build/windows to force a clean reconfigure (the
+# reconfigure block below then runs from scratch).
+$VariantSentinel = "build\.appfit_windows_variant"
+$prevVariant = if (Test-Path $VariantSentinel) { (Get-Content $VariantSentinel -Raw).Trim() } else { "" }
+if ($prevVariant -ne $Variant -and (Test-Path "build\windows")) {
+    Write-Host "[INFO] Build variant changed ($prevVariant -> $Variant): cleaning build/windows"
+    Remove-Item "build\windows" -Recurse -Force
+}
+New-Item -ItemType Directory -Force -Path "build" | Out-Null
+Set-Content -Path $VariantSentinel -Value $Variant -NoNewline
+if ($Variant -eq 'standalone') {
+    $env:APPFIT_WINDOWS_VARIANT = 'standalone'
+} else {
+    Remove-Item Env:\APPFIT_WINDOWS_VARIANT -ErrorAction SilentlyContinue
+}
+Write-Host "[INFO] Deploy variant: $Variant"
 
 # 0) 사용자 정의 변수
 # Windows OpenSSH scp는 -i 경로에 슬래시(/) 사용 필요
@@ -16,8 +41,13 @@ $PEM_KEY_PATH      = ($env:USERPROFILE + "/.ssh/LightsailDefaultKey-ap-northeast
 $REMOTE_USER       = "ec2-user"
 $REMOTE_HOST       = "52.78.172.188"
 $REMOTE_DIR        = "/var/www/docs/waldpay_html"
-$ZIP_NAME          = "appfit_order_agent_windows.zip"
-$VERSION_JSON_NAME = "appfit_order_agent_windows_version.json"
+if ($Variant -eq 'standalone') {
+    $ZIP_NAME          = "appfit_order_agent_standalone_windows.zip"
+    $VERSION_JSON_NAME = "appfit_order_agent_standalone_windows_version.json"
+} else {
+    $ZIP_NAME          = "appfit_order_agent_windows.zip"
+    $VERSION_JSON_NAME = "appfit_order_agent_windows_version.json"
+}
 $BUILD_DIR         = "build\windows\x64"
 $CACHE_FILE        = "$BUILD_DIR\CMakeCache.txt"
 $BUILD_OUTPUT      = "$BUILD_DIR\runner\Release"

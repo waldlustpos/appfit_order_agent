@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- standalone 변형 전용 런처 라벨. update 변형은 src/main 의 app_name 을 상속한다. -->
+    <string name="app_name">Appfit 주문 접수(신규)</string>
+</resources>

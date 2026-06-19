@@ -4,7 +4,16 @@ project(appfit_order_agent LANGUAGES CXX)
 
 # The name of the executable created for the application. Change this to change
 # the on-disk name of your application.
-set(BINARY_NAME "appfit_order_agent")
+#
+# Variant-aware: build_windows.ps1 / build_installer.ps1 set the
+# APPFIT_WINDOWS_VARIANT environment variable before invoking the Flutter
+# Windows build so the standalone variant gets a distinct exe name (and thus a
+# distinct on-disk identity that can coexist with the update variant).
+if(DEFINED ENV{APPFIT_WINDOWS_VARIANT} AND "$ENV{APPFIT_WINDOWS_VARIANT}" STREQUAL "standalone")
+  set(BINARY_NAME "appfit_order_agent_standalone")
+else()
+  set(BINARY_NAME "appfit_order_agent")
+endif()
 
 # Explicitly opt in to modern CMake behaviors to avoid warnings with recent
 # versions of CMake.

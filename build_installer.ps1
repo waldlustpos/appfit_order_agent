@@ -13,13 +13,39 @@
 #
 # This script is for the "initial install" installer only.
 # OTA (zip) publishing continues to use deploy_windows.ps1.
+#
+# Usage: .\build_installer.ps1 [-Variant update|standalone]
 ###############################################################################
+
+param(
+    [ValidateSet('update','standalone')]
+    [string]$Variant = 'update'
+)
 
 # Force UTF-8 console so that ISCC output is readable even if it contains
 # localized strings.
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $OutputEncoding = [System.Text.Encoding]::UTF8
 chcp 65001 > $null
+
+# === Variant selection ===
+# standalone makes CMake branch the exe name (BINARY_NAME) and compile macros.
+# The CMake cache freezes BINARY_NAME at configure time, so if the previous
+# build used a different variant, wipe build/windows to force a clean reconfigure.
+$VariantSentinel = "build\.appfit_windows_variant"
+$prevVariant = if (Test-Path $VariantSentinel) { (Get-Content $VariantSentinel -Raw).Trim() } else { "" }
+if ($prevVariant -ne $Variant -and (Test-Path "build\windows")) {
+    Write-Host "[INFO] Build variant changed ($prevVariant -> $Variant): cleaning build/windows"
+    Remove-Item "build\windows" -Recurse -Force
+}
+New-Item -ItemType Directory -Force -Path "build" | Out-Null
+Set-Content -Path $VariantSentinel -Value $Variant -NoNewline
+if ($Variant -eq 'standalone') {
+    $env:APPFIT_WINDOWS_VARIANT = 'standalone'
+} else {
+    Remove-Item Env:\APPFIT_WINDOWS_VARIANT -ErrorAction SilentlyContinue
+}
+Write-Host "[INFO] Installer variant: $Variant"
 
 # Path constants
 $BUILD_DIR      = "build\windows\x64"
@@ -190,11 +216,17 @@ New-Item -ItemType Directory -Force -Path $DIST_DIR | Out-Null
 
 # 6) Compile installer via ISCC.exe
 Write-Host "==== 4) Compile installer with Inno Setup ===="
-& $iscc "/DMyAppVersion=$semver" $ISS_FILE
+$isccArgs = @("/DMyAppVersion=$semver")
+if ($Variant -eq 'standalone') { $isccArgs += "/DStandalone=1" }
+& $iscc @isccArgs $ISS_FILE
 if ($LASTEXITCODE -ne 0) { Write-Error "[ERROR] ISCC compile failed"; exit 1 }
 
 # 7) Verify installer artifact
-$installerPath = Join-Path $DIST_DIR "AppfitOrderAgent-Setup-$semver.exe"
+if ($Variant -eq 'standalone') {
+    $installerPath = Join-Path $DIST_DIR "AppfitOrderAgentStandalone-Setup-$semver.exe"
+} else {
+    $installerPath = Join-Path $DIST_DIR "AppfitOrderAgent-Setup-$semver.exe"
+}
 if (-not (Test-Path $installerPath)) {
     Write-Error "[ERROR] Installer not produced: $installerPath"
     exit 1
