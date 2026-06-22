@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:qr_flutter/qr_flutter.dart';
+import 'package:qr/qr.dart';
 
 import 'package:appfit_order_agent/i18n/strings.g.dart';
 import 'package:appfit_order_agent/utils/brand_assets.dart';
@@ -273,17 +273,73 @@ class LabelPainter extends CustomPainter {
     return drawX;
   }
 
+  /// QR 을 모듈 = 정수 픽셀 + 안티앨리어싱 off + quiet zone 으로 직접 래스터화한다.
+  ///
+  /// 라벨 PNG(490x600)는 프린터 도트와 1:1 로 매핑되고 thresholding 이진화를
+  /// 거친다. `QrPainter` 는 120px 박스에 비정수 모듈 크기(예: 120/21=5.71px)로
+  /// 안티앨리어싱 렌더링을 해 모듈 경계에 회색이 생기고, 이를 thresholding 이
+  /// 흑백으로 강제하면서 모듈이 뭉개졌다. 여기서는 모듈 크기를 정수 픽셀로
+  /// 맞추고 AA 를 끄며 quiet zone(여백)을 둘러 생성 사이트 수준의 선명도를 낸다.
+  void _drawCrispQr(Canvas canvas, String data, Offset origin) {
+    final qrImage = QrImage(QrCode.fromData(
+      data: data,
+      errorCorrectLevel: QrErrorCorrectLevel.M, // L → M (인쇄 번짐/긁힘 대비)
+    ));
+    final int moduleCount = qrImage.moduleCount;
+
+    const int quietModules = 4; // 표준 quiet zone (상하좌우 각 4모듈)
+
+    // 모듈당 정수 픽셀 — 핵심. round 로 데이터 모듈 영역이 박스(120)를 꽉 채우게
+    // 한다(레거시 QrPainter 와 동일한 시각 크기). 정수라서 모듈 경계가 칼같이 선명.
+    final int modulePx = (qrSizeDefault / moduleCount).round().clamp(1, 999);
+    final double dataPx = (modulePx * moduleCount).toDouble(); // ≈ 120
+    final double quietPx = (modulePx * quietModules).toDouble();
+
+    // 데이터 모듈 영역을 박스 중앙에 정렬(정수 픽셀 스냅). quiet zone 은 박스
+    // 바깥(주변 흰 여백)으로 확장되므로 레거시와 동일한 모듈 크기를 유지한다.
+    final double originX =
+        (origin.dx + (qrSizeDefault - dataPx) / 2).roundToDouble();
+    final double originY =
+        (origin.dy + (qrSizeDefault - dataPx) / 2).roundToDouble();
+
+    final whitePaint = Paint()
+      ..color = Colors.white
+      ..isAntiAlias = false;
+    final blackPaint = Paint()
+      ..color = Colors.black
+      ..isAntiAlias = false
+      ..style = PaintingStyle.fill;
+
+    canvas.save();
+    canvas.translate(originX, originY);
+    // quiet zone 포함 흰 배경(데이터 영역 + 사방 4모듈). 라벨 배경이 흰색이라도
+    // 명시적으로 깔아 스캐너 여백을 보장한다.
+    canvas.drawRect(
+      Rect.fromLTWH(
+          -quietPx, -quietPx, dataPx + quietPx * 2, dataPx + quietPx * 2),
+      whitePaint,
+    );
+    for (int r = 0; r < moduleCount; r++) {
+      for (int c = 0; c < moduleCount; c++) {
+        if (qrImage.isDark(r, c)) {
+          canvas.drawRect(
+            Rect.fromLTWH(
+              (c * modulePx).toDouble(),
+              (r * modulePx).toDouble(),
+              modulePx.toDouble(),
+              modulePx.toDouble(),
+            ),
+            blackPaint,
+          );
+        }
+      }
+    }
+    canvas.restore();
+  }
+
   void _drawQrAndOrderNo(Canvas canvas, Size size, double y) {
     if (qrData != null) {
-      final qrPainter = QrPainter(
-        data: qrData!,
-        version: QrVersions.auto,
-        errorCorrectionLevel: QrErrorCorrectLevel.L,
-      );
-      canvas.save();
-      canvas.translate(defaultMargin, y);
-      qrPainter.paint(canvas, const Size(qrSizeDefault, qrSizeDefault));
-      canvas.restore();
+      _drawCrispQr(canvas, qrData!, Offset(defaultMargin, y));
     }
 
     if (shopOrderNo != null) {

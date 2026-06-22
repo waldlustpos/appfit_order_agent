@@ -157,7 +157,7 @@ ACCEPTED 진입 시 메뉴별 `ordrCnt` 만큼 라벨을 자동 출력. 진입�
 - **라벨 진입 게이트 정책**: paper-out / cover-up / NoPaperCanceled → **무한 대기** (운영자 개입 신뢰), 그 외 ERROR → 0.5s 짧은 게이트 후 false (호출자 retry). 양 OS 동등 의도.
 - **`autoReplyMode=1` invariant**: 양 OS 모두 라벨 출력 진입 직전 ACK 콜백 등록 + autoReplyMode=1. 0 회귀 시 동일 라벨 2장 인쇄 사고.
 - **ESC/POS 바이트 빌더**: `ReceiptEscPosBuilder` ([receipt_escpos_builder.dart](../lib/services/receipt_escpos_builder.dart)) — 영수증/주문서/테스트 페이지 ESC/POS CP949 byte stream 생성. Android USB + Windows COM 양쪽 동일 바이트 입력 (hex dump 1:1 일치).
-- **라벨 PNG 빌더**: `LabelPainter` 가 라벨 1장 PNG bytes 생성, Android Caysn SDK 와 Windows autoreplyprint.dll 양쪽 동일 PNG 입력.
+- **라벨 PNG 빌더**: `LabelPainter` 가 라벨 1장 PNG bytes 생성, Android Caysn SDK 와 Windows autoreplyprint.dll 양쪽 동일 PNG 입력. QR 은 `QrPainter`(안티앨리어싱) 대신 `_drawCrispQr` 가 `qr` 패키지 매트릭스를 모듈=정수픽셀 + AA off + quiet zone(EC M)으로 직접 래스터화 — 1:1 도트 매핑·thresholding 이진화에서 모듈이 뭉개지지 않게. 근거·동작은 [WINDOWS_LABEL_PRINTER_GUIDE.md §C.5](WINDOWS_LABEL_PRINTER_GUIDE.md#c5-qr-렌더링-정수픽셀--quiet-zone).
 - **로그 prefix**: `[ReceiptQueue]` / `[LabelQueue]` / `[PrinterQueue]` / `[Label]` 양 OS 동일.
 - **UI 트리거 fire-and-forget**: 영수증/라벨 재출력 / 주문 취소 영수증 / 신규 주문 자동 출력 모두 큐 enqueue 만, 호출자 await 안 함 (양 OS 동일).
 

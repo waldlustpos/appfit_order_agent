@@ -33,7 +33,6 @@ import 'package:flutter/foundation.dart'; // For kDebugMode if needed
 import 'package:appfit_order_agent/i18n/strings.g.dart';
 import 'package:appfit_order_agent/exceptions/api_error_mapper.dart'; // 예외 → 친화 메시지
 import 'package:appfit_order_agent/providers/locale_provider.dart';
-import 'package:appfit_order_agent/utils/label_painter.dart';
 import 'package:appfit_order_agent/config/ota_config.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 
