@@ -496,9 +496,9 @@ waitPaperFetched(tag):
 | 영역 | 좌측 | 중앙 | 우측 |
 |---|---|---|---|
 | **Header** | 주문시간 (16 pt, 2 줄, max 120 px) | 로고 (50 × 50, 캐시) | `N/M` 라벨 인덱스 (22 pt bold) |
-| **Body** | QR (90 × 90, errorCorrection=L) | — | SubInfo 한 줄(22 pt, " / " 구분) + 메뉴명(28 pt bold) + 주문번호 `#NNNN`(85 pt bold) |
+| **Body** | QR (120 × 120 box, errorCorrection=M, 정수픽셀 래스터화 — [C.5](#c5-qr-렌더링-정수픽셀--quiet-zone)) | — | SubInfo 한 줄(22 pt, " / " 구분) + 메뉴명(28 pt bold) + 주문번호 `#NNNN`(85 pt bold) |
 | **Options** | — | "option" 타이틀(22 pt bold) + 2열 그리드(21 pt, 최대 6개, 초과분 잘림) | — |
-| **Detail** | 메모(22 pt, max 2 줄) | "detail" 타이틀(22 pt bold) | 보조 QR (75 × 75, `showDetailQr` 옵션) |
+| **Detail** | 메모(22 pt, max 2 줄) | "detail" 타이틀(22 pt bold) | — |
 
 ### C.3 입력 필드
 
@@ -511,10 +511,9 @@ waitPaperFetched(tag):
 | `shopOrderNo` | 주문번호 — `#` prefix + 85 pt bold |
 | `orderTime` | 주문시각 — Header 좌측 |
 | `beanType` / `temperature` / `sizeOption` | SubInfo 한 줄 — 비어있는 항목은 자동 생략 + 구분자 재배치 |
-| `qrData` | QR 데이터 — Body 좌측 QR + (`showDetailQr=true` 시) Detail 우측 QR |
+| `qrData` | QR 데이터 — Body 좌측 QR (`_drawCrispQr`, [C.5](#c5-qr-렌더링-정수픽셀--quiet-zone)) |
 | `memo` | 주문 메모 — Detail 좌측, 2 줄 ellipsis |
 | `orderIndex` / `orderTotal` | `1/3` 형식 라벨 인덱스 |
-| `showDetailQr` | Detail 영역 QR 표시 여부 |
 
 ### C.4 레이아웃 invariant (라벨-측)
 
@@ -522,9 +521,42 @@ waitPaperFetched(tag):
 - **로고 없을 때도 Header divider Y 는 동일** (`logoWidthDefault=50`) — 로고 유무로 본문이 위아래로 흔들리지 않게 고정.
 - **Options 7번째부터 잘림** (`if (i >= 6) break`) — 7개 이상 옵션은 사용 케이스 없음. 필요 시 행 수 산정 로직(`row = i / 2`) 과 Detail 영역 시작 Y 연동 필요.
 - **SubInfo 는 우측에서 좌측으로 그림** — `_drawSubInfoPart` 가 `rightX - painter.width` 로 자체 우측 정렬. 추가 항목 끼우려면 `_drawSubInfo` 의 `items` 리스트만 수정.
-- **QR errorCorrection=L** — 음식점 라벨은 빠른 인쇄·작은 사이즈 우선. 매장 환경에서 L 로 충분 검증.
+- **QR 은 정수픽셀로 직접 래스터화** — `QrPainter` 안티앨리어싱 대신 `_drawCrispQr` 가 모듈 = 정수 픽셀 + AA off + quiet zone 으로 그린다. 상세·근거는 [C.5](#c5-qr-렌더링-정수픽셀--quiet-zone).
 
-### C.5 참고 파일
+### C.5 QR 렌더링 (정수픽셀 + quiet zone)
+
+라벨 QR 은 `_drawCrispQr` (`label_painter.dart`) 가 `qr` 패키지의 모듈 매트릭스를
+직접 받아 그린다. `qr_flutter` 의 `QrPainter` 를 쓰지 않는다.
+
+**왜 직접 그리나 (기존 `QrPainter` 의 문제)**
+
+라벨 PNG(490×600)는 프린터 도트와 **1:1** 로 매핑되고(`toImage` pixelRatio 1.0,
+`labelDrawImageFromData(0,0,490,600,...)` / Android `DrawImageFromBitmap` 모두
+재스케일 없음), `thresholding` 으로 이진화된다. `QrPainter` 는 120px 박스에
+**비정수 모듈 크기**(예: 120÷29=4.14px)로 **안티앨리어싱** 렌더링을 해 모듈
+경계에 회색이 생기고, 이를 thresholding 이 흑백으로 강제하면서 모듈이 뭉개졌다.
+거기에 `QrPainter` 는 **quiet zone(여백)을 넣지 않아** 스캐너 인식 거리·속도가
+크게 떨어졌다. (생성 사이트 QR 이 선명한 이유 = 정수픽셀·AA off·quiet zone.)
+
+**`_drawCrispQr` 동작**
+
+- `QrCode.fromData(data, errorCorrectLevel: QrErrorCorrectLevel.M)` — EC **L→M** 상향(인쇄 번짐/긁힘 대비).
+- `modulePx = round(120 / moduleCount)` — **모듈당 정수 픽셀**. 데이터 모듈 영역이
+  박스(120px)를 꽉 채워 기존 `QrPainter` 와 동일한 시각 크기를 유지하면서도
+  모듈 경계가 픽셀 그리드에 딱 맞아 칼같이 선명.
+- `Paint..isAntiAlias = false` — 회색 경계 자체가 안 생김.
+- **quiet zone 4모듈** + 흰 배경을 박스 *바깥*(주변 여백)으로 확장해 스캐너 여백 보장.
+- 데이터 영역은 박스 중앙 정렬 + 정수 픽셀 스냅(`roundToDouble`).
+
+**유지 규칙**
+
+- **이진화는 `thresholding` 유지** — QR 이 순수 흑백이 되면 thresholding 이 최적.
+  `dithering`/`errorDiffusion` 으로 바꾸면 QR 모듈에 노이즈를 더해 인식률을 떨어뜨림(금지).
+- 캔버스 해상도(490×600)·pixelRatio 변경 불필요 — 프린터 도트와 1:1.
+- 같은 데이터라도 인코더의 마스크/버전/EC 선택에 따라 무늬는 달라 보일 수 있으나
+  모두 유효(스캔 무관). 인식 품질을 좌우하는 건 무늬가 아니라 위 렌더링 4요소.
+
+### C.6 참고 파일
 
 - [`lib/utils/label_painter.dart`](../lib/utils/label_painter.dart) — 캔버스 페인터 + `generateLabelImage()` PNG 생성 진입점
 - [`lib/services/label_printer/label_print_orchestrator.dart`](../lib/services/label_printer/label_print_orchestrator.dart) — 주문 1건 → 라벨 N장 분해 + 위 painter 호출 → 백엔드 `print_label()` 전달
