@@ -103,10 +103,18 @@ class OutputQueueService {
     );
   }
 
-  /// 핵심 라이프사이클 한 줄 — [PLATFORM] 태그로 기록. 호출 측에서 prefix
-  /// (`[ReceiptQueue]` / `[LabelQueue]`) 를 메시지에 포함시킨다.
+  /// 핵심 라이프사이클 한 줄. 호출 측에서 prefix(`[ReceiptQueue]` /
+  /// `[LabelQueue]`) 를 메시지에 포함시킨다.
+  ///
+  /// 보수적 축약: '완료' 계열만 파일에 남기고 '시작'/'enqueue' 단계는
+  /// 콘솔(logger.d)로만 기록해 운영 로그 노이즈를 줄인다. (에러/누락은
+  /// 호출 측에서 별도 WARNING/ERROR 태그로 직접 기록.)
   void _life(String message) {
-    logToFile(tag: LogTag.PLATFORM, message: message);
+    if (message.contains('완료')) {
+      logToFile(tag: LogTag.PLATFORM, message: message);
+    } else {
+      logger.d(message);
+    }
   }
 
   /// 신규 주문 출력 작업 추가.

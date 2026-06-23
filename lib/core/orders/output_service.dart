@@ -210,11 +210,15 @@ class OutputService {
           totalLabels: data.orderTotal,
         );
         final printMs = DateTime.now().difference(printStart).inMilliseconds;
-        logToFile(
-            tag: ok ? LogTag.PLATFORM : LogTag.WARNING,
-            message:
-                '[Label] $num ${data.orderIndex}/${data.orderTotal} ${data.menuName}'
-                ' ${ok ? "출력끝" : "실패"} (gen=${genMs}ms, print=${printMs}ms)');
+        final labelMsg =
+            '[Label] $num ${data.orderIndex}/${data.orderTotal} ${data.menuName}'
+            ' ${ok ? "출력끝" : "실패"} (gen=${genMs}ms, print=${printMs}ms)';
+        // 정상 라벨은 콘솔로만 — 파일은 Java [LabelPrinter] 줄과 중복. 실패만 파일 기록.
+        if (ok) {
+          logger.d(labelMsg);
+        } else {
+          logToFile(tag: LogTag.WARNING, message: labelMsg);
+        }
         if (!ok) {
           failedLabels++;
           failedIndices.add(data.orderIndex);
@@ -222,11 +226,11 @@ class OutputService {
       }
 
       if (failedLabels > 0) {
-        // 운영 critical 사건 — logcat grep '★' 으로 즉시 식별
+        // 운영 critical 사건 — logcat grep '누락' 으로 즉시 식별
         logToFile(
             tag: LogTag.ERROR,
             message:
-                '[Label] $num ★ 누락 $failedLabels/$totalLabels장 인덱스=$failedIndices');
+                '[Label] $num 누락 $failedLabels/$totalLabels장 인덱스=$failedIndices');
 
         // Sentry 전송 — 동일 매장 5분 쿨다운(MonitoringService 내장)
         MonitoringService.instance.captureError(

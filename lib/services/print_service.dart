@@ -406,12 +406,12 @@ class PrintService {
               : (_cachedExternalPrintOrder ?? true));
 
       logger.d(
-          '${type == 'order' ? '주문서출력' : '영수증출력'}: displayNum=${order.displayNum}\n--------------------------------------------------------------------------------------------------------------\n');
+          '${type == 'order' ? '주문서출력' : '영수증출력'}: displayNum=${order.displayNum}');
 
       logToFile(
           tag: LogTag.PLATFORM,
           message:
-              '${type == 'order' ? '주문서출력' : '영수증출력'}: displayNum=${order.displayNum}\n--------------------------------------------------------------------------------------------------------------\n');
+              '${type == 'order' ? '주문서출력' : '영수증출력'}: displayNum=${order.displayNum}');
 
       // 내장(Android Sunmi) 과 외부 영수증 프린터(Windows COM/Winspool, Android 범용 USB)는
       // 동시에 켜질 수 있어 두 경로를 분리 호출. 외부는 플랫폼-무관 [ExternalReceiptPrinter] 위임.
