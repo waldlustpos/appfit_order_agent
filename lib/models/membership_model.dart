@@ -1,4 +1,5 @@
 // lib/models/membership_model.dart
+import 'package:appfit_order_agent/utils/common_util.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:appfit_order_agent/utils/model_parse_utils.dart';
 
@@ -122,7 +123,7 @@ class MembershipInfo {
 
   @override
   String toString() {
-    return 'MembershipInfo{isAppMember: $isAppMember, userName: $userName, phoneNumber: *******${phoneNumber.substring(phoneNumber.length - 4, phoneNumber.length)}, stampCount: $stampCount, couponCount: $couponCount, coupons: $coupons, totalPoint: $totalPoint}';
+    return 'MembershipInfo{isAppMember: $isAppMember, userName: $userName, phoneNumber: ${CommonUtil.maskTail(phoneNumber)}, stampCount: $stampCount, couponCount: $couponCount, coupons: $coupons, totalPoint: $totalPoint}';
   }
 }
 

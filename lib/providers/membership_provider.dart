@@ -1,6 +1,7 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:appfit_order_agent/models/membership_model.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
+import 'package:appfit_order_agent/utils/common_util.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/exceptions/api_exceptions.dart';
@@ -395,7 +396,7 @@ class Membership extends _$Membership {
       final success =
           await _apiService.earnStamp(userId, _storeId, orderId, stampCountInt);
       if (success) {
-        logger.i('스탬프 적립 성공: $stampCount 개 for $userId');
+        logger.i('스탬프 적립 성공: $stampCount 개 for ${CommonUtil.maskTail(userId)}');
         state = state.copyWith(
           successMessage: '$stampCount 개의 스탬프가 적립되었습니다.',
           isLoading: false,
@@ -403,7 +404,7 @@ class Membership extends _$Membership {
         await search(userId); // Refresh data
         return true;
       } else {
-        logger.w('스탬프 적립 실패 for $userId');
+        logger.w('스탬프 적립 실패 for ${CommonUtil.maskTail(userId)}');
         state = state.copyWith(
           errorMessage: '스탬프 적립에 실패했습니다.',
           isLoading: false,

@@ -15,3 +15,4 @@ export 'package:appfit_order_agent/providers/app_info_provider.dart';
 export 'package:appfit_order_agent/providers/kds/kds_unified_providers.dart';
 export 'package:appfit_order_agent/providers/brand_theme_provider.dart';
 export 'package:appfit_order_agent/providers/misc_providers.dart';
+export 'package:appfit_order_agent/providers/waldpos_scan_provider.dart';
