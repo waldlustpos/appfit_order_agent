@@ -64,5 +64,5 @@ echo "설치 명령어: adb install $NEW_APK_PATH"
 echo "Build completed!"
 echo "APK location: $NEW_APK_PATH"
 
-echo "추가 작업: 출력 폴더 여는 중..."
-open build/app/outputs/flutter-apk/
+# 로컬 아카이브 보관 + 노트 기록 + 폴더 열기 (아카이브 버전 폴더가 열린다)
+bash ./archive_apk.sh "$NEW_APK_PATH" "$FLAVOR"

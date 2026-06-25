@@ -104,6 +104,10 @@ fi
 rm -f version.json
 echo "✅ version JSON 업로드 완료: version = $BUILD_NUMBER"
 
+# 7) 로컬 아카이브 보관 + 노트 기록 + 폴더 열기 (배포 성공분만 보관)
+echo "==== 7) Archive APK to local Project Files ===="
+bash "$PROJECT_PATH/archive_apk.sh" "$PROJECT_PATH/$APK_NAME" "$FLAVOR"
+
 echo "###############################################################################"
 echo "[완료] $APK_NAME 업로드 완료!"
 echo "서버 경로: $REMOTE_HOST:$REMOTE_DIR/$APK_NAME"
