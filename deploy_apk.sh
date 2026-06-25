@@ -52,7 +52,7 @@ if [ -z "$APPFIT_AES_KEY" ]; then
 fi
 
 echo ".env 주입하여 빌드... (flavor: $FLAVOR)"
-flutter build apk --release --flavor "$FLAVOR" --dart-define-from-file=.env
+flutter build apk --release --flavor "$FLAVOR" --dart-define-from-file=.env --dart-define=APPFIT_VARIANT="$FLAVOR"
 if [ $? -ne 0 ]; then
   echo "[오류] Flutter 빌드 실패!"
   exit 1

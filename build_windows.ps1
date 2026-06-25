@@ -68,6 +68,7 @@ flutter build windows --release `
     --dart-define-from-file=.env `
     --dart-define=WINDOWS_APP_VERSION="$WinBuildName" `
     --dart-define=WINDOWS_APP_BUILD="$WinBuildNumber" `
+    --dart-define=APPFIT_VARIANT="$Variant" `
     --build-name="$WinBuildName" `
     --build-number="$WinBuildNumber"
 

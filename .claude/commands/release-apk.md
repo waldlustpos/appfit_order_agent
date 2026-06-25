@@ -13,10 +13,13 @@ curl -fsS --max-time 10 http://waldpay.kokonutstamp2.com/appfit_order_agent_vers
 - 조회 실패(네트워크/서버 오류) 시: 실패 사실만 알리고 빌드는 계속 진행한다(빌드 차단 X).
 
 ## 2단계: APK 빌드
+기본은 `update` 변형이다. standalone(구앱과 병존 설치) 빌드가 필요하면 사용자에게 확인한다.
 Bash 툴로 실행:
 ```
-./build_main.sh
+./build_main.sh              # update (기본)
+# ./build_main.sh standalone # 병존 설치용 변형
 ```
+변형마다 `--dart-define=APPFIT_VARIANT` 가 자동 주입돼 OTA 채널이 분기된다. 1단계 버전 조회 URL은 update 채널 기준이며, standalone 은 `appfit_order_agent_standalone_version.json` 이다.
 
 ## 3단계: 결과 보고
 - 빌드 성공 시 생성된 APK 경로와 파일 크기를 출력

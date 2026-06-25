@@ -20,11 +20,13 @@ flutter analyze
 # 릴리즈 APK 빌드 (.env 파일에 APPFIT_AES_KEY, SENTRY_DSN 필요)
 flutter build apk --release --dart-define-from-file=.env
 
-# 전체 클린 + 빌드
+# 전체 클린 + 빌드 (변형 인자: update[기본] | standalone)
 ./build_main.sh
+./build_main.sh standalone
 
-# 빌드 + Lightsail 서버 배포 (SCP 업로드 + 버전 JSON 업데이트)
+# 빌드 + Lightsail 서버 배포 (SCP 업로드 + 버전 JSON 업데이트, 변형 인자 동일)
 ./deploy_apk.sh
+./deploy_apk.sh standalone
 
 # 전체 테스트 실행
 flutter test
@@ -34,6 +36,23 @@ flutter test test/<파일_경로>
 ```
 
 **중요**: 모델(`freezed`/`json_serializable`)·프로바이더(`riverpod_generator`)를 변경한 후에는 `flutter pub run build_runner build --delete-conflicting-outputs`를, i18n JSON(`*.i18n.json`)을 변경한 후에는 `flutter pub run slang`을 재실행해야 합니다. **slang 은 standalone 설정(`slang_build_runner` 미사용)이라 build_runner 로는 `strings.g.dart` 가 갱신되지 않습니다.** Flutter 프로젝트라 `dart run` 은 SDK 해석 에러가 나므로 `flutter pub run` 을 씁니다. `.g.dart` 또는 `.freezed.dart`로 끝나는 생성된 파일은 절대 직접 수정하지 않습니다.
+
+## 배포 변형 (update / standalone) 과 OTA 채널
+
+Android·Windows 모두 두 가지 배포 변형을 지원합니다. **변형마다 OTA 채널(version JSON·다운로드 URL)이 완전히 분리**돼 있어 서로의 OTA를 오염시키지 않습니다.
+
+| 변형 | Android 패키지 / Windows exe | 용도 |
+| --- | --- | --- |
+| `update` (기본) | `co.kr.waldlust.order.receive` / `appfit_order_agent.exe` | 기존 900+ 매장 OTA. 구앱을 덮어쓰며 기존 패키지/OTA 파일명을 그대로 유지. |
+| `standalone` | `co.kr.waldlust.order.receive.appfit` / `appfit_order_agent_standalone.exe` | 구앱과 **병존 설치** (사전 설치용). 별도 채널 파일 사용. |
+
+- **빌드 타임 식별**: 스크립트가 변형에 맞춰 `--dart-define=APPFIT_VARIANT=<update|standalone>` 를 주입합니다. Dart 측은 `AppEnv.variant` / `AppEnv.isStandalone`(`lib/config/app_env.dart`)으로 읽습니다.
+- **OTA URL 분기**: `OtaConfig`(Android, `lib/config/ota_config.dart`)·`UpdateConfig`(Windows, `lib/config/update_config.dart`)가 `AppEnv.isStandalone`으로 채널 URL을 컴파일 타임 분기합니다. standalone 은 임시 작업 파일명(extract/bat/vbs/log)도 분리해 병존 설치 시 동시 업데이트 충돌을 방지합니다.
+- **채널 파일명**:
+  - Android — update: `appfit_order_agent_version.json` / `.apk`, standalone: `appfit_order_agent_standalone_version.json` / `_standalone.apk`
+  - Windows — update: `appfit_order_agent_windows_version.json` / `_windows.zip`, standalone: `appfit_order_agent_standalone_windows_version.json` / `_standalone_windows.zip`
+- **실행**: 모든 빌드/배포 스크립트가 변형 인자를 받습니다 — `./build_main.sh standalone`, `./deploy_apk.sh standalone`, `.\build_windows.ps1 -Variant standalone`, `.\deploy_windows.ps1 -Variant standalone`, `.\build_installer.ps1 -Variant standalone`. 인자 생략 시 `update`.
+- Android flavor는 `android/app/build.gradle.kts`의 `distribution` dimension(`applicationIdSuffix = ".appfit"`), Windows 변형은 CMake `APPFIT_WINDOWS_VARIANT` 환경변수로 exe명/매크로를 분기합니다.
 
 ## Windows 빌드 / 배포 / 인스톨러
 

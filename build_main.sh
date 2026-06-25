@@ -36,7 +36,7 @@ flutter pub get
 
 # Android 빌드 (변형별 flavor 빌드)
 echo "3. Android APK 빌드 중... (flavor: $FLAVOR)"
-flutter build apk --release --flavor "$FLAVOR" --dart-define-from-file=.env
+flutter build apk --release --flavor "$FLAVOR" --dart-define-from-file=.env --dart-define=APPFIT_VARIANT="$FLAVOR"
 
 # 빌드 결과 파일명 변경
 ORIGINAL_APK="build/app/outputs/flutter-apk/app-${FLAVOR}-release.apk"
