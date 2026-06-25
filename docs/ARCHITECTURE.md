@@ -20,6 +20,9 @@ REST API (폴링)  ───────┘        │
 
 신규 주문 수신 시 상세조회(`getOrder`)가 서버오류·인터넷 순단으로 실패하면 소켓 호출부 재시도 → 폴링 안전망 트리거로 **주문 누락(silent drop)** 을 막고, 출력이 누락된 주문은 메뉴 복구 시 **복구 큐**가 자동 재발행합니다(아래 [주요 패턴](#주요-패턴) "상세조회 실패 대응 + 복구 큐" 참조).
 
+> 주요 계층을 **Mermaid 다이어그램**으로 도식화한 문서:
+> [주문 흐름](ORDER_FLOW.md) · [출력/프린터](PRINTER_FLOW.md) · [인증/세션](AUTH_FLOW.md) · [브랜드/i18n](BRAND_I18N_FLOW.md) · [빌드 변형](BUILD_VARIANTS.md).
+
 ## 상태 관리: Riverpod
 
 모든 상태는 `flutter_riverpod`를 사용하며, 장기 유지가 필요한 상태에는 `@Riverpod(keepAlive: true)`를 적용합니다. 프로바이더는 도메인별 하위 폴더로 분리됩니다 — 주문 생명주기 매니저는 `lib/providers/order/`, KDS 모드·추적은 `lib/providers/kds/`, 그 외 단일 프로바이더는 `lib/providers/` 직하. `lib/providers/providers.dart` 는 공개 표면 barrel(**export 전용**)이며, 인라인 프로바이더/상태/확장 정의는 `lib/providers/misc_providers.dart` 에 둡니다. 핵심 프로바이더:

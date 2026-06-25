@@ -2,6 +2,8 @@
 
 빌드 명령어, 환경 변수, 다국어(Slang) 워크플로 등 작업 시점에만 필요한 참조 정보입니다.
 
+> 변형(update/standalone) 분기·채널 분리·버전 이원화를 도식으로 본 문서: [docs/BUILD_VARIANTS.md](BUILD_VARIANTS.md).
+
 ## 빌드 및 실행 명령어
 
 ```bash

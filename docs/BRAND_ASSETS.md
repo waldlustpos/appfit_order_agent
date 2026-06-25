@@ -2,6 +2,8 @@
 
 매장 ID prefix에 따라 라벨/영수증 프린터에 다른 로고 자원을 사용하는 구조와, 새 브랜드 추가 시 자산 변환 절차를 정리한다.
 
+> 브랜드 해석·자산 분기·i18n 파이프라인을 도식으로 본 문서: [docs/BRAND_I18N_FLOW.md](BRAND_I18N_FLOW.md).
+
 ## 1. 자원 분기 구조
 
 - SSOT: [lib/utils/brand_registry.dart](../lib/utils/brand_registry.dart) — `enum BrandKey` + `const Map<BrandKey, BrandMeta>`. prefix 매칭 로직의 단일 출처.

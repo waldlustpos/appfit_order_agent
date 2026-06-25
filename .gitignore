@@ -112,6 +112,11 @@ docs/*
 !docs/FEATURES.md
 !docs/REFACTORING.md
 !docs/TESTING.md
+!docs/ORDER_FLOW.md
+!docs/PRINTER_FLOW.md
+!docs/AUTH_FLOW.md
+!docs/BRAND_I18N_FLOW.md
+!docs/BUILD_VARIANTS.md
 
 # AppFit Generated
 lib/services/appfit/*.g.dart
