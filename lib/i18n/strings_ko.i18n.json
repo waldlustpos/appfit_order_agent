@@ -191,6 +191,13 @@
             "btn_waffle_only": "와플상품만 출력",
             "btn_waffle_exclude": "와플상품 제외"
         },
+        "label_layout": {
+            "title": "라벨 레이아웃",
+            "desc_v1": "기존 레이아웃으로 라벨을 출력합니다.",
+            "desc_v2": "새 레이아웃(QR 우측 상단·상품명 하단)으로 라벨을 출력합니다.",
+            "btn_v1": "기본 (V1)",
+            "btn_v2": "신규 (V2)"
+        },
         "developer_options": {
             "title": "개발자 옵션",
             "appfit_test": {

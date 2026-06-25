@@ -4,9 +4,9 @@
 /// To regenerate, run: `dart run slang`
 ///
 /// Locales: 3
-/// Strings: 1226 (408 per locale)
+/// Strings: 1241 (413 per locale)
 ///
-/// Built on 2026-06-18 at 02:08 UTC
+/// Built on 2026-06-24 at 00:38 UTC
 
 // coverage:ignore-file
 // ignore_for_file: type=lint
@@ -261,6 +261,7 @@ class _StringsSettingsKo {
 	late final _StringsSettingsKdsIgnoreStatusKo kds_ignore_status = _StringsSettingsKdsIgnoreStatusKo._(_root);
 	late final _StringsSettingsKdsAcceptOrdersKo kds_accept_orders = _StringsSettingsKdsAcceptOrdersKo._(_root);
 	late final _StringsSettingsLabelFilterKo label_filter = _StringsSettingsLabelFilterKo._(_root);
+	late final _StringsSettingsLabelLayoutKo label_layout = _StringsSettingsLabelLayoutKo._(_root);
 	late final _StringsSettingsDeveloperOptionsKo developer_options = _StringsSettingsDeveloperOptionsKo._(_root);
 	late final _StringsSettingsKioskKo kiosk = _StringsSettingsKioskKo._(_root);
 	late final _StringsSettingsLocalServerKo local_server = _StringsSettingsLocalServerKo._(_root);
@@ -860,6 +861,20 @@ class _StringsSettingsLabelFilterKo {
 	String get btn_waffle_exclude => '와플상품 제외';
 }
 
+// Path: settings.label_layout
+class _StringsSettingsLabelLayoutKo {
+	_StringsSettingsLabelLayoutKo._(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+	String get title => '라벨 레이아웃';
+	String get desc_v1 => '기존 레이아웃으로 라벨을 출력합니다.';
+	String get desc_v2 => '새 레이아웃(QR 우측 상단·상품명 하단)으로 라벨을 출력합니다.';
+	String get btn_v1 => '기본 (V1)';
+	String get btn_v2 => '신규 (V2)';
+}
+
 // Path: settings.developer_options
 class _StringsSettingsDeveloperOptionsKo {
 	_StringsSettingsDeveloperOptionsKo._(this._root);
@@ -1335,6 +1350,7 @@ class _StringsSettingsEn extends _StringsSettingsKo {
 	@override late final _StringsSettingsKdsIgnoreStatusEn kds_ignore_status = _StringsSettingsKdsIgnoreStatusEn._(_root);
 	@override late final _StringsSettingsKdsAcceptOrdersEn kds_accept_orders = _StringsSettingsKdsAcceptOrdersEn._(_root);
 	@override late final _StringsSettingsLabelFilterEn label_filter = _StringsSettingsLabelFilterEn._(_root);
+	@override late final _StringsSettingsLabelLayoutEn label_layout = _StringsSettingsLabelLayoutEn._(_root);
 	@override late final _StringsSettingsDeveloperOptionsEn developer_options = _StringsSettingsDeveloperOptionsEn._(_root);
 	@override late final _StringsSettingsKioskEn kiosk = _StringsSettingsKioskEn._(_root);
 	@override late final _StringsSettingsLocalServerEn local_server = _StringsSettingsLocalServerEn._(_root);
@@ -1942,6 +1958,20 @@ class _StringsSettingsLabelFilterEn extends _StringsSettingsLabelFilterKo {
 	@override String get btn_waffle_exclude => 'Exclude Waffle';
 }
 
+// Path: settings.label_layout
+class _StringsSettingsLabelLayoutEn extends _StringsSettingsLabelLayoutKo {
+	_StringsSettingsLabelLayoutEn._(_StringsEn root) : this._root = root, super._(root);
+
+	@override final _StringsEn _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'Label Layout';
+	@override String get desc_v1 => 'Print labels with the original layout.';
+	@override String get desc_v2 => 'Print labels with the new layout (QR top-right, menu at bottom).';
+	@override String get btn_v1 => 'Default (V1)';
+	@override String get btn_v2 => 'New (V2)';
+}
+
 // Path: settings.developer_options
 class _StringsSettingsDeveloperOptionsEn extends _StringsSettingsDeveloperOptionsKo {
 	_StringsSettingsDeveloperOptionsEn._(_StringsEn root) : this._root = root, super._(root);
@@ -2417,6 +2447,7 @@ class _StringsSettingsJa extends _StringsSettingsKo {
 	@override late final _StringsSettingsKdsIgnoreStatusJa kds_ignore_status = _StringsSettingsKdsIgnoreStatusJa._(_root);
 	@override late final _StringsSettingsKdsAcceptOrdersJa kds_accept_orders = _StringsSettingsKdsAcceptOrdersJa._(_root);
 	@override late final _StringsSettingsLabelFilterJa label_filter = _StringsSettingsLabelFilterJa._(_root);
+	@override late final _StringsSettingsLabelLayoutJa label_layout = _StringsSettingsLabelLayoutJa._(_root);
 	@override late final _StringsSettingsDeveloperOptionsJa developer_options = _StringsSettingsDeveloperOptionsJa._(_root);
 	@override late final _StringsSettingsKioskJa kiosk = _StringsSettingsKioskJa._(_root);
 	@override late final _StringsSettingsLocalServerJa local_server = _StringsSettingsLocalServerJa._(_root);
@@ -3014,6 +3045,20 @@ class _StringsSettingsLabelFilterJa extends _StringsSettingsLabelFilterKo {
 	@override String get btn_all => '全注文印刷';
 	@override String get btn_waffle_only => 'ワッフルのみ';
 	@override String get btn_waffle_exclude => 'ワッフル除外';
+}
+
+// Path: settings.label_layout
+class _StringsSettingsLabelLayoutJa extends _StringsSettingsLabelLayoutKo {
+	_StringsSettingsLabelLayoutJa._(_StringsJa root) : this._root = root, super._(root);
+
+	@override final _StringsJa _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'ラベルレイアウト';
+	@override String get desc_v1 => '従来のレイアウトでラベルを印刷します。';
+	@override String get desc_v2 => '新しいレイアウト(QR右上・商品名下部)でラベルを印刷します。';
+	@override String get btn_v1 => '標準 (V1)';
+	@override String get btn_v2 => '新規 (V2)';
 }
 
 // Path: settings.developer_options

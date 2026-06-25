@@ -191,6 +191,13 @@
             "btn_waffle_only": "Waffle Only",
             "btn_waffle_exclude": "Exclude Waffle"
         },
+        "label_layout": {
+            "title": "Label Layout",
+            "desc_v1": "Print labels with the original layout.",
+            "desc_v2": "Print labels with the new layout (QR top-right, menu at bottom).",
+            "btn_v1": "Default (V1)",
+            "btn_v2": "New (V2)"
+        },
         "developer_options": {
             "title": "Developer Options",
             "appfit_test": {

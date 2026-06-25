@@ -22,6 +22,17 @@ class LabelPainter extends CustomPainter {
   final int? orderIndex; // 현재 라벨 번호 (예: 1)
   final int? orderTotal; // 전체 라벨 수 (예: 10)
 
+  /// 라벨 레이아웃 버전 (0: V1 기존, 1: V2 QR 우측상단). 설정 KEY_LABEL_LAYOUT_VERSION 연동.
+  final int layoutVersion;
+
+  /// QR 오류 정정 레벨 (qr 패키지 `QrErrorCorrectLevel` 상수: L/M/Q/H).
+  /// 운영 기본값은 M. 테스트 출력에서 레벨별 인식률 비교용으로 주입한다.
+  final int qrErrorCorrectLevel;
+
+  /// QR 박스 한 변 픽셀 크기. 기본 [qrSizeDefault](=120). 테스트 출력에서
+  /// 크기별 인식률 비교용으로 주입한다(레이아웃 예약 높이도 이 값에 연동).
+  final double qrSize;
+
   /// 섹션 타이틀 강제 지정 (null 이면 i18n `t.receipt.section_*` 사용).
   /// 테스트 출력처럼 로캘과 무관하게 영문 'OPTION'/'DETAIL' 을 찍을 때만 사용.
   final String? optionTitleOverride;
@@ -42,6 +53,9 @@ class LabelPainter extends CustomPainter {
     this.orderTotal,
     this.optionTitleOverride,
     this.detailTitleOverride,
+    this.layoutVersion = 0,
+    this.qrErrorCorrectLevel = QrErrorCorrectLevel.M,
+    this.qrSize = qrSizeDefault,
   });
 
   // --- Logo Cache ---
@@ -65,16 +79,46 @@ class LabelPainter extends CustomPainter {
   static const double fsMenuName = 28;
   static const double fsOrderNo = 85; //주문번호사이즈 (QR 없을 때)
   static const double fsOrderNoWithQr =
-      57; //주문번호사이즈 (QR 동반 시 — 겹침 방지용 조정 노브, QR 확대로 좁아진 가로폭만 보정)
+      57; //주문번호사이즈 (V1, QR 동반 시 — 겹침 방지용 조정 노브)
+  static const double fsOrderNoWithQrV2 = 40; //주문번호사이즈 (V2, QR 동반 시)
   static const double fsSectionTitle = 22;
   static const double fsOptionItem = 21;
   static const double fsDetailContent = 22;
 
   // Dimensions & Spacings
   static const double logoWidthDefault = 50;
+  static const double logoWidthV2 =
+      32; // V2 헤더 로고 (50→42→32, 큰 QR 수용 위해 헤더 높이 최소화). 실측 후 미세조정
   static const double qrSizeDefault = 120; // QR 크기 (기본 90 → 120 확대)
   static const double spacingSectionSmall = 15;
   static const double spacingSectionLarge = 30;
+
+  // V2 헤더 축소 노브 — 큰 QR(최대 +50%)이 아래 섹션을 밀어 잘리는 것을 막기 위해
+  // V2 한정으로 헤더 높이를 최소화한다(V1 은 종전 그대로). 실측 후 미세조정.
+  static const double fsHeaderTimeV2 = 15; // 주문시각 폰트 (16→14)
+  static const double headerTimeLineHeightV2 = 1.05; // 주문시각 줄간격 (1.2→1.05)
+  static const double headerDividerGapV2 = 4; // 헤더 콘텐츠 ↔ 구분선 (6→4)
+  static const double headerBottomSpacingV2 = 6; // 구분선 ↔ 본문 (15→6)
+
+  // ── 실주문 QR 정책(레이아웃 버전별) ─────────────────────────────────
+  // V2 는 헤더 축소로 확보한 세로 공간에 QR 을 크게 키우고(+50%), 모듈 밀도를
+  // 낮춰 인쇄 선명도/스캔율을 높이기 위해 오류정정 레벨을 L 로 둔다.
+  // V1 은 종전 그대로(qrSizeDefault, M). 테스트 출력은 이 정책과 무관하게
+  // 사용자가 고른 값을 직접 주입한다.
+  static const double qrSizeScaleV2 = 1.5; // V2 QR 확대 배율 (+50%)
+
+  /// 레이아웃 버전에 맞는 실주문 QR 박스 크기.
+  static double qrSizeForLayout(int layoutVersion) =>
+      layoutVersion == 1 ? qrSizeDefault * qrSizeScaleV2 : qrSizeDefault;
+
+  /// 레이아웃 버전에 맞는 실주문 QR 오류정정 레벨.
+  static int qrErrorCorrectLevelForLayout(int layoutVersion) =>
+      layoutVersion == 1 ? QrErrorCorrectLevel.L : QrErrorCorrectLevel.M;
+  // V2 Body 간격 노브 (실측 후 미세조정)
+  static const double bodyV2SubInfoGap = 8; // QR 하단 ↔ subinfo
+  static const double bodyV2MenuGap = 6; // subinfo ↔ 상품명
+
+  static const double optionRowHeight = 28; // 옵션 한 줄 높이
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -103,6 +147,12 @@ class LabelPainter extends CustomPainter {
 
   double _drawHeader(Canvas canvas, Size size, double startY) {
     final paint = Paint()..color = Colors.black;
+    final bool isV2 = layoutVersion == 1;
+    // V2 는 로고 크기 자체를 줄여 헤더 높이를 낮춘다(여백 축소 아님).
+    final double logoW = isV2 ? logoWidthV2 : logoWidthDefault;
+    // V2 한정 주문시각 폰트/줄간격 축소 — 헤더 높이를 결정하는 2줄 시각 블록을 줄인다.
+    final double timeFs = isV2 ? fsHeaderTimeV2 : fsHeaderTime;
+    final double timeLh = isV2 ? headerTimeLineHeightV2 : 1.2;
 
     // Order Time
     if (orderTime != null) {
@@ -110,19 +160,20 @@ class LabelPainter extends CustomPainter {
         canvas,
         orderTime!,
         Offset(defaultMargin, startY + 5),
-        fontSize: fsHeaderTime,
+        fontSize: timeFs,
         maxLines: 2,
-        height: 1.2,
+        height: timeLh,
         maxWidth: 120,
       );
     }
 
     double logoHeight = 0;
-    if (logoImage != null) {
+    // V2 는 로고를 그리지 않는다(작아져 식별 어려움) → 무로고 경로로 라우팅.
+    if (logoImage != null && !isV2) {
       // Logo (centered)
-      logoHeight = logoWidthDefault;
-      final Rect dstRect = Rect.fromLTWH(size.width / 2 - logoWidthDefault / 2,
-          startY, logoWidthDefault, logoHeight);
+      logoHeight = logoW;
+      final Rect dstRect =
+          Rect.fromLTWH(size.width / 2 - logoW / 2, startY, logoW, logoHeight);
 
       canvas.drawImageRect(
         logoImage!,
@@ -138,20 +189,37 @@ class LabelPainter extends CustomPainter {
           canvas,
           '$orderIndex/$orderTotal',
           Offset(size.width - defaultMargin, startY + 5),
-          fontSize: fsSubInfo,
+          // V2: 우측 순번 폰트를 주문시각과 동일 크기로 맞춘다.
+          fontSize: isV2 ? timeFs : fsSubInfo,
           isBold: true,
           align: TextAlign.right,
         );
       }
 
-      // Header Divider
-      double dividerY = startY + logoHeight + 6;
-      canvas.drawLine(
-        Offset(defaultMargin, dividerY),
-        Offset(size.width - defaultMargin, dividerY),
-        paint..strokeWidth = 1,
-      );
-      return dividerY + spacingSectionSmall;
+      // Header Divider.
+      // V2: 구분선을 헤더 콘텐츠(로고 vs 2줄 시각 블록 중 큰 쪽) 바로 아래로 당겨
+      //     헤더를 최소화한다. V1: 종전 그대로(로고 기준 +6).
+      double dividerY;
+      double bottomSpacing;
+      if (isV2) {
+        final double timeBlock = 5 + timeFs * timeLh * 2; // 2줄 시각 블록 하단
+        final double contentBottom =
+            logoHeight > timeBlock ? logoHeight : timeBlock;
+        dividerY = startY + contentBottom + headerDividerGapV2;
+        bottomSpacing = headerBottomSpacingV2;
+      } else {
+        dividerY = startY + logoHeight + 6;
+        bottomSpacing = spacingSectionSmall;
+      }
+      // V2: 헤더 구분선 라인 삭제(여백은 유지). V1: 종전대로 라인 표시.
+      if (!isV2) {
+        canvas.drawLine(
+          Offset(defaultMargin, dividerY),
+          Offset(size.width - defaultMargin, dividerY),
+          paint..strokeWidth = 1,
+        );
+      }
+      return dividerY + bottomSpacing;
     } else {
       // Default Divider if no logo — same Y as logo branch to keep layout stable
       if (orderIndex != null && orderTotal != null) {
@@ -159,22 +227,42 @@ class LabelPainter extends CustomPainter {
           canvas,
           '$orderIndex/$orderTotal',
           Offset(size.width - defaultMargin, startY + 5),
-          fontSize: fsSubInfo,
+          // V2: 우측 순번 폰트를 주문시각과 동일 크기로 맞춘다.
+          fontSize: isV2 ? timeFs : fsSubInfo,
           isBold: true,
           align: TextAlign.right,
         );
       }
-      double dividerY = startY + logoWidthDefault + 6;
-      canvas.drawLine(
-        Offset(defaultMargin, dividerY),
-        Offset(size.width - defaultMargin, dividerY),
-        paint..strokeWidth = 1,
-      );
-      return dividerY + spacingSectionSmall;
+      // 로고 분기와 동일 규칙 — V2 는 시각 블록 기준으로 당겨 헤더를 최소화한다.
+      double dividerY;
+      double bottomSpacing;
+      if (isV2) {
+        final double timeBlock = 5 + timeFs * timeLh * 2;
+        final double contentBottom = logoW > timeBlock ? logoW : timeBlock;
+        dividerY = startY + contentBottom + headerDividerGapV2;
+        bottomSpacing = headerBottomSpacingV2;
+      } else {
+        dividerY = startY + logoW + 6;
+        bottomSpacing = spacingSectionSmall;
+      }
+      // V2: 헤더 구분선 라인 삭제(여백은 유지). V1: 종전대로 라인 표시.
+      if (!isV2) {
+        canvas.drawLine(
+          Offset(defaultMargin, dividerY),
+          Offset(size.width - defaultMargin, dividerY),
+          paint..strokeWidth = 1,
+        );
+      }
+      return dividerY + bottomSpacing;
     }
   }
 
-  double _drawBody(Canvas canvas, Size size, double startY) {
+  double _drawBody(Canvas canvas, Size size, double startY) =>
+      layoutVersion == 1
+          ? _drawBodyV2(canvas, size, startY)
+          : _drawBodyV1(canvas, size, startY);
+
+  double _drawBodyV1(Canvas canvas, Size size, double startY) {
     // 헤더 구분선 바로 아래 시작 (간격 = 헤더 return 의 spacingSectionSmall 만).
     // QR 확대(120)로 콘텐츠 높이가 늘어, 위쪽 여백을 줄여 옵션 구분선 침범을 흡수한다.
     double currentY = startY;
@@ -202,7 +290,35 @@ class LabelPainter extends CustomPainter {
 
     // QR 예약 높이를 qrSizeDefault 로 추적 → 옵션 구분선이 항상 QR 아래 + spacingSectionSmall.
     // (이전엔 고정값 96 이라 QR 확대 시 구분선을 침범했음)
-    return currentY + qrTopOffset + qrSizeDefault + spacingSectionSmall;
+    return currentY + qrTopOffset + qrSize + spacingSectionSmall;
+  }
+
+  /// V2: QR(우측 상단) + 주문번호(좌측, QR 세로중앙) → subinfo(QR 아래 우측) → 상품명(맨 아래 우측).
+  double _drawBodyV2(Canvas canvas, Size size, double startY) {
+    // 1. QR(우측 상단) + 주문번호(좌측, QR 세로중앙)
+    _drawQrAndOrderNo(canvas, size, startY,
+        qrOnLeft: false, centerOrderNoToQr: true);
+
+    // 2. subinfo: QR 바로 아래, 우측정렬. 부재해도 fsSubInfo 만큼 자리를 예약해
+    //    상품명 위치를 라벨 간 고정한다(위로 당기지 않음).
+    final double subInfoY = startY + qrSize + bodyV2SubInfoGap;
+    _drawSubInfo(canvas, size, subInfoY);
+
+    // 3. 상품명: 맨 아래, 우측정렬. V1 메뉴명과 동일 패턴(Y만 하단으로 이동).
+    final double menuY = subInfoY + fsSubInfo + bodyV2MenuGap;
+    _drawText(
+      canvas,
+      menuName,
+      Offset(size.width - defaultMargin, menuY),
+      fontSize: fsMenuName,
+      isBold: true,
+      align: TextAlign.right,
+      maxWidth: size.width - (defaultMargin * 2),
+      maxLines: 1,
+    );
+
+    // 4. 다음 섹션(옵션 구분선) 시작 Y
+    return menuY + fsMenuName + spacingSectionSmall;
   }
 
   void _drawSubInfo(Canvas canvas, Size size, double y) {
@@ -283,7 +399,7 @@ class LabelPainter extends CustomPainter {
   void _drawCrispQr(Canvas canvas, String data, Offset origin) {
     final qrImage = QrImage(QrCode.fromData(
       data: data,
-      errorCorrectLevel: QrErrorCorrectLevel.M, // L → M (인쇄 번짐/긁힘 대비)
+      errorCorrectLevel: qrErrorCorrectLevel, // 운영 기본 M (인쇄 번짐/긁힘 대비)
     ));
     final int moduleCount = qrImage.moduleCount;
 
@@ -291,16 +407,14 @@ class LabelPainter extends CustomPainter {
 
     // 모듈당 정수 픽셀 — 핵심. round 로 데이터 모듈 영역이 박스(120)를 꽉 채우게
     // 한다(레거시 QrPainter 와 동일한 시각 크기). 정수라서 모듈 경계가 칼같이 선명.
-    final int modulePx = (qrSizeDefault / moduleCount).round().clamp(1, 999);
-    final double dataPx = (modulePx * moduleCount).toDouble(); // ≈ 120
+    final int modulePx = (qrSize / moduleCount).round().clamp(1, 999);
+    final double dataPx = (modulePx * moduleCount).toDouble(); // ≈ qrSize
     final double quietPx = (modulePx * quietModules).toDouble();
 
     // 데이터 모듈 영역을 박스 중앙에 정렬(정수 픽셀 스냅). quiet zone 은 박스
     // 바깥(주변 흰 여백)으로 확장되므로 레거시와 동일한 모듈 크기를 유지한다.
-    final double originX =
-        (origin.dx + (qrSizeDefault - dataPx) / 2).roundToDouble();
-    final double originY =
-        (origin.dy + (qrSizeDefault - dataPx) / 2).roundToDouble();
+    final double originX = (origin.dx + (qrSize - dataPx) / 2).roundToDouble();
+    final double originY = (origin.dy + (qrSize - dataPx) / 2).roundToDouble();
 
     final whitePaint = Paint()
       ..color = Colors.white
@@ -337,15 +451,21 @@ class LabelPainter extends CustomPainter {
     canvas.restore();
   }
 
-  void _drawQrAndOrderNo(Canvas canvas, Size size, double y) {
+  void _drawQrAndOrderNo(Canvas canvas, Size size, double y,
+      {bool qrOnLeft = true, bool centerOrderNoToQr = true}) {
+    // qrOnLeft=true → QR 좌측(V1), false → QR 우측(V2). 좌우 여백 대칭 유지.
+    final double qrX =
+        qrOnLeft ? defaultMargin : (size.width - defaultMargin - qrSize);
     if (qrData != null) {
-      _drawCrispQr(canvas, qrData!, Offset(defaultMargin, y));
+      _drawCrispQr(canvas, qrData!, Offset(qrX, y));
     }
 
     if (shopOrderNo != null) {
-      // QR 동반 시: 폰트를 줄여 QR(좌측 90×90)과 겹치지 않게 한다.
+      // QR 동반 시: 폰트를 줄여 QR 과 겹치지 않게 한다. V2 는 더 작게(40), V1 은 57.
       final bool hasQr = qrData != null;
-      final double orderNoFont = hasQr ? fsOrderNoWithQr : fsOrderNo;
+      final double orderNoFont = hasQr
+          ? (layoutVersion == 1 ? fsOrderNoWithQrV2 : fsOrderNoWithQr)
+          : fsOrderNo;
 
       final String text = shopOrderNo!;
       final int dashIndex = text.indexOf('-');
@@ -398,14 +518,17 @@ class LabelPainter extends CustomPainter {
 
       textPainter.layout();
 
-      // _drawText 는 top 기준이라, 폰트를 줄이면 QR(90px) 상단에 붙어 보인다.
-      // QR 동반 시 텍스트 실제 높이를 측정해 QR 높이 세로 중앙에 맞춘다.
+      // _drawText 는 top 기준이라, 폰트를 줄이면 QR 상단에 붙어 보인다.
+      // QR 동반 + centerOrderNoToQr 시 텍스트 높이를 측정해 QR 세로 중앙에 맞춘다.
       double drawY = y;
-      if (hasQr) {
-        drawY = y + (qrSizeDefault - textPainter.height) / 2;
+      if (hasQr && centerOrderNoToQr) {
+        drawY = y + (qrSize - textPainter.height) / 2;
       }
 
-      final double drawX = size.width - defaultMargin - textPainter.width;
+      // qrOnLeft=true → 주문번호 우측정렬(QR 이 좌측), false → 좌측정렬(QR 이 우측).
+      final double drawX = qrOnLeft
+          ? (size.width - defaultMargin - textPainter.width)
+          : defaultMargin;
       textPainter.paint(canvas, Offset(drawX, drawY));
     }
   }
@@ -420,22 +543,27 @@ class LabelPainter extends CustomPainter {
       paint..strokeWidth = 1,
     );
 
-    // Title (구분선 아래 정렬 보정)
-    _drawText(canvas, optionTitleOverride ?? t.receipt.section_option,
-        Offset(size.width / 2, startY + spacingSectionSmall),
-        fontSize: fsSectionTitle, isBold: true, align: TextAlign.center);
-
-    // List
-    double optionStartY =
-        startY + spacingSectionSmall + fsSectionTitle + spacingSectionSmall;
+    // 타이틀: V1 은 'option' 표시(종전), V2 는 제거 후 리스트를 위로 당김.
+    final double optionStartY;
+    if (layoutVersion == 1) {
+      optionStartY = startY + spacingSectionSmall;
+    } else {
+      _drawText(canvas, optionTitleOverride ?? t.receipt.section_option,
+          Offset(size.width / 2, startY + spacingSectionSmall),
+          fontSize: fsSectionTitle, isBold: true, align: TextAlign.center);
+      optionStartY =
+          startY + spacingSectionSmall + fsSectionTitle + spacingSectionSmall;
+    }
     double colWidth = (size.width - (defaultMargin * 2)) / 2;
 
-    for (int i = 0; i < options.length; i++) {
-      if (i >= 6) break;
+    const int maxOptionsShown = 4; // 옵션은 최대 4개까지만 표시
+    final int shown =
+        options.length > maxOptionsShown ? maxOptionsShown : options.length;
+    for (int i = 0; i < shown; i++) {
       int row = i ~/ 2;
       int col = i % 2;
       double x = defaultMargin + (col * colWidth) + (col == 1 ? 10 : 0);
-      double y = optionStartY + (row * 28);
+      double y = optionStartY + (row * optionRowHeight);
 
       _drawText(
         canvas,
@@ -459,19 +587,22 @@ class LabelPainter extends CustomPainter {
       paint..strokeWidth = 1,
     );
 
-    // "detail" 타이틀 (가운데 정렬)
-    _drawText(
-      canvas,
-      detailTitleOverride ?? t.receipt.section_detail,
-      Offset(size.width / 2, startY + spacingSectionSmall),
-      fontSize: fsSectionTitle,
-      isBold: true,
-      align: TextAlign.center,
-    );
-
-    // 메모 텍스트 (전체 폭)
-    final double contentY =
-        startY + spacingSectionSmall + fsSectionTitle + spacingSectionSmall;
+    // 타이틀: V1 은 'detail' 표시(종전), V2 는 제거 후 메모를 위로 당김.
+    final double contentY;
+    if (layoutVersion == 1) {
+      contentY = startY + spacingSectionSmall;
+    } else {
+      _drawText(
+        canvas,
+        detailTitleOverride ?? t.receipt.section_detail,
+        Offset(size.width / 2, startY + spacingSectionSmall),
+        fontSize: fsSectionTitle,
+        isBold: true,
+        align: TextAlign.center,
+      );
+      contentY =
+          startY + spacingSectionSmall + fsSectionTitle + spacingSectionSmall;
+    }
     _drawText(
       canvas,
       memo ?? "",
@@ -569,6 +700,9 @@ class LabelPainter extends CustomPainter {
     int? orderTotal,
     String? optionTitleOverride,
     String? detailTitleOverride,
+    int layoutVersion = 0,
+    int qrErrorCorrectLevel = QrErrorCorrectLevel.M,
+    double qrSize = qrSizeDefault,
   }) async {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
@@ -608,6 +742,9 @@ class LabelPainter extends CustomPainter {
       orderTotal: orderTotal,
       optionTitleOverride: optionTitleOverride,
       detailTitleOverride: detailTitleOverride,
+      layoutVersion: layoutVersion,
+      qrErrorCorrectLevel: qrErrorCorrectLevel,
+      qrSize: qrSize,
     );
 
     painter.paint(canvas, const Size(width, height));

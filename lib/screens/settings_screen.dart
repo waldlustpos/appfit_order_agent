@@ -54,6 +54,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _labelUseCalibrate = false;
   bool _labelUseQrPrint = false;
   int _labelFilterMode = 0;
+  int _labelLayoutVersion = 0;
 
   bool _isKioskOrderVisible = false;
   bool _isKioskOrderSoundEnabled = false;
@@ -120,6 +121,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _labelUseCalibrate = _preferenceService.getLabelUseCalibrate();
       _labelUseQrPrint = _preferenceService.getLabelUseQrPrint();
       _labelFilterMode = _preferenceService.getLabelFilterMode();
+      _labelLayoutVersion = _preferenceService.getLabelLayoutVersion();
 
       _isKioskOrderVisible = _preferenceService.getShowKioskOrder();
       _isKioskOrderSoundEnabled = _preferenceService.getKioskPrintAndSound();
@@ -162,6 +164,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await _preferenceService.setLabelUseCalibrate(_labelUseCalibrate);
       await _preferenceService.setLabelUseQrPrint(_labelUseQrPrint);
       await _preferenceService.setLabelFilterMode(_labelFilterMode);
+      await _preferenceService.setLabelLayoutVersion(_labelLayoutVersion);
       await _preferenceService.setShowKioskOrder(_isKioskOrderVisible);
       await _preferenceService.setKioskPrintAndSound(_isKioskOrderSoundEnabled);
       await _preferenceService.setShowOrderTypeBadge(_isShowOrderTypeBadge);
@@ -476,6 +479,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           memo: qr,
           orderIndex: i + 1,
           orderTotal: total,
+          layoutVersion: _labelLayoutVersion,
         );
         final result = await printService.printLabel(
           imageBytes,
@@ -533,6 +537,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               externalPrintOrder: _externalPrintOrder,
               externalPrintReceipt: _externalPrintReceipt,
               labelFilterMode: _labelFilterMode,
+              labelLayoutVersion: _labelLayoutVersion,
               isShowOrderTypeBadge: _isShowOrderTypeBadge,
               isOrderSourceColor: _isOrderSourceColor,
               onModeSwitch: _handleModeSwitch,
@@ -572,6 +577,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   _setAndSave(() => _externalPrintReceipt = v),
               onLabelFilterModeChanged: (v) =>
                   _setAndSave(() => _labelFilterMode = v),
+              onLabelLayoutVersionChanged: (v) =>
+                  _setAndSave(() => _labelLayoutVersion = v),
               onShowOrderTypeBadgeChanged: (v) =>
                   _setAndSave(() => _isShowOrderTypeBadge = v),
               onOrderSourceColorChanged: (v) =>

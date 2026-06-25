@@ -191,6 +191,13 @@
             "btn_waffle_only": "ワッフルのみ",
             "btn_waffle_exclude": "ワッフル除外"
         },
+        "label_layout": {
+            "title": "ラベルレイアウト",
+            "desc_v1": "従来のレイアウトでラベルを印刷します。",
+            "desc_v2": "新しいレイアウト(QR右上・商品名下部)でラベルを印刷します。",
+            "btn_v1": "標準 (V1)",
+            "btn_v2": "新規 (V2)"
+        },
         "developer_options": {
             "title": "開発者オプション",
             "appfit_test": {

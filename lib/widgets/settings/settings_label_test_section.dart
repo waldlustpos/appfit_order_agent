@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:qr/qr.dart';
 import 'package:appfit_order_agent/constants/app_styles.dart';
 import 'package:appfit_order_agent/constants/order_constants.dart';
 import 'package:appfit_order_agent/models/menu_option_model.dart';
@@ -326,6 +327,8 @@ class _SettingsLabelTestSectionState
     logToFile(tag: LogTag.PLATFORM, message: '[LabelTest] [CONFIG] $config');
 
     try {
+      final layoutVersion =
+          ref.read(preferenceServiceProvider).getLabelLayoutVersion();
       final sw = Stopwatch()..start();
       for (int i = 1; i <= 3; i++) {
         final labelSw = Stopwatch()..start();
@@ -336,6 +339,7 @@ class _SettingsLabelTestSectionState
           orderTime: '03/26\n12:00:00',
           orderIndex: i,
           orderTotal: 3,
+          layoutVersion: layoutVersion,
         );
         logToFile(
             tag: LogTag.PLATFORM,
@@ -383,6 +387,8 @@ class _SettingsLabelTestSectionState
     final status = ref.read(printerStatusProvider);
     // QR 토글 반영 — ON 이면 각 라벨에 운영과 동일 포맷의 QR 페이로드를 넘긴다.
     final useQr = ref.read(preferenceServiceProvider).getLabelUseQrPrint();
+    final layoutVersion =
+        ref.read(preferenceServiceProvider).getLabelLayoutVersion();
     final qrStrategy = ref.read(qrPayloadStrategyProvider);
 
     if (!status.isLabelConnected) {
@@ -521,6 +527,11 @@ class _SettingsLabelTestSectionState
             // 헤더 식별번호: (1/20), (2/20) ... (20/20) — 현재 장수/전체 장수.
             orderIndex: v,
             orderTotal: _orderNoTestVersions,
+            layoutVersion: layoutVersion,
+            // V1/V2 실주문과 동일한 QR 크기·오류정정 정책을 그대로 적용.
+            qrSize: LabelPainter.qrSizeForLayout(layoutVersion),
+            qrErrorCorrectLevel:
+                LabelPainter.qrErrorCorrectLevelForLayout(layoutVersion),
             // 이 테스트는 로캘과 무관하게 섹션 타이틀을 영문 고정.
             optionTitleOverride: 'option',
             detailTitleOverride: 'detail',
@@ -551,6 +562,123 @@ class _SettingsLabelTestSectionState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('주문번호 테스트 출력 실패: $e')),
+        );
+      }
+    }
+  }
+
+  /// QR 오류 정정 레벨 4종 (qr 패키지 상수 + 복원율 라벨). 셀렉터 + 라벨 표기 공용.
+  static const List<({int level, String name, String recover})> _qrLevels = [
+    (level: QrErrorCorrectLevel.L, name: 'L', recover: '7%'),
+    (level: QrErrorCorrectLevel.M, name: 'M', recover: '15%'),
+    (level: QrErrorCorrectLevel.Q, name: 'Q', recover: '25%'),
+    (level: QrErrorCorrectLevel.H, name: 'H', recover: '30%'),
+  ];
+
+  /// 페이로드 후보 (id=ShopItemId, payload=운영 포맷 {OrderNo}-{ShopItemId}-{CupIdx}).
+  static const List<({String id, String payload})> _qrPayloads = [
+    (id: '0qgjxz2beb08w', payload: '857511257333139-0qgjxz2beb08w-0'),
+    (id: 'TKP0021', payload: '857511257333139-TKP0021-0'),
+    (id: '숫자만', payload: '857511257333139'),
+  ];
+
+  /// QR 크기 단계: 현재(qrSizeDefault) 기준 0% / +20% / +50%, 총 3단계.
+  /// V2 헤더 축소와 함께 큰 QR(최대 +50%) 수용 가능 여부를 검증한다.
+  static const List<double> _qrSizeSteps = [0.0, 0.20, 0.50];
+
+  // ── QR 테스트 선택 상태 ─────────────────────────────────────────────
+  String _qrTestPayload = _qrPayloads.first.payload;
+  int _qrTestLevel = QrErrorCorrectLevel.M;
+  int _qrTestSizeStep = 0; // _qrSizeSteps 인덱스
+
+  double get _qrTestSize =>
+      LabelPainter.qrSizeDefault * (1 + _qrSizeSteps[_qrTestSizeStep]);
+
+  String get _qrTestLevelName =>
+      _qrLevels.firstWhere((l) => l.level == _qrTestLevel).name;
+
+  /// 선택한 페이로드/레벨/크기 조합으로 라벨 1장 출력.
+  /// detail(memo)·헤더에 조합을 박아 인쇄물에서 어떤 설정인지 육안 식별 가능하게 한다.
+  Future<void> _printQrSelectedTest() async {
+    final printService = ref.read(printServiceProvider);
+    final status = ref.read(printerStatusProvider);
+    final layoutVersion =
+        ref.read(preferenceServiceProvider).getLabelLayoutVersion();
+
+    if (!status.isLabelConnected) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('라벨 프린터가 연결되어 있지 않습니다.')),
+        );
+      }
+      return;
+    }
+
+    // 실제 데이터처럼 — 보유 상품에서 메뉴명을 뽑아 표시한다. 조회 실패 시 fallback.
+    String menuName = _orderNoTestFallbackMenus.first;
+    try {
+      final products = await ref.read(productProvider.future);
+      final item = products.firstWhere(
+        (p) => p.type == ProductType.item && p.productName.isNotEmpty,
+        orElse: () => throw StateError('no item'),
+      );
+      menuName = item.productName;
+    } catch (e) {
+      logToFile(
+          tag: LogTag.WARNING,
+          message: '[QrSelTest] 상품 조회 실패 — fallback 사용: $e');
+    }
+
+    const shopOrderNo = '1023';
+    final orderTime = DateFormat('MM/dd\nHH:mm:ss').format(DateTime.now());
+
+    final qrPayload = _qrTestPayload;
+    final levelName = _qrTestLevelName;
+    final qrSize = _qrTestSize;
+    final sizePct = (_qrSizeSteps[_qrTestSizeStep] * 100).round();
+    final config = 'level=$levelName size=${qrSize.toStringAsFixed(0)}'
+        '(+$sizePct%) payload="$qrPayload"';
+
+    logToFile(
+        tag: LogTag.PLATFORM,
+        message: '[QrSelTest] ====== QR 선택 테스트 출력 (1장) ====== $config');
+
+    try {
+      final imageBytes = await LabelPainter.generateLabelImage(
+        menuName: menuName,
+        options: const [],
+        shopOrderNo: shopOrderNo,
+        orderTime: orderTime,
+        qrData: qrPayload,
+        memo: 'QR $levelName / ${qrSize.toStringAsFixed(0)}px (+$sizePct%)',
+        layoutVersion: layoutVersion,
+        qrErrorCorrectLevel: _qrTestLevel,
+        qrSize: qrSize,
+        optionTitleOverride: 'option',
+        detailTitleOverride: 'detail',
+      );
+      final result = await printService.printLabel(
+        imageBytes,
+        orderNo: '$shopOrderNo-$levelName',
+        labelIndex: 1,
+        totalLabels: 1,
+      );
+      logToFile(
+          tag: result ? LogTag.PLATFORM : LogTag.WARNING,
+          message: '[QrSelTest] ${result ? "출력끝" : "실패"} $config');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text(result
+                  ? 'QR 테스트 출력 ($levelName / +$sizePct%)'
+                  : 'QR 테스트 출력 실패')),
+        );
+      }
+    } catch (e) {
+      logToFile(tag: LogTag.ERROR, message: '[QrSelTest] 출력 실패: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('QR 테스트 출력 실패: $e')),
         );
       }
     }
@@ -699,12 +827,113 @@ class _SettingsLabelTestSectionState
                       ),
                     ),
                   ),
+                  const SizedBox(height: AppSpacing.s16),
+                  const Divider(height: 1),
+                  const SizedBox(height: AppSpacing.s8),
+                  Text(
+                    'QR 테스트 (페이로드 / 레벨 / 크기 선택)',
+                    style: AppTextStyles.bodySm.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.deepPurple,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.s8),
+                  _buildQrSelectorRow(
+                    label: '상품 페이로드',
+                    child: Wrap(
+                      spacing: AppSpacing.s8,
+                      children: [
+                        for (final p in _qrPayloads)
+                          ChoiceChip(
+                            label: Text(p.id),
+                            selected: _qrTestPayload == p.payload,
+                            onSelected: (_) =>
+                                setState(() => _qrTestPayload = p.payload),
+                          ),
+                      ],
+                    ),
+                  ),
+                  _buildQrSelectorRow(
+                    label: 'QR 레벨',
+                    child: Wrap(
+                      spacing: AppSpacing.s8,
+                      children: [
+                        for (final lv in _qrLevels)
+                          ChoiceChip(
+                            label: Text('${lv.name} (${lv.recover})'),
+                            selected: _qrTestLevel == lv.level,
+                            onSelected: (_) =>
+                                setState(() => _qrTestLevel = lv.level),
+                          ),
+                      ],
+                    ),
+                  ),
+                  _buildQrSelectorRow(
+                    label: 'QR 크기',
+                    child: Wrap(
+                      spacing: AppSpacing.s8,
+                      children: [
+                        for (int i = 0; i < _qrSizeSteps.length; i++)
+                          ChoiceChip(
+                            label: Text(i == 0
+                                ? '현재 (${LabelPainter.qrSizeDefault.toStringAsFixed(0)}px)'
+                                : '+${(_qrSizeSteps[i] * 100).round()}%'
+                                    ' (${(LabelPainter.qrSizeDefault * (1 + _qrSizeSteps[i])).toStringAsFixed(0)}px)'),
+                            selected: _qrTestSizeStep == i,
+                            onSelected: (_) =>
+                                setState(() => _qrTestSizeStep = i),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.s8),
+                  Center(
+                    child: ElevatedButton.icon(
+                      onPressed: _printQrSelectedTest,
+                      icon: const Icon(Icons.qr_code_2, size: 18),
+                      label: const Text('선택 조건으로 출력 (1장)'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.deepPurple,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.s24,
+                          vertical: AppSpacing.s12,
+                        ),
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: AppSpacing.s8),
                 ],
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// QR 테스트 셀렉터 한 줄 (라벨 + 칩 묶음). 좁은 폭이면 칩이 다음 줄로 흐른다.
+  Widget _buildQrSelectorRow({required String label, required Widget child}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.s4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 96,
+            child: Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.s8),
+              child: Text(
+                label,
+                style: AppTextStyles.bodySm.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: AppStyles.gray9,
+                ),
+              ),
+            ),
+          ),
+          Expanded(child: child),
+        ],
       ),
     );
   }

@@ -82,6 +82,8 @@ class PreferenceService {
       "KOKONUT_LABEL_FILTER_MODE"; // int (0: 전체, 1: 와플만, 2: 와플제외)
   static const String KEY_LABEL_USE_QR_PRINT =
       "KOKONUT_LABEL_USE_QR_PRINT"; // bool (기본 false)
+  static const String KEY_LABEL_LAYOUT_VERSION =
+      "KOKONUT_LABEL_LAYOUT_VERSION"; // int (0: V1 기존, 1: V2 QR 우측상단)
 
   static const String KEY_IS_SOCKET_ENABLED =
       "KEY_IS_SOCKET_ENABLED"; // 소켓 사용 여부
@@ -567,6 +569,9 @@ class PreferenceService {
   /// 라벨 필터 모드 (0: 전체, 1: 와플만, 2: 와플제외)
   int getLabelFilterMode() => _prefs.getInt(KEY_LABEL_FILTER_MODE) ?? 0;
 
+  /// 라벨 레이아웃 버전 (0: V1 기존, 1: V2 QR 우측상단)
+  int getLabelLayoutVersion() => _prefs.getInt(KEY_LABEL_LAYOUT_VERSION) ?? 0;
+
   // 영업 상태 저장
   Future<void> setOrderOn(bool value) async {
     await _prefs.setBool(KEY_ORDER_ON, value);
@@ -669,6 +674,10 @@ class PreferenceService {
 
   Future<void> setLabelFilterMode(int value) async {
     await _prefs.setInt(KEY_LABEL_FILTER_MODE, value);
+  }
+
+  Future<void> setLabelLayoutVersion(int value) async {
+    await _prefs.setInt(KEY_LABEL_LAYOUT_VERSION, value);
   }
 
   // 키오스크 주문 노출 설정
