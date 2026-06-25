@@ -68,12 +68,12 @@
         "section_update": "Updates",
         "mode_switch": {
             "to_main": "Switch to Main",
-            "to_kds": "Switch to KDS Mode",
+            "to_kds": "Switch to Kitchen Display (KDS)",
             "confirm_to_main": "Switch to main (order reception) mode?",
-            "confirm_to_kds": "Switch to KDS (kitchen display) mode?",
+            "confirm_to_kds": "A kitchen-only screen showing orders as cards.\n'Order Reception' is OFF, so orders are not processed.\nTurn 'Order Reception' ON to receive them.",
             "btn_switch": "Switch",
             "desc_to_main": "Changes to order reception screen.",
-            "desc_to_kds": "Changes to kitchen display screen."
+            "desc_to_kds": "Changes to the Kitchen Display (KDS) screen."
         },
         "auto_start": {
             "title": "Auto Start on Boot",
@@ -102,7 +102,7 @@
         },
         "label_printer": {
             "title": "Use Label Printer",
-            "desc": "Use USB-connected label printer. (50mm x 70mm)"
+            "desc": "Use USB-connected label printer. (50mm x 70mm)\nOnly the REXOD RXLA-561 model is supported."
         },
         "label_qr": {
             "title": "Print QR Code",
@@ -174,13 +174,13 @@
         },
         "kds_ignore_status": {
             "title": "Ignore Other Device Status Updates",
-            "desc": "Orders on this screen will not refresh when other KDS devices update pickup or progress status. (Use when you want to control status updates manually)"
+            "desc": "Orders on this screen will not refresh when other Kitchen Display (KDS) devices update pickup or progress status. (Use when you want to control status updates manually)"
         },
         "kds_accept_orders": {
             "title": "Accept Orders",
-            "desc": "Automatically accept incoming orders directly in KDS mode. Make sure you are not running another main order-receiving program in parallel.",
+            "desc": "Automatically accept incoming orders directly in Kitchen Display (KDS) mode. Be sure NOT to run another main order-receiving program in parallel.",
             "confirm_title": "Enable Order Acceptance",
-            "confirm_content": "KDS will automatically accept incoming orders directly.\nPlease verify that no other main order-receiving program is running in parallel.\nEnable this option?"
+            "confirm_content": "Kitchen Display (KDS) will automatically accept incoming orders directly.\nBe sure NOT to run another main order-receiving program in parallel.\nEnable this option?"
         },
         "label_filter": {
             "title": "Label Print Filter",
@@ -267,7 +267,7 @@
             "one": "1 New Order",
             "other": "{n} New Orders"
         },
-        "kds_mode": "KDS Mode",
+        "kds_mode": "Kitchen Display (KDS)",
         "order_toggle": "Order",
         "order_start_confirm_title": "Confirm Order Start",
         "order_stop_confirm_title": "Confirm Order Stop",

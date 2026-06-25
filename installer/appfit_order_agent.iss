@@ -1,28 +1,46 @@
 ; ----------------------------------------------------------------------
 ; Appfit Order Agent -- Inno Setup 6 script
 ;
-; Build:
+; Build (update variant, default):
 ;   ISCC.exe /DMyAppVersion=3.2.1 installer\appfit_order_agent.iss
+; Build (standalone variant, coexists with the old/update app):
+;   ISCC.exe /DMyAppVersion=3.2.1 /DStandalone=1 installer\appfit_order_agent.iss
 ; Output:
-;   dist\AppfitOrderAgent-Setup-<version>.exe
+;   dist\AppfitOrderAgent-Setup-<version>.exe            (update)
+;   dist\AppfitOrderAgentStandalone-Setup-<version>.exe  (standalone)
 ;
 ; Notes:
-;   - AppId is a permanent GUID. Do NOT regenerate; changing it causes
-;     duplicate entries in "Programs and Features".
+;   - Each variant's AppId is a permanent GUID. Do NOT regenerate; changing it
+;     causes duplicate entries in "Programs and Features". The two variants use
+;     different AppIds on purpose so they install/uninstall independently.
 ;   - AppMutex must match the constant defined in
-;     windows/runner/main.cpp (kSingleInstanceMutexName).
+;     windows/runner/main.cpp (kSingleInstanceMutexName) for each variant.
+;   - The Korean AppName is kept inside this UTF-8 .iss (not passed via /D) so
+;     the console code page cannot corrupt it.
 ; ----------------------------------------------------------------------
 
 #ifndef MyAppVersion
   #define MyAppVersion "0.0.0"
 #endif
 
-#define MyAppName       "Appfit Order Agent"
+#ifdef Standalone
+  #define MyAppName        "Appfit Order Agent"
+  #define MyAppExeName     "appfit_order_agent_standalone.exe"
+  #define MyAppMutex       "Global\AppfitOrderAgentStandalone_SingleInstance_Mutex"
+  #define MyAppId          "{{E448C213-990C-AEED-03A8-6A695F9EED14}"
+  #define MyAppDirName     "AppfitOrderAgentStandalone"
+  #define MyOutputBaseName "AppfitOrderAgentStandalone-Setup-" + MyAppVersion
+#else
+  #define MyAppName        "Appfit Order Agent"
+  #define MyAppExeName     "appfit_order_agent.exe"
+  #define MyAppMutex       "Global\AppfitOrderAgent_SingleInstance_Mutex"
+  #define MyAppId          "{{8E19A1C4-AFDA-4061-B0FF-186FB71B1745}"
+  #define MyAppDirName     "AppfitOrderAgent"
+  #define MyOutputBaseName "AppfitOrderAgent-Setup-" + MyAppVersion
+#endif
+
 #define MyAppPublisher  "waldlust"
 #define MyAppURL        "http://waldpay.kokonutstamp2.com/"
-#define MyAppExeName    "appfit_order_agent.exe"
-#define MyAppMutex      "Global\AppfitOrderAgent_SingleInstance_Mutex"
-#define MyAppId         "{{8E19A1C4-AFDA-4061-B0FF-186FB71B1745}"
 
 [Setup]
 AppId={#MyAppId}
@@ -39,8 +57,8 @@ VersionInfoDescription={#MyAppName} Installer
 VersionInfoProductName={#MyAppName}
 
 ; === System-wide install ===
-DefaultDirName={autopf}\AppfitOrderAgent
-DefaultGroupName=Appfit Order Agent
+DefaultDirName={autopf}\{#MyAppDirName}
+DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 PrivilegesRequired=admin
 ArchitecturesAllowed=x64compatible
@@ -48,12 +66,16 @@ ArchitecturesInstallIn64BitMode=x64compatible
 
 ; === Output ===
 OutputDir=..\dist
-OutputBaseFilename=AppfitOrderAgent-Setup-{#MyAppVersion}
+OutputBaseFilename={#MyOutputBaseName}
 Compression=lzma2/ultra
 SolidCompression=yes
 
 ; === Wizard UI ===
+#ifdef Standalone
+SetupIconFile=..\windows\runner\resources\app_icon_standalone.ico
+#else
 SetupIconFile=..\windows\runner\resources\app_icon.ico
+#endif
 UninstallDisplayIcon={app}\{#MyAppExeName}
 UninstallDisplayName={#MyAppName}
 WizardStyle=modern

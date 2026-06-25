@@ -77,6 +77,16 @@ class WindowsLogFileWriter {
       if (dir == null) return;
       final fileName = '$_filePrefix${_today()}$_fileSuffix';
       final file = File('${dir.path}${Platform.pathSeparator}$fileName');
+      // 새 파일이면 UTF-8 BOM(EF BB BF)을 1회 기입해 외부 뷰어의 인코딩
+      // 오판(mojibake)을 방지한다. 동시 호출은 _writeQueue 체인으로 직렬화되어
+      // "exists 체크 -> BOM 기입"이 원자적이라 BOM 이중 기입이 발생하지 않는다.
+      if (!await file.exists()) {
+        await file.writeAsBytes(
+          const [0xEF, 0xBB, 0xBF],
+          mode: FileMode.append,
+          flush: true,
+        );
+      }
       final buf = StringBuffer();
       for (final line in logs) {
         buf

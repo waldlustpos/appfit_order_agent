@@ -6,7 +6,7 @@ part of 'rotation_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$rotationNotifierHash() => r'd1741c8dbbb44f8d599e904e276311d65340adc4';
+String _$rotationNotifierHash() => r'f5a56fac42c42b38c6bc0090c7a2150a559825d0';
 
 /// See also [RotationNotifier].
 @ProviderFor(RotationNotifier)

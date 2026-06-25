@@ -528,39 +528,51 @@ public class MainActivity extends FlutterActivity {
         return date;
     }
 
+    // Serializes log-file writes: the batch (fileIoExecutor) and label
+    // (labelPrintExecutor) threads must not race on the first BOM write.
+    private static final Object LOG_FILE_LOCK = new Object();
+
     private boolean appendLogToFileDirectIO(String text, String fileName) {
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !Environment.isExternalStorageManager()) {
-                Log.w("FileWriter", "DirectIO: MANAGE_EXTERNAL_STORAGE permission not granted on Android 11+");
-                return false;
-            }
-
-            File documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
-            if (documentsDir == null) {
-                Log.w("FileWriter", "DirectIO: DIRECTORY_DOCUMENTS is null");
-                return false;
-            }
-
-            File logDir = new File(documentsDir, "appfit");
-            if (!logDir.exists()) {
-                Log.d("FileWriter", "DirectIO: Attempting to create directory: " + logDir.getAbsolutePath());
-                if (!logDir.mkdirs()) {
-                    Log.w("FileWriter", "DirectIO: Failed to create directory (mkdirs returned false): " + logDir.getAbsolutePath());
+        synchronized (LOG_FILE_LOCK) {
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !Environment.isExternalStorageManager()) {
+                    Log.w("FileWriter", "DirectIO: MANAGE_EXTERNAL_STORAGE permission not granted on Android 11+");
                     return false;
                 }
-                Log.d("FileWriter", "DirectIO: Successfully created directory: " + logDir.getAbsolutePath());
-            }
 
-            File logFile = new File(logDir, fileName);
-            try (FileOutputStream fos = new FileOutputStream(logFile, true);
-                    OutputStreamWriter writer = new OutputStreamWriter(fos, StandardCharsets.UTF_8)) {
-                writer.append(text);
-                writer.flush();
+                File documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
+                if (documentsDir == null) {
+                    Log.w("FileWriter", "DirectIO: DIRECTORY_DOCUMENTS is null");
+                    return false;
+                }
+
+                File logDir = new File(documentsDir, "appfit");
+                if (!logDir.exists()) {
+                    Log.d("FileWriter", "DirectIO: Attempting to create directory: " + logDir.getAbsolutePath());
+                    if (!logDir.mkdirs()) {
+                        Log.w("FileWriter", "DirectIO: Failed to create directory (mkdirs returned false): " + logDir.getAbsolutePath());
+                        return false;
+                    }
+                    Log.d("FileWriter", "DirectIO: Successfully created directory: " + logDir.getAbsolutePath());
+                }
+
+                File logFile = new File(logDir, fileName);
+                // Write a UTF-8 BOM once on a brand-new file so external viewers
+                // detect the encoding correctly (prevents mojibake).
+                boolean needBom = logFile.length() == 0;
+                try (FileOutputStream fos = new FileOutputStream(logFile, true);
+                        OutputStreamWriter writer = new OutputStreamWriter(fos, StandardCharsets.UTF_8)) {
+                    if (needBom) {
+                        writer.write(0xFEFF);
+                    }
+                    writer.append(text);
+                    writer.flush();
+                }
+                return true;
+            } catch (Exception e) {
+                Log.w("FileWriter", "DirectIO failed with exception: " + e.getMessage(), e);
+                return false;
             }
-            return true;
-        } catch (Exception e) {
-            Log.w("FileWriter", "DirectIO failed with exception: " + e.getMessage(), e);
-            return false;
         }
     }
 
@@ -590,20 +602,27 @@ public class MainActivity extends FlutterActivity {
     }
 
     private void writeLogToAppFolder(String text, String fileName) {
-        try {
-            File logDir = getExternalFilesDir("logs");
-            if (logDir == null)
-                return;
-            if (!logDir.exists() && !logDir.mkdirs())
-                return;
-            File logFile = new File(logDir, fileName);
-            try (FileOutputStream fos = new FileOutputStream(logFile, true);
-                    OutputStreamWriter writer = new OutputStreamWriter(fos, StandardCharsets.UTF_8)) {
-                writer.append(text);
-                writer.flush();
+        synchronized (LOG_FILE_LOCK) {
+            try {
+                File logDir = getExternalFilesDir("logs");
+                if (logDir == null)
+                    return;
+                if (!logDir.exists() && !logDir.mkdirs())
+                    return;
+                File logFile = new File(logDir, fileName);
+                // Write a UTF-8 BOM once on a brand-new file (see appendLogToFileDirectIO).
+                boolean needBom = logFile.length() == 0;
+                try (FileOutputStream fos = new FileOutputStream(logFile, true);
+                        OutputStreamWriter writer = new OutputStreamWriter(fos, StandardCharsets.UTF_8)) {
+                    if (needBom) {
+                        writer.write(0xFEFF);
+                    }
+                    writer.append(text);
+                    writer.flush();
+                }
+            } catch (Exception e) {
+                Log.e("FileWriter", "App folder logging failed", e);
             }
-        } catch (Exception e) {
-            Log.e("FileWriter", "App folder logging failed", e);
         }
     }
 
@@ -1064,8 +1083,9 @@ public class MainActivity extends FlutterActivity {
     }
 
     public void appendLogToFile(String text) {
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault());
-        String timestampedText = sdf.format(new Date()) + " " + text + "\n";
+        // Match the batch path's prefix ([HH:MM:SS.SSS]); the date is already in the filename.
+        SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault());
+        String timestampedText = "[" + sdf.format(new Date()) + "] " + text + "\n";
         String date = getDate(System.currentTimeMillis());
         String fileName = "appfit_" + date + ".txt";
 

@@ -8,6 +8,7 @@ import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:appfit_order_agent/services/api_service.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
 import 'package:appfit_order_agent/models/membership_model.dart';
+import 'package:appfit_order_agent/utils/common_util.dart';
 import 'package:intl/intl.dart';
 import 'package:appfit_order_agent/utils/label_painter.dart';
 
@@ -613,9 +614,9 @@ ${orders.length > 5 ? '...외 ${orders.length - 5}개 더 있음' : ''}
         final buffer = StringBuffer();
         buffer.writeln('✅ 회원 프로필 조회 성공!');
         buffer.writeln('ID: ${membership.id}');
-        buffer.writeln('바코드: ${membership.barcode}');
+        buffer.writeln('바코드: ${CommonUtil.maskTail(membership.barcode)}');
         buffer.writeln('닉네임: ${membership.userName}');
-        buffer.writeln('전화번호: ${membership.phoneNumber}');
+        buffer.writeln('전화번호: ${CommonUtil.maskTail(membership.phoneNumber)}');
         buffer.writeln('포인트: ${membership.totalPoint}');
         buffer.writeln('쿠폰 수: ${membership.couponCount}');
         buffer.writeln('스탬프 수: ${membership.stampCount}');

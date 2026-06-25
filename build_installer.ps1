@@ -13,13 +13,39 @@
 #
 # This script is for the "initial install" installer only.
 # OTA (zip) publishing continues to use deploy_windows.ps1.
+#
+# Usage: .\build_installer.ps1 [-Variant update|standalone]
 ###############################################################################
+
+param(
+    [ValidateSet('update','standalone')]
+    [string]$Variant = 'update'
+)
 
 # Force UTF-8 console so that ISCC output is readable even if it contains
 # localized strings.
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $OutputEncoding = [System.Text.Encoding]::UTF8
 chcp 65001 > $null
+
+# === Variant selection ===
+# standalone makes CMake branch the exe name (BINARY_NAME) and compile macros.
+# The CMake cache freezes BINARY_NAME at configure time, so if the previous
+# build used a different variant, wipe build/windows to force a clean reconfigure.
+$VariantSentinel = "build\.appfit_windows_variant"
+$prevVariant = if (Test-Path $VariantSentinel) { (Get-Content $VariantSentinel -Raw).Trim() } else { "" }
+if ($prevVariant -ne $Variant -and (Test-Path "build\windows")) {
+    Write-Host "[INFO] Build variant changed ($prevVariant -> $Variant): cleaning build/windows"
+    Remove-Item "build\windows" -Recurse -Force
+}
+New-Item -ItemType Directory -Force -Path "build" | Out-Null
+Set-Content -Path $VariantSentinel -Value $Variant -NoNewline
+if ($Variant -eq 'standalone') {
+    $env:APPFIT_WINDOWS_VARIANT = 'standalone'
+} else {
+    Remove-Item Env:\APPFIT_WINDOWS_VARIANT -ErrorAction SilentlyContinue
+}
+Write-Host "[INFO] Installer variant: $Variant"
 
 # Path constants
 $BUILD_DIR      = "build\windows\x64"
@@ -63,7 +89,9 @@ if (-not $iscc) {
 
 Write-Host "[INFO] Using ISCC: $iscc"
 
-# 1) CMake install prefix check (mirrors deploy_windows.ps1)
+# 1) CMake configure check (mirrors deploy_windows.ps1: install prefix +
+#    generator platform). flutter build windows configures with -A x64, so a
+#    cache left without a platform (or a different one) makes the build fail.
 $needReconfigure = $false
 
 if (-not (Test-Path $CACHE_FILE)) {
@@ -79,12 +107,42 @@ if (-not (Test-Path $CACHE_FILE)) {
         Write-Host "[INFO] CMAKE_INSTALL_PREFIX mismatch ($currentPrefix) - reconfigure"
         $needReconfigure = $true
     }
+
+    # Generator platform mismatch: flutter builds with -A x64; a cache pinned to
+    # a different/empty platform makes 'flutter build windows' fail.
+    if (-not $needReconfigure) {
+        $platformLine = (Select-String -Path $CACHE_FILE -Pattern "^CMAKE_GENERATOR_PLATFORM:" -ErrorAction SilentlyContinue).Line
+        $currentPlatform = if ($platformLine) {
+            ($platformLine -replace "^CMAKE_GENERATOR_PLATFORM:[^=]*=", "").Trim()
+        } else { "" }
+        if ($currentPlatform -ne "x64") {
+            Write-Host "[INFO] CMAKE_GENERATOR_PLATFORM mismatch ('$currentPlatform' != 'x64') - reconfigure"
+            $needReconfigure = $true
+        }
+    }
 }
 
 if ($needReconfigure) {
-    Write-Host "==== cmake reconfigure (install prefix) ===="
+    Write-Host "==== cmake reconfigure (install prefix + x64 platform) ===="
+
+    # Ensure flutter ephemeral (generated_config.cmake) exists before cmake runs.
+    $ephemeralDir = Join-Path $WINDOWS_SRC "flutter\ephemeral"
+    $generatedConfig = Join-Path $ephemeralDir "generated_config.cmake"
+    if (-not (Test-Path $generatedConfig)) {
+        Write-Host "[INFO] Generating flutter ephemeral: flutter pub get + flutter build windows --config-only"
+        flutter pub get
+        if ($LASTEXITCODE -ne 0) { Write-Error "[ERROR] flutter pub get failed"; exit 1 }
+        flutter build windows --config-only
+        if ($LASTEXITCODE -ne 0) { Write-Error "[ERROR] flutter build windows --config-only failed"; exit 1 }
+    }
+
+    # Remove stale cmake artifacts so the platform/generator can change cleanly.
+    if (Test-Path $CACHE_FILE) { Remove-Item $CACHE_FILE -Force }
+    $cmakeFilesDir = Join-Path $BUILD_DIR "CMakeFiles"
+    if (Test-Path $cmakeFilesDir) { Remove-Item $cmakeFilesDir -Recurse -Force }
+
     New-Item -ItemType Directory -Force -Path $BUILD_DIR | Out-Null
-    & $cmake -S $WINDOWS_SRC -B $BUILD_DIR -DCMAKE_INSTALL_PREFIX="$INSTALL_PREFIX" -DCMAKE_BUILD_TYPE=Release 2>&1
+    & $cmake -S $WINDOWS_SRC -B $BUILD_DIR -A x64 -DCMAKE_INSTALL_PREFIX="$INSTALL_PREFIX" -DCMAKE_BUILD_TYPE=Release 2>&1
     if ($LASTEXITCODE -ne 0) { Write-Error "cmake reconfigure failed"; exit 1 }
     Write-Host "[OK] cmake reconfigure done"
 }
@@ -190,11 +248,17 @@ New-Item -ItemType Directory -Force -Path $DIST_DIR | Out-Null
 
 # 6) Compile installer via ISCC.exe
 Write-Host "==== 4) Compile installer with Inno Setup ===="
-& $iscc "/DMyAppVersion=$semver" $ISS_FILE
+$isccArgs = @("/DMyAppVersion=$semver")
+if ($Variant -eq 'standalone') { $isccArgs += "/DStandalone=1" }
+& $iscc @isccArgs $ISS_FILE
 if ($LASTEXITCODE -ne 0) { Write-Error "[ERROR] ISCC compile failed"; exit 1 }
 
 # 7) Verify installer artifact
-$installerPath = Join-Path $DIST_DIR "AppfitOrderAgent-Setup-$semver.exe"
+if ($Variant -eq 'standalone') {
+    $installerPath = Join-Path $DIST_DIR "AppfitOrderAgentStandalone-Setup-$semver.exe"
+} else {
+    $installerPath = Join-Path $DIST_DIR "AppfitOrderAgent-Setup-$semver.exe"
+}
 if (-not (Test-Path $installerPath)) {
     Write-Error "[ERROR] Installer not produced: $installerPath"
     exit 1

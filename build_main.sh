@@ -1,12 +1,26 @@
 #!/bin/bash
 
+# 배포 변형 선택: update(기본, 구앱 덮어쓰기) | standalone(구앱과 병존 설치)
+FLAVOR="${1:-update}"
+if [ "$FLAVOR" != "update" ] && [ "$FLAVOR" != "standalone" ]; then
+    echo "사용법: ./build_main.sh [update|standalone]  (기본: update)"
+    exit 1
+fi
+
 # 프로젝트 정보 추출
 PROJECT_NAME=$(grep "^name:" pubspec.yaml | cut -d' ' -f2 | tr -d '"' | tr -d "'")
 VERSION=$(grep "^version:" pubspec.yaml | cut -d' ' -f2 | tr -d '"' | tr -d "'")
 BUILD_DATE=$(date +%Y%m%d)
 
+if [ "$FLAVOR" = "standalone" ]; then
+    APP_ID="co.kr.waldlust.order.receive.appfit"
+else
+    APP_ID="co.kr.waldlust.order.receive"
+fi
+
 echo "=== Appfit 주문 접수 앱 빌드 시작 ==="
-echo "패키지명: co.kr.waldlust.order.receive"
+echo "변형: $FLAVOR"
+echo "패키지명: $APP_ID"
 echo "앱 이름: $PROJECT_NAME"
 echo "버전: $VERSION"
 echo "빌드 날짜: $BUILD_DATE"
@@ -20,13 +34,13 @@ flutter clean
 echo "2. Flutter pub get 실행 중..."
 flutter pub get
 
-# Android 빌드 (flavor 제거, 환경 변수 주입 추가)
-echo "3. Android APK 빌드 중..."
-flutter build apk --release --dart-define-from-file=.env
+# Android 빌드 (변형별 flavor 빌드)
+echo "3. Android APK 빌드 중... (flavor: $FLAVOR)"
+flutter build apk --release --flavor "$FLAVOR" --dart-define-from-file=.env
 
 # 빌드 결과 파일명 변경
-ORIGINAL_APK="build/app/outputs/flutter-apk/app-release.apk"
-NEW_APK_NAME="${PROJECT_NAME}_v${VERSION}_${BUILD_DATE}.apk"
+ORIGINAL_APK="build/app/outputs/flutter-apk/app-${FLAVOR}-release.apk"
+NEW_APK_NAME="${PROJECT_NAME}_${FLAVOR}_v${VERSION}_${BUILD_DATE}.apk"
 NEW_APK_PATH="build/app/outputs/flutter-apk/${NEW_APK_NAME}"
 
 if [ -f "$ORIGINAL_APK" ]; then

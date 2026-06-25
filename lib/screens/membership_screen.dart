@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:appfit_order_agent/widgets/common/app_loading_indicator.dart';
@@ -5,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
 import 'package:appfit_order_agent/models/membership_model.dart';
+import 'package:appfit_order_agent/utils/common_util.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:appfit_order_agent/widgets/common/common_dialog.dart';
 import 'package:appfit_order_agent/i18n/strings.g.dart';
@@ -52,7 +55,7 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
         final String scanResult = call.arguments as String;
         logToFile(
           tag: LogTag.UI_ACTION,
-          message: '바코드 스캔 결과: $scanResult',
+          message: '바코드 스캔 결과: ${CommonUtil.maskTail(scanResult)}',
         );
         // 자동 라우팅하지 않는다. 스캔 결과를 입력란에 채우고, 사용자가
         // [회원조회]/[쿠폰사용] 버튼으로 명시 조작한다.
@@ -308,7 +311,7 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
 
         return TextField(
           style: AppTextStyles.title,
-          textAlign: TextAlign.center,
+          textAlign: TextAlign.start,
           textAlignVertical: TextAlignVertical.center,
           controller: _inputController,
           focusNode: _inputFocusNode,
@@ -324,7 +327,7 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
               isCustomerSearched ? TextInputType.number : TextInputType.none,
           decoration: AppStyles.outlinedInputDecoration(
             hintText: hintText,
-            hintStyle: AppTextStyles.title.copyWith(color: AppStyles.gray6),
+            hintStyle: AppTextStyles.body.copyWith(color: AppStyles.gray6),
           ).copyWith(
             contentPadding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.s12,
@@ -377,8 +380,11 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
             // 회원 미조회 상태: 자동 판정 없이 [회원조회]/[쿠폰사용] 을 모두 노출하고
             // 입력이 있으면 둘 다 활성화한다(사용자가 명시 선택). Sunmi 내장 스캐너가
             // 있으면 위에 [바코드 스캔] 트리거를 둔다.
+            // 바코드 스캔 버튼 노출: Android Sunmi 내장 스캐너 또는 Windows 토스프런트(waldpos).
             final hasScanner =
-                ref.watch(hasBuiltinScannerProvider).valueOrNull ?? false;
+                (ref.watch(hasBuiltinScannerProvider).valueOrNull ?? false) ||
+                    ref.watch(waldposScanAvailableProvider);
+            final isScanning = ref.watch(waldposScanProvider).isScanning;
             final actionEnabled = !isLoading && hasInput;
 
             return Column(
@@ -387,7 +393,7 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
                 if (hasScanner) ...[
                   SizedBox(
                     width: double.infinity,
-                    child: _scanTriggerButton(enabled: !isLoading),
+                    child: _scanTriggerButton(enabled: !isLoading && !isScanning),
                   ),
                   const SizedBox(height: AppSpacing.s8),
                 ],
@@ -723,7 +729,7 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
     logToFile(
         tag: LogTag.API,
         message:
-            'Search membership. Input: *******${phoneNumber.substring(phoneNumber.length - 4, phoneNumber.length)}');
+            'Search membership. Input: ${CommonUtil.maskTail(phoneNumber)}');
     if (phoneNumber.isEmpty) {
       showDialog(
         context: context,
@@ -747,6 +753,11 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
 
   void _scanBarcode() async {
     logToFile(tag: LogTag.UI_ACTION, message: '바코드 스캔 버튼 터치');
+    // Windows: 토스프런트(waldpos_agent) 스캔 경로. Android 는 기존 Sunmi 경로 유지.
+    if (Platform.isWindows) {
+      await _scanWaldpos();
+      return;
+    }
     try {
       await platform.invokeMethod('startQRScan');
     } catch (e) {
@@ -759,6 +770,30 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
         logToFile(tag: LogTag.ERROR, message: '바코드 스캔 오류: $e');
       }
     }
+  }
+
+  /// Windows 토스프런트 스캔: waldpos_agent 로 바코드를 요청하고, 성공 시 입력란에
+  /// 채운다(_fillInput). 사용자가 [회원조회]/[쿠폰사용] 버튼으로 명시 조작한다.
+  /// UI 는 provider 만 경유한다.
+  Future<void> _scanWaldpos() async {
+    final result =
+        await ref.read(waldposScanProvider.notifier).requestBarcode();
+    if (!mounted) return;
+    if (result.success && result.barcode.isNotEmpty) {
+      // 회원바코드는 뒤 4자리만 노출하여 마스킹(쿠폰번호는 정책상 원문 유지).
+      logToFile(
+          tag: LogTag.UI_ACTION,
+          message: 'waldpos 스캔 결과: ${CommonUtil.maskTail(result.barcode)}');
+      _fillInput(result.barcode);
+      return;
+    }
+    CommonDialog.showInfoDialog(
+      context: context,
+      title: t.membership.dialog.notification,
+      content: result.message.isNotEmpty
+          ? result.message
+          : t.membership.dialog.scanner_not_supported,
+    );
   }
 
   // ─── 쿠폰 처리 ────────────────────────────────────────────────────────────

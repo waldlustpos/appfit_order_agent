@@ -27,7 +27,7 @@ final currencySymbolProvider = Provider<String>.internal(
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef CurrencySymbolRef = ProviderRef<String>;
-String _$currencyNotifierHash() => r'597207ac739b93be4febee351864a57f6aeef791';
+String _$currencyNotifierHash() => r'2c9ade2a89207875cc7f0b29b838cd11b7aea206';
 
 /// See also [CurrencyNotifier].
 @ProviderFor(CurrencyNotifier)

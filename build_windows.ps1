@@ -1,5 +1,10 @@
 ﻿# 윈도우 릴리스 빌드 스크립트 (PowerShell)
-# 사용법: .\build_windows.ps1
+# 사용법: .\build_windows.ps1 [-Variant update|standalone]
+
+param(
+    [ValidateSet('update','standalone')]
+    [string]$Variant = 'update'
+)
 
 # 콘솔/파이프라인 인코딩 UTF-8 고정 (한글 출력 깨짐 방지)
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
@@ -7,6 +12,27 @@ $OutputEncoding = [System.Text.Encoding]::UTF8
 chcp 65001 > $null
 
 $ErrorActionPreference = "Stop"
+
+# === Build variant selection ===
+# standalone makes CMake branch the exe name (BINARY_NAME) and compile macros.
+# CMake freezes BINARY_NAME at configure time, so if the previous build used a
+# different variant, wipe build/windows to force a clean reconfigure.
+$VariantSentinel = "build\.appfit_windows_variant"
+$prevVariant = if (Test-Path $VariantSentinel) { (Get-Content $VariantSentinel -Raw).Trim() } else { "" }
+if ($prevVariant -ne $Variant -and (Test-Path "build\windows")) {
+    Write-Host "[INFO] Build variant changed ($prevVariant -> $Variant): cleaning build/windows" -ForegroundColor Yellow
+    Remove-Item "build\windows" -Recurse -Force
+}
+New-Item -ItemType Directory -Force -Path "build" | Out-Null
+Set-Content -Path $VariantSentinel -Value $Variant -NoNewline
+if ($Variant -eq 'standalone') {
+    $env:APPFIT_WINDOWS_VARIANT = 'standalone'
+    $ExeName = 'appfit_order_agent_standalone.exe'
+} else {
+    Remove-Item Env:\APPFIT_WINDOWS_VARIANT -ErrorAction SilentlyContinue
+    $ExeName = 'appfit_order_agent.exe'
+}
+Write-Host "[INFO] Build variant: $Variant (exe: $ExeName)" -ForegroundColor Cyan
 
 Write-Host "🚀 Windows Release 빌드 시작..." -ForegroundColor Green
 Write-Host ""
@@ -135,7 +161,7 @@ $fullPath = (Get-Item $buildOutput).FullName
 Start-Process -FilePath explorer.exe -ArgumentList "`"$fullPath`"" -ErrorAction SilentlyContinue
 
 Write-Host "💡 배포 시 포함되어야 할 파일:" -ForegroundColor Yellow
-Write-Host "   - appfit_order_agent.exe (메인 실행파일)"
+Write-Host "   - $ExeName (메인 실행파일)"
 Write-Host "   - vcruntime140.dll, vcruntime140_1.dll, msvcp140.dll (VC++ 런타임)"
 Write-Host "   - flutter_windows.dll, *_plugin.dll (Flutter/플러그인)"
 Write-Host "   - data\ 폴더 (flutter_assets, icudtl.dat, app.so)"
