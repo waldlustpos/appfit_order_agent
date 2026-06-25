@@ -141,5 +141,7 @@ sentry.properties
 # ----------------------------------------------------------------------------
 appfit_order_agent_windows.zip
 appfit_order_agent_windows_version.json
+appfit_order_agent_standalone_windows.zip
+appfit_order_agent_standalone_windows_version.json
 .sentry-native/
 dist/
