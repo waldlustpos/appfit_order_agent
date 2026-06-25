@@ -103,20 +103,11 @@ appfit_legacy_backup/
 external/
 # docs 는 화이트리스트 방식: 디렉토리 자체(docs/)를 제외하면 git 이 하위
 # 재포함(!)을 무시하므로 docs/* 패턴이어야 negation 이 동작한다.
+# 모든 .md 문서는 자동 추적 — 새 문서를 추가해도 화이트리스트 갱신이 필요 없다.
+# docs 직하의 비-markdown 산출물(이미지·PDF·임시파일 등)만 무시 상태로 남는다.
+# (서브디렉토리 docs/<dir>/ 는 이 패턴에 안 잡히므로, 그때는 별도 negation 추가)
 docs/*
-!docs/FLUTTER_GUIDELINES.md
-!docs/ARCHITECTURE.md
-!docs/BUILD.md
-!docs/WINDOWS_LABEL_PRINTER_GUIDE.md
-!docs/BRAND_ASSETS.md
-!docs/FEATURES.md
-!docs/REFACTORING.md
-!docs/TESTING.md
-!docs/ORDER_FLOW.md
-!docs/PRINTER_FLOW.md
-!docs/AUTH_FLOW.md
-!docs/BRAND_I18N_FLOW.md
-!docs/BUILD_VARIANTS.md
+!docs/*.md
 
 # AppFit Generated
 lib/services/appfit/*.g.dart
