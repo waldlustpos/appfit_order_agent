@@ -108,19 +108,25 @@ class OrderMenuListWidget extends StatelessWidget {
                             ),
                             child: Row(
                               children: [
-                                const Icon(
-                                  Icons.subdirectory_arrow_right,
-                                  size: 14,
-                                  color: AppStyles.gray6,
-                                ),
-                                const SizedBox(width: AppSpacing.s4),
                                 Expanded(
                                   flex: 5,
-                                  child: Text(
-                                    option.optionName,
-                                    style: AppTextStyles.bodySm.copyWith(
-                                      color: AppStyles.gray6,
-                                    ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.subdirectory_arrow_right,
+                                        size: 14,
+                                        color: AppStyles.gray6,
+                                      ),
+                                      const SizedBox(width: AppSpacing.s4),
+                                      Expanded(
+                                        child: Text(
+                                          option.optionName,
+                                          style: AppTextStyles.bodySm.copyWith(
+                                            color: AppStyles.gray6,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                                 Expanded(

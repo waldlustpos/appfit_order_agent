@@ -300,6 +300,7 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Expanded(
+                flex: 3,
                 child: OrderMenuListWidget(
                   menus: order.orderMenuList,
                   scrollController: _menuScrollController,
@@ -309,6 +310,7 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
               ),
               const SizedBox(width: AppSpacing.s16),
               Expanded(
+                flex: 2,
                 child: OrderPaymentInfoWidget(
                   totalAmount: order.totalAmount,
                   discountAmount: order.discountAmount,
@@ -317,8 +319,8 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
                 ),
               ),
               const SizedBox(width: AppSpacing.s16),
-              SizedBox(
-                width: 260,
+              Expanded(
+                flex: 2,
                 child: OrderInfoPanelWidget(order: order),
               ),
             ],
