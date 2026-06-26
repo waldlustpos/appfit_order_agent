@@ -419,10 +419,46 @@ class _HomeAppBarWidgetState extends ConsumerState<HomeAppBarWidget> {
     );
   }
 
+  // 현재 접속 서버 인디케이터 — dev/staging 등 비-운영 환경에서만 노출.
+  // live / japanLive 운영 환경에서는 빈 위젯을 반환해 표시하지 않는다.
+  Widget _buildServerIndicator() {
+    final env = appfit_core.AppFitConfig.environment;
+    if (env == appfit_core.AppFitEnvironment.live ||
+        env == appfit_core.AppFitEnvironment.japanLive) {
+      return const SizedBox.shrink();
+    }
+
+    final label = switch (env) {
+      appfit_core.AppFitEnvironment.dev => 'DEV',
+      appfit_core.AppFitEnvironment.staging => 'STAGING',
+      _ => env.name.toUpperCase(),
+    };
+
+    return Container(
+      margin: const EdgeInsets.only(right: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: AppStyles.kAmber,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
+  }
+
   Widget _buildRightActions(
       bool isKdsMode, appfit_core.ConnectionStatus socketStatus) {
     return Row(
       children: [
+        // 현재 접속 서버 표시 (live / japanLive 운영 환경 제외)
+        _buildServerIndicator(),
         // 서브디스플레이 모드가 아닐 때만 오더 토글 스위치 표시
         Consumer(
           builder: (context, ref, _) {
