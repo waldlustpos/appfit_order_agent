@@ -20,7 +20,6 @@ import 'package:appfit_order_agent/dev/socket_burst_test.dart'
     as test_util; // [TEST]
 import 'package:appfit_order_agent/i18n/strings.g.dart';
 import 'package:appfit_order_agent/providers/locale_provider.dart';
-import 'package:appfit_order_agent/services/appfit/appfit_providers.dart';
 import 'package:appfit_core/appfit_core.dart' as appfit_core;
 
 // === New StatefulWidget for Time Display ===
