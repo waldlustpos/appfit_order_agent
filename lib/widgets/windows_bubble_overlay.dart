@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:appfit_order_agent/config/app_env.dart';
 import 'package:appfit_order_agent/services/windows_bubble_service.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -9,8 +10,17 @@ import 'package:window_manager/window_manager.dart';
 /// 이식한 `assets/images/bubble_on.svg` / `bubble_off.svg`를 500ms 주기로
 /// 교대 렌더링한다. 드래그는 [windowManager.startDragging], 클릭은
 /// [WindowsBubbleService.exitBubbleMode]로 매핑된다.
+///
+/// standalone 변형에서는 "주문 있음"(on) 배경을 런처 아이콘과 동일한 대각선
+/// 그라데이션(`bubble_on_standalone.svg`)으로 통일한다. off 상태는 깜빡임
+/// 대비를 위해 두 변형 모두 흰색을 공용한다.
 class WindowsBubbleOverlay extends StatelessWidget {
   const WindowsBubbleOverlay({super.key});
+
+  /// "주문 있음"(on) 상태 버블 SVG 경로. standalone 은 그라데이션 배경.
+  static const String _onAsset = AppEnv.isStandalone
+      ? 'assets/images/bubble_on_standalone.svg'
+      : 'assets/images/bubble_on.svg';
 
   @override
   Widget build(BuildContext context) {
@@ -33,9 +43,7 @@ class WindowsBubbleOverlay extends StatelessWidget {
                 onTap: () => WindowsBubbleService.instance.exitBubbleMode(),
                 onPanStart: (_) => windowManager.startDragging(),
                 child: SvgPicture.asset(
-                  on
-                      ? 'assets/images/bubble_on.svg'
-                      : 'assets/images/bubble_off.svg',
+                  on ? _onAsset : 'assets/images/bubble_off.svg',
                   width: 80,
                   height: 80,
                   fit: BoxFit.contain,
