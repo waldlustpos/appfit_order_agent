@@ -18,9 +18,13 @@
 SRC_APK="$1"
 FLAVOR="${2:-update}"
 
-# 공용 보관소 베이스. 경로의 '!' 는 비대화형 bash 에서 history expansion 이
-# 꺼져 있고 큰따옴표 변수로만 전개하므로 안전하다.
-ARCHIVE_BASE="/Users/kimsungchun/Documents/!Project Files"
+# 공용 보관소 베이스. archive_windows.ps1 과 동일하게 홈 디렉터리에서 동적으로
+# 구해 머신/OS 에 무관하게 동작한다 (macOS: /Users/<user>, Windows Git Bash:
+# /c/Users/<user>). ARCHIVE_BASE 환경변수로 재정의 가능.
+# 경로의 '!' 는 비대화형 bash 에서 history expansion 이 꺼져 있고 큰따옴표
+# 변수로만 전개하므로 안전하다.
+HOME_DIR="${HOME:-${USERPROFILE:-}}"
+ARCHIVE_BASE="${ARCHIVE_BASE:-${HOME_DIR}/Documents/!Project Files}"
 
 # pubspec.yaml 에서 프로젝트명/버전 추출 (build_main.sh 와 동일한 추출식)
 PROJECT_NAME=$(grep "^name:" pubspec.yaml | cut -d' ' -f2 | tr -d '"' | tr -d "'")
@@ -75,5 +79,16 @@ echo "✅ 아카이브 완료: $ARCHIVE_DIR"
 echo "   - APK: $(basename "$SRC_APK")"
 echo "   - 노트: $(basename "$NOTES_FILE")"
 
-# 보관한 버전 폴더 열기 (macOS Finder)
-open "$ARCHIVE_DIR" 2>/dev/null || true
+# 보관한 버전 폴더 열기 (OS 별 분기: Windows 탐색기 / macOS Finder / Linux)
+if command -v explorer.exe >/dev/null 2>&1; then
+  # Git Bash 경로(/c/...) 를 Windows 경로로 변환해 탐색기로 연다
+  if command -v cygpath >/dev/null 2>&1; then
+    explorer.exe "$(cygpath -w "$ARCHIVE_DIR")" 2>/dev/null || true
+  else
+    explorer.exe "$ARCHIVE_DIR" 2>/dev/null || true
+  fi
+elif command -v open >/dev/null 2>&1; then
+  open "$ARCHIVE_DIR" 2>/dev/null || true
+elif command -v xdg-open >/dev/null 2>&1; then
+  xdg-open "$ARCHIVE_DIR" 2>/dev/null || true
+fi
