@@ -280,3 +280,7 @@ Write-Host "       scp -i ~/.ssh/LightsailDefaultKey-ap-northeast-3.pem $install
 # Open Explorer with the new installer pre-selected.
 $absInstallerPath = (Resolve-Path $installerPath).Path
 Start-Process "explorer.exe" -ArgumentList "/select,`"$absInstallerPath`""
+
+# 로컬 아카이브 보관 (설치본 .exe 를 버전별 보관 + 노트 기록)
+Write-Host ""
+& "$PSScriptRoot\archive_windows.ps1" -SrcArtifact $installerPath -Variant $Variant

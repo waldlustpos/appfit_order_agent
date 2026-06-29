@@ -60,6 +60,7 @@ git log --oneline -3
 ## 실행 후
 
 - 변형별로 업로드된 APK 파일명·버전 JSON(`version=<빌드번호>`)·OTA URL을 요약
+- 배포 성공분은 `deploy_apk.sh` 가 **자동 아카이브**(`archive_apk.sh`)한다 — `!Project Files/appfit_order_agent/apk/<버전>/` 에 APK + `release_notes_<변형>.txt` 보관 후 폴더가 열린다
 - 오류 발생 시 원인 분석 후 수정 방법 제안
   - `.env` 누락(APPFIT_AES_KEY) 시 환경 변수 안내
 - 사용자가 yes 외 다른 입력을 하면 배포를 취소하고 종료한다

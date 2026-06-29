@@ -274,6 +274,10 @@ if ($LASTEXITCODE -ne 0) {
 Remove-Item "windows_version.json" -Force
 Write-Host "[INFO] version JSON 업로드 완료: version = $buildNumber"
 
+# 6) 로컬 아카이브 보관 + 노트 기록 + 폴더 열기 (배포 성공분만 보관)
+Write-Host "==== 6) Archive Windows ZIP to local Project Files ===="
+& "$PSScriptRoot\archive_windows.ps1" -SrcArtifact $ZIP_NAME -Variant $Variant
+
 Write-Host "###############################################################################"
 Write-Host "[완료] Windows 배포 완료!"
 Write-Host "서버 경로: ${REMOTE_HOST}:${REMOTE_DIR}/${ZIP_NAME}"

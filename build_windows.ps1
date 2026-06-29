@@ -168,3 +168,7 @@ Write-Host "   - flutter_windows.dll, *_plugin.dll (Flutter/플러그인)"
 Write-Host "   - data\ 폴더 (flutter_assets, icudtl.dat, app.so)"
 Write-Host ""
 Write-Host "ℹ️  Release 폴더 전체를 ZIP 으로 압축해 배포하면 됩니다." -ForegroundColor Cyan
+
+# --- 로컬 아카이브 보관 (Release 폴더를 ZIP 으로 압축해 버전별 보관 + 노트 기록 + 폴더 열기) ---
+Write-Host ""
+& "$PSScriptRoot\archive_windows.ps1" -SrcArtifact $buildOutput -Variant $Variant

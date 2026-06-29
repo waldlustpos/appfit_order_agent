@@ -23,5 +23,6 @@ Bash 툴로 실행:
 
 ## 3단계: 결과 보고
 - 빌드 성공 시 생성된 APK 경로와 파일 크기를 출력
+- 빌드 성공분은 `build_main.sh` 가 **자동 아카이브**(`archive_apk.sh`)한다 — `!Project Files/appfit_order_agent/apk/<버전>/` 에 APK + `release_notes_<변형>.txt` 보관 후 폴더가 열린다
 - 빌드 실패 시 오류 메시지를 분석하고 원인과 수정 방법을 제안
 - `.env` 파일이 없어서 실패한 경우 필요한 환경 변수 목록(APPFIT_AES_KEY, SENTRY_DSN)을 안내한다
