@@ -633,6 +633,30 @@ public class MainActivity extends FlutterActivity {
         startActivity(intent);
     }
 
+    // Resolve the directory where log files actually live, mirroring the
+    // selection used by appendLogsToFile(): prefer the public Documents/appfit
+    // directory (requires MANAGE_EXTERNAL_STORAGE on API 30+), fall back to the
+    // app-private external files dir. Returns an absolute path, or null.
+    public String getLogDirPath() {
+        try {
+            boolean canUsePublic = Build.VERSION.SDK_INT < Build.VERSION_CODES.R
+                    || Environment.isExternalStorageManager();
+            if (canUsePublic) {
+                File documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
+                if (documentsDir != null) {
+                    File logDir = new File(documentsDir, "appfit");
+                    if (logDir.exists() || logDir.mkdirs()) {
+                        return logDir.getAbsolutePath();
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Log.w("FileWriter", "getLogDirPath public dir failed: " + e.getMessage());
+        }
+        File fallback = getExternalFilesDir("logs");
+        return fallback != null ? fallback.getAbsolutePath() : null;
+    }
+
     public boolean isSunmiDevice() {
         return Build.MANUFACTURER.startsWith("SUNMI");
     }

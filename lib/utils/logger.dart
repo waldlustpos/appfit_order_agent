@@ -3,6 +3,11 @@ import 'dart:convert'; // JsonEncoder 사용 위해 추가
 import 'dart:developer' as developer;
 import 'package:logger/logger.dart';
 import 'package:appfit_order_agent/services/platform_service.dart'; // PlatformService import
+import 'package:appfit_order_agent/services/windows_log_file_writer.dart';
+
+/// 파일 기록 버퍼를 보유한 전역 출력 인스턴스.
+/// flush 강제(로그 수집 직전)를 위해 참조를 보관한다.
+final CustomLogOutput _customLogOutput = CustomLogOutput();
 
 /// 전역으로 사용할 Logger 인스턴스
 final logger = Logger(
@@ -13,8 +18,14 @@ final logger = Logger(
   filter: ProductionFilter(),
   // PrettyPrinter 대신 CustomLogPrinter와 CustomLogOutput 사용
   printer: CustomLogPrinter(), // 프린터는 포맷팅 담당
-  output: CustomLogOutput(), // 출력은 콘솔 및 파일 로깅 담당
+  output: _customLogOutput, // 출력은 콘솔 및 파일 로깅 담당
 );
+
+/// 버퍼에 쌓인 로그를 즉시 파일로 flush 하고 기록 완료까지 대기한다.
+///
+/// 파일 기록은 버퍼(30개/2초)를 거치므로, 로그 수집(zip) 직전에 호출해야
+/// 트리거 직전까지의 최신 로그가 디스크에 반영된다.
+Future<void> flushLogBuffer() => _customLogOutput.flushNow();
 
 /// 로그 포맷팅을 담당하는 프린터 (PrettyPrinter 기능 일부 또는 단순화)
 class CustomLogPrinter extends LogPrinter {
@@ -157,6 +168,26 @@ class CustomLogOutput extends LogOutput {
 
     // 네이티브 배치 로깅 호출 (비동기로 실행하여 UI 블로킹 방지)
     PlatformService.logBatchToFile(logsToSend);
+  }
+
+  /// 버퍼를 즉시 비우고 파일 기록 완료까지 대기한다.
+  ///
+  /// 일반 [_flush] 는 fire-and-forget 이라 직후 파일을 읽으면 누락될 수 있다.
+  /// 로그 zip 직전에 이 메서드를 await 해 최신 로그가 디스크에 반영되도록 한다.
+  /// - Android: `logBatchToFile` invokeMethod 가 native 완료까지 await(단일 스레드
+  ///   executor FIFO 라 직전 fire-and-forget 쓰기도 함께 완료됨).
+  /// - Windows: `flushPending()` 으로 `_writeQueue` 체인을 drain.
+  Future<void> flushNow() async {
+    _flushTimer?.cancel();
+    _flushTimer = null;
+
+    if (_buffer.isNotEmpty) {
+      final logsToSend = List<String>.from(_buffer);
+      _buffer.clear();
+      await PlatformService.logBatchToFile(logsToSend);
+    }
+    // Windows: 직전 timer flush 가 큐에 넣은 쓰기까지 완료 대기. (Android 는 noop)
+    await WindowsLogFileWriter.flushPending();
   }
 
   // developer.log 레벨 변환 함수

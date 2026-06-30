@@ -317,6 +317,34 @@ class PlatformService {
     }
   }
 
+  /// 로그 파일(`appfit_YYYY-MM-DD.txt`)이 실제 저장된 디렉터리의 절대경로.
+  ///
+  /// Android: 네이티브가 `appendLogsToFile` 과 동일한 선택(공개 `Documents/appfit`
+  /// 우선 → `getExternalFilesDir("logs")` fallback)으로 단일 경로를 반환한다.
+  /// `path_provider` 로는 공개 Documents 경로를 얻을 수 없으므로 네이티브 정본 사용.
+  /// Windows: noop 채널이 null 을 반환하므로 호출 측이 [WindowsLogFileWriter] 사용.
+  static Future<String?> getLogDirPath() async {
+    try {
+      return await platform.invokeMethod<String>('getLogDirPath');
+    } catch (e, s) {
+      logger.w('[PlatformService] getLogDirPath 실패', error: e, stackTrace: s);
+      return null;
+    }
+  }
+
+  /// 기기 고유 시리얼(Sunmi 단말 한정, 예: `DE33256H10784`).
+  ///
+  /// 비-Sunmi 단말이거나 프린터 서비스 미바인딩 시 null. Windows 는 noop 채널이
+  /// null 을 반환한다. 호출 측은 null 일 때 deviceId/installId 로 fallback 한다.
+  static Future<String?> getDeviceSerial() async {
+    try {
+      return await platform.invokeMethod<String>('getDeviceSerial');
+    } catch (e, s) {
+      logger.w('[PlatformService] getDeviceSerial 실패', error: e, stackTrace: s);
+      return null;
+    }
+  }
+
   // Android SDK 버전 가져오기
   static Future<int> getAndroidSdkVersion() async {
     try {

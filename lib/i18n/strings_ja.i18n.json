@@ -245,6 +245,23 @@
             "check_failed": "バージョン確認に失敗しました",
             "update_btn": "更新",
             "check_btn": "バージョン確認"
+        },
+        "log_collection": {
+            "section_title": "ログ送信",
+            "section_desc": "選択した期間のログを圧縮して Slack に送信します。",
+            "store_label": "店舗",
+            "device_label": "端末",
+            "range_today": "今日",
+            "range_7days": "直近7日",
+            "range_30days": "直近30日",
+            "send_btn": "ログ送信",
+            "stage_flushing": "ログ整理中...",
+            "stage_collecting": "ログ収集中...",
+            "stage_zipping": "圧縮中...",
+            "stage_uploading": "アップロード中...",
+            "success": "送信完了 ({count}件, {size})",
+            "failed": "送信失敗: {error}",
+            "not_configured": "Slack 送信設定がありません。ビルド設定を確認してください。"
         }
     },
     "home": {

@@ -148,6 +148,19 @@ class OrderSocketManager {
         return;
       }
 
+      // 1.5 기기 원격 명령(DeviceCommand) 가로채기 — 주문 dispatcher 진입 전.
+      //     관재/원격관리 명령(LOG_UPLOAD_REQUESTED 등)은 orderId 가 없어 주문
+      //     dispatcher 에 넣으면 invalidPayload 로 떨어지므로 별도 경로로 처리한다.
+      if (appfit_core.DeviceCommandPayload.isDeviceCommand(data)) {
+        final cmd = appfit_core.DeviceCommandPayload.fromSocketMessage(data);
+        if (cmd.isKnownCommand) {
+          ref.read(remoteCommandHandlerProvider).handle(cmd);
+        } else {
+          logger.d('[DeviceCommand] 미지원 명령: ${cmd.commandRaw}');
+        }
+        return; // 주문 파이프라인 무영향
+      }
+
       // 2. dispatcher classify — 파싱·페이로드·shopCode·정책 단일 진입점.
       final dispatcher = appfit_core.SocketEventDispatcher(
         resolveStoreId: () => ref.read(preferenceServiceProvider).getId(),

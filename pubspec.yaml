@@ -104,6 +104,16 @@ dependencies:
   ffi: ^2.1.0
   serial_port_win32: ^1.2.8
   android_intent_plus: ^6.0.0
+
+# 임시(로컬 개발 전용): appfit_core v1.1.0(DeviceCommand 이벤트) 미발행 상태에서
+# 앱이 로컬 변경분을 컴파일/테스트하도록 path override.
+# !!! 릴리즈 절차 !!! appfit_core 에서 `bash tool/release.sh` 로 v1.1.0 태그 발행 후,
+#   1) 이 dependency_overrides 블록 제거
+#   2) 위 dependencies 의 appfit_core ref 를 v1.0.15 -> v1.1.0 으로 변경
+#   3) flutter pub get
+dependency_overrides:
+  appfit_core:
+    path: ../appifit_agent_core/appfit_core
 dev_dependencies:
   sentry_dart_plugin: ^3.2.1
   flutter_test:

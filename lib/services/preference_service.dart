@@ -13,6 +13,8 @@ import 'dart:convert';
 
 import 'package:appfit_order_agent/services/migration/v2_migration_service.dart';
 
+import 'dart:math';
+
 class PreferenceService {
   static const String PREFERENCES_NAME = "KOKONUT_AGENT";
   static const methodChannel =
@@ -42,6 +44,10 @@ class PreferenceService {
   static const String KEY_SOUNDGRAPH_MARKETID = "KEY_SOUNDGRAPH_MARKETID";
   static const String KEY_IS_DEV = "IS_DEV";
   static const String KEY_ENVIRONMENT = 'appfit_environment';
+
+  // 관재(원격관리) 기기 식별 키
+  static const String KEY_INSTALL_ID = "KOKONUT_INSTALL_ID";
+  static const String KEY_DEVICE_SERIAL = "KOKONUT_DEVICE_SERIAL";
 
   // New Printer Setting Keys
   static const String KEY_USE_BUILTIN_PRINTER = "KOKONUT_USE_BUILTIN_PRINTER";
@@ -492,6 +498,24 @@ class PreferenceService {
   String? getStoreId() => _prefs.getString(KEY_STORE_ID);
   String? getStoreName() => _prefs.getString(KEY_STORE_NAME);
   String? getRewardType() => _prefs.getString(KEY_REWARD_TYPE);
+
+  /// 설치 단위 고유 ID. 없으면 생성·영속 후 반환(이후 항상 동일 값).
+  /// Sunmi 시리얼/Windows deviceId 를 얻지 못하는 단말의 fallback 식별자.
+  Future<String> getOrCreateInstallId() async {
+    final existing = _prefs.getString(KEY_INSTALL_ID);
+    if (existing != null && existing.isNotEmpty) return existing;
+    final rnd = Random.secure();
+    final bytes = List<int>.generate(16, (_) => rnd.nextInt(256));
+    final id = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    await _prefs.setString(KEY_INSTALL_ID, id);
+    return id;
+  }
+
+  /// 캐시된 기기 시리얼(네이티브 조회 1회 후 보관). 없으면 null.
+  String? getCachedDeviceSerial() => _prefs.getString(KEY_DEVICE_SERIAL);
+
+  Future<void> setCachedDeviceSerial(String serial) async =>
+      _prefs.setString(KEY_DEVICE_SERIAL, serial);
 
   /// AppFit Project ID 조회 (보안 저장소)
   Future<String?> getProjectId() async {
