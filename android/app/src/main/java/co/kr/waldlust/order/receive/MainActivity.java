@@ -664,27 +664,57 @@ public class MainActivity extends FlutterActivity {
     // Returns null if none yield a valid value (Dart then falls back to installId).
     public String getDeviceSerial() {
         String[] propKeys = {
-                "ro.serialno", "ro.boot.serialno", "gsm.sn1", "persist.sys.serialno"
+                "ro.serialno", "ro.boot.serialno", "ro.vendor.serialno",
+                "gsm.sn1", "persist.sys.serialno", "ro.boot.serial"
         };
+        // 1) getprop binary via exec. Works even when hidden-API reflection of
+        //    android.os.SystemProperties is blocked (Android 12+ "hiddenapi").
+        //    This matches the ADB device serial (= ro.serialno) on most devices.
         for (String key : propKeys) {
-            String v = getSystemProperty(key);
+            String v = getPropViaExec(key);
+            Log.i("DeviceSerial", "getprop " + key + " = " + v);
             if (isValidSerial(v)) return v.trim();
         }
+        // 2) SystemProperties reflection (may be blocked).
+        for (String key : propKeys) {
+            String v = getSystemProperty(key);
+            Log.i("DeviceSerial", "SystemProperties " + key + " = " + v);
+            if (isValidSerial(v)) return v.trim();
+        }
+        // 3) Build.getSerial() (O/P need READ_PHONE_STATE; Q+ need privileged perm,
+        //    usually throws/returns unknown for normal apps) / legacy Build.SERIAL.
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                if (checkSelfPermission("android.permission.READ_PHONE_STATE")
-                        == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                    String v = Build.getSerial();
-                    if (isValidSerial(v)) return v.trim();
-                }
-            } else {
-                String v = Build.SERIAL;
-                if (isValidSerial(v)) return v.trim();
-            }
+            String v = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+                    ? Build.getSerial() : Build.SERIAL;
+            Log.i("DeviceSerial", "Build serial = " + v);
+            if (isValidSerial(v)) return v.trim();
         } catch (Exception e) {
             Log.w("DeviceSerial", "Build serial read failed: " + e.getMessage());
         }
+        Log.w("DeviceSerial", "no serial source succeeded");
         return null;
+    }
+
+    private String getPropViaExec(String key) {
+        java.io.BufferedReader reader = null;
+        try {
+            Process p = Runtime.getRuntime()
+                    .exec(new String[] {"/system/bin/getprop", key});
+            reader = new java.io.BufferedReader(
+                    new java.io.InputStreamReader(p.getInputStream()));
+            String line = reader.readLine();
+            p.waitFor();
+            return line != null ? line.trim() : null;
+        } catch (Exception e) {
+            return null;
+        } finally {
+            if (reader != null) {
+                try {
+                    reader.close();
+                } catch (Exception ignored) {
+                }
+            }
+        }
     }
 
     private String getSystemProperty(String key) {

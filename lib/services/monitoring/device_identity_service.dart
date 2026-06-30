@@ -135,6 +135,10 @@ class DeviceIdentityService {
       deviceId: deviceId,
       idSource: source,
     );
+    logger.i(
+      '[DeviceIdentity] 설정카드 표기값 — 매장="${_cached!.storeLabel}", '
+      '기기="${_cached!.deviceLabel}" (serial=$serial, source=$source)',
+    );
     return _cached!;
   }
 
