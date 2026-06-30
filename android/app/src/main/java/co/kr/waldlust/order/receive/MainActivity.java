@@ -665,17 +665,21 @@ public class MainActivity extends FlutterActivity {
     public String getDeviceSerial() {
         String[] propKeys = {
                 "ro.serialno", "ro.boot.serialno", "ro.vendor.serialno",
-                "gsm.sn1", "persist.sys.serialno", "ro.boot.serial"
+                "gsm.sn1", "persist.sys.serialno", "ro.boot.serial", "ril.serialnumber"
         };
-        // 1) getprop binary via exec. Works even when hidden-API reflection of
-        //    android.os.SystemProperties is blocked (Android 12+ "hiddenapi").
-        //    This matches the ADB device serial (= ro.serialno) on most devices.
+        // 0) /proc/cmdline androidboot.serialno (plain file read; no perm/exec/hidden-API).
+        //    Usually equals the ADB device serial; most reliable on locked-down ROMs.
+        String cmdSerial = getSerialFromProcCmdline();
+        Log.i("DeviceSerial", "proc/cmdline androidboot.serialno = " + cmdSerial);
+        if (isValidSerial(cmdSerial)) return cmdSerial.trim();
+
+        // 1) getprop binary via exec (bypasses hidden-API reflection block).
         for (String key : propKeys) {
             String v = getPropViaExec(key);
             Log.i("DeviceSerial", "getprop " + key + " = " + v);
             if (isValidSerial(v)) return v.trim();
         }
-        // 2) SystemProperties reflection (may be blocked).
+        // 2) SystemProperties reflection (often blocked on Android 12+).
         for (String key : propKeys) {
             String v = getSystemProperty(key);
             Log.i("DeviceSerial", "SystemProperties " + key + " = " + v);
@@ -691,22 +695,83 @@ public class MainActivity extends FlutterActivity {
         } catch (Exception e) {
             Log.w("DeviceSerial", "Build serial read failed: " + e.getMessage());
         }
+        // 4) Diagnostic: dump every prop whose name/value mentions serial so we can
+        //    pin down the exact key holding the serial on this device.
+        dumpSerialProps();
         Log.w("DeviceSerial", "no serial source succeeded");
+        return null;
+    }
+
+    private String getSerialFromProcCmdline() {
+        java.io.BufferedReader reader = null;
+        try {
+            reader = new java.io.BufferedReader(
+                    new java.io.FileReader("/proc/cmdline"));
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                sb.append(line).append(' ');
+            }
+            for (String tok : sb.toString().split("\\s+")) {
+                if (tok.startsWith("androidboot.serialno=")) {
+                    return tok.substring("androidboot.serialno=".length()).trim();
+                }
+            }
+        } catch (Exception e) {
+            Log.w("DeviceSerial", "proc/cmdline read failed: " + e.getMessage());
+        } finally {
+            if (reader != null) {
+                try {
+                    reader.close();
+                } catch (Exception ignored) {
+                }
+            }
+        }
         return null;
     }
 
     private String getPropViaExec(String key) {
         java.io.BufferedReader reader = null;
         try {
-            Process p = Runtime.getRuntime()
-                    .exec(new String[] {"/system/bin/getprop", key});
+            Process p = Runtime.getRuntime().exec(new String[] {"getprop", key});
             reader = new java.io.BufferedReader(
                     new java.io.InputStreamReader(p.getInputStream()));
             String line = reader.readLine();
             p.waitFor();
             return line != null ? line.trim() : null;
         } catch (Exception e) {
+            Log.w("DeviceSerial", "getprop exec failed for " + key + ": " + e.getMessage());
             return null;
+        } finally {
+            if (reader != null) {
+                try {
+                    reader.close();
+                } catch (Exception ignored) {
+                }
+            }
+        }
+    }
+
+    private void dumpSerialProps() {
+        java.io.BufferedReader reader = null;
+        try {
+            Process p = Runtime.getRuntime().exec("getprop");
+            reader = new java.io.BufferedReader(
+                    new java.io.InputStreamReader(p.getInputStream()));
+            String line;
+            int count = 0;
+            while ((line = reader.readLine()) != null) {
+                String low = line.toLowerCase();
+                if (low.contains("serial") || low.contains("serialno")
+                        || low.contains(".sn]") || low.contains("bootserial")) {
+                    Log.i("DeviceSerial", "DUMP " + line);
+                    count++;
+                }
+            }
+            p.waitFor();
+            Log.i("DeviceSerial", "DUMP serial-related props count=" + count);
+        } catch (Exception e) {
+            Log.w("DeviceSerial", "getprop dump failed: " + e.getMessage());
         } finally {
             if (reader != null) {
                 try {
