@@ -96,8 +96,8 @@ class _SettingsLogCollectionSectionState
     final platformName = Platform.isWindows ? 'Windows' : 'Android';
     final caption = <String>[
       '[AppFit 로그]',
-      if (id.storeLabel.isNotEmpty) id.storeLabel,
-      '기기: ${id.deviceId} (${id.idSource}, $platformName)',
+      if (id.storeLabel.isNotEmpty) '매장: ${id.storeLabel}',
+      '기기: ${id.deviceLabel} ($platformName)',
       '기간: $fromStr ~ $toStr',
     ].join('\n');
 
@@ -171,7 +171,7 @@ class _SettingsLogCollectionSectionState
           ),
           _kv(
             t.settings.log_collection.device_label,
-            '${id.deviceId} (${id.idSource})',
+            id.deviceLabel,
           ),
           Row(
             children: [

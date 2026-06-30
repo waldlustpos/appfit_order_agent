@@ -66,8 +66,8 @@ class RemoteCommandHandler {
     final caption = <String>[
       '[AppFit 로그] 원격 요청',
       if (cmd.commandId != null) 'cmd: ${cmd.commandId}',
-      if (id.storeLabel.isNotEmpty) id.storeLabel,
-      '기기: ${id.deviceId} (${id.idSource})',
+      if (id.storeLabel.isNotEmpty) '매장: ${id.storeLabel}',
+      '기기: ${id.deviceLabel}',
       '기간: $fromStr ~ $toStr',
     ].join('\n');
 
