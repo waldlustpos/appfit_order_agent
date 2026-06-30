@@ -45,7 +45,10 @@
 - `lib/providers/log_collection_provider.dart` — `logUploadSinkProvider`(sink 교체 단일 지점)/`logCollectionServiceProvider`/`deviceIdentityServiceProvider`/`deviceStatusReporterProvider`/`remoteCommandHandlerProvider` (+ `providers.dart` 배럴 export)
 - `lib/widgets/settings/settings_log_collection_section.dart` — 설정화면 "로그 전송" 카드(자기완결형 ConsumerStatefulWidget) — `settings_right_panel.dart`에 삽입
 - 수정: `lib/utils/logger.dart`(`flushLogBuffer()`), `lib/services/windows_log_file_writer.dart`(`flushPending()`/`listLogFiles()`), `lib/services/platform_service.dart`(`getLogDirPath()`/`getDeviceSerial()`), `lib/services/preference_service.dart`(`getOrCreateInstallId()`/시리얼 캐시 + `KEY_INSTALL_ID`/`KEY_DEVICE_SERIAL`), `lib/config/app_env.dart`(`slackBotToken`/`slackChannelId`/`hasSlackConfig`), `lib/providers/order/order_socket_manager.dart`(기기명령 가로채기), i18n 3로캘(`settings.log_collection.*`)
-- Android native: `MainActivity.java`(`getLogDirPath()`), `NativeMethodHandler.java`(`getLogDirPath`/`getDeviceSerial` case)
+- Android native: `MainActivity.java`(`getLogDirPath()`, `getDeviceSerial()`), `NativeMethodHandler.java`(`getLogDirPath`/`getDeviceSerial` case)
+
+**기기 시리얼 취득(다중 소스, `getDeviceSerial`)**: Sunmi 단말(예: D3 MINI `DE33256H10784`)은 프린터 서비스(`getPrinterSerialNo`)로 취득(검증됨). 그 외/비-Sunmi 단말(예: IM H092W `H092W24A1G00862`)은 `MainActivity.getDeviceSerial()` 이 SystemProperties(`ro.serialno`/`ro.boot.serialno`/`gsm.sn1`/`persist.sys.serialno`) → `Build.getSerial()`(READ_PHONE_STATE 보유 시) → `Build.SERIAL`(레거시) 순으로 best-effort. 모두 실패 시 null → Dart 가 설치 UUID 로 fallback.
+  - **캐비엇**: 일부 ROM 은 SystemProperties 가 막혀 있을 수 있음. 그 경우 `READ_PHONE_STATE` 권한 추가 + 런타임 요청이 필요할 수 있다(현재 미추가 — 권한 프롬프트 회피). IM H092W 에서 실제 값이 안 나오면 이 권한 경로를 검토.
 
 ### 코어 (appifit_agent_core/appfit_core)
 - `lib/src/events/device_command_types.dart` — `DeviceCommandType`(LOG_UPLOAD_REQUESTED/STATUS_REPORT_REQUESTED) + value/fromValue

@@ -657,6 +657,55 @@ public class MainActivity extends FlutterActivity {
         return fallback != null ? fallback.getAbsolutePath() : null;
     }
 
+    // Best-effort hardware serial for general/non-Sunmi devices
+    // (e.g. IM H092W -> "H092W24A1G00862"). Tries system properties first
+    // (readable on most POS/industrial ROMs without a permission), then
+    // Build.getSerial() if READ_PHONE_STATE is granted, then legacy Build.SERIAL.
+    // Returns null if none yield a valid value (Dart then falls back to installId).
+    public String getDeviceSerial() {
+        String[] propKeys = {
+                "ro.serialno", "ro.boot.serialno", "gsm.sn1", "persist.sys.serialno"
+        };
+        for (String key : propKeys) {
+            String v = getSystemProperty(key);
+            if (isValidSerial(v)) return v.trim();
+        }
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                if (checkSelfPermission("android.permission.READ_PHONE_STATE")
+                        == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                    String v = Build.getSerial();
+                    if (isValidSerial(v)) return v.trim();
+                }
+            } else {
+                String v = Build.SERIAL;
+                if (isValidSerial(v)) return v.trim();
+            }
+        } catch (Exception e) {
+            Log.w("DeviceSerial", "Build serial read failed: " + e.getMessage());
+        }
+        return null;
+    }
+
+    private String getSystemProperty(String key) {
+        try {
+            Class<?> sp = Class.forName("android.os.SystemProperties");
+            java.lang.reflect.Method get = sp.getMethod("get", String.class);
+            Object v = get.invoke(sp, key);
+            return v != null ? v.toString() : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private boolean isValidSerial(String s) {
+        if (s == null) return false;
+        String t = s.trim();
+        if (t.isEmpty()) return false;
+        String low = t.toLowerCase();
+        return !low.equals("unknown") && !low.equals("0") && !low.equals("000000000000");
+    }
+
     public boolean isSunmiDevice() {
         return Build.MANUFACTURER.startsWith("SUNMI");
     }

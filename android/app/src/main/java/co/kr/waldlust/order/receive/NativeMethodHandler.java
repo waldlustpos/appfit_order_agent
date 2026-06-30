@@ -557,16 +557,18 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
                 break;
 
             case "getDeviceSerial": {
-                // Sunmi device serial via the bound printer service (e.g. "DE33256H10784").
-                // Returns null on non-Sunmi devices or when the service never binds.
+                // Sunmi: device serial via the bound printer service (e.g. D3 MINI
+                // "DE33256H10784"). Non-Sunmi (e.g. IM H092W "H092W24A1G00862") and
+                // any Sunmi fallback: SystemProperties/Build serial via getDeviceSerial().
                 if (!activity.isSunmiDevice()) {
-                    result.success(null);
+                    result.success(activity.getDeviceSerial());
                     break;
                 }
                 final SunmiPrintHelper snHelper = SunmiPrintHelper.getInstance();
                 if (snHelper.isReady()) {
                     String sn = snHelper.getPrinterSerialNo();
-                    result.success(sn != null && !sn.isEmpty() ? sn : null);
+                    result.success((sn != null && !sn.isEmpty())
+                            ? sn : activity.getDeviceSerial());
                     break;
                 }
                 final java.util.concurrent.atomic.AtomicBoolean snReplied =
@@ -583,7 +585,8 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
                         if (snHelper.isReady()) {
                             if (snReplied.compareAndSet(false, true)) {
                                 String sn = snHelper.getPrinterSerialNo();
-                                result.success(sn != null && !sn.isEmpty() ? sn : null);
+                                result.success((sn != null && !sn.isEmpty())
+                                        ? sn : activity.getDeviceSerial());
                             }
                             return;
                         }
@@ -591,7 +594,7 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
                         if (snTries[0] >= snMaxTries) {
                             if (snReplied.compareAndSet(false, true)) {
                                 Log.w(TAG, "getDeviceSerial: Sunmi service bind timeout");
-                                result.success(null);
+                                result.success(activity.getDeviceSerial());
                             }
                             return;
                         }
