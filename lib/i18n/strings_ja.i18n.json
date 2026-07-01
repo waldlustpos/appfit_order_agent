@@ -275,6 +275,7 @@
         "exit_app": "アプリ終了",
         "exit_app_desc": "アプリを終了しますか？",
         "exit_app_kds_desc": "アプリを終了しますか？",
+        "store_closed_notice": "店舗が「準備中」に変更されます。",
         "burst_test_start": "⚡️ 注文ラッシュシミュレーション開始 (10件)"
     },
     "order_status": {

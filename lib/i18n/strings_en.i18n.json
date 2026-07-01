@@ -276,6 +276,7 @@
         "exit_app": "Exit App",
         "exit_app_desc": "Are you sure you want to exit?",
         "exit_app_kds_desc": "Are you sure you want to exit?",
+        "store_closed_notice": "The store will be set to \"Preparing\".",
         "burst_test_start": "⚡️ Starting simulation (10 orders)"
     },
     "order_status": {

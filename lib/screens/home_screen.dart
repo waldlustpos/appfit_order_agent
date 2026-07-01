@@ -300,6 +300,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   Future<void> _exitApp() async {
+    // 종료 직전 매장을 CLOSED(오더 준비중)로 전환. cleanup/disconnect 이전에 실행하여
+    // 소켓/Dio 가 살아있는 동안 전송 완료를 최대한 보장한다. 실패해도 종료는 계속 진행.
+    try {
+      final storeId = ref.read(storeProvider).value?.storeId ?? '';
+      final isKdsMode = ref.read(kdsModeProvider);
+      final isKdsAcceptOrders = ref.read(orderProvider).isKdsAcceptOrders;
+      if ((!isKdsMode || isKdsAcceptOrders) && storeId.isNotEmpty) {
+        await ref
+            .read(apiServiceProvider)
+            .updateShopOperatingStatus(storeId, false);
+        logger.i('[HomeScreen] 앱 종료: 매장 CLOSED(오더 준비중) 전환 완료');
+      }
+    } catch (e, s) {
+      logger.w('[HomeScreen] 앱 종료 시 매장 CLOSED 전환 실패(무시)',
+          error: e, stackTrace: s);
+    }
+
     try {
       final socketNotifier = ref.read(appFitNotifierServiceProvider.notifier);
 
@@ -337,10 +354,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   Future<void> _handleLogout() async {
+    // 로그아웃 시 매장이 CLOSED(오더 준비중)로 전환되는 조건(메인모드 or KDS+자동접수ON)이면
+    // 확인 다이얼로그에 "오더 준비중으로 변경됩니다" 안내를 조합해 노출한다.
+    final isKdsMode = ref.read(kdsModeProvider);
+    final isKdsAcceptOrders = ref.read(orderProvider).isKdsAcceptOrders;
+    final willClose = !isKdsMode || isKdsAcceptOrders;
+
     final shouldLogout = await CommonDialog.showConfirmDialog(
       context: context,
       title: t.drawer.logout,
-      content: t.home.logout_confirm,
+      content: willClose
+          ? '${t.home.logout_confirm}\n${t.app_bar.store_closed_notice}'
+          : t.home.logout_confirm,
       cancelText: t.common.cancel,
       confirmText: t.drawer.logout,
     );
@@ -351,11 +376,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       final apiService = ref.read(apiServiceProvider);
       final socketNotifier = ref.read(appFitNotifierServiceProvider.notifier);
       final storeId = ref.read(storeProvider).value?.storeId ?? '';
-      final isKdsMode = ref.read(kdsModeProvider);
       // Provider 의존성 전파 타이밍 이슈 방지: 정리는 UI 계층에서 우선 수행
 
-      if (!isKdsMode)
+      // 메인모드이거나 (KDS + 자동접수 ON) 이면 매장을 CLOSED(오더 준비중)로 전환.
+      if (willClose && storeId.isNotEmpty) {
         await apiService.updateShopOperatingStatus(storeId, false);
+      }
 
       socketNotifier.disconnect();
       // blink/신규건수 초기화 보장

@@ -47,10 +47,15 @@ class Store extends _$Store {
 
   // 영업 상태 업데이트 (낙관적 업데이트)
   Future<void> setIsOpen(bool value) async {
-    // KDS 모드에서는 영업 상태 업데이트를 서버에 전송하지 않음
+    // KDS 모드이면서 자동접수(isKdsAcceptOrders)가 OFF 일 때만 영업 상태 전송을 생략한다.
+    // KDS + 자동접수 ON(단독 운영) 이면 메인모드와 동일하게 서버 OPEN/CLOSED 를 반영한다.
+    // orderProvider 를 read 하면 store->order 역참조로 순환이 되므로(order_provider 는
+    // 이미 storeProvider 를 read 함) preference 값(KEY_KDS_ACCEPT_ORDERS)을 직접 읽어 회피한다.
     final isKdsMode = ref.read(kdsModeProvider);
-    if (isKdsMode) {
-      logger.i('KDS 모드: updateSaleStatus 호출 생략 (setIsOpen: $value)');
+    final isKdsAcceptOrders =
+        ref.read(preferenceServiceProvider).getKdsAcceptOrders();
+    if (isKdsMode && !isKdsAcceptOrders) {
+      logger.i('KDS 모드(자동접수 OFF): updateSaleStatus 호출 생략 (setIsOpen: $value)');
       return;
     }
 

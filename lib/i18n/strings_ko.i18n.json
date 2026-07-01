@@ -275,6 +275,7 @@
         "exit_app": "앱 종료",
         "exit_app_desc": "앱을 종료하시겠습니까?",
         "exit_app_kds_desc": "앱을 종료하시겠습니까?",
+        "store_closed_notice": "매장이 '오더 준비중'으로 변경됩니다.",
         "burst_test_start": "⚡️ 주문 폭주 시뮬레이션 시작 (10건)"
     },
     "order_status": {

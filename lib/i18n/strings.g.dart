@@ -4,9 +4,9 @@
 /// To regenerate, run: `dart run slang`
 ///
 /// Locales: 3
-/// Strings: 1241 (413 per locale)
+/// Strings: 1244 (414 per locale)
 ///
-/// Built on 2026-06-25 at 01:23 UTC
+/// Built on 2026-07-01 at 00:47 UTC
 
 // coverage:ignore-file
 // ignore_for_file: type=lint
@@ -306,6 +306,7 @@ class _StringsAppBarKo {
 	String get exit_app => '앱 종료';
 	String get exit_app_desc => '앱을 종료하시겠습니까?';
 	String get exit_app_kds_desc => '앱을 종료하시겠습니까?';
+	String get store_closed_notice => '매장이 \'오더 준비중\'으로 변경됩니다.';
 	String get burst_test_start => '⚡️ 주문 폭주 시뮬레이션 시작 (10건)';
 }
 
@@ -1396,6 +1397,7 @@ class _StringsAppBarEn extends _StringsAppBarKo {
 	@override String get exit_app => 'Exit App';
 	@override String get exit_app_desc => 'Are you sure you want to exit?';
 	@override String get exit_app_kds_desc => 'Are you sure you want to exit?';
+	@override String get store_closed_notice => 'The store will be set to "Preparing".';
 	@override String get burst_test_start => '⚡️ Starting simulation (10 orders)';
 }
 
@@ -2492,6 +2494,7 @@ class _StringsAppBarJa extends _StringsAppBarKo {
 	@override String get exit_app => 'アプリ終了';
 	@override String get exit_app_desc => 'アプリを終了しますか？';
 	@override String get exit_app_kds_desc => 'アプリを終了しますか？';
+	@override String get store_closed_notice => '店舗が「準備中」に変更されます。';
 	@override String get burst_test_start => '⚡️ 注文ラッシュシミュレーション開始 (10件)';
 }
 

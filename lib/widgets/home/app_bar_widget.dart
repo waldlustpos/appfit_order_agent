@@ -461,7 +461,12 @@ class _HomeAppBarWidgetState extends ConsumerState<HomeAppBarWidget> {
         // 서브디스플레이 모드가 아닐 때만 오더 토글 스위치 표시
         Consumer(
           builder: (context, ref, _) {
-            return isKdsMode
+            // KDS 모드라도 자동접수(isKdsAcceptOrders) ON 이면 영업상태 토글을 노출한다.
+            // reactive: 설정화면에서 "주문 접수" 토글을 바꾸면 즉시 노출/숨김이 반영됨.
+            final isKdsAcceptOrders =
+                ref.watch(orderProvider.select((s) => s.isKdsAcceptOrders));
+            final hideToggle = isKdsMode && !isKdsAcceptOrders;
+            return hideToggle
                 ? const SizedBox.shrink()
                 : Row(
                     children: [
@@ -586,6 +591,11 @@ class _HomeAppBarWidgetState extends ConsumerState<HomeAppBarWidget> {
   // 앱 종료 확인 대화상자
   Future<void> _showExitConfirmationDialog(BuildContext context,
       {bool isKdsMode = false}) async {
+    // 종료 시 매장이 CLOSED(오더 준비중)로 전환되는 조건(메인모드 or KDS+자동접수ON)이면
+    // 다이얼로그 본문에 "오더 준비중으로 변경됩니다" 안내를 조합해 노출한다.
+    final isKdsAcceptOrders = ref.read(orderProvider).isKdsAcceptOrders;
+    final willClose = !isKdsMode || isKdsAcceptOrders;
+
     // StatefulBuilder를 사용하여 다이얼로그 내부 상태 관리
     // ignore: discarded_futures
 
@@ -614,8 +624,8 @@ class _HomeAppBarWidgetState extends ConsumerState<HomeAppBarWidget> {
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    !isKdsMode
-                        ? t.app_bar.exit_app_desc
+                    willClose
+                        ? '${t.app_bar.exit_app_desc}\n${t.app_bar.store_closed_notice}'
                         : t.app_bar.exit_app_kds_desc,
                     style: AppTextStyles.body,
                   ),
