@@ -153,6 +153,8 @@ class PreferenceService {
       if (!migrationService.isCompleted(_prefs)) {
         await migrationService.runSettingsMigration(_prefs);
       }
+      // 볼륨 스케일 0-15 → 0-10 재변환 (전용 플래그로 최초 1회)
+      await migrationService.runVolumeRescaleMigration(_prefs);
       await _prefs.setBool('migration_completed', true);
 
       // 프린터 기본 설정 및 기기 제조사 확인
@@ -516,7 +518,7 @@ class PreferenceService {
 
   bool getAutoLaunch() =>
       _prefs.getBool(KEY_AUTO_LAUNCH) ?? false; //부팅시 자동실행 여부
-  int getVolume() => _prefs.getInt(KEY_VOLUME) ?? 7; //알림음 볼륨
+  int getVolume() => _prefs.getInt(KEY_VOLUME) ?? 5; //알림음 볼륨 (0-10)
   bool getOrderOn() => _prefs.getBool(KEY_ORDER_ON) ?? false; //오더 영업중 여부
   bool getVersionFirst() => _prefs.getBool(KEY_VERSION_FIRST) ?? false;
   String getSound() => _prefs.getString(KEY_SOUND) ?? 'alert10.mp3'; //알림음 파일명

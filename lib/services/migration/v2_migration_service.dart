@@ -13,6 +13,10 @@ class V2MigrationService {
       'migration_v2_to_appfit_completed';
   static const String KEY_MIGRATED_OLD_ID = 'migration_v2_old_id';
 
+  /// 볼륨 0-15 → 0-10 재변환 마이그레이션 완료 플래그 (최초 1회)
+  static const String KEY_VOLUME_RESCALE_10_COMPLETED =
+      'migration_volume_rescale_10_completed';
+
   /// 테스트용 목 매핑 테이블 (대소문자 무시, 키는 대문자로 저장)
   /// 실제 매핑 API 완성 후 제거 또는 kDebugMode 조건 하에서만 동작하도록 전환 예정
   static const Map<String, String> _mockMappingTable = {
@@ -140,6 +144,27 @@ class V2MigrationService {
   int _mapVolume(int oldVolume) {
     final clamped = oldVolume.clamp(0, 10);
     return (clamped * 15 / 10).round().clamp(0, 15);
+  }
+
+  /// 볼륨 스케일 재변환 마이그레이션 (0-15 → 0-10, 최초 1회)
+  ///
+  /// 지금까지 모든 앱 버전은 볼륨을 0-15 스케일로 저장했고
+  /// (v2 마이그레이션도 0-10 → 0-15 로 올려놓음), 신규 볼륨 시스템은
+  /// 0-10 스케일(volume = value / 10)을 사용한다. 따라서 재변환 진입 시점의
+  /// 저장값은 항상 0-15 스케일이라고 가정하고 1회만 내림 변환한다.
+  /// 전용 플래그로 재실행을 막아, 신규 저장(0-10)이 다시 축소되는 것을 방지한다.
+  Future<void> runVolumeRescaleMigration(SharedPreferences prefs) async {
+    if (prefs.getBool(KEY_VOLUME_RESCALE_10_COMPLETED) ?? false) return;
+
+    final oldVolume = prefs.getInt(PreferenceService.KEY_VOLUME);
+    if (oldVolume != null) {
+      final newVolume = (oldVolume * 10 / 15).round().clamp(0, 10);
+      await prefs.setInt(PreferenceService.KEY_VOLUME, newVolume);
+      V2MigrationLogger.log('볼륨 스케일 재변환(0-15→0-10): $oldVolume → $newVolume');
+    }
+
+    await prefs.setBool(KEY_VOLUME_RESCALE_10_COMPLETED, true);
+    await V2MigrationLogger.flush();
   }
 
   /// 프린터 설정 보존 플래그 설정

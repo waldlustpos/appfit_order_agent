@@ -291,9 +291,12 @@ class _SettingsRightPanelState extends ConsumerState<SettingsRightPanel> {
                       children: [
                         Expanded(
                           child: Slider(
-                            value: widget.notificationVolume.toDouble(),
+                            value: widget.notificationVolume
+                                .toDouble()
+                                .clamp(0, 10),
                             min: 0,
-                            max: 15,
+                            max: 10,
+                            divisions: 10,
                             label: widget.notificationVolume.round().toString(),
                             activeColor: AppStyles.kMainColor,
                             inactiveColor:
@@ -307,7 +310,7 @@ class _SettingsRightPanelState extends ConsumerState<SettingsRightPanel> {
                                 await _audioPlayer.stop();
                                 await Future.delayed(
                                     const Duration(milliseconds: 100));
-                                await _audioPlayer.setVolume(v / 15.0);
+                                await _audioPlayer.setVolume(v / 10.0);
                                 await _audioPlayer.setAudioContext(
                                   AudioContext(
                                     android: const AudioContextAndroid(

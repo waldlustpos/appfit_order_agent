@@ -52,7 +52,7 @@ class SoundService {
       final bool soundChanged = newSoundFileName != _soundFileName;
       _soundFileName = newSoundFileName;
       _playCount = _preferenceService.getSoundNum();
-      _volume = _preferenceService.getVolume() / 15.0;
+      _volume = _preferenceService.getVolume() / 10.0;
 
       // 재생 중 재호출 시 캐시된 duration이 날아가 다음 단위 재생 간격이
       // _defaultDelay(2s)로 급증하는 문제를 막기 위해, 파일이 바뀐 경우에만
