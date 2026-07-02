@@ -31,7 +31,12 @@ import 'package:appfit_order_agent/services/receipt_escpos_builder.dart';
 /// 가 이를 읽어 PrinterBusy / PrinterNoDevice / PrinterTransportError 로 분류한다.
 class ComPortPrintService {
   static const String defaultComPort = 'COM3';
-  static const int defaultBaudRate = 9600;
+
+  /// PR800 시리얼(RS-232) 포트는 115200 고정 (2026-07 COM6 실기: 9600~57600
+  /// 무응답, 115200 만 DLE EOT 응답). USB-CDC 가상 COM 은 baud 를 무시하므로
+  /// 모든 연결타입 공통 기본값으로 안전하다. PreferenceService /
+  /// ExternalPrinterSubSettings 의 기본값과 함께 유지할 것.
+  static const int defaultBaudRate = 115200;
 
   /// ESC/POS real-time status transmission (Transmit printer status).
   /// 표준상 모든 ESC/POS 호환 프린터가 지원하며, 다른 명령 처리 중에도
@@ -70,7 +75,7 @@ class ComPortPrintService {
   /// - 'open-throws-access-denied'     : openWithSettings 가 win32 error 5
   /// - 'open-throws-other'             : openWithSettings 가 그 외 예외
   /// - 'open-failed-silent'            : isOpened 가 false (예외 없이 실패)
-  /// - 'probe-write-failed'            : DLE EOT 1 write 가 false / throw
+  /// - 'probe-write-failed'            : DLE EOT 1 write 가 throw
   /// - 'probe-timeout'                 : RX 폴링 timeout (응답 없음)
   /// - 'write-exception'               : 본 데이터 writeBytesFromUint8List 예외
   static String? _lastFailureReason;
@@ -113,6 +118,11 @@ class ComPortPrintService {
   static const int _msDsrOn = 0x0020; // MS_DSR_ON  : Data-Set-Ready
   static const int _msRingOn = 0x0040; // MS_RING_ON
   static const int _msRlsdOn = 0x0080; // MS_RLSD_ON : Carrier Detect
+
+  /// Win32 EscapeCommFunction 명령 코드 (win32 패키지 상수에 의존하지 않고
+  /// 직접 정의 -- 값은 Win32 API 에서 영구 고정). 모뎀 라인 assert 용.
+  static const int _escSetRts = 3; // SETRTS
+  static const int _escSetDtr = 5; // SETDTR
 
   /// COM 포트 open~close 임계구역 직렬화 락 (Future 체이닝 mutex).
   /// [sendRaw] (실제 출력) 와 [probeConnection] (연결 검증) 이 같은 COM 포트를
@@ -166,6 +176,85 @@ class ComPortPrintService {
       if (port.isOpened) port.close();
     } catch (_) {
       // 정리 시도일 뿐, 실패해도 다음 폴링 / backoff 가 흡수.
+    }
+  }
+
+  /// openWithSettings 전에 DCB 를 완전한 유효값으로 초기화한다.
+  ///
+  /// serial_port_win32 는 DCB 를 calloc(zero-init) 상태로 두고 BaudRate/
+  /// ByteSize/StopBits/Parity 4개 필드만 채워 SetCommState 를 호출한다.
+  /// usbser.sys(USB-CDC) 는 불완전 DCB 도 수용하지만, 검증이 엄격한
+  /// USB-RS232 어댑터 드라이버 대비 필수 필드를 채운다: DCBlength,
+  /// fBinary(=1, Windows 필수), XonChar != XoffChar. 아울러 fDtrControl/
+  /// fRtsControl 을 ENABLE 로 두어 RS-232 프린터(DTR/DSR 흐름제어)가
+  /// host-ready 를 보도록 한다.
+  static void _primeDcb(SerialPort port) {
+    port.dcb.ref
+      ..DCBlength = sizeOf<DCB>()
+      // bit0 fBinary | bits4-5 fDtrControl=ENABLE | bits12-13 fRtsControl=ENABLE
+      ..bitfield = 0x0001 | 0x0010 | 0x1000
+      ..XonLim = 2048
+      ..XoffLim = 512
+      ..XonChar = 0x11 // DC1
+      ..XoffChar = 0x13 // DC3
+      ..ErrorChar = 0
+      ..EofChar = 0
+      ..EvtChar = 0;
+  }
+
+  /// 패키지 open() 의 핸들 누수 회수.
+  ///
+  /// serial_port_win32 의 open() 은 CreateFile 성공 후 SetCommState /
+  /// SetCommTimeouts / SetCommMask 가 throw 하면 핸들을 닫지 않은 채
+  /// 전파하고 _isOpened 는 false 로 남는다. 이 누수 핸들을 방치하면
+  /// (share-mode 0 배타 점유) 이후 모든 CreateFile 이 ACCESS_DENIED 로
+  /// 락아웃되어 앱 재시작 전까지 출력이 불가능해진다.
+  ///
+  /// 반드시 openWithSettings throw 직후에만 호출할 것: 그 시점의 handler 는
+  /// 이번 open() 이 CreateFile 로 갱신한 값이므로(open 의 첫 문장) stale
+  /// 핸들을 닫는 double-close 위험이 없다. 그 외 시점에는 handler 가 이미
+  /// 닫힌 과거 값일 수 있어 재사용된 무관한 핸들을 닫을 수 있다.
+  static void _recoverLeakedHandle(SerialPort port) {
+    if (port.isOpened) return;
+    final h = port.handler;
+    if (h == null || h == INVALID_HANDLE_VALUE) return;
+    try {
+      CloseHandle(h);
+      logger.w('[ComPortPrint] open 실패 잔여 핸들 회수 (leak guard)');
+    } catch (_) {
+      // 회수 시도일 뿐. 실패해도 기존과 동일한 상태.
+    }
+  }
+
+  /// open 직후 DTR/RTS 모뎀 라인을 assert 한다.
+  ///
+  /// serial_port_win32 는 DCB 를 zero-init 상태로 SetCommState 하므로
+  /// fDtrControl/fRtsControl 이 DISABLE(라인 low) 로 열린다. USB-CDC 가상
+  /// COM(PR800 내장 USB)은 모뎀 라인을 무시해 문제가 없었지만, USB-RS232
+  /// 어댑터(NEXT-340PL 등) 경유 시 DTR/DSR 흐름제어 프린터가 호스트
+  /// not-ready 로 판단해 수신을 거부하거나 상태 응답(TX)을 보류할 수 있다.
+  /// 터미널 프로그램이 open 시 DTR/RTS 를 올리는 것과 같은 표준 동작.
+  ///
+  /// SETDTR/SETRTS 는 fDtrControl/fRtsControl 이 HANDSHAKE 일 때만 거부되는데
+  /// 여기서는 항상 DISABLE 이므로 유효하다. 실패해도 치명적이지 않으므로
+  /// (CDC 포트에서는 사실상 no-op) 진단 로그만 남기고 진행한다.
+  static void _assertModemLines(SerialPort port) {
+    final handle = port.handler;
+    if (handle == null) {
+      logger.w('[ComPortPrint] modem assert: handler null');
+      return;
+    }
+    try {
+      final dtrOk = EscapeCommFunction(handle, _escSetDtr);
+      final rtsOk = EscapeCommFunction(handle, _escSetRts);
+      if (dtrOk == 0 || rtsOk == 0) {
+        logger.w(
+            '[ComPortPrint] DTR/RTS assert 실패 (SETDTR=$dtrOk SETRTS=$rtsOk)');
+      } else {
+        logger.d('[ComPortPrint] DTR/RTS asserted');
+      }
+    } catch (e) {
+      logger.w('[ComPortPrint] DTR/RTS assert 예외: $e');
     }
   }
 
@@ -234,13 +323,23 @@ class ComPortPrintService {
         }
       }
 
-      // 포트 열기 (BaudRate 설정)
-      port.openWithSettings(
-        BaudRate: baudRate,
-        ByteSize: 8,
-        StopBits: 1,
-        Parity: 0, // 0 = NOPARITY
-      );
+      // 포트 열기. StopBits 는 win32 DCB raw 값(0=ONESTOPBIT, 1=1.5bit,
+      // 2=2bit)이라 1 스톱비트는 0 이다. 종전 값 1(=1.5 스톱비트)은 8
+      // 데이터비트와 조합 불가한 무효 설정인데 usbser.sys(USB-CDC)가 검증
+      // 없이 수용해 잠복해 있다가, 검증이 엄격한 ser2pl.sys(PL2303 USB-RS232
+      // 어댑터)의 SetCommState 거부(open throw)로 드러났다 (COM6 실기 재현).
+      _primeDcb(port);
+      try {
+        port.openWithSettings(
+          BaudRate: baudRate,
+          ByteSize: 8,
+          StopBits: 0, // ONESTOPBIT
+          Parity: 0, // 0 = NOPARITY
+        );
+      } catch (_) {
+        _recoverLeakedHandle(port);
+        rethrow;
+      }
 
       // 포트 열기 확인
       if (!port.isOpened) {
@@ -251,6 +350,9 @@ class ComPortPrintService {
       }
 
       logger.d('[ComPortPrint] Opened $comPort with baud rate $baudRate');
+
+      // RS-232 어댑터 경유 프린터가 settle 동안 host-ready 를 보도록 먼저 assert.
+      _assertModemLines(port);
 
       // Settle delay 적응형 (3-way):
       // - failure-cooldown (직전 실패 후 _failureCooldownWindow 이내):
@@ -393,9 +495,13 @@ class ComPortPrintService {
     try {
       final written = port.writeBytesFromUint8List(probeBytes, timeout: 200);
       if (!written) {
-        _lastFailureReason = 'probe-write-failed';
-        logger.w('[ComPortPrint] probe write returned false');
-        return false;
+        // false 는 실패 확정이 아니다: 패키지 _getOverlappedResult 가
+        // Future.delayed 를 await 하지 않아 timeout 이 시간이 아닌 루프 횟수로
+        // 동작하고, 실제 RS-232 회선에서는 write 가 OVERLAPPED pending 상태
+        // (전송은 백그라운드로 계속 진행) 이기만 해도 false 를 돌려준다.
+        // 판정의 권위 신호는 RX 응답 유무이므로 폴링으로 진행한다 — 진짜
+        // write 실패라면 어차피 RX timeout 으로 동일하게 실패 처리된다.
+        logger.w('[ComPortPrint] probe write pending/false — RX 폴링으로 판정 진행');
       }
     } catch (e) {
       _lastFailureReason = 'probe-write-failed';
@@ -516,16 +622,24 @@ class ComPortPrintService {
         await _waitPortEnumerated(comPort);
       }
 
-      port.openWithSettings(
-        BaudRate: baudRate,
-        ByteSize: 8,
-        StopBits: 1,
-        Parity: 0,
-      );
+      _primeDcb(port);
+      try {
+        port.openWithSettings(
+          BaudRate: baudRate,
+          ByteSize: 8,
+          StopBits: 0, // ONESTOPBIT (win32 DCB raw 값 — _sendRawLocked 주석 참조)
+          Parity: 0,
+        );
+      } catch (_) {
+        _recoverLeakedHandle(port);
+        rethrow;
+      }
       if (!port.isOpened) {
         logger.d('[ComPortPrint] probeConnection: $comPort open 실패 → false');
         return false;
       }
+
+      _assertModemLines(port);
 
       // open 직후 1차 안정화 후, DLE EOT 핑이 응답하면 통과 / 아니면 점진 재시도.
       // (PR800 처럼 멈춤 상태였다가 회복되는 케이스의 타이밍 편차를 재시도로 흡수.)

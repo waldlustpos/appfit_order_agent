@@ -925,7 +925,9 @@ class PreferenceService {
   Future<void> setComPortName(String name) async =>
       _prefs.setString(_keyComPortName, name);
 
-  int getComPortBaudRate() => _prefs.getInt(_keyComPortBaudRate) ?? 9600;
+  // 기본 115200: PR800 시리얼 포트 고정값이며 USB-CDC 는 baud 무시.
+  // ComPortPrintService.defaultBaudRate 와 함께 유지.
+  int getComPortBaudRate() => _prefs.getInt(_keyComPortBaudRate) ?? 115200;
   Future<void> setComPortBaudRate(int baudRate) async =>
       _prefs.setInt(_keyComPortBaudRate, baudRate);
 }

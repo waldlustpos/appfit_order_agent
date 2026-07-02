@@ -57,7 +57,7 @@ class _ExternalPrinterSubSettingsState
   // → win32 → kernel32.dll 체인이 로딩돼 dlopen 실패하므로 하드코딩으로 분리.
   // (Windows 분기 안에서만 deferred 로 호출.)
   static const String _defaultComPort = 'COM3';
-  static const int _defaultBaudRate = 9600;
+  static const int _defaultBaudRate = 115200; // PR800 시리얼 고정값, CDC 는 무시
 
   late final PreferenceService _pref;
 
