@@ -75,6 +75,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   Future<void> _loadInitialData() async {
+    // 앱 실행 시 저장된 오더 토글값으로 서버 영업 상태 복원
+    await _syncStoreStatusFromSavedToggle();
+
     try {
       // ProductProvider의 build() 메서드가 자동으로 상품을 로드함
       // 상품 로딩 완료를 기다림
@@ -112,6 +115,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       // ref.read(orderProvider.notifier).refreshOrders();
     } catch (e, s) {
       logger.e('초기 데이터 로드 중 오류 발생', error: e, stackTrace: s);
+    }
+  }
+
+  /// 앱 실행 시 로컬에 저장된 오더 토글값(KEY_ORDER_ON)으로 서버 영업 상태를 복원한다.
+  /// 종료/로그아웃 시 매장을 CLOSED(오더 준비중)로 내리므로, 재실행 때 마지막으로
+  /// 설정한 토글값(영업중이면 true)대로 서버 상태를 되돌린다.
+  /// setIsOpen 내부에서 KDS+자동접수 OFF 시 생략 / 실패 시 롤백을 처리한다.
+  Future<void> _syncStoreStatusFromSavedToggle() async {
+    try {
+      final savedOrderOn = ref.read(preferenceServiceProvider).getOrderOn();
+      await ref.read(storeProvider.notifier).setIsOpen(savedOrderOn);
+      logger.i('[HomeScreen] 앱 실행: 저장된 오더 토글($savedOrderOn)로 영업 상태 동기화');
+    } catch (e, s) {
+      logger.w('[HomeScreen] 오더 토글 동기화 실패(무시)', error: e, stackTrace: s);
     }
   }
 
