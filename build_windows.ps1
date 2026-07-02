@@ -64,20 +64,50 @@ $WinBuildName   = $WinVersionLine.Split('+')[0]
 $WinBuildNumber = $WinVersionLine.Split('+')[1]
 Write-Host "🏷  Windows 버전: $WinBuildName ($WinBuildNumber)" -ForegroundColor Cyan
 
-flutter build windows --release `
-    --dart-define-from-file=.env `
-    --dart-define=WINDOWS_APP_VERSION="$WinBuildName" `
-    --dart-define=WINDOWS_APP_BUILD="$WinBuildNumber" `
-    --dart-define=APPFIT_VARIANT="$Variant" `
-    --build-name="$WinBuildName" `
-    --build-number="$WinBuildNumber"
-
 # Flutter 3.29+ 는 x64 하위 폴더에 산출물을 둔다
 $buildOutput = "build\windows\x64\runner\Release"
 
-if (-not (Test-Path $buildOutput)) {
+# 주의: 함수가 값을 return 하면 flutter 의 콘솔 출력까지 반환값에 섞인다.
+# 따라서 여기서는 아무것도 return 하지 않고(빌드 진행 출력은 콘솔로 그대로 흘림),
+# 호출부에서 전역 $LASTEXITCODE 를 직접 읽어 종료 코드를 판정한다.
+function Invoke-FlutterWindowsBuild {
+    flutter build windows --release `
+        --dart-define-from-file=.env `
+        --dart-define=WINDOWS_APP_VERSION="$WinBuildName" `
+        --dart-define=WINDOWS_APP_BUILD="$WinBuildNumber" `
+        --dart-define=APPFIT_VARIANT="$Variant" `
+        --build-name="$WinBuildName" `
+        --build-number="$WinBuildNumber"
+}
+
+# 산출물 무결성 검사: exe 만으로는 부족하다.
+# fresh CMake configure 직후 첫 INSTALL 패스가 비결정적으로 실패하면 exe 는 생기지만
+# data\ (app.so/flutter_assets/icudtl.dat) 와 flutter_windows.dll 복사가 통째로 누락된다.
+# 따라서 exe + flutter_windows.dll + data\app.so 세 가지가 모두 있어야 정상 빌드로 본다.
+function Test-BuildArtifactComplete {
+    return (Test-Path (Join-Path $buildOutput $ExeName)) `
+        -and (Test-Path (Join-Path $buildOutput "flutter_windows.dll")) `
+        -and (Test-Path (Join-Path $buildOutput "data\app.so"))
+}
+
+# $ErrorActionPreference="Stop" 는 네이티브 exe(flutter/cmake) 의 비정상 종료코드를 잡지 못하므로
+# $LASTEXITCODE 를 직접 검사한다. 첫 패스가 실패/불완전하면 같은 build 디렉터리로 1회 재빌드한다.
+# (두 번째 증분 패스에서는 INSTALL 단계가 안정적으로 성공한다.)
+Invoke-FlutterWindowsBuild
+$exitCode = $LASTEXITCODE
+if ($exitCode -ne 0 -or -not (Test-BuildArtifactComplete)) {
     Write-Host ""
-    Write-Host "❌ 빌드 실패: 출력 폴더를 찾을 수 없습니다. ($buildOutput)" -ForegroundColor Red
+    Write-Host "⚠️  첫 빌드 패스 실패/불완전 (exit=$exitCode). 같은 build 디렉터리로 1회 재빌드합니다..." -ForegroundColor Yellow
+    Write-Host ""
+    Invoke-FlutterWindowsBuild
+    $exitCode = $LASTEXITCODE
+}
+
+if ($exitCode -ne 0 -or -not (Test-BuildArtifactComplete)) {
+    Write-Host ""
+    Write-Host "❌ 빌드 실패: 재시도 후에도 산출물이 불완전합니다 (exit=$exitCode)." -ForegroundColor Red
+    Write-Host "   필수 파일: $ExeName, flutter_windows.dll, data\app.so" -ForegroundColor Red
+    Write-Host "   깨진 산출물이 아카이브/배포되지 않도록 여기서 중단합니다." -ForegroundColor Red
     exit 1
 }
 

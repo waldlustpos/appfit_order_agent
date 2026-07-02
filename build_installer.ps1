@@ -168,12 +168,36 @@ $WinBuildName   = $WinVersionLine.Split('+')[0]
 $WinBuildNumber = $WinVersionLine.Split('+')[1]
 Write-Host "[INFO] Windows 버전: $WinBuildName ($WinBuildNumber)"
 
-flutter build windows --release `
-    --dart-define-from-file=.env `
-    --dart-define=APPFIT_VARIANT="$Variant" `
-    --build-name="$WinBuildName" `
-    --build-number="$WinBuildNumber"
-if ($LASTEXITCODE -ne 0) { Write-Error "[ERROR] Flutter Windows build failed"; exit 1 }
+# 주의: 함수가 값을 return 하면 flutter 의 콘솔 출력까지 반환값에 섞인다.
+# 아무것도 return 하지 않고(빌드 출력은 콘솔로 흘림) 호출부에서 전역 $LASTEXITCODE 를 읽는다.
+function Invoke-FlutterWindowsBuild {
+    flutter build windows --release `
+        --dart-define-from-file=.env `
+        --dart-define=APPFIT_VARIANT="$Variant" `
+        --build-name="$WinBuildName" `
+        --build-number="$WinBuildNumber"
+}
+
+# 산출물 무결성 검사: 종료 코드 0 만으로는 부족하다.
+# fresh CMake configure 직후 첫 INSTALL 패스가 비결정적으로 실패하면 exe 는 생기지만
+# data\ (app.so 등) 와 flutter_windows.dll 복사가 통째로 누락된다. 두 파일은 variant 무관이라
+# 깨진 빌드의 확실한 지표가 된다.
+function Test-BuildArtifactComplete {
+    return (Test-Path (Join-Path $BUILD_OUTPUT "flutter_windows.dll")) `
+        -and (Test-Path (Join-Path $BUILD_OUTPUT "data\app.so"))
+}
+
+# 첫 패스가 실패/불완전하면 같은 build 디렉터리로 1회 재빌드한다
+# (두 번째 증분 패스에서는 INSTALL 단계가 안정적으로 성공한다).
+Invoke-FlutterWindowsBuild
+if ($LASTEXITCODE -ne 0 -or -not (Test-BuildArtifactComplete)) {
+    Write-Host "[WARN] First build pass failed/incomplete (exit=$LASTEXITCODE). Rebuilding once in the same build dir..."
+    Invoke-FlutterWindowsBuild
+}
+if ($LASTEXITCODE -ne 0 -or -not (Test-BuildArtifactComplete)) {
+    Write-Error "[ERROR] Flutter Windows build failed/incomplete after retry. Required: flutter_windows.dll, data\app.so. Aborting before installer build to avoid shipping a broken installer."
+    exit 1
+}
 
 if (-not (Test-Path $BUILD_OUTPUT) -or -not (Get-ChildItem $BUILD_OUTPUT -ErrorAction SilentlyContinue)) {
     Write-Error "[ERROR] Build output directory missing: $BUILD_OUTPUT"
