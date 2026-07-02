@@ -528,6 +528,52 @@ void main() {
     });
   });
 
+  group('(f) updateShouldNotify — 무변경 폴링 통지 차단 (딥 비교)', () {
+    test('내용이 동일한 refreshOrders 재실행은 watcher 에 통지되지 않음', () async {
+      // PREPARING 사용: NEW 는 알림/blink 부수 경로가 얽혀 관찰이 흐려진다.
+      final h = await _buildProvider(
+        initialServerOrders: [
+          _order(orderNo: 'A', status: OrderStatus.PREPARING)
+        ],
+      );
+
+      var notifications = 0;
+      h.container.listen(orderProvider, (prev, next) => notifications++);
+
+      // 폴링 재현: 서버가 동일 내용을 새 인스턴스/새 리스트로 응답.
+      h.api.ordersResponse = [
+        _order(orderNo: 'A', status: OrderStatus.PREPARING),
+      ];
+      await h.notifier.refreshOrders();
+      await _wait(50);
+
+      expect(notifications, 0, reason: '내용 동일(OrderState == 딥 비교) → 통지 원천 차단');
+      // state 자체는 조용히 최신 인스턴스로 교체되어 있어야 한다.
+      expect(h.container.read(orderProvider).orders.single.status,
+          OrderStatus.PREPARING);
+    });
+
+    test('주문 내용이 실제로 바뀌면(PREPARING→READY) 정상 통지된다', () async {
+      final h = await _buildProvider(
+        initialServerOrders: [
+          _order(orderNo: 'A', status: OrderStatus.PREPARING)
+        ],
+      );
+
+      var notifications = 0;
+      h.container.listen(orderProvider, (prev, next) => notifications++);
+
+      h.api.ordersResponse = [_order(orderNo: 'A', status: OrderStatus.READY)];
+      await h.notifier.refreshOrders();
+      await _wait(50);
+
+      expect(notifications, greaterThan(0),
+          reason: '상태 업그레이드는 딥 비교에서도 차이 → 통지 유지');
+      expect(h.container.read(orderProvider).orders.single.status,
+          OrderStatus.READY);
+    });
+  });
+
   group('refreshOrders 가드 — 매장 ID 부재', () {
     test('storeId 가 없으면 에러만 설정하고 종료 (주문 목록 비움 유지)', () async {
       final h = await _buildProvider(withStore: false);

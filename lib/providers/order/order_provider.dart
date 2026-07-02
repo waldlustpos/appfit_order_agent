@@ -94,6 +94,15 @@ class Order extends _$Order {
   late final OutputQueueService _outputQueueService;
   late final OrderQueueService _orderQueueService;
 
+  /// 기본 notify 기준(!identical)을 딥 비교로 교체.
+  /// 무변경 폴링(refreshOrders 가 내용 동일 리스트를 새 인스턴스로 재대입)마다
+  /// kdsTabOrdersProvider 재계산 + 보이는 카드 전체 리빌드가 발생하던 것을
+  /// OrderState.==(orders listEquals 포함)로 원천 차단한다. 저사양(T2_mini_s)
+  /// 기기의 폴링 틱 잭 프레임 제거 목적. 비교 비용은 폴링당 1회 sub-ms.
+  @override
+  bool updateShouldNotify(OrderState previous, OrderState next) =>
+      previous != next;
+
   @override
   OrderState build() {
     _apiService = ref.watch(apiServiceProvider);

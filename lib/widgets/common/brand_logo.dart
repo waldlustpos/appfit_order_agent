@@ -36,6 +36,8 @@ class BrandLogo extends StatelessWidget {
       asset,
       height: height,
       fit: BoxFit.contain,
+      // 표시 높이에 맞춰 축소 디코딩 (저사양 기기 메모리/디코딩 시간 절약)
+      cacheHeight: (height * MediaQuery.devicePixelRatioOf(context)).round(),
       errorBuilder: (_, __, ___) => Text(fallbackText, style: fallbackStyle),
     );
   }

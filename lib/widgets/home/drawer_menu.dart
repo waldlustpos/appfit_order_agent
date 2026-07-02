@@ -106,6 +106,9 @@ class _DrawerHeader extends StatelessWidget {
             'assets/icons/app_icon_transparent.png',
             width: 36,
             height: 36,
+            // 원본 1024px 를 36px 표시용으로 전체 디코딩하지 않도록 축소 디코딩
+            // (2GB 기기 이미지 캐시 절약: ~4MB → 수십 KB)
+            cacheWidth: (36 * MediaQuery.devicePixelRatioOf(context)).round(),
           ),
           const SizedBox(width: AppSpacing.s12),
           Expanded(

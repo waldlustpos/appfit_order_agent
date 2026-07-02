@@ -62,6 +62,18 @@ class BlinkState {
       stopBlinking: stopBlinking ?? this.stopBlinking,
     );
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is BlinkState &&
+        isBlinking == other.isBlinking &&
+        activeOrderCount == other.activeOrderCount &&
+        stopBlinking == other.stopBlinking;
+  }
+
+  @override
+  int get hashCode => Object.hash(isBlinking, activeOrderCount, stopBlinking);
 }
 
 // Blink State Notifier
@@ -73,6 +85,11 @@ class BlinkStateNotifier extends StateNotifier<BlinkState> {
     _setupBlinkTimer();
     _listenToOrderCount();
   }
+
+  /// 기본 notify 기준(!identical)을 값 비교로 교체 — stopBlinking 반복 호출,
+  /// 동일 카운트 재대입 등 값이 같은 재대입 시 watcher(앱바 배지) 리빌드를 차단.
+  @override
+  bool updateShouldNotify(BlinkState old, BlinkState current) => old != current;
 
   void _setupBlinkTimer() {
     _blinkTimer?.cancel();

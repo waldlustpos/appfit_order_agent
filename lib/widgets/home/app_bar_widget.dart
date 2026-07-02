@@ -33,6 +33,9 @@ class _CurrentTimeWidget extends ConsumerStatefulWidget {
 class _CurrentTimeWidgetState extends ConsumerState<_CurrentTimeWidget> {
   Timer? _timer;
   String _currentTime = '';
+  // DateFormat 생성은 저사양 CPU 에서 매초 반복하기엔 아까운 비용 — 로캘 단위로 캐시.
+  DateFormat? _dateFormat;
+  AppLocale? _formatLocale;
 
   @override
   void initState() {
@@ -77,23 +80,22 @@ class _CurrentTimeWidgetState extends ConsumerState<_CurrentTimeWidget> {
 
   void _updateTime() {
     final locale = ref.read(localeNotifierProvider);
-    final localeStr = _getLocaleString(locale);
+    // 로캘이 바뀐 경우에만 DateFormat 재생성 (설정에서 언어 변경 시 다음 틱에 반영)
+    if (_dateFormat == null || locale != _formatLocale) {
+      _formatLocale = locale;
+      _dateFormat = DateFormat('MM.dd(E) a hh:mm', _getLocaleString(locale));
+    }
+
+    var formatted = _dateFormat!.format(DateTime.now());
+    // 일본어와 한국어의 경우 오전/오후 명시적 변환 (포맷에 따라 다를 수 있음)
+    if (locale == AppLocale.ko || locale == AppLocale.ja) {
+      formatted = formatted
+          .replaceAll('AM', t.app_bar.morning)
+          .replaceAll('PM', t.app_bar.afternoon);
+    }
 
     setState(() {
-      _currentTime =
-          DateFormat('MM.dd(E) a hh:mm', localeStr).format(DateTime.now());
-
-      // 일본어와 한국어의 경우 오전/오후 명시적 변환 (포맷에 따라 다를 수 있음)
-      if (locale == AppLocale.ko) {
-        _currentTime = _currentTime
-            .replaceAll('AM', t.app_bar.morning)
-            .replaceAll('PM', t.app_bar.afternoon);
-      } else if (locale == AppLocale.ja) {
-        // 일본어 포맷팅 확인 필요하나 일단 동일 로직 적용 가능
-        _currentTime = _currentTime
-            .replaceAll('AM', t.app_bar.morning)
-            .replaceAll('PM', t.app_bar.afternoon);
-      }
+      _currentTime = formatted;
     });
   }
 
@@ -265,7 +267,6 @@ class _HomeAppBarWidgetState extends ConsumerState<HomeAppBarWidget> {
   @override
   Widget build(BuildContext context) {
     final isKdsMode = ref.watch(kdsModeProvider);
-    final socketStatus = ref.watch(appFitNotifierServiceProvider);
     final appBar = AppBar(
       elevation: 0,
       scrolledUnderElevation: 0,
@@ -278,7 +279,7 @@ class _HomeAppBarWidgetState extends ConsumerState<HomeAppBarWidget> {
                 logToFile(tag: LogTag.UI_ACTION, message: '햄버거버튼 선택');
               },
       ),
-      title: _buildTitle(isKdsMode, socketStatus),
+      title: _buildTitle(isKdsMode),
       bottom: isKdsMode
           ? null
           : const PreferredSize(
@@ -305,8 +306,7 @@ class _HomeAppBarWidgetState extends ConsumerState<HomeAppBarWidget> {
     return appBar;
   }
 
-  Widget _buildTitle(
-      bool isKdsMode, appfit_core.ConnectionStatus socketStatus) {
+  Widget _buildTitle(bool isKdsMode) {
     return Stack(
       alignment: Alignment.center,
       children: [
@@ -323,7 +323,7 @@ class _HomeAppBarWidgetState extends ConsumerState<HomeAppBarWidget> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             _buildLeftActions(isKdsMode),
-            _buildRightActions(isKdsMode, socketStatus),
+            _buildRightActions(isKdsMode),
           ],
         ),
       ],
@@ -352,11 +352,13 @@ class _HomeAppBarWidgetState extends ConsumerState<HomeAppBarWidget> {
             const SizedBox(width: 8),
             Consumer(
               builder: (context, ref, _) {
-                final blinkState = ref.watch(blinkStateProvider);
+                // 배지가 쓰는 두 값만 select — stopBlinking 등 무관 필드 변경 시 리빌드 방지
+                final (isBlinking, activeOrderCount) = ref.watch(
+                    blinkStateProvider
+                        .select((s) => (s.isBlinking, s.activeOrderCount)));
                 return GestureDetector(
                   onTap: () {
-                    if (blinkState.isBlinking ||
-                        blinkState.activeOrderCount > 0) {
+                    if (isBlinking || activeOrderCount > 0) {
                       // OrderProvider의 stopBlinking 호출하여 점멸과 소리 함께 중지
                       ref.read(orderProvider.notifier).stopBlinking();
                       logToFile(
@@ -370,15 +372,14 @@ class _HomeAppBarWidgetState extends ConsumerState<HomeAppBarWidget> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
-                      color: blinkState.isBlinking
+                      color: isBlinking
                           ? AppStyles.kMainColor.withValues(alpha: 0.5)
                           : AppStyles.kMainColor,
                       borderRadius: BorderRadius.circular(15),
                     ),
                     child: Center(
                       child: Text(
-                        t.app_bar
-                            .new_order_count(n: blinkState.activeOrderCount),
+                        t.app_bar.new_order_count(n: activeOrderCount),
                         style: const TextStyle(
                           fontSize: AppStyles.kSectionCountSize,
                           fontWeight: FontWeight.normal,
@@ -452,8 +453,7 @@ class _HomeAppBarWidgetState extends ConsumerState<HomeAppBarWidget> {
     );
   }
 
-  Widget _buildRightActions(
-      bool isKdsMode, appfit_core.ConnectionStatus socketStatus) {
+  Widget _buildRightActions(bool isKdsMode) {
     return Row(
       children: [
         // 현재 접속 서버 표시 (live / japanLive 운영 환경 제외)
@@ -548,24 +548,32 @@ class _HomeAppBarWidgetState extends ConsumerState<HomeAppBarWidget> {
         ),
         const SizedBox(width: 4),
         // 소켓(실시간 주문) 연결 상태 아이콘 (3-state, disconnected시 탭 재연결)
-        AppIconAction(
-          icon: socketStatus != appfit_core.ConnectionStatus.disconnected
-              ? Icons.sensors
-              : Icons.sensors_off,
-          color: socketStatus.isConnected
-              ? Colors.green
-              : socketStatus == appfit_core.ConnectionStatus.reconnecting
-                  ? Colors.orange
-                  : Colors.red,
-          tooltip: socketStatus.isConnected
-              ? '실시간 주문 수신 중'
-              : socketStatus == appfit_core.ConnectionStatus.reconnecting
-                  ? '재연결 중...'
-                  : '실시간 주문 연결 끊김 - 탭하여 재연결',
-          onPressed: socketStatus == appfit_core.ConnectionStatus.disconnected
-              ? widget.onReconnect
-              : null,
-          isStatus: socketStatus != appfit_core.ConnectionStatus.disconnected,
+        // 별도 Consumer: 재연결 flapping 시 앱바 전체가 아닌 아이콘만 리빌드.
+        Consumer(
+          builder: (context, ref, _) {
+            final socketStatus = ref.watch(appFitNotifierServiceProvider);
+            return AppIconAction(
+              icon: socketStatus != appfit_core.ConnectionStatus.disconnected
+                  ? Icons.sensors
+                  : Icons.sensors_off,
+              color: socketStatus.isConnected
+                  ? Colors.green
+                  : socketStatus == appfit_core.ConnectionStatus.reconnecting
+                      ? Colors.orange
+                      : Colors.red,
+              tooltip: socketStatus.isConnected
+                  ? '실시간 주문 수신 중'
+                  : socketStatus == appfit_core.ConnectionStatus.reconnecting
+                      ? '재연결 중...'
+                      : '실시간 주문 연결 끊김 - 탭하여 재연결',
+              onPressed:
+                  socketStatus == appfit_core.ConnectionStatus.disconnected
+                      ? widget.onReconnect
+                      : null,
+              isStatus:
+                  socketStatus != appfit_core.ConnectionStatus.disconnected,
+            );
+          },
         ),
         const SizedBox(width: 8),
         // 최소화 버튼

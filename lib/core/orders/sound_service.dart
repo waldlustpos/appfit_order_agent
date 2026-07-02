@@ -19,6 +19,9 @@ class SoundService {
   String _soundFileName = '';
   int _playCount = 0;
   double _volume = 0.5;
+  // 현재 _player 인스턴스에 마지막으로 적용된 볼륨. null 이면 미적용(새 플레이어).
+  // 재생마다 불필요한 setVolume MethodChannel 호출(알림 순간 마이크로 잭)을 막는다.
+  double? _appliedVolume;
   AssetSource? _soundSource;
 
   // 앱 시작 시 알람소리 재생 제한
@@ -43,6 +46,23 @@ class SoundService {
       logger.w('[SoundService] 플레이어 dispose 상태 감지, 재초기화');
       _player = AudioPlayer();
       _isDisposed = false;
+      _appliedVolume = null; // 새 인스턴스는 볼륨 재적용 필요
+    }
+  }
+
+  /// 볼륨이 마지막 적용값과 다를 때만 실제 setVolume 호출.
+  /// 성공 시 true, PlatformException(disposed) 시 false 반환.
+  bool _applyVolumeIfChanged() {
+    if (_appliedVolume == _volume) return true;
+    try {
+      _player.setVolume(_volume);
+      _appliedVolume = _volume;
+      return true;
+    } on PlatformException catch (e) {
+      logger.w('[SoundService] setVolume 실패 (disposed 가능성): $e');
+      _isDisposed = true;
+      _appliedVolume = null;
+      return false;
     }
   }
 
@@ -63,12 +83,7 @@ class SoundService {
       }
 
       if (!_isDisposed) {
-        try {
-          _player.setVolume(_volume);
-        } on PlatformException catch (e) {
-          logger.w('[SoundService] setVolume 실패 (disposed 가능성): $e');
-          _isDisposed = true;
-        }
+        _applyVolumeIfChanged();
         logger.i(
             '[SoundService] 설정 로드: file=$_soundFileName, count=$_playCount, vol=$_volume');
       }
@@ -121,11 +136,7 @@ class SoundService {
           }
         }
 
-        try {
-          _player.setVolume(_volume);
-        } on PlatformException catch (e) {
-          logger.w('[SoundService] setVolume 실패: $e');
-          _isDisposed = true;
+        if (!_applyVolumeIfChanged()) {
           _isPlaying = false;
           return;
         }
@@ -244,6 +255,7 @@ class SoundService {
     _sessionId = 0;
     _cachedDuration = null;
     _soundSource = null;
+    _appliedVolume = null;
   }
 }
 
