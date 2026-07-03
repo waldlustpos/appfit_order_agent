@@ -45,15 +45,15 @@ enum BrandTheme {
   ),
   paik(
     id: 'paik',
-    primary: Color(0xFF233BA0),
-    primaryAlpha: Color(0x14233BA0),
-    loginBackground: Color(0xFF233BA0),
+    primary: Color(0xFF081E60),
+    primaryAlpha: Color(0x14081E60),
+    loginBackground: Color(0xFF081E60),
     onLoginBackground: Colors.white,
     logoAsset: null,
     loginGradient: LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
-      colors: [Color(0xFF233BA0), Color(0xFF172668)],
+      colors: [Color(0xFF081E60), Color(0xFF909AB7)],
     ),
   );
 
