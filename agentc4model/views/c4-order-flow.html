@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>C4 — 주문 흐름 (Order Agent)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="c4.css">
+<style>
+:root{--accent:#93c5fd;--accent-bg:rgba(59,130,246,.15);--accent-br:rgba(59,130,246,.35);}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#06080d;color:#e2e8f0;min-height:100vh;overflow-y:auto;}
+code,.mono{font-family:'JetBrains Mono','Fira Code',monospace;}
+.ambient{position:fixed;border-radius:50%;filter:blur(120px);opacity:.07;pointer-events:none;z-index:0;}
+.amb1{width:600px;height:600px;background:#10b981;top:4%;left:18%;}
+.amb2{width:480px;height:480px;background:#3b82f6;top:45%;right:10%;}
+.amb3{width:420px;height:420px;background:#f59e0b;bottom:4%;left:24%;}
+body::before{content:'';position:fixed;inset:0;background-image:radial-gradient(circle at 1px 1px, rgba(255,255,255,.03) 1px, transparent 0);background-size:48px 48px;z-index:0;pointer-events:none;}
+
+.main{position:relative;z-index:1;max-width:920px;margin:0 auto;padding:30px 28px 90px;}
+.intro{font-size:13px;color:#64748b;margin-bottom:26px;line-height:1.6;}
+.intro b{color:#94a3b8;}
+.intro code{font-size:11.5px;color:#fbbf24;background:rgba(245,158,11,.08);padding:1px 5px;border-radius:3px;}
+
+/* precondition strip */
+.boot{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:26px;padding:12px 16px;border:1px dashed rgba(255,255,255,.1);border-radius:12px;background:rgba(255,255,255,.015);}
+.boot .bl{font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.05em;margin-right:4px;}
+.boot .bstep{font-size:12px;color:#94a3b8;padding:4px 10px;border-radius:7px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);}
+.boot .barr{color:#334155;}
+
+/* journey timeline */
+.journey{position:relative;}
+.stage{display:grid;grid-template-columns:56px 1fr;gap:18px;position:relative;}
+.stage:not(:last-child){padding-bottom:16px;}
+.stage:not(:last-child)::after{content:'';position:absolute;left:27px;top:54px;bottom:-2px;width:2px;background:linear-gradient(180deg,var(--c,#3b82f6),rgba(255,255,255,.04));opacity:.5;}
+.st-node{width:54px;height:54px;border-radius:15px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#06080d;background:var(--c,#3b82f6);box-shadow:0 0 24px -4px var(--c,#3b82f6);position:relative;z-index:2;}
+.st-card{background:rgba(10,18,35,.78);border:1.5px solid rgba(255,255,255,.08);border-radius:16px;padding:16px 18px;transition:border-color .2s,background .2s,transform .2s,box-shadow .2s;}
+.st-card.link{cursor:pointer;}
+.st-card.link:hover{transform:translateY(-2px);border-color:var(--c,#3b82f6);box-shadow:0 10px 28px rgba(0,0,0,.4);}
+.st-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:6px;}
+.st-title{font-size:16px;font-weight:800;color:#f1f5f9;}
+.st-actor{font-size:11px;font-weight:600;color:var(--c,#60a5fa);background:color-mix(in srgb,var(--c,#3b82f6) 12%,transparent);padding:2px 9px;border-radius:6px;}
+.st-desc{font-size:12.5px;color:#94a3b8;line-height:1.55;margin-bottom:9px;}
+.st-desc code{font-size:11px;color:#fbbf24;background:rgba(245,158,11,.08);padding:0 4px;border-radius:3px;}
+.chips{display:flex;gap:7px;flex-wrap:wrap;}
+.chip{font-size:11px;color:#cbd5e1;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:7px;padding:3px 9px;font-family:'JetBrains Mono',monospace;}
+.chip .k{color:#64748b;font-family:'Inter',sans-serif;}
+.chip.mgr{border-color:rgba(96,165,250,.3);color:#93c5fd;}
+.chip.warn{border-color:rgba(248,113,113,.3);color:#fca5a5;}
+.drill{display:inline-flex;align-items:center;gap:5px;margin-top:10px;font-size:11px;font-weight:700;color:var(--c,#60a5fa);}
+
+/* 4중 가드 mini-grid inside 자동접수 stage */
+.gw{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:10px;}
+.gw-item{border:1px solid rgba(139,92,246,.3);border-radius:9px;padding:8px 10px;background:rgba(139,92,246,.04);}
+.gw-item .gn{font-size:11.5px;font-weight:800;color:#c4b5fd;font-family:'JetBrains Mono',monospace;}
+.gw-item .gc{font-size:10.5px;color:#64748b;margin-top:2px;line-height:1.4;}
+
+/* 실패 안전망 서브 박스 (상세조회 stage) */
+.fail{margin-top:10px;border-top:1px dashed rgba(255,255,255,.1);padding-top:10px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.fail-item{border:1px solid rgba(248,113,113,.28);border-radius:9px;padding:8px 10px;background:rgba(248,113,113,.04);}
+.fail-item .fn{font-size:11.5px;font-weight:800;color:#fca5a5;}
+.fail-item .fc{font-size:10.5px;color:#64748b;margin-top:2px;line-height:1.4;}
+
+.note{margin-top:24px;padding:14px 18px;background:rgba(59,130,246,.05);border:1px dashed rgba(59,130,246,.25);border-radius:12px;font-size:12.5px;color:#cbd5e1;line-height:1.65;}
+.note b{color:#93c5fd;}
+.note code{font-size:11.5px;color:#fbbf24;background:rgba(245,158,11,.08);padding:1px 5px;border-radius:3px;}
+
+@keyframes cardIn{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
+.stage{opacity:0;animation:cardIn .5s ease both;}
+.stage:nth-child(2){animation-delay:.05s;}.stage:nth-child(3){animation-delay:.1s;}.stage:nth-child(4){animation-delay:.15s;}
+.stage:nth-child(5){animation-delay:.2s;}.stage:nth-child(6){animation-delay:.25s;}.stage:nth-child(7){animation-delay:.3s;}
+@media(prefers-reduced-motion:reduce){.stage{animation:none;opacity:1;}}
+@media(max-width:680px){
+  .main{padding:20px 12px 70px;}
+  .stage{grid-template-columns:42px 1fr;gap:12px;}
+  .stage:not(:last-child)::after{left:20px;top:44px;}
+  .st-node{width:42px;height:42px;font-size:15px;border-radius:12px;}
+  .gw,.fail{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<div class="ambient amb1"></div>
+<div class="ambient amb2"></div>
+<div class="ambient amb3"></div>
+
+<header id="c4-hdr"></header>
+
+<div class="main">
+  <div class="intro">고객 주문이 AppFit 서버를 거쳐 에이전트에 도착해 <b>주방·프린터·화면까지 반영되는 흐름</b>을 단계별로 본다. 수신·버퍼·가드는 <b>Order Core</b>의 6개 매니저가 담당하고, 출력 단계는 <b>출력 파이프라인</b> 뷰로 이어진다. 실패 지점마다 폴링 안전망과 복구 큐가 받친다.</div>
+
+  <div class="boot">
+    <span class="bl">전제</span>
+    <span class="bstep">Auth.login()</span><span class="barr">&rarr;</span>
+    <span class="bstep">WebSocket connect (Notifier)</span><span class="barr">&rarr;</span>
+    <span class="bstep">OrderProvider build() &middot; keepAlive</span><span class="barr">&rarr;</span>
+    <span class="bstep">수신 대기</span>
+  </div>
+
+  <div class="journey">
+
+    <div class="stage" style="--c:#34d399;">
+      <div class="st-node">1</div>
+      <div class="st-card link" data-href="../c4core-l3-order-core.html">
+        <div class="st-head"><div class="st-title">수신</div><div class="st-actor">Notifier WSS + 폴링</div></div>
+        <div class="st-desc">WSS로 <code>ORDER_*</code> 이벤트를 실시간 수신. 소켓이 끊겨도 60초 주기 폴링이 폴백으로 같은 주문을 건져 올린다(자정 전체 새로고침 포함). 수동 <code>refreshOrders</code>까지 3경로가 한 곳으로 합류해 dedup.</div>
+        <div class="chips"><span class="chip mgr">OrderSocketManager</span><span class="chip mgr">OrderTimerManager &middot; 60s</span><span class="chip">refreshOrders</span></div>
+        <div class="drill">Order Core L3 &rarr;</div>
+      </div>
+    </div>
+
+    <div class="stage" style="--c:#22d3ee;">
+      <div class="st-node">2</div>
+      <div class="st-card link" data-href="../c4core-l3-order-core.html">
+        <div class="st-head"><div class="st-title">버퍼 &middot; 정렬</div><div class="st-actor">OrderQueueManager</div></div>
+        <div class="st-desc">도착한 주문을 1000ms 버퍼에 모아 <code>shopOrderNo</code> 순으로 정렬 후 방출. 폭주 시에도 순번이 뒤집히지 않는다. 방출 간격 500ms, fast 모드 250ms.</div>
+        <div class="chips"><span class="chip"><span class="k">버퍼</span> 1000ms</span><span class="chip"><span class="k">정렬</span> shopOrderNo</span><span class="chip"><span class="k">방출</span> 500ms / fast 250ms</span></div>
+        <div class="drill">Order Core L3 &rarr;</div>
+      </div>
+    </div>
+
+    <div class="stage" style="--c:#8b5cf6;">
+      <div class="st-node">3</div>
+      <div class="st-card">
+        <div class="st-head"><div class="st-title">자동접수 판정</div><div class="st-actor">OrderSettingsManager</div></div>
+        <div class="st-desc">메인 모드는 <code>isAutoReceipt</code>, KDS 모드는 <code>isKdsAcceptOrders</code> 토글로 자동접수 여부를 결정. 중복 접수는 4중 가드가 막는다.</div>
+        <div class="gw">
+          <div class="gw-item"><div class="gn">_autoAcceptingOrderIds</div><div class="gc">지금 접수 진행 중인 주문 재진입 차단</div></div>
+          <div class="gw-item"><div class="gn">ProcessedOrderCache</div><div class="gc">이미 처리 완료한 주문 재처리 차단</div></div>
+          <div class="gw-item"><div class="gn">_selfAcceptedOrderIds</div><div class="gc">내가 접수한 주문의 에코 이벤트 무시</div></div>
+          <div class="gw-item"><div class="gn">RecentRemovals</div><div class="gc">방금 제거된 주문의 유령 재등장 차단</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stage" style="--c:#60a5fa;">
+      <div class="st-node">4</div>
+      <div class="st-card">
+        <div class="st-head"><div class="st-title">상세조회</div><div class="st-actor">Core API</div></div>
+        <div class="st-desc">이벤트는 요약뿐이라 <code>getOrder</code>로 전체 상세(메뉴·옵션·수량)를 가져온다. 실패하면 재시도하고, 그래도 실패하면 3중 안전망이 이어받는다.</div>
+        <div class="fail">
+          <div class="fail-item"><div class="fn">리포트</div><div class="fc">실패 사실을 모니터링으로 보고</div></div>
+          <div class="fail-item"><div class="fn">폴링 안전망</div><div class="fc">60s 폴링이 다음 주기에 다시 수집</div></div>
+          <div class="fail-item"><div class="fn">복구 큐</div><div class="fc"><code style="color:#fbbf24;background:rgba(245,158,11,.08);padding:0 3px;border-radius:3px;">_pendingDetailReprint</code>로 출력 재발행</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stage" style="--c:#f59e0b;">
+      <div class="st-node">5</div>
+      <div class="st-card">
+        <div class="st-head"><div class="st-title">상태 변경</div><div class="st-actor">Core API</div></div>
+        <div class="st-desc"><code>updateOrderStatus</code>로 서버 상태를 <code>PREPARING</code>으로 전환. 이 호출을 <b style="color:#fbbf24;">await 완료한 뒤에만</b> 출력 단계로 넘어간다 — 접수 확정 전 인쇄물이 나가는 사고 방지.</div>
+        <div class="chips"><span class="chip">updateOrderStatus</span><span class="chip"><span class="k">상태</span> PREPARING</span><span class="chip warn">await 후 출력</span></div>
+      </div>
+    </div>
+
+    <div class="stage" style="--c:#f87171;">
+      <div class="st-node">6</div>
+      <div class="st-card link" data-href="c4-print-pipeline.html">
+        <div class="st-head"><div class="st-title">출력 enqueue</div><div class="st-actor">OutputQueueService</div></div>
+        <div class="st-desc">접수 확정된 주문을 <code>NewOrderJob</code>으로 출력 큐에 넣는다. 이후 라벨/영수증 이중 직렬 큐가 병렬로 소화 — 상세는 출력 파이프라인 뷰.</div>
+        <div class="chips"><span class="chip">NewOrderJob</span><span class="chip"><span class="k">큐</span> _labelQueue &#8214; _receiptQueue</span></div>
+        <div class="drill">출력 파이프라인 &rarr;</div>
+      </div>
+    </div>
+
+    <div class="stage" style="--c:#6ee7b7;">
+      <div class="st-node">7</div>
+      <div class="st-card">
+        <div class="st-head"><div class="st-title">UI 반영</div><div class="st-actor">OrderStateManager &rarr; 화면</div></div>
+        <div class="st-desc"><code>OrderState</code>에 반영되어 주문 카드가 화면에 뜨고, 부수효과로 알림음과 화면 블링크가 울린다. KDS 모드도 <b>동일한 OrderState를 공유</b>하므로 별도 동기화가 없다.</div>
+        <div class="chips"><span class="chip mgr">OrderStateManager</span><span class="chip">SoundService</span><span class="chip">BlinkService</span><span class="chip">AlertManager</span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="note"><b>이 흐름의 핵심:</b> 유입이 3경로(WSS &middot; 폴링 &middot; 수동)라도 버퍼&rarr;가드&rarr;상세조회&rarr;상태 변경의 <b>단일 파이프라인으로 합류</b>하고, 중복은 4중 가드가, 유실은 폴링 안전망 + <code>_pendingDetailReprint</code> 복구 큐가 막는다. 출력은 <code>updateOrderStatus</code> await 이후에만 시작되므로 "접수 안 된 주문이 인쇄되는" 역전이 구조적으로 불가능하다.</div>
+
+</div>
+
+<script src="c4.js"></script>
+<script>
+document.querySelectorAll('.st-card.link').forEach(n=>{
+  n.addEventListener('click',()=>{const h=n.getAttribute('data-href');if(h)location.href=h;});
+});
+</script>
+</body>
+</html>

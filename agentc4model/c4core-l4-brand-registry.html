@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>C4 · L4 — BrandRegistry (AppFit Order Agent)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="c4core.css">
+<style>
+.amb1{width:560px;height:560px;background:#3b82f6;top:8%;left:22%;}
+.amb2{width:440px;height:440px;background:#8b5cf6;bottom:8%;right:12%;}
+.back{position:fixed;top:60px;left:18px;z-index:30;font-size:12px;color:#60a5fa;text-decoration:none;padding:5px 12px;border:1px solid rgba(59,130,246,.3);border-radius:8px;background:rgba(6,8,13,.6);}
+.back:hover{background:rgba(59,130,246,.1);}
+.swap{position:fixed;top:60px;right:18px;z-index:30;font-size:12px;color:#67e8f9;text-decoration:none;padding:5px 12px;border:1px solid rgba(34,211,238,.3);border-radius:8px;background:rgba(6,8,13,.6);}
+.swap:hover{background:rgba(34,211,238,.1);}
+.brand-tbl-wrap{overflow-x:auto;margin:10px 0 6px;border:1px solid rgba(148,163,184,.15);border-radius:12px;background:rgba(10,13,20,.55);}
+.brand-tbl{width:100%;border-collapse:collapse;font-size:12px;min-width:720px;}
+.brand-tbl th{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:#64748b;text-align:left;padding:9px 12px;border-bottom:1px solid rgba(148,163,184,.18);}
+.brand-tbl td{padding:8px 12px;border-bottom:1px solid rgba(148,163,184,.08);color:#cbd5e1;vertical-align:top;}
+.brand-tbl tr:last-child td{border-bottom:none;}
+.brand-tbl .px{font-family:'JetBrains Mono',monospace;font-weight:600;color:#93c5fd;}
+.brand-tbl .mono2{font-family:'JetBrains Mono',monospace;font-size:11px;color:#94a3b8;}
+.feat{display:inline-block;font-family:'JetBrains Mono',monospace;font-size:10px;padding:2px 7px;border-radius:6px;background:rgba(139,92,246,.12);border:1px solid rgba(139,92,246,.3);color:#c4b5fd;margin:1px 2px 1px 0;}
+.feat.none{background:rgba(148,163,184,.08);border-color:rgba(148,163,184,.2);color:#64748b;}
+.warn-note{margin-top:10px;padding:10px 14px;border:1px solid rgba(251,191,36,.3);border-left:3px solid #fbbf24;border-radius:10px;background:rgba(251,191,36,.06);font-size:12px;color:#e2e8f0;line-height:1.6;}
+</style>
+</head>
+<body class="bg-grid">
+
+<div class="ambient amb1"></div>
+<div class="ambient amb2"></div>
+
+<div class="ghdr">
+  <div class="badge">C4 Model</div>
+  <h1>Level 4 — BrandRegistry</h1>
+  <div class="sub mono">lib/utils/brand_registry.dart</div>
+</div>
+<a class="back" href="c4core-l3-brand-i18n.html">&larr; L3 Brand &amp; i18n</a>
+<a class="swap" href="c4core-l4-printer-job-queue.html">PrinterJobQueue &rarr;</a>
+
+<div class="zoom">
+  <span class="zt">Zoom</span>
+  <a class="off" href="c4core-context.html" title="L1">L1</a>
+  <a class="off" href="c4core-l2.html" title="L2">L2</a>
+  <a class="off" href="c4core-l3-brand-i18n.html" title="L3">L3</a>
+  <span class="on" title="L4 Code">L4</span>
+</div>
+
+<div class="l4main">
+  <div class="l4lead">매장 ID prefix → 브랜드 메타데이터의 <b>단일 출처(SSOT)</b>. 기존에 BrandKey(인쇄 자산)·BrandTheme(색상)·prefix 헬퍼(기능/통화/환경)로 3중 분리돼 있던 개념을 <code>BrandMeta</code> 하나로 통합. <b>순수(prefs 비의존) static 클래스</b>라 단위 테스트가 쉽다. 산재된 <code>isTpcpStore</code> 류 prefix 분기를 <code>brand.has(feature)</code> 선언적 게이팅으로 대체.</div>
+
+  <!-- 클래스 구조 -->
+  <div class="sec"><span class="sd" style="background:#3b82f6;"></span>클래스 구조</div>
+  <div class="class-card">
+    <div class="class-head">
+      <div class="class-anno">static · 순수</div>
+      <div class="class-name">BrandRegistry</div>
+      <div class="class-layer">private 생성자(BrandRegistry._) — 인스턴스화 불가 · const Map&lt;BrandKey, BrandMeta&gt; _all (4개 브랜드)</div>
+    </div>
+
+    <div class="subsec"><span class="sd2" style="background:#60a5fa;"></span>의존 (모두 값 타입 — Provider/prefs 의존 없음)</div>
+    <div class="deps">
+      <div class="dep"><span class="dep-ic dep-repo"></span><span class="dep-nm">BrandTheme</span><span class="dep-ds">constants/brand_theme.dart · 색상 enum</span></div>
+      <div class="dep"><span class="dep-ic dep-repo"></span><span class="dep-nm">CurrencyUnit</span><span class="dep-ds">utils/currency_unit.dart · jpy/krw</span></div>
+      <div class="dep"><span class="dep-ic dep-cross"></span><span class="dep-nm">currentBrandProvider</span><span class="dep-cr">소비자 — brand_provider.dart (현재 브랜드)</span></div>
+    </div>
+
+    <div class="subsec"><span class="sd2" style="background:#60a5fa;"></span>주요 메서드 <span style="font-size:10.5px;color:#475569;font-weight:500;">(R 조회 — 전부 static, 상태 변경 없음)</span></div>
+    <div class="methods">
+
+      <div class="method open" onclick="this.classList.toggle('open')">
+        <div class="m-badge mb-r">R</div>
+        <div class="m-head"><span class="m-name">resolveOrNull()</span><span class="m-sig">(String? storeId) &rarr; BrandMeta?</span><span class="m-tag">capability 조회용</span></div>
+        <div class="m-detail">
+          <div class="md-row"><div class="md-l">흐름</div><div class="md-flow">
+            <span class="md-step">storeId?.toUpperCase()</span><span class="md-arr">→</span>
+            <span class="md-step">null/empty → null</span><span class="md-arr">→</span>
+            <span class="md-step">_all 순회 startsWith(prefix)</span><span class="md-arr">→</span>
+            <span class="md-step hot">미매칭 → null</span>
+          </div></div>
+          <div class="md-row"><div class="md-l">계약</div><div class="md-v">capability·통화·환경 조회는 <b>반드시 이 메서드</b> — "미지의 브랜드 = 기능 없음" 보장. prefix 들(TPCP/MHST/MATA/PAIK)은 서로 접두 관계가 없어 순회 순서 무관</div></div>
+        </div>
+      </div>
+
+      <div class="method open" onclick="this.classList.toggle('open')">
+        <div class="m-badge mb-r">R</div>
+        <div class="m-head"><span class="m-name">resolve()</span><span class="m-sig">(String? storeId) &rarr; BrandMeta</span><span class="m-tag">인쇄 자산용</span></div>
+        <div class="m-detail">
+          <div class="md-row"><div class="md-l">동작</div><div class="md-v"><code>resolveOrNull(storeId) ?? fallback</code> — 라벨/영수증은 항상 로고가 필요하므로 미매칭 시 <b>fallback(tokyoplatz)</b></div></div>
+          <div class="md-row"><div class="md-l">주의</div><div class="md-v">capability 판단에 쓰면 미지의 매장에 TPCP 기능이 붙는 오작동 — 그 경우 <code>resolveOrNull</code> 사용</div></div>
+        </div>
+      </div>
+
+      <div class="method" onclick="this.classList.toggle('open')">
+        <div class="m-badge mb-r">R</div>
+        <div class="m-head"><span class="m-name">byKey()</span><span class="m-sig">(BrandKey key) &rarr; BrandMeta</span></div>
+        <div class="m-detail">
+          <div class="md-row"><div class="md-l">동작</div><div class="md-v"><code>_all[key] ?? fallback</code> — enum 키 직접 조회 (prefix 해석 불필요한 내부 경로)</div></div>
+        </div>
+      </div>
+
+      <div class="method" onclick="this.classList.toggle('open')">
+        <div class="m-badge mb-r">R</div>
+        <div class="m-head"><span class="m-name">fallback</span><span class="m-sig">get &rarr; BrandMeta</span></div>
+        <div class="m-detail">
+          <div class="md-row"><div class="md-l">동작</div><div class="md-v"><code>_fallbackKey = BrandKey.tpcp</code> — 미로그인/미지원 prefix 의 fallback 브랜드(tokyoplatz 자산)</div></div>
+        </div>
+      </div>
+
+      <div class="method" onclick="this.classList.toggle('open')">
+        <div class="m-badge mb-r">R</div>
+        <div class="m-head"><span class="m-name">BrandMeta.has()</span><span class="m-sig">(BrandFeature f) &rarr; bool</span><span class="m-tag">게이팅 진입점</span></div>
+        <div class="m-detail">
+          <div class="md-row"><div class="md-l">동작</div><div class="md-v"><code>features.contains(f)</code> — UI show/hide·로직 enable/disable 을 <code>brand.has(feature)</code> 로 선언적 통일</div></div>
+        </div>
+      </div>
+
+      <div class="method" onclick="this.classList.toggle('open')">
+        <div class="m-badge mb-r">R</div>
+        <div class="m-head"><span class="m-name">BrandMeta.selectableThemes</span><span class="m-sig">get &rarr; List&lt;BrandTheme&gt;</span></div>
+        <div class="m-detail">
+          <div class="md-row"><div class="md-l">분기</div><div class="md-flow">
+            <span class="md-step">theme == appfitDefault → [appfitDefault] 1개</span><span class="md-arr">|</span>
+            <span class="md-step">그 외 → [appfitDefault, theme] 2종</span>
+          </div></div>
+          <div class="md-row"><div class="md-l">UI 계약</div><div class="md-v">선택지가 1개면 picker 를 숨겨 "브랜드 테마 없음"을 우아하게 처리. 신규 브랜드는 <code>theme</code>만 채우면 자동으로 2종 노출</div></div>
+        </div>
+      </div>
+
+      <div class="method" onclick="this.classList.toggle('open')">
+        <div class="m-badge mb-r">R</div>
+        <div class="m-head"><span class="m-name">BrandMeta 자산 경로 getter 3종</span><span class="m-sig">labelLogoPath / receiptLogoPath / themeLogoPath</span></div>
+        <div class="m-detail">
+          <div class="md-row"><div class="md-l">베이스</div><div class="md-v"><code>assets/images/brand/&lt;assetFolder&gt;/</code> 기준 — <code>label_logo.bmp</code>(모든 브랜드 필수) · <code>receipt_logo.png</code>(<code>hasReceiptLogo</code> false 면 <b>null</b>) · <code>logo.svg</code>(테마 화면)</div></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- BrandMeta 필드 -->
+  <div class="sec"><span class="sd" style="background:#22d3ee;"></span>BrandMeta — SSOT 레코드</div>
+  <div class="entity-card">
+    <div class="entity-head">
+      <div class="class-anno" style="color:#67e8f9;background:rgba(34,211,238,.1);">@immutable · const</div>
+      <div class="entity-name">BrandMeta</div>
+      <div class="entity-tag">브랜드 1개의 모든 메타데이터 — 인쇄 자산·테마·통화·환경·capability 한곳 선언</div>
+    </div>
+    <div class="fgt">식별 / 자산</div>
+    <div class="fields">
+      <div class="field"><span class="f-col">key</span><span class="f-type">BrandKey</span><span class="f-desc">tpcp / mhst / mata / paik</span><span class="f-tag f-enum">Enum</span></div>
+      <div class="field"><span class="f-col">storeIdPrefix</span><span class="f-type">String</span><span class="f-desc">매장 ID prefix (대문자, 예: 'TPCP')</span></div>
+      <div class="field"><span class="f-col">assetFolder</span><span class="f-type">String</span><span class="f-desc">assets/images/brand/&lt;folder&gt;/ 폴더명</span></div>
+      <div class="field"><span class="f-col">hasReceiptLogo</span><span class="f-type">bool</span><span class="f-desc">영수증 PNG 로고 보유 여부 (기본 false)</span></div>
+    </div>
+    <div class="fgt">테마 / 환경 / 기능</div>
+    <div class="fields">
+      <div class="field"><span class="f-col">theme</span><span class="f-type">BrandTheme</span><span class="f-desc">브랜드 테마 색상</span><span class="f-tag f-enum">Enum</span></div>
+      <div class="field"><span class="f-col">currency</span><span class="f-type">CurrencyUnit</span><span class="f-desc">기본 통화 (저장된 사용자 선택이 우선)</span><span class="f-tag f-enum">Enum</span></div>
+      <div class="field"><span class="f-col">serverEnvironment</span><span class="f-type">String</span><span class="f-desc">'japanLive' / 'live'</span></div>
+      <div class="field"><span class="f-col">features</span><span class="f-type">Set&lt;BrandFeature&gt;</span><span class="f-desc">지원 capability 집합 (기본 빈 Set)</span></div>
+    </div>
+  </div>
+
+  <!-- prefix 매핑 표 -->
+  <div class="sec"><span class="sd" style="background:#a78bfa;"></span>prefix &rarr; BrandMeta 매핑 (const _all)</div>
+  <div class="brand-tbl-wrap">
+    <table class="brand-tbl">
+      <thead><tr><th>prefix</th><th>assetFolder</th><th>theme</th><th>currency</th><th>serverEnv</th><th>영수증 로고</th><th>features</th></tr></thead>
+      <tbody>
+        <tr><td class="px">TPCP</td><td class="mono2">tokyoplatz</td><td class="mono2">appfitDefault</td><td class="mono2">jpy</td><td class="mono2">japanLive</td><td>&mdash;</td><td><span class="feat">labelCategoryFilter</span><span class="feat">japanEnvironment</span><span class="feat">autoUpdateForce</span></td></tr>
+        <tr><td class="px">MHST</td><td class="mono2">mammoth</td><td class="mono2">mammothCoffee</td><td class="mono2">krw</td><td class="mono2">live</td><td>&#10003;</td><td><span class="feat">soundGraphSend</span></td></tr>
+        <tr><td class="px">MATA</td><td class="mono2">mahataste</td><td class="mono2">mata</td><td class="mono2">krw</td><td class="mono2">live</td><td>&#10003;</td><td><span class="feat none">없음</span></td></tr>
+        <tr><td class="px">PAIK</td><td class="mono2">paik</td><td class="mono2">paik</td><td class="mono2">jpy</td><td class="mono2">japanLive</td><td>&#10003;</td><td><span class="feat">japanEnvironment</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="warn-note"><b>resolve vs resolveOrNull</b> — 인쇄 자산(로고 필수)은 <code>resolve()</code>(fallback=tokyoplatz), 기능/통화/환경 게이팅은 <code>resolveOrNull()</code>(미매칭=null=기능 없음). 섞어 쓰면 기타/kokonut/미로그인 매장에 TPCP 전용 기능이 켜지는 오작동이 난다.</div>
+
+  <!-- BrandFeature enum -->
+  <div class="sec"><span class="sd" style="background:#34d399;"></span>BrandFeature — capability 플래그 enum</div>
+  <div class="ifc-card">
+    <div class="ifc-list">
+      <div class="ifc"><span class="ifc-m im-ch">FEAT</span><span class="ifc-p">labelCategoryFilter</span><span class="ifc-d">TPCP 라벨 카테고리 필터(전체/와플만/와플제외) + 옵션 카테고리 분류</span></div>
+      <div class="ifc"><span class="ifc-m im-post">FEAT</span><span class="ifc-p">soundGraphSend</span><span class="ifc-d">MHST 사운드그래프 주문 전송 (자동접수 성공 후 외부 통합)</span></div>
+      <div class="ifc"><span class="ifc-m im-put">FEAT</span><span class="ifc-p">japanEnvironment</span><span class="ifc-d">일본(JPY/japanLive) 환경 브랜드 — TPCP·PAIK</span></div>
+      <div class="ifc"><span class="ifc-m im-sock">FEAT</span><span class="ifc-p">autoUpdateForce</span><span class="ifc-d">로그인 시 자동 업데이트 체크 강제 ON (TPCP+Android)</span></div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

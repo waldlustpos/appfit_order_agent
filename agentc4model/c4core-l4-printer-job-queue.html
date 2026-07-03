@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>C4 · L4 — PrinterJobQueue (AppFit Order Agent)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="c4core.css">
+<style>
+.amb1{width:560px;height:560px;background:#3b82f6;top:8%;left:22%;}
+.amb2{width:440px;height:440px;background:#8b5cf6;bottom:8%;right:12%;}
+.back{position:fixed;top:60px;left:18px;z-index:30;font-size:12px;color:#60a5fa;text-decoration:none;padding:5px 12px;border:1px solid rgba(59,130,246,.3);border-radius:8px;background:rgba(6,8,13,.6);}
+.back:hover{background:rgba(59,130,246,.1);}
+.swap{position:fixed;top:60px;right:18px;z-index:30;font-size:12px;color:#67e8f9;text-decoration:none;padding:5px 12px;border:1px solid rgba(34,211,238,.3);border-radius:8px;background:rgba(6,8,13,.6);}
+.swap:hover{background:rgba(34,211,238,.1);}
+.bo-table{width:100%;border-collapse:collapse;font-size:12px;}
+.bo-table th{text-align:left;font-size:10.5px;color:#64748b;font-weight:600;padding:6px 10px;border-bottom:1px solid rgba(148,163,184,.15);text-transform:uppercase;letter-spacing:.04em;}
+.bo-table td{padding:6px 10px;border-bottom:1px solid rgba(148,163,184,.08);color:#cbd5e1;vertical-align:top;}
+.bo-table td.mono{font-family:'JetBrains Mono',monospace;color:#fbbf24;white-space:nowrap;}
+.bo-wrap{overflow-x:auto;}
+</style>
+</head>
+<body class="bg-grid">
+
+<div class="ambient amb1"></div>
+<div class="ambient amb2"></div>
+
+<div class="ghdr">
+  <div class="badge">C4 Model</div>
+  <h1>Level 4 — PrinterJobQueue</h1>
+  <div class="sub mono">lib/services/printer_job_queue.dart</div>
+</div>
+<a class="back" href="c4core-l3-output-print.html">&larr; L3 Output &amp; Print</a>
+<a class="swap" href="c4core-l4-label-orchestrator.html">LabelPrintOrchestrator &rarr;</a>
+
+<div class="zoom">
+  <span class="zt">Zoom</span>
+  <a class="off" href="c4core-context.html" title="L1">L1</a>
+  <a class="off" href="c4core-l2.html" title="L2">L2</a>
+  <a class="off" href="c4core-l3-output-print.html" title="L3">L3</a>
+  <span class="on" title="L4 Code">L4</span>
+</div>
+
+<div class="l4main">
+  <div class="l4lead">외부 프린터 출력 <b>글로벌 직렬 큐</b>(싱글턴). 점유 충돌(BUSY) / 일시 단선(NO_DEVICE) / transport 오류를 <b>지수 backoff 0/2/5/10/20/40/60s(누적 ~137s · 7회 시도)</b>로 흡수. 인메모리 단일 큐 — 앱 재시작 시 미완료 잡은 분실. 단일 worker가 잡 사이 직렬화를 보장하므로 호출 측이 동시에 enqueue 해도 안전.</div>
+
+  <!-- 클래스 구조 -->
+  <div class="sec"><span class="sd" style="background:#3b82f6;"></span>클래스 구조</div>
+  <div class="class-card">
+    <div class="class-head">
+      <div class="class-anno">Singleton</div>
+      <div class="class-name">PrinterJobQueue</div>
+      <div class="class-layer">PrinterJobQueue._() · static final instance — 단일 worker 직렬 큐</div>
+    </div>
+
+    <div class="subsec"><span class="sd2" style="background:#60a5fa;"></span>주입 지점 (print_service가 설정)</div>
+    <div class="deps">
+      <div class="dep"><span class="dep-ic dep-repo"></span><span class="dep-nm">setTransport(PrinterTransport)</span><span class="dep-ds">플랫폼별 transport 주입 — 미주입 시 잡 즉시 noDevice 종료</span></div>
+      <div class="dep"><span class="dep-ic dep-repo"></span><span class="dep-nm">onFinalFailure</span><span class="dep-ds">PrinterFinalFailureCallback — maxAttempts 소진 시 1회 호출</span></div>
+      <div class="dep"><span class="dep-ic dep-cross"></span><span class="dep-nm">AndroidUsbTransport</span><span class="dep-cr">MethodChannel 'printReceiptBytes'</span></div>
+      <div class="dep"><span class="dep-ic dep-cross"></span><span class="dep-nm">WindowsTransport</span><span class="dep-cr">deferred-loaded (win32 크래시 방지)</span></div>
+      <div class="dep"><span class="dep-ic dep-repo"></span><span class="dep-nm">logToFile</span><span class="dep-ds">enqueue·success·attempt 실패·final-failure 기록</span></div>
+    </div>
+
+    <div class="subsec"><span class="sd2" style="background:#60a5fa;"></span>주요 메서드 <span style="font-size:10.5px;color:#475569;font-weight:500;">(W 변경 / P 내부 / T 테스트 전용)</span></div>
+    <div class="methods">
+
+      <div class="method open" onclick="this.classList.toggle('open')">
+        <div class="m-badge mb-w">W</div>
+        <div class="m-head"><span class="m-name">enqueue()</span><span class="m-sig">(PrinterJob job) → Future&lt;bool&gt;</span><span class="m-tag">진입점</span></div>
+        <div class="m-detail">
+          <div class="md-row"><div class="md-l">동작</div><div class="md-v">잡을 큐 끝에 추가하고 worker가 idle이면 <code>_kick()</code>으로 깨움. 반환 Future는 success 시 true, maxAttempts 실패/transport 미주입 시 false — 호출자가 최종 결과 await 가능</div></div>
+          <div class="md-row"><div class="md-l">로그</div><div class="md-v"><code>[PrinterQueue] enqueue id= kind= job= qsize=</code> (PLATFORM 태그)</div></div>
+        </div>
+      </div>
+
+      <div class="method" onclick="this.classList.toggle('open')">
+        <div class="m-badge mb-p">P</div>
+        <div class="m-head"><span class="m-name">_kick() / _runLoop()</span><span class="m-sig">→ void / Future&lt;void&gt;</span><span class="m-tag">단일 worker</span></div>
+        <div class="m-detail">
+          <div class="md-row"><div class="md-l">직렬 보장</div><div class="md-v"><code>_running</code>이면 return, 아니면 <code>scheduleMicrotask(_runLoop)</code>. _runLoop는 <code>while(_queue.isNotEmpty)</code>로 <code>removeAt(0)</code> → <code>_processJob</code> 순차 처리 — 한 잡이 backoff 중이면 후속 잡 적체(cap 60s를 둔 이유)</div></div>
+        </div>
+      </div>
+
+      <div class="method open" onclick="this.classList.toggle('open')">
+        <div class="m-badge mb-p">P</div>
+        <div class="m-head"><span class="m-name">_processJob()</span><span class="m-sig">(PrinterJob job) → Future&lt;void&gt;</span><span class="m-tag">backoff 루프</span></div>
+        <div class="m-detail">
+          <div class="md-row"><div class="md-l">가드</div><div class="md-v">transport null이면 <code>PrinterNoDevice('transport not initialized')</code>로 즉시 final — onFinalFailure 호출 + complete(false)</div></div>
+          <div class="md-row"><div class="md-l">흐름</div><div class="md-flow">
+            <span class="md-step">for (i = 0; i &lt; maxAttempts; i++)</span><span class="md-arr">→</span>
+            <span class="md-step">i&gt;0이면 _backoffs[i] 대기</span><span class="md-arr">→</span>
+            <span class="md-step cross">transport.send(bytes, jobName)</span><span class="md-arr">→</span>
+            <span class="md-step hot">PrinterSuccess → complete(true)</span>
+          </div></div>
+          <div class="md-row"><div class="md-l">예외</div><div class="md-v"><code>transport.send</code>가 throw하면 <code>PrinterTransportError('transport.send threw: …')</code>로 감싸 재시도 대상에 포함. 전 회차 실패 시 <code>onFinalFailure?.call(job, lastResult)</code> 1회 + complete(false), <b>다음 잡 처리는 계속</b></div></div>
+        </div>
+      </div>
+
+      <div class="method" onclick="this.classList.toggle('open')">
+        <div class="m-badge mb-w">W</div>
+        <div class="m-head"><span class="m-name">setTransport()</span><span class="m-sig">(PrinterTransport t) → void</span></div>
+        <div class="m-detail">
+          <div class="md-row"><div class="md-l">호출부</div><div class="md-v">print_service가 플랫폼에 맞는 transport(Android USB / Windows COM)를 주입</div></div>
+        </div>
+      </div>
+
+      <div class="method" onclick="this.classList.toggle('open')">
+        <div class="m-badge mb-r">R</div>
+        <div class="m-head"><span class="m-name">maxAttempts</span><span class="m-sig">get → int</span></div>
+        <div class="m-detail">
+          <div class="md-row"><div class="md-l">파생</div><div class="md-v"><code>_backoffs.length</code>에서 derive — defaultBackoffs 기준 7회(초기 1회 포함)</div></div>
+        </div>
+      </div>
+
+      <div class="method" onclick="this.classList.toggle('open')">
+        <div class="m-badge mb-p">T</div>
+        <div class="m-head"><span class="m-name">backoffsForTest / resetForTest() / queueSize / isRunning</span><span class="m-sig">@visibleForTesting</span></div>
+        <div class="m-detail">
+          <div class="md-row"><div class="md-l">용도</div><div class="md-v">backoff 길이/간격 자유 단축·큐/transport/콜백 초기화·상태 관찰 — 프로덕션에서는 호출하지 않음</div></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- backoff 스케줄 -->
+  <div class="sec"><span class="sd" style="background:#fbbf24;"></span>backoff 스케줄 — defaultBackoffs (0/2/5/10/20/40/60s · 누적 ~137s)</div>
+  <div class="ifc-card">
+    <div class="bo-wrap">
+    <table class="bo-table">
+      <tr><th>시도</th><th>직전 대기</th><th>누적</th><th>풀리는 매장 시나리오 (정책 근거)</th></tr>
+      <tr><td>1차</td><td class="mono">0s (즉시)</td><td class="mono">0s</td><td>첫 시도 — 인덱스 0은 구조 일관성용 자리</td></tr>
+      <tr><td>2차</td><td class="mono">2s</td><td class="mono">~2s</td><td>짧은 트랜잭션 점유 (POS 1건 처리 ~2s)</td></tr>
+      <tr><td>3차</td><td class="mono">5s</td><td class="mono">~7s</td><td>일반 점유 / 사용자가 전원 켜는 중</td></tr>
+      <tr><td>4차</td><td class="mono">10s</td><td class="mono">~17s</td><td>USB 재연결</td></tr>
+      <tr><td>5차</td><td class="mono">20s</td><td class="mono">~37s</td><td>부팅 느린 프린터</td></tr>
+      <tr><td>6차</td><td class="mono">40s</td><td class="mono">~77s</td><td>잠깐 자리 비운 사이 장애</td></tr>
+      <tr><td>7차</td><td class="mono">60s (cap)</td><td class="mono">~137s</td><td>큐 적체 방지 한계 — 그래도 실패면 final-failure</td></tr>
+    </table>
+    </div>
+  </div>
+
+  <!-- PrinterJob 모델 -->
+  <div class="sec"><span class="sd" style="background:#22d3ee;"></span>PrinterJob — 출력 1건</div>
+  <div class="entity-card">
+    <div class="entity-head">
+      <div class="class-anno" style="color:#67e8f9;background:rgba(34,211,238,.1);">인메모리 (휘발)</div>
+      <div class="entity-name">PrinterJob</div>
+      <div class="entity-tag">enqueue 시 즉시 future 반환 — 호출자가 최종 성공/실패 await</div>
+    </div>
+    <div class="fgt">식별 / 페이로드</div>
+    <div class="fields">
+      <div class="field"><span class="f-col">id</span><span class="f-type">int</span><span class="f-desc">_nextId++ — 큐 로그 동일 잡 추적</span></div>
+      <div class="field"><span class="f-col">bytes</span><span class="f-type">Uint8List</span><span class="f-desc">ESC/POS 바이트 — backoff 재시도 시 동일 바이트 재사용</span></div>
+      <div class="field"><span class="f-col">jobName</span><span class="f-type">String</span><span class="f-desc">'RECEIPT_123' 등 운영 로깅용 라벨</span></div>
+      <div class="field"><span class="f-col">kind</span><span class="f-type">String</span><span class="f-desc">'order' | 'receipt' | 'alert' — transport 동작 무관, 로깅 분류</span></div>
+    </div>
+    <div class="fgt">진행 상태</div>
+    <div class="fields">
+      <div class="field"><span class="f-col">attempt</span><span class="f-type">int</span><span class="f-desc">현재 시도 회차(1-based) — 첫 호출 전 0</span></div>
+      <div class="field"><span class="f-col">lastResult</span><span class="f-type">PrinterTransportResult?</span><span class="f-desc">마지막 transport 결과 — final-failure 사유 분류</span></div>
+      <div class="field"><span class="f-col">future</span><span class="f-type">Future&lt;bool&gt;</span><span class="f-desc">Completer 기반 — success true / final-failure false</span></div>
+    </div>
+  </div>
+
+  <!-- 실패 분류 -->
+  <div class="sec"><span class="sd" style="background:#34d399;"></span>실패 분류 — sealed PrinterTransportResult (printer_transport.dart)</div>
+  <div class="ifc-card">
+    <div class="ifc-list">
+      <div class="ifc"><span class="ifc-m im-ch">OK</span><span class="ifc-p">PrinterSuccess</span><span class="ifc-d">송출 성공 — 즉시 complete(true)</span></div>
+      <div class="ifc"><span class="ifc-m im-put">BUSY</span><span class="ifc-p">PrinterBusy(<span style="color:#fbbf24;">reason</span>)</span><span class="ifc-d">다른 프로세스/세션 점유 — 재시도 시 풀릴 가능성 큼 (Android: claim/open 실패)</span></div>
+      <div class="ifc"><span class="ifc-m im-put">NO_DEV</span><span class="ifc-p">PrinterNoDevice(<span style="color:#fbbf24;">reason</span>)</span><span class="ifc-d">디바이스 enumerate 안 됨(미연결/단선) · transport 미주입</span></div>
+      <div class="ifc"><span class="ifc-m im-put">T_ERR</span><span class="ifc-p">PrinterTransportError(<span style="color:#fbbf24;">reason</span>)</span><span class="ifc-d">open은 됐지만 write 도중 실패 (bulkTransfer 등)</span></div>
+      <div class="ifc"><span class="ifc-m im-ch">CHANNEL</span><span class="ifc-p">transport.send(bytes, jobName) → PrinterTransportResult</span><span class="ifc-d">셋 다 동일 backoff 재시도 — 분류는 운영 진단용 로깅</span></div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>C4 · L3 — App Shell Components</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="c4core.css">
+<style>
+.amb1{width:560px;height:560px;background:#3b82f6;top:8%;left:22%;}
+.amb2{width:440px;height:440px;background:#8b5cf6;bottom:8%;right:12%;}
+.back{position:fixed;top:60px;left:18px;z-index:30;font-size:12px;color:#60a5fa;text-decoration:none;padding:5px 12px;border:1px solid rgba(59,130,246,.3);border-radius:8px;background:rgba(6,8,13,.6);}
+.back:hover{background:rgba(59,130,246,.1);}
+.alt{position:fixed;top:60px;right:18px;z-index:30;font-size:12px;color:#60a5fa;text-decoration:none;padding:5px 12px;border:1px solid rgba(59,130,246,.3);border-radius:8px;background:rgba(6,8,13,.6);}
+.alt:hover{background:rgba(59,130,246,.1);}
+
+.l3main{position:relative;z-index:1;max-width:1080px;margin:0 auto;padding:78px 28px 90px;}
+.l3lead{font-size:13px;color:var(--dim);line-height:1.6;margin-bottom:8px;}
+.l3lead b{color:var(--muted);}
+.l3lead code{color:#fbbf24;background:rgba(245,158,11,.08);padding:1px 5px;border-radius:3px;font-size:11.5px;}
+.l3note{font-size:11.5px;color:#475569;margin-bottom:22px;}
+.l3note b{color:#93c5fd;}
+
+/* layer strip */
+.layer{display:grid;grid-template-columns:104px 1fr;gap:14px;align-items:stretch;}
+.layer-label{display:flex;flex-direction:column;justify-content:center;gap:4px;padding:12px 13px;border-radius:12px;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.05);}
+.layer-label .ln{font-size:13px;font-weight:800;color:#e2e8f0;}
+.layer-label .lt{font-size:9.5px;font-weight:600;color:#64748b;}
+.layer-label .ld{width:9px;height:9px;border-radius:3px;margin-bottom:2px;}
+.comps{display:flex;gap:10px;flex-wrap:wrap;align-content:center;padding:5px 0;}
+.comp{flex:1;min-width:172px;background:rgba(10,18,35,.72);border:1.5px solid rgba(255,255,255,.08);border-radius:12px;padding:11px 14px;transition:border-color .2s,background .2s,transform .2s,box-shadow .2s;}
+.comp .cn{font-size:13.5px;font-weight:800;font-family:'JetBrains Mono',monospace;}
+.comp .cr{font-size:10.5px;color:#94a3b8;margin-top:3px;line-height:1.4;}
+.comp .cf{font-size:9.5px;color:#475569;margin-top:4px;}
+.comp .cp{display:inline-block;font-size:8.5px;font-weight:800;letter-spacing:.06em;padding:1px 7px;border-radius:9px;margin-top:5px;}
+.cp-win{color:#67e8f9;background:rgba(34,211,238,.1);border:1px solid rgba(34,211,238,.25);}
+.cp-and{color:#6ee7b7;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.25);}
+.cp-all{color:#c4b5fd;background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.25);}
+
+.t-ui{border-color:rgba(16,185,129,.3);} .t-ui .cn{color:#6ee7b7;}
+.t-orch{border-color:rgba(59,130,246,.35);} .t-orch .cn{color:#93c5fd;}
+.t-gw{border-color:rgba(139,92,246,.35);} .t-gw .cn{color:#c4b5fd;}
+.t-svc{border-color:rgba(245,158,11,.3);} .t-svc .cn{color:#fbbf24;}
+.t-pp{border-color:rgba(34,211,238,.3);} .t-pp .cn{color:#67e8f9;}
+.t-ps{border-color:rgba(248,113,113,.3);} .t-ps .cn{color:#fca5a5;}
+
+.flow-sep{display:flex;justify-content:center;align-items:center;height:20px;color:#475569;}
+.flow-sep span{font-size:10.5px;font-weight:600;padding:0 10px;background:var(--bg);}
+.flow-sep::before,.flow-sep::after{content:'';height:1px;flex:0 0 36px;background:linear-gradient(90deg,transparent,rgba(96,165,250,.3));}
+
+@keyframes c4-cin{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+.layer{opacity:0;animation:c4-cin .5s ease both;}
+.layer:nth-child(3){animation-delay:.05s;}.layer:nth-child(5){animation-delay:.1s;}.layer:nth-child(7){animation-delay:.15s;}.layer:nth-child(9){animation-delay:.2s;}.layer:nth-child(11){animation-delay:.25s;}.layer:nth-child(13){animation-delay:.3s;}
+@media(prefers-reduced-motion:reduce){.layer{animation:none;opacity:1;}}
+@media(max-width:760px){
+  .l3main{padding:70px 12px 80px;}
+  .layer{grid-template-columns:1fr;}
+  .layer-label{flex-direction:row;align-items:center;gap:8px;}
+  .layer-label .ld{margin:0;}
+  .comp{min-width:100%;}
+}
+</style>
+</head>
+<body class="bg-grid">
+
+<div class="ambient amb1"></div>
+<div class="ambient amb2"></div>
+
+<div class="ghdr">
+  <div class="badge">C4 Model</div>
+  <h1>Level 3 — App Shell Components</h1>
+  <div class="sub">lib/main.dart · Routes · AppFit 주문 에이전트</div>
+</div>
+<a class="back" href="c4core-l2.html">&larr; L2 Container</a>
+<a class="alt" href="views/c4-ota-variants.html">OTA &middot; 빌드 변형 &rarr;</a>
+
+<!-- 줌 -->
+<div class="zoom">
+  <span class="zt">Zoom</span>
+  <a class="off" href="c4core-context.html" title="L1">L1</a>
+  <a class="off" href="c4core-l2.html" title="L2">L2</a>
+  <span class="on" title="L3 Component">L3</span>
+  <span class="off" title="L4 없음">L4</span>
+</div>
+
+<div class="l3main">
+  <div class="l3lead"><code>main()</code>은 <b>&#9312;~&#9320; 순서 고정 초기화</b> 후 <code>runApp(ProviderScope)</code>. 플랫폼(Windows/Android) 게이트가 단계별로 갈라진다. 브랜드 테마는 <b>부팅 시 1회만 적용</b> — 색 변경은 앱 재시작 필요.</div>
+  <div class="l3note"><b>구조</b>를 본다. OTA 자가 업데이트·빌드 변형 상세는 우측 상단 "OTA · 빌드 변형"(별첨).</div>
+
+  <!-- Guard ① -->
+  <div class="layer">
+    <div class="layer-label"><div class="ld" style="background:#22d3ee;"></div><div class="ln">Guard</div><div class="lt">&#9312; 진입 게이트</div></div>
+    <div class="comps">
+      <div class="comp t-pp"><div class="cn">SingleInstanceMutex</div><div class="cr">이중 실행 차단(뮤텍스) — 실패 시 즉시 종료</div><div class="cf">windows/runner · main.dart</div><div class="cp cp-win">Windows</div></div>
+      <div class="comp t-pp"><div class="cn">window_manager</div><div class="cr">창 초기화 <code>ensureInitialized()</code></div><div class="cf">main.dart</div><div class="cp cp-win">Windows</div></div>
+    </div>
+  </div>
+  <div class="flow-sep"><span>&#9313;&#9314; 저장된 환경 읽기 &rarr; 서버 env 결정</span></div>
+
+  <!-- Config ②③ -->
+  <div class="layer">
+    <div class="layer-label"><div class="ld" style="background:#3b82f6;"></div><div class="ln">Config</div><div class="lt">&#9313;&#9314; 환경·관측</div></div>
+    <div class="comps">
+      <div class="comp t-orch"><div class="cn">AppFitConfig.configure</div><div class="cr">PreferenceService로 저장된 환경 읽기 &rarr; appfit_core 서버 설정</div><div class="cf">main.dart · appfit_core</div><div class="cp cp-all">공통</div></div>
+      <div class="comp t-orch"><div class="cn">MonitoringService</div><div class="cr">Sentry 초기화(DSN 있을 때만) — 이후 단계 오류 <code>captureError</code></div><div class="cf">services/monitoring</div><div class="cp cp-all">공통</div></div>
+    </div>
+  </div>
+  <div class="flow-sep"><span>&#9315; Windows &middot; release 빌드 한정</span></div>
+
+  <!-- Self-Update ④ -->
+  <div class="layer">
+    <div class="layer-label"><div class="ld" style="background:#8b5cf6;"></div><div class="ln">Self-Update</div><div class="lt">&#9315; OTA 자가 업데이트</div></div>
+    <div class="comps">
+      <div class="comp t-gw"><div class="cn">runStartupUpdateFlow()</div><div class="cr">OTA 서버 버전 JSON 비교 &rarr; ZIP 다운로드 &rarr; updater.bat 재시작</div><div class="cf">utils/app_startup_updater.dart</div><div class="cp cp-win">Windows · release</div></div>
+    </div>
+  </div>
+  <div class="flow-sep"><span>&#9316;&#9317;&#9318; 플랫폼별 서비스 초기화</span></div>
+
+  <!-- Services ⑤⑥⑦ -->
+  <div class="layer">
+    <div class="layer-label"><div class="ld" style="background:#f59e0b;"></div><div class="ln">Services</div><div class="lt">&#9316;&#9317;&#9318; 기반 서비스</div></div>
+    <div class="comps">
+      <div class="comp t-svc"><div class="cn">Firebase.initializeApp</div><div class="cr">KDS 클라우드 동기화용 Firestore 기반</div><div class="cf">main.dart · firebase_options.dart</div><div class="cp cp-and">Android</div></div>
+      <div class="comp t-svc"><div class="cn">PreferenceService</div><div class="cr"><code>init()</code>에서 V2 마이그레이션 포함 초기화</div><div class="cf">services/preference_service.dart</div><div class="cp cp-all">공통</div></div>
+      <div class="comp t-svc"><div class="cn">LabelPrinter warmup</div><div class="cr"><code>warmupOpen()</code> — autoreplyprint 백엔드 선연결</div><div class="cf">services/label_printer</div><div class="cp cp-win">Windows</div></div>
+    </div>
+  </div>
+  <div class="flow-sep"><span>&#9319; 브랜드 테마 1회 적용 (색 변경은 재시작 필요)</span></div>
+
+  <!-- Launch ⑧⑨ -->
+  <div class="layer">
+    <div class="layer-label"><div class="ld" style="background:#10b981;"></div><div class="ln">Launch</div><div class="lt">&#9319;&#9320; 기동</div></div>
+    <div class="comps">
+      <div class="comp t-ui"><div class="cn">AppStyles.applyBrand</div><div class="cr">storeId prefix &rarr; BrandTheme 색상 주입(부팅 1회)</div><div class="cf">constants/app_styles.dart</div><div class="cp cp-all">공통</div></div>
+      <div class="comp t-ui"><div class="cn">runApp(ProviderScope)</div><div class="cr">Riverpod 루트 &rarr; MaterialApp 기동</div><div class="cf">main.dart</div><div class="cp cp-all">공통</div></div>
+    </div>
+  </div>
+  <div class="flow-sep"><span>Navigator 명명 라우트 3개</span></div>
+
+  <!-- Routes -->
+  <div class="layer">
+    <div class="layer-label"><div class="ld" style="background:#f87171;"></div><div class="ln">Routes</div><div class="lt">화면 진입점</div></div>
+    <div class="comps">
+      <div class="comp t-ps"><div class="cn">/login</div><div class="cr">LoginScreen — 세션 복원·로그인</div><div class="cf">screens/login_screen.dart</div></div>
+      <div class="comp t-ps"><div class="cn">/home</div><div class="cr">HomeScreen — 메인(접수)/KDS 모드 토글</div><div class="cf">screens/home_screen.dart</div></div>
+      <div class="comp t-ps"><div class="cn">/settings</div><div class="cr">SettingsScreen — 프린터·환경 설정</div><div class="cf">screens/settings_screen.dart</div></div>
+      <div class="comp t-ps"><div class="cn">lifecycleProvider</div><div class="cr">종료 감지 &rarr; <code>uploadLogsOnExit</code> &rarr; Slack 로그 업로드</div><div class="cf">providers/lifecycle_provider.dart</div></div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

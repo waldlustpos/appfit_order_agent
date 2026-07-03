@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>C4 · L3 — Auth &amp; Session Components</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="c4core.css">
+<style>
+.amb1{width:560px;height:560px;background:#3b82f6;top:8%;left:22%;}
+.amb2{width:440px;height:440px;background:#ef4444;bottom:8%;right:12%;}
+.back{position:fixed;top:60px;left:18px;z-index:30;font-size:12px;color:#60a5fa;text-decoration:none;padding:5px 12px;border:1px solid rgba(59,130,246,.3);border-radius:8px;background:rgba(6,8,13,.6);}
+.back:hover{background:rgba(59,130,246,.1);}
+
+.l3main{position:relative;z-index:1;max-width:1080px;margin:0 auto;padding:78px 28px 90px;}
+.l3lead{font-size:13px;color:var(--dim);line-height:1.6;margin-bottom:8px;}
+.l3lead b{color:var(--muted);}
+.l3lead code{color:#fbbf24;background:rgba(245,158,11,.08);padding:1px 5px;border-radius:3px;font-size:11.5px;}
+.l3note{font-size:11.5px;color:#475569;margin-bottom:22px;}
+.l3note b{color:#93c5fd;}
+
+/* layer strip */
+.layer{display:grid;grid-template-columns:104px 1fr;gap:14px;align-items:stretch;}
+.layer-label{display:flex;flex-direction:column;justify-content:center;gap:4px;padding:12px 13px;border-radius:12px;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.05);}
+.layer-label .ln{font-size:13px;font-weight:800;color:#e2e8f0;}
+.layer-label .lt{font-size:9.5px;font-weight:600;color:#64748b;}
+.layer-label .ld{width:9px;height:9px;border-radius:3px;margin-bottom:2px;}
+.comps{display:flex;gap:10px;flex-wrap:wrap;align-content:center;padding:5px 0;}
+.comp{flex:1;min-width:172px;background:rgba(10,18,35,.72);border:1.5px solid rgba(255,255,255,.08);border-radius:12px;padding:11px 14px;transition:border-color .2s,background .2s,transform .2s,box-shadow .2s;}
+.comp .cn{font-size:13.5px;font-weight:800;font-family:'JetBrains Mono',monospace;}
+.comp .cr{font-size:10.5px;color:#94a3b8;margin-top:3px;line-height:1.4;}
+.comp .cf{font-size:9.5px;color:#475569;margin-top:4px;}
+
+.t-ui{border-color:rgba(16,185,129,.3);} .t-ui .cn{color:#6ee7b7;}
+.t-orch{border-color:rgba(59,130,246,.35);} .t-orch .cn{color:#93c5fd;}
+.t-gw{border-color:rgba(139,92,246,.35);} .t-gw .cn{color:#c4b5fd;}
+.t-svc{border-color:rgba(245,158,11,.3);} .t-svc .cn{color:#fbbf24;}
+.t-pp{border-color:rgba(34,211,238,.3);} .t-pp .cn{color:#67e8f9;}
+.t-ps{border-color:rgba(248,113,113,.3);} .t-ps .cn{color:#fca5a5;}
+
+.flow-sep{display:flex;justify-content:center;align-items:center;height:20px;color:#475569;}
+.flow-sep span{font-size:10.5px;font-weight:600;padding:0 10px;background:var(--bg);}
+.flow-sep::before,.flow-sep::after{content:'';height:1px;flex:0 0 36px;background:linear-gradient(90deg,transparent,rgba(96,165,250,.3));}
+
+/* 로그아웃 강조 박스 */
+.spot{margin:26px 0 8px;border:1.5px solid rgba(248,113,113,.45);border-radius:14px;background:linear-gradient(135deg,rgba(127,29,29,.25),rgba(10,18,35,.75));padding:16px 18px;box-shadow:0 0 40px rgba(248,113,113,.08);}
+.spot .st{font-size:14px;font-weight:800;font-family:'JetBrains Mono',monospace;color:#fca5a5;}
+.spot .sb{display:inline-block;font-size:8.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#fecaca;background:rgba(248,113,113,.15);border:1px solid rgba(248,113,113,.3);border-radius:9px;padding:1px 8px;margin-left:8px;vertical-align:2px;}
+.spot ul{margin:9px 0 0 2px;list-style:none;display:grid;gap:5px;}
+.spot li{font-size:11px;color:#cbd5e1;line-height:1.5;padding-left:14px;position:relative;}
+.spot li::before{content:'\25B8';position:absolute;left:0;color:#f87171;font-size:9px;}
+.spot li b{color:#fecaca;}
+.spot li code{color:#fbbf24;background:rgba(245,158,11,.08);padding:1px 5px;border-radius:3px;font-size:10px;}
+
+@keyframes c4-cin{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+.layer,.spot{opacity:0;animation:c4-cin .5s ease both;}
+.layer:nth-child(3){animation-delay:.05s;}.layer:nth-child(5){animation-delay:.1s;}.layer:nth-child(7){animation-delay:.15s;}.layer:nth-child(9){animation-delay:.2s;}
+.spot{animation-delay:.25s;}
+@media(prefers-reduced-motion:reduce){.layer,.spot{animation:none;opacity:1;}}
+@media(max-width:760px){
+  .l3main{padding:70px 12px 80px;}
+  .layer{grid-template-columns:1fr;}
+  .layer-label{flex-direction:row;align-items:center;gap:8px;}
+  .layer-label .ld{margin:0;}
+  .comp{min-width:100%;}
+}
+</style>
+</head>
+<body class="bg-grid">
+
+<div class="ambient amb1"></div>
+<div class="ambient amb2"></div>
+
+<div class="ghdr">
+  <div class="badge">C4 Model</div>
+  <h1>Level 3 — Auth &amp; Session Components</h1>
+  <div class="sub">lib/providers/auth_provider.dart · appfit_core</div>
+</div>
+<a class="back" href="c4core-l2.html">&larr; L2 Container</a>
+
+<!-- 줌 -->
+<div class="zoom">
+  <span class="zt">Zoom</span>
+  <a class="off" href="c4core-context.html" title="L1">L1</a>
+  <a class="off" href="c4core-l2.html" title="L2">L2</a>
+  <span class="on" title="L3 Component">L3</span>
+  <span class="off" title="L4 없음">L4</span>
+</div>
+
+<div class="l3main">
+  <div class="l3lead">로그인은 <b>토큰 발급 &rarr; 프로젝트 정보(AES apiKey) &rarr; 영속화 &rarr; 소켓 연결</b>의 직렬 파이프라인. 세션 정리는 <b><code>Auth.logout()</code> 단일 진입점</b>만 허용된다.</div>
+  <div class="l3note"><b>모든 REST 호출</b>은 appfit_core Dio 인터셉터 경유(자동 인증 헤더 + AES-GCM 암호화) — 직접 http/Dio 금지.</div>
+
+  <!-- Entry -->
+  <div class="layer">
+    <div class="layer-label"><div class="ld" style="background:#10b981;"></div><div class="ln">Entry</div><div class="lt">진입</div></div>
+    <div class="comps">
+      <div class="comp t-ui"><div class="cn">LoginScreen</div><div class="cr">매장 ID + 비밀번호 입력 &rarr; 로그인 요청</div><div class="cf">screens/login_screen.dart</div></div>
+    </div>
+  </div>
+  <div class="flow-sep"><span>Auth.login(storeId, password)</span></div>
+
+  <!-- Coordinator -->
+  <div class="layer">
+    <div class="layer-label"><div class="ld" style="background:#3b82f6;"></div><div class="ln">Coordinator</div><div class="lt">인증 오케스트레이션</div></div>
+    <div class="comps">
+      <div class="comp t-orch"><div class="cn">Auth (authProvider)</div><div class="cr">로그인/로그아웃/재연결 상태 머신 코디네이터</div><div class="cf">providers/auth_provider.dart</div></div>
+      <div class="comp t-orch"><div class="cn">Prefix 전환 감지</div><div class="cr">브랜드 prefix가 바뀐 재로그인이면 이전 매장 상태 정리</div><div class="cf">providers/auth_provider.dart</div></div>
+    </div>
+  </div>
+  <div class="flow-sep"><span>토큰 발급 &rarr; 프로젝트 정보 조회</span></div>
+
+  <!-- Handshake -->
+  <div class="layer">
+    <div class="layer-label"><div class="ld" style="background:#8b5cf6;"></div><div class="ln">Handshake</div><div class="lt">AppFit 서버</div></div>
+    <div class="comps">
+      <div class="comp t-gw"><div class="cn">AppFitTokenManager<br>.getValidToken</div><div class="cr">저장 토큰 검증/재발급 (appfit_core)</div><div class="cf">appfit_core · auth</div></div>
+      <div class="comp t-gw"><div class="cn">getProjectInfo()</div><div class="cr">복호화된 projectId + AES apiKey 반환</div><div class="cf">apiServiceProvider (appfit_core Dio)</div></div>
+    </div>
+  </div>
+  <div class="flow-sep"><span>자격증명 영속화 &rarr; 매장 상태 반영</span></div>
+
+  <!-- Persist / State -->
+  <div class="layer">
+    <div class="layer-label"><div class="ld" style="background:#f59e0b;"></div><div class="ln">Persist</div><div class="lt">저장 · 상태</div></div>
+    <div class="comps">
+      <div class="comp t-svc"><div class="cn">SecureStorage 저장</div><div class="cr">자격증명·apiKey 보관(자동 로그인 복원용)</div><div class="cf">services/secure_storage_service.dart</div></div>
+      <div class="comp t-svc"><div class="cn">Store.setStoreModel</div><div class="cr">매장 정보 전역 상태 반영</div><div class="cf">providers/store_provider.dart</div></div>
+    </div>
+  </div>
+  <div class="flow-sep"><span>실시간 주문 이벤트 구독 (WSS · 비동기)</span></div>
+
+  <!-- Realtime -->
+  <div class="layer">
+    <div class="layer-label"><div class="ld" style="background:#22d3ee;"></div><div class="ln">Realtime</div><div class="lt">소켓 연결</div></div>
+    <div class="comps">
+      <div class="comp t-pp"><div class="cn">WebSocket connect()</div><div class="cr">apiKey로 AppFit Notifier 연결 &rarr; Order Core에 주문 이벤트 스트림 공급</div><div class="cf">appFitNotifierServiceProvider</div></div>
+    </div>
+  </div>
+
+  <!-- 로그아웃 강조 -->
+  <div class="spot">
+    <span class="st">Auth.logout()</span><span class="sb">단일 진입점 — 절대 규칙</span>
+    <ul>
+      <li>세션 정리는 <b>오직 <code>Auth.logout()</code></b>으로만. UI/다른 서비스가 disconnect를 직접 호출하지 않는다.</li>
+      <li><code>disconnect()</code> 호출 후에는 dependency가 outdated &rarr; <b>모든 <code>ref.read()</code>는 disconnect 호출 전에 미리 캐시</b>해야 한다.</li>
+      <li>UI 계층 책임은 <b>logout 호출 + 영업 상태 변경 + OrderProvider cleanup + 네비게이션</b>까지만.</li>
+    </ul>
+  </div>
+
+  <div class="flow-sep"><span>하부 인프라 (영속화 · 암호화 통신)</span></div>
+
+  <!-- Infra -->
+  <div class="layer">
+    <div class="layer-label"><div class="ld" style="background:#f87171;"></div><div class="ln">Infra</div><div class="lt">기반 서비스</div></div>
+    <div class="comps">
+      <div class="comp t-ps"><div class="cn">PreferenceService</div><div class="cr">설정 KV — V2 마이그레이션 포함 init</div><div class="cf">services/preference_service.dart</div></div>
+      <div class="comp t-ps"><div class="cn">SecureStorageService</div><div class="cr">자격증명 암호화 저장소</div><div class="cf">services/secure_storage_service.dart</div></div>
+      <div class="comp t-ps"><div class="cn">TokenManager / DioProvider</div><div class="cr">자동 인증 헤더 + AES-GCM 암호화 인터셉터</div><div class="cf">appfit_core 패키지</div></div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

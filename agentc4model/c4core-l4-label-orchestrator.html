@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>C4 · L4 — OutputService · Label Orchestration (AppFit Order Agent)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="c4core.css">
+<style>
+.amb1{width:560px;height:560px;background:#3b82f6;top:8%;left:22%;}
+.amb2{width:440px;height:440px;background:#8b5cf6;bottom:8%;right:12%;}
+.back{position:fixed;top:60px;left:18px;z-index:30;font-size:12px;color:#60a5fa;text-decoration:none;padding:5px 12px;border:1px solid rgba(59,130,246,.3);border-radius:8px;background:rgba(6,8,13,.6);}
+.back:hover{background:rgba(59,130,246,.1);}
+.swap{position:fixed;top:60px;right:18px;z-index:30;font-size:12px;color:#67e8f9;text-decoration:none;padding:5px 12px;border:1px solid rgba(34,211,238,.3);border-radius:8px;background:rgba(6,8,13,.6);}
+.swap:hover{background:rgba(34,211,238,.1);}
+.warn-note{margin-top:10px;padding:10px 14px;border:1px solid rgba(251,191,36,.3);border-left:3px solid #fbbf24;border-radius:10px;background:rgba(251,191,36,.06);font-size:12px;color:#e2e8f0;line-height:1.6;}
+</style>
+</head>
+<body class="bg-grid">
+
+<div class="ambient amb1"></div>
+<div class="ambient amb2"></div>
+
+<div class="ghdr">
+  <div class="badge">C4 Model</div>
+  <h1>Level 4 — OutputService (Label Orchestration)</h1>
+  <div class="sub mono">lib/core/orders/output_service.dart</div>
+</div>
+<a class="back" href="c4core-l3-output-print.html">&larr; L3 Output &amp; Print</a>
+<a class="swap" href="c4core-l4-order-provider.html">OrderProvider &rarr;</a>
+
+<div class="zoom">
+  <span class="zt">Zoom</span>
+  <a class="off" href="c4core-context.html" title="L1">L1</a>
+  <a class="off" href="c4core-l2.html" title="L2">L2</a>
+  <a class="off" href="c4core-l3-output-print.html" title="L3">L3</a>
+  <span class="on" title="L4 Code">L4</span>
+</div>
+
+<div class="l4main">
+  <div class="l4lead">라벨 출력 오케스트레이션의 <b>단일 진입점</b>. 주문 1건을 <code>LabelPrintData.fromOrder()</code>로 <b>메뉴 qty 만큼 N장 펼친</b> 뒤, 장별로 이미지 생성 → 인쇄 → <b>1.5초 후 1회 재시도</b>를 조율한다. 재시도 후에도 실패한 장은 인덱스 단위로 집계해 <b>Sentry 로 보고</b>(운영자 [라벨 재출력]로 복구). 주문 단위 in-flight dedup 은 상류 <code>OutputQueueService</code>의 <code>_inFlight*</code> Set 이 담당.</div>
+
+  <!-- 클래스 구조 -->
+  <div class="sec"><span class="sd" style="background:#3b82f6;"></span>클래스 구조</div>
+  <div class="class-card">
+    <div class="class-head">
+      <div class="class-anno">Provider (outputAppServiceProvider)</div>
+      <div class="class-name">OutputService</div>
+      <div class="class-layer">core/orders — 신규주문 출력 조율 (영수증 + 사운드 + 라벨) · ctor(Ref ref, Order _orderNotifier)</div>
+    </div>
+
+    <div class="subsec"><span class="sd2" style="background:#60a5fa;"></span>의존 Provider / 서비스 (ref.read)</div>
+    <div class="deps">
+      <div class="dep"><span class="dep-ic dep-cross"></span><span class="dep-nm">orderProvider (Order)</span><span class="dep-cr">isKdsAcceptOrders·markPendingReprint·getOrderDetail</span></div>
+      <div class="dep"><span class="dep-ic dep-cross"></span><span class="dep-nm">kdsModeProvider</span><span class="dep-cr">KDS 모드 영수증 분기</span></div>
+      <div class="dep"><span class="dep-ic dep-repo"></span><span class="dep-nm">preferenceServiceProvider</span><span class="dep-ds">라벨토글·매수·QR·레이아웃·필터모드</span></div>
+      <div class="dep"><span class="dep-ic dep-repo"></span><span class="dep-nm">printServiceProvider</span><span class="dep-ds">SDK 호출 1지점 (printLabel)</span></div>
+      <div class="dep"><span class="dep-ic dep-repo"></span><span class="dep-nm">productProvider</span><span class="dep-ds">옵션 카테고리 분류용 카탈로그</span></div>
+      <div class="dep"><span class="dep-ic dep-repo"></span><span class="dep-nm">labelFilterStrategyProvider</span><span class="dep-ds">브랜드별 메뉴 필터/옵션 분류</span></div>
+      <div class="dep"><span class="dep-ic dep-repo"></span><span class="dep-nm">qrPayloadStrategyProvider</span><span class="dep-ds">브랜드별 QR 페이로드 포맷</span></div>
+      <div class="dep"><span class="dep-ic dep-repo"></span><span class="dep-nm">soundAppServiceProvider</span><span class="dep-ds">알림음 재생</span></div>
+      <div class="dep"><span class="dep-ic dep-repo"></span><span class="dep-nm">MonitoringService (appfit_core)</span><span class="dep-ds">Sentry captureError</span></div>
+    </div>
+
+    <div class="subsec"><span class="sd2" style="background:#60a5fa;"></span>주요 메서드 <span style="font-size:10.5px;color:#475569;font-weight:500;">(W 변경 / P 내부)</span></div>
+    <div class="methods">
+
+      <div class="method" onclick="this.classList.toggle('open')">
+        <div class="m-badge mb-w">W</div>
+        <div class="m-head"><span class="m-name">notifyNewOrder()</span><span class="m-sig">(order, {required playSound, printLabel=true, forceOrderReceipt=false})</span><span class="m-tag">진입점</span></div>
+        <div class="m-detail">
+          <div class="md-row"><div class="md-l">영수증 분기</div><div class="md-v"><code>!isKdsMode || isKdsAcceptOrders || forceOrderReceipt</code> — KDS 모드라도 자동접수 ON 이거나 외부 기기가 접수한 PREPARING 이벤트면 주문서 인쇄</div></div>
+          <div class="md-row"><div class="md-l">흐름</div><div class="md-flow">
+            <span class="md-step">updateBlinkStateExternal</span><span class="md-arr">→</span>
+            <span class="md-step">_prepareOrderForPrinting</span><span class="md-arr">→</span>
+            <span class="md-step">printOrderReceipt &times; printCount</span><span class="md-arr">→</span>
+            <span class="md-step cross">playNotificationSound</span><span class="md-arr">→</span>
+            <span class="md-step hot">printOrderLabels</span>
+          </div></div>
+          <div class="md-row"><div class="md-l">실패 격리</div><div class="md-v">영수증 상세조회 실패 시 '내용 누락 영수증' 대신 인쇄 스킵 + <code>OrderDetailFetchFailedException</code> Sentry 보고 + <code>markPendingReprint</code> 복구 큐 등록 (라벨 경로는 계속 진행)</div></div>
+        </div>
+      </div>
+
+      <div class="method open" onclick="this.classList.toggle('open')">
+        <div class="m-badge mb-w">W</div>
+        <div class="m-head"><span class="m-name">printOrderLabels()</span><span class="m-sig">(OrderModel order, {bool isReprint=false})</span><span class="m-tag">핵심</span></div>
+        <div class="m-detail">
+          <div class="md-row"><div class="md-l">가드</div><div class="md-v"><code>getUseLabelPrinter()</code> OFF → return. <code>menus.isEmpty</code> → 상세조회 시도, 실패하면 <code>markPendingReprint</code> 등록 후 조용히 생략(Sentry 중복 보고 방지 — 라벨 단독 매장의 누락도 이 경로로 복구 큐 등록)</div></div>
+          <div class="md-row"><div class="md-l">흐름</div><div class="md-flow">
+            <span class="md-step cross">LabelPrintData.fromOrder — qty 만큼 N장 펼침</span><span class="md-arr">→</span>
+            <span class="md-step">장별 LabelPainter.generateLabelImage</span><span class="md-arr">→</span>
+            <span class="md-step hot">_printLabelWithRetry</span><span class="md-arr">→</span>
+            <span class="md-step">실패 인덱스 집계</span><span class="md-arr">→</span>
+            <span class="md-step hot">누락 시 Sentry</span>
+          </div></div>
+          <div class="md-row"><div class="md-l">QR 토글</div><div class="md-v"><code>getLabelUseQrPrint()</code> ON 이면 &#9312; QR 동반 인쇄 + &#9313; 주문번호 순번 접미사(0029 → 0029-1, 0029-2). <code>getLabelLayoutVersion()</code> 0=V1 / 1=V2(QR 우측상단·+50%·오류정정 L)</div></div>
+          <div class="md-row"><div class="md-l">누락 보고</div><div class="md-v">재시도까지 실패한 장이 있으면 <code>LabelPrintMissingException</code>(failedCount·totalLabels·failedIndices) 을 Sentry 전송 — 동일 매장 <b>5분 쿨다운</b>(MonitoringService 내장), 파일 로그에 '누락' 태그로 즉시 식별</div></div>
+        </div>
+      </div>
+
+      <div class="method open" onclick="this.classList.toggle('open')">
+        <div class="m-badge mb-p">P</div>
+        <div class="m-head"><span class="m-name">_printLabelWithRetry()</span><span class="m-sig">({printService, imageBytes, orderNo, labelIndex, totalLabels}) &rarr; Future&lt;bool&gt;</span><span class="m-tag">retry 1회</span></div>
+        <div class="m-detail">
+          <div class="md-row"><div class="md-l">흐름</div><div class="md-flow">
+            <span class="md-step">1차 dispatch</span><span class="md-arr">→</span>
+            <span class="md-step">실패 시 1.5초 delay</span><span class="md-arr">→</span>
+            <span class="md-step">2차 dispatch</span><span class="md-arr">→</span>
+            <span class="md-step hot">최대 총 2회</span>
+          </div></div>
+          <div class="md-row"><div class="md-l">Java 측 처리</div><div class="md-v">PAPERNOFETCH(종이 안 뗌)·paper-out·cover-up·NoPaperCanceled 은 네이티브가 <b>자체 무한 대기</b>로 처리 — 여기로 false 가 오지 않음</div></div>
+          <div class="md-row"><div class="md-l">재시도 표적</div><div class="md-v">USB 포트 단절/좀비(재연결 자동 회복) · 펌웨어 일시 ERROR(engine/voltage/cutter) · PagePrint 도중 NoPaper race(다음 시도의 진입 게이트가 무한 대기로 흡수)</div></div>
+        </div>
+      </div>
+
+      <div class="method" onclick="this.classList.toggle('open')">
+        <div class="m-badge mb-p">P</div>
+        <div class="m-head"><span class="m-name">_dispatchPrintLabel()</span><span class="m-sig">({printService, imageBytes, orderNo, labelIndex, totalLabels}) &rarr; Future&lt;bool&gt;</span></div>
+        <div class="m-detail">
+          <div class="md-row"><div class="md-l">역할</div><div class="md-v"><b>SDK 호출 1지점</b> — 플랫폼 분기는 <code>PrintService.printLabel</code> 내부. 양 플랫폼 모두 PNG bytes 입력이라 분류/필터/Painter/retry 흐름이 동일 → 라벨 출력 결과 동등</div></div>
+        </div>
+      </div>
+
+      <div class="method" onclick="this.classList.toggle('open')">
+        <div class="m-badge mb-w">W</div>
+        <div class="m-head"><span class="m-name">printCancelReceiptById()</span><span class="m-sig">({required orderId, required storeId})</span></div>
+        <div class="m-detail">
+          <div class="md-row"><div class="md-l">흐름</div><div class="md-flow">
+            <span class="md-step">KDS면 getUsePrint 확인</span><span class="md-arr">→</span>
+            <span class="md-step">캐시 → 원격 상세</span><span class="md-arr">→</span>
+            <span class="md-step">CANCELLED(9001) 보정 copyWith</span><span class="md-arr">→</span>
+            <span class="md-step">printOrderReceipt(isCancelReceipt)</span>
+          </div></div>
+        </div>
+      </div>
+
+      <div class="method" onclick="this.classList.toggle('open')">
+        <div class="m-badge mb-p">P</div>
+        <div class="m-head"><span class="m-name">_prepareOrderForPrinting()</span><span class="m-sig">(OrderModel order) &rarr; Future&lt;OrderModel&gt;</span></div>
+        <div class="m-detail">
+          <div class="md-row"><div class="md-l">동작</div><div class="md-v"><code>menus.isNotEmpty</code> 면 그대로 반환, 비어 있으면 <code>_orderNotifier.getOrderDetail(orderNo, storeId)</code> 로 상세 로드</div></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- 라벨 데이터 모델 -->
+  <div class="sec"><span class="sd" style="background:#22d3ee;"></span>라벨 1장 데이터 (N장 펼침 결과)</div>
+  <div class="entity-card">
+    <div class="entity-head">
+      <div class="class-anno" style="color:#67e8f9;background:rgba(34,211,238,.1);">값 객체 (휘발)</div>
+      <div class="entity-name">LabelPrintData</div>
+      <div class="entity-tag">label_print_data.dart · fromOrder() 가 필터→qty 펼침→QR 페이로드→라벨 번호 계산을 단일 진입점으로 처리</div>
+    </div>
+    <div class="fgt">펼침 / 식별</div>
+    <div class="fields">
+      <div class="field"><span class="f-col">orderIndex</span><span class="f-type">int</span><span class="f-desc">주문 내 누적 순번 (1..orderTotal)</span></div>
+      <div class="field"><span class="f-col">orderTotal</span><span class="f-type">int</span><span class="f-desc">&Sigma; menu.qty — 필터 무관 전체 수량 합산</span></div>
+      <div class="field"><span class="f-col">shopOrderNo</span><span class="f-type">String?</span><span class="f-desc">표시 주문번호 (QR ON 시 -순번 접미사)</span></div>
+      <div class="field"><span class="f-col">orderTime</span><span class="f-type">String?</span><span class="f-desc">MM/dd HH:mm:ss 포맷</span></div>
+    </div>
+    <div class="fgt">표시 내용 / QR</div>
+    <div class="fields">
+      <div class="field"><span class="f-col">menuName · options · memo</span><span class="f-type">String&hellip;</span><span class="f-desc">메뉴명·옵션 목록·요청사항</span></div>
+      <div class="field"><span class="f-col">beanType · temperature · sizeOption</span><span class="f-type">String?</span><span class="f-desc">브랜드 전략이 분류한 옵션 카테고리</span></div>
+      <div class="field"><span class="f-col">qrData</span><span class="f-type">String?</span><span class="f-desc">QrPayloadStrategy 가 채움 (기본 {OrderNo}-{ShopItemId}-{CupIdx})</span></div>
+      <div class="field"><span class="f-col">orderInfo · menuInfo</span><span class="f-type">LabelOrderInfo? / LabelMenuInfo?</span><span class="f-desc">QR 페이로드의 store/order·menu 영역</span></div>
+    </div>
+  </div>
+  <div class="warn-note"><b>N장 펼침 규칙</b> — <code>fromOrder()</code> 는 메뉴 1개당 <code>qty</code>(AppFit 응답 키 <code>qty</code> · Sunmi 호환 JSON 출력 시 <code>ordrCnt</code>)장을 반복 생성. 전체 라벨 수(<code>orderTotal</code>)는 <b>필터와 무관하게</b> 전체 메뉴 수량 합산으로 계산해 "3/7" 같은 순번 표기가 필터 사용 브랜드에서도 일관되게 유지된다. 카테고리 필터(<code>strategy.selectMenus</code>)는 <code>isReprint=true</code> 시 우회(재출력은 전체 인쇄).</div>
+
+  <!-- 외부 인터페이스 -->
+  <div class="sec"><span class="sd" style="background:#34d399;"></span>호출하는 외부 인터페이스</div>
+  <div class="ifc-card">
+    <div class="ifc-list">
+      <div class="ifc"><span class="ifc-m im-ch">CHANNEL</span><span class="ifc-p">platform.invokeMethod('printLabel', {imageBytes, autoReplyMode, useFeedToTear, useBackToPrint, useCalibrate})</span><span class="ifc-d">Android — Caysn AutoReplyPrint Java SDK</span></div>
+      <div class="ifc"><span class="ifc-m im-sock">FFI</span><span class="ifc-p">WindowsLabelPrinterBackend.instance.printPng(pngBytes, width, height, options&hellip;)</span><span class="ifc-d">Windows — autoreplyprint.dll 직접 호출 (MethodChannel 핸들러 없음)</span></div>
+      <div class="ifc"><span class="ifc-m im-sql">SENTRY</span><span class="ifc-p">MonitoringService.captureError(LabelPrintMissingException | OrderDetailFetchFailedException)</span><span class="ifc-d">누락/상세조회 실패 보고 · runtimeType 별 5분 쿨다운</span></div>
+      <div class="ifc"><span class="ifc-m im-put">QUEUE</span><span class="ifc-p">_orderNotifier.markPendingReprint(orderId)</span><span class="ifc-d">출력 누락 등록 — 메뉴 복구 시 자동 재발행 (모든 라벨 경로가 이 깔때기로 수렴)</span></div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

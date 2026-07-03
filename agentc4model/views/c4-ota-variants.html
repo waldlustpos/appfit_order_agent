@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>C4 — OTA·빌드 변형 (Order Agent)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="c4.css">
+<style>
+:root{--accent:#34d399;--accent-bg:rgba(16,185,129,.15);--accent-br:rgba(16,185,129,.35);}
+.amb1{width:600px;height:600px;background:#10b981;top:6%;left:20%;}
+.amb2{width:460px;height:460px;background:#3b82f6;bottom:8%;right:12%;}
+
+.c4main{max-width:1120px;padding:24px 28px 90px;}
+.lead{font-size:13px;color:var(--dim);line-height:1.65;margin:6px 0 18px;}
+.lead b{color:var(--muted);}
+.lead code{color:#fbbf24;background:rgba(245,158,11,.08);padding:1px 5px;border-radius:3px;font-size:11.5px;}
+
+/* 변형 분기 패턴 배너 */
+.pattern{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:rgba(10,18,35,.6);border:1.5px solid rgba(255,255,255,.07);border-radius:14px;padding:14px 18px;margin-bottom:26px;}
+.pattern .pk{font-size:12px;color:#94a3b8;}
+.pattern .pbox{font-size:12px;font-weight:700;padding:5px 11px;border-radius:8px;font-family:'JetBrains Mono',monospace;}
+.pb-def{background:rgba(245,158,11,.1);color:#fbbf24;border:1px solid rgba(245,158,11,.25);}
+.pb-env{background:rgba(59,130,246,.1);color:#93c5fd;border:1px solid rgba(59,130,246,.25);}
+.pb-out{background:rgba(16,185,129,.1);color:#6ee7b7;border:1px solid rgba(16,185,129,.25);font-family:'Inter',sans-serif;}
+.pattern .arr{color:#475569;font-size:15px;}
+
+.section-title{margin:26px 0 8px;}
+.section-sub{margin-bottom:16px;}
+
+/* ---- 상단 2열: 플랫폼별 OTA 흐름 ---- */
+.ota-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:10px;}
+.ota-col{background:rgba(10,18,35,.55);border:1.5px solid rgba(255,255,255,.07);border-radius:16px;padding:16px 17px;}
+.ota-col.win{border-color:rgba(96,165,250,.28);}
+.ota-col.and{border-color:rgba(52,211,153,.28);}
+.ota-head{display:flex;align-items:center;gap:9px;margin-bottom:5px;}
+.ota-head .oname{font-size:15px;font-weight:800;}
+.win .oname{color:#93c5fd;}
+.and .oname{color:#6ee7b7;}
+.ota-head .otag{font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:2px 8px;border-radius:5px;}
+.win .otag{background:rgba(96,165,250,.14);color:#93c5fd;}
+.and .otag{background:rgba(52,211,153,.14);color:#6ee7b7;}
+.ota-sub{font-size:11px;color:var(--dim);line-height:1.5;margin-bottom:13px;}
+.ota-sub code{color:#fbbf24;background:rgba(245,158,11,.08);padding:1px 4px;border-radius:3px;font-size:10.5px;}
+
+.ostep{display:flex;gap:11px;align-items:flex-start;padding:9px 0;}
+.ostep + .ostep{border-top:1px dashed rgba(255,255,255,.06);}
+.ostep .num{flex-shrink:0;width:24px;height:24px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;font-family:'JetBrains Mono',monospace;}
+.win .ostep .num{background:rgba(96,165,250,.1);color:#93c5fd;border:1px solid rgba(96,165,250,.3);}
+.and .ostep .num{background:rgba(52,211,153,.1);color:#6ee7b7;border:1px solid rgba(52,211,153,.3);}
+.ostep .sn{font-size:12.5px;font-weight:700;color:#e2e8f0;}
+.ostep .sn code{font-size:11px;color:#cbd5e1;background:rgba(255,255,255,.05);padding:1px 5px;border-radius:4px;}
+.ostep .sd{font-size:11px;color:#94a3b8;line-height:1.5;margin-top:2px;}
+.ostep .sd code{font-size:10.5px;color:#fbbf24;background:rgba(245,158,11,.08);padding:1px 4px;border-radius:3px;}
+
+/* ---- 하단 변형 비교 표 ---- */
+.vt-wrap{overflow-x:auto;background:rgba(10,18,35,.55);border:1.5px solid rgba(255,255,255,.07);border-radius:16px;padding:6px 6px 10px;margin-bottom:26px;}
+table.vt{width:100%;min-width:680px;border-collapse:collapse;font-size:12px;}
+.vt th,.vt td{padding:9px 13px;text-align:left;border-bottom:1px solid rgba(255,255,255,.05);vertical-align:top;}
+.vt thead th{font-size:11px;font-weight:800;letter-spacing:.04em;color:#94a3b8;border-bottom:1.5px solid rgba(255,255,255,.1);}
+.vt thead th.h-upd{color:#93c5fd;}
+.vt thead th.h-sta{color:#6ee7b7;}
+.vt tbody tr:last-child td{border-bottom:none;}
+.vt td.k{font-weight:700;color:#cbd5e1;white-space:nowrap;}
+.vt td .mono,.vt td code{font-family:'JetBrains Mono',monospace;font-size:11px;color:#e2e8f0;background:rgba(255,255,255,.04);padding:1px 6px;border-radius:4px;word-break:break-all;}
+.vt td .note{display:block;font-size:10.5px;color:#64748b;margin-top:3px;font-family:'Inter',sans-serif;}
+.vt td.upd{background:rgba(96,165,250,.04);}
+.vt td.sta{background:rgba(52,211,153,.04);}
+.vtag{font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:2px 8px;border-radius:5px;display:inline-block;margin-left:7px;}
+.vtag.upd{background:rgba(96,165,250,.14);color:#93c5fd;}
+.vtag.sta{background:rgba(52,211,153,.14);color:#6ee7b7;}
+
+/* ---- 버전 정본 콜아웃 ---- */
+.ver{margin-top:30px;background:rgba(139,92,246,.05);border:1.5px solid rgba(139,92,246,.22);border-radius:16px;padding:18px 20px;}
+.ver h3{font-size:15px;font-weight:800;color:#c4b5fd;margin-bottom:6px;}
+.ver p{font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:12px;}
+.ver p code{color:#c4b5fd;background:rgba(139,92,246,.08);padding:1px 5px;border-radius:3px;}
+.ver-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.ver-box{border:1px solid rgba(255,255,255,.08);border-radius:11px;padding:12px 14px;background:rgba(255,255,255,.02);}
+.ver-box .bt{font-size:12.5px;font-weight:800;margin-bottom:5px;}
+.ver-box.a .bt{color:#6ee7b7;}
+.ver-box.w .bt{color:#93c5fd;}
+.ver-box code{font-size:11px;color:#cbd5e1;background:rgba(255,255,255,.04);padding:1px 6px;border-radius:4px;}
+.ver-box .bl{font-size:11px;color:#94a3b8;line-height:1.5;margin-top:4px;}
+
+@keyframes c4-cardIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+.pattern,.ota-col,.vt-wrap,.ver{opacity:0;animation:c4-cardIn .5s ease both;}
+.ota-col.and{animation-delay:.05s;}
+.vt-wrap{animation-delay:.1s;}
+.ver{animation-delay:.15s;}
+@media(prefers-reduced-motion:reduce){.pattern,.ota-col,.vt-wrap,.ver{animation:none;opacity:1;}}
+
+@media(max-width:760px){
+  .c4main{padding:18px 12px 70px;}
+  .ota-grid{grid-template-columns:1fr;}
+  .ver-grid{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body class="bg-grid">
+
+<div class="ambient amb1"></div>
+<div class="ambient amb2"></div>
+
+<header id="c4-hdr"></header>
+
+<div class="c4main">
+  <div class="section-title" style="margin-top:4px;"><div class="st-dot" style="background:#34d399;"></div><span class="grad-title">OTA 자가 업데이트 · 빌드 변형</span></div>
+  <div class="lead">에이전트는 OTA 서버(<b>waldpay.kokonutstamp2.com</b> · Lightsail)에서 스스로 새 버전을 내려받아 교체한다. 하나의 코드베이스가 <code>--dart-define=APPFIT_VARIANT</code>로 <b>update / standalone</b> 두 변형으로 갈라지며, OTA 채널·뮤텍스·임시 폴더가 <b>완전 분리</b>되어 같은 머신에 병존 설치·실행이 가능하다.</div>
+
+  <div class="pattern">
+    <span class="pbox pb-def">--dart-define=APPFIT_VARIANT</span><span class="arr">&rarr;</span>
+    <span class="pbox pb-env">AppEnv.isStandalone (const)</span><span class="arr">&rarr;</span>
+    <span class="pk">컴파일 타임 분기</span>
+    <span class="pbox pb-out">UpdateConfig (Win OTA)</span>
+    <span class="pbox pb-out">OtaConfig (Android OTA)</span>
+    <span class="pbox pb-out">main.cpp 뮤텍스·창 제목</span>
+  </div>
+
+  <div class="section-title"><div class="st-dot" style="background:#60a5fa;"></div>플랫폼별 자가 업데이트 흐름</div>
+  <div class="section-sub">Windows는 앱 시작 시점에 스스로 교체 후 재시작, Android는 APK 다운로드 후 설치 인텐트로 위임한다.</div>
+
+  <div class="ota-grid">
+    <!-- Windows -->
+    <div class="ota-col win">
+      <div class="ota-head"><span class="otag">Windows</span><span class="oname">시작 시 자가 교체</span></div>
+      <div class="ota-sub">release 빌드 한정 — <code>main.dart</code> 부팅 단계에서 실행. 타임아웃: 체크 10s / 다운로드 10m.</div>
+      <div class="ostep"><div class="num">1</div><div><div class="sn"><code>runStartupUpdateFlow()</code></div><div class="sd">runApp 이전, 앱 시작 시점에 업데이트 플로 진입.</div></div></div>
+      <div class="ostep"><div class="num">2</div><div><div class="sn">version JSON 비교</div><div class="sd">변형별 <code>*_windows_version.json</code> 을 받아 현재 버전과 비교. 최신이면 그대로 부팅.</div></div></div>
+      <div class="ostep"><div class="num">3</div><div><div class="sn">ZIP 다운로드</div><div class="sd">변형별 <code>*_windows.zip</code> 을 임시 작업 폴더에 내려받아 압축 해제.</div></div></div>
+      <div class="ostep"><div class="num">4</div><div><div class="sn"><code>updater.bat</code> 생성·실행</div><div class="sd"><code>taskkill</code> 로 실행 중 프로세스 종료 &rarr; <code>robocopy</code> 로 새 파일 덮어쓰기.</div></div></div>
+      <div class="ostep"><div class="num">5</div><div><div class="sn"><code>exit(0)</code> &rarr; 재시작</div><div class="sd">앱이 스스로 종료하면 배치가 교체를 마치고 새 exe 를 재실행.</div></div></div>
+    </div>
+
+    <!-- Android -->
+    <div class="ota-col and">
+      <div class="ota-head"><span class="otag">Android</span><span class="oname">APK 다운로드 &rarr; 설치 위임</span></div>
+      <div class="ota-sub">Sunmi 단말 대상 — 교체 자체는 시스템 패키지 설치기가 수행.</div>
+      <div class="ostep"><div class="num">1</div><div><div class="sn"><code>OtaConfig</code> 채널 확인</div><div class="sd">변형별 <code>*_version.json</code> 으로 서버 최신 버전 조회.</div></div></div>
+      <div class="ostep"><div class="num">2</div><div><div class="sn">APK 다운로드</div><div class="sd">변형별 <code>appfit_order_agent[_standalone].apk</code> 를 내려받는다.</div></div></div>
+      <div class="ostep"><div class="num">3</div><div><div class="sn"><code>app_installer</code> 설치</div><div class="sd">설치 인텐트를 띄워 시스템 설치기로 위임 &rarr; 설치 완료 후 재실행.</div></div></div>
+    </div>
+  </div>
+
+  <div class="section-title"><div class="st-dot" style="background:#fbbf24;"></div>변형 비교 — update vs standalone</div>
+  <div class="section-sub">채널 파일명·exe명·뮤텍스·임시 폴더가 전부 분리되어 동시 업데이트·동시 실행 충돌이 없다.</div>
+
+  <div class="vt-wrap">
+    <table class="vt">
+      <thead>
+        <tr>
+          <th>항목</th>
+          <th class="h-upd">update<span class="vtag upd">기본</span></th>
+          <th class="h-sta">standalone<span class="vtag sta">병행 설치</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="k">목표</td>
+          <td class="upd">기존 900+ 매장 구앱 <b>덮어쓰기 업그레이드</b></td>
+          <td class="sta">신규 <b>병존 설치</b> (기존 설정 승계 없음)</td>
+        </tr>
+        <tr>
+          <td class="k">Android 패키지</td>
+          <td class="upd"><code>co.kr.waldlust.order.receive</code></td>
+          <td class="sta"><code>co.kr.waldlust.order.receive.appfit</code></td>
+        </tr>
+        <tr>
+          <td class="k">Windows exe</td>
+          <td class="upd"><code>appfit_order_agent.exe</code></td>
+          <td class="sta"><code>appfit_order_agent_standalone.exe</code></td>
+        </tr>
+        <tr>
+          <td class="k">Windows version JSON</td>
+          <td class="upd"><code>appfit_order_agent_windows_version.json</code></td>
+          <td class="sta"><code>appfit_order_agent_standalone_windows_version.json</code></td>
+        </tr>
+        <tr>
+          <td class="k">Windows ZIP</td>
+          <td class="upd"><code>appfit_order_agent_windows.zip</code></td>
+          <td class="sta"><code>appfit_order_agent_standalone_windows.zip</code></td>
+        </tr>
+        <tr>
+          <td class="k">Android version JSON / APK</td>
+          <td class="upd"><code>appfit_order_agent_version.json</code><span class="note">appfit_order_agent.apk</span></td>
+          <td class="sta"><code>appfit_order_agent_standalone_version.json</code><span class="note">appfit_order_agent_standalone.apk</span></td>
+        </tr>
+        <tr>
+          <td class="k">Windows 뮤텍스</td>
+          <td class="upd"><code>...AppfitOrderAgent_SingleInstance_Mutex</code></td>
+          <td class="sta"><code>...AppfitOrderAgentStandalone_SingleInstance_Mutex</code><span class="note">main.cpp APPFIT_VARIANT_STANDALONE 매크로로 분리</span></td>
+        </tr>
+        <tr>
+          <td class="k">임시 작업 폴더</td>
+          <td class="upd"><code>appfit_order_agent_update_extracted</code></td>
+          <td class="sta"><code>appfit_order_agent_standalone_update_extracted</code></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="ver">
+    <h3>&#9888; 버전 정본 이원화 — Android와 Windows는 서로 다른 파일을 읽는다</h3>
+    <p>두 플랫폼의 버전 정본은 <b>분리</b>되어 있다. Windows 빌드 스크립트는 <code>pubspec.yaml</code> 을 읽지 않으므로, 한쪽만 올리면 다른 쪽 배포 버전은 그대로다.</p>
+    <div class="ver-grid">
+      <div class="ver-box a"><div class="bt">Android 정본</div><div class="bl"><code>pubspec.yaml</code> 의 <code>version: x.y.z+n</code> &rarr; <code>build_main.sh</code> / OTA APK 버전.</div></div>
+      <div class="ver-box w"><div class="bt">Windows 정본</div><div class="bl"><code>version_windows.txt</code> (<code>x.y.z+n</code>) &rarr; <code>build_windows.ps1</code> / <code>deploy_windows.ps1</code> / <code>build_installer.ps1</code> 이 <code>--build-name</code> / <code>--build-number</code> 로 주입.</div></div>
+    </div>
+  </div>
+</div>
+
+<script src="c4.js"></script>
+</body>
+</html>

@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0">
+<title>C4 · L1 — System Context (Order Agent)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="c4core.css">
+<style>
+.amb1{width:560px;height:560px;background:#3b82f6;top:20%;left:28%;}
+.amb2{width:460px;height:460px;background:#10b981;top:54%;left:12%;}
+</style>
+</head>
+<body class="bg-grid">
+
+<div class="ambient amb1"></div>
+<div class="ambient amb2"></div>
+
+<div class="ghdr">
+  <div class="badge">C4 Model</div>
+  <h1>Level 1 — System Context</h1>
+  <div class="sub">AppFit 주문 에이전트 &middot; appfit_order_agent</div>
+</div>
+
+<div id="scene">
+  <svg id="edges"></svg>
+
+  <div class="node center-node" id="n-agent">
+    <h2>AppFit Order Agent</h2>
+    <div class="ty" style="font-size:10px;color:#60a5fa;font-weight:600;margin-top:3px;">[Software System: Flutter · Android(Sunmi) / Windows POS]</div>
+    <div class="de" style="font-size:11px;color:#94a3b8;margin-top:7px;line-height:1.5;">키오스크·모바일 주문을 접수·관리. 메인(접수)+KDS(주방) 이중 모드.</div>
+    <div class="drill">&#9654; 클릭하여 내부 컨테이너 보기 (L2)</div>
+  </div>
+
+  <!-- Person (상단 4) -->
+  <div class="node actor" id="n-staff" style="left:22%;top:11%;">
+    <h3>Store Staff</h3><div class="ty">[Person]</div><div class="de">주문 접수·상품 관리</div>
+  </div>
+  <div class="node actor" id="n-kitchen" style="left:36%;top:8%;">
+    <h3>Kitchen Staff</h3><div class="ty">[Person]</div><div class="de">KDS 조리 현황</div>
+  </div>
+  <div class="node actor" id="n-owner" style="left:50%;top:8%;">
+    <h3>Store Owner</h3><div class="ty">[Person]</div><div class="de">로그인·영업 상태·설정</div>
+  </div>
+  <div class="node actor" id="n-operator" style="left:63%;top:11%;">
+    <h3>Operator</h3><div class="ty">[Person]</div><div class="de">배포·모니터링</div>
+  </div>
+
+  <!-- External Systems (우측~우하단 6) -->
+  <div class="node external" id="n-coreapi" style="left:70%;top:22%;">
+    <h3>AppFit Core API</h3><div class="ty">[External System]</div><div class="de">core-api.waldplatform.com<br>HTTPS REST · AES-GCM 암호화</div>
+  </div>
+  <div class="node external" id="n-notifier" style="left:75%;top:36%;">
+    <h3>AppFit Notifier</h3><div class="ty">[External · WebSocket]</div><div class="de">notifier-api.waldplatform.com<br>실시간 주문 이벤트</div>
+  </div>
+  <div class="node external" id="n-firebase" style="left:76%;top:51%;">
+    <h3>Firebase / Firestore</h3><div class="ty">[External · Android 전용]</div><div class="de">KDS 클라우드 동기화</div>
+  </div>
+  <div class="node external" id="n-ota" style="left:72%;top:65%;">
+    <h3>OTA Server</h3><div class="ty">[External · Lightsail]</div><div class="de">waldpay.kokonutstamp2.com<br>APK/ZIP + 버전 JSON</div>
+  </div>
+  <div class="node external" id="n-mon" style="left:62%;top:78%;">
+    <h3>Monitoring</h3><div class="ty">[External · Sentry+Slack]</div><div class="de">크래시 리포트·로그 파일 업로드</div>
+  </div>
+  <div class="node external" id="n-van" style="left:47%;top:88%;">
+    <h3>WaldPOS VAN Bridge</h3><div class="ty">[External · local TCP :8888]</div><div class="de">멤버십 바코드 스캔(Windows)</div>
+  </div>
+
+  <!-- Hardware (하단 3) -->
+  <div class="node hardware" id="n-sunmi" style="left:31%;top:89%;">
+    <h3>Sunmi Built-in Printer</h3><div class="ty">[Hardware]</div><div class="de">내장 영수증 ESC/POS</div>
+  </div>
+  <div class="node hardware" id="n-extprn" style="left:15%;top:83%;">
+    <h3>External Receipt Printer</h3><div class="ty">[Hardware]</div><div class="de">Android USB bulkTransfer<br>Windows COM 시리얼</div>
+  </div>
+  <div class="node hardware" id="n-label" style="left:7%;top:68%;">
+    <h3>Label Printer</h3><div class="ty">[Hardware · REXOD·Caysn]</div><div class="de">Android MethodChannel<br>Windows autoreplyprint.dll FFI</div>
+  </div>
+
+  <!-- Data Store (좌측 1) -->
+  <div class="node datastore" id="n-prefs" style="left:6%;top:46%;">
+    <h3>Prefs + SecureStorage</h3><div class="ty">[Data Store · KV]</div><div class="de">설정·자격증명</div>
+  </div>
+
+  <!-- 특수: 외부 트리거 (좌상 1) -->
+  <div class="node external" id="n-trigger" style="left:8%;top:25%;">
+    <h3>External Trigger</h3><div class="ty">[External · HTTP :8080 inbound]</div><div class="de">LocalServerService 외부 트리거 수신</div>
+  </div>
+
+  <!-- edge labels -->
+  <div class="edge-label la-actor" id="el-staff">주문 접수·상품 관리</div>
+  <div class="edge-label la-actor" id="el-kitchen">KDS 조리 현황 확인</div>
+  <div class="edge-label la-actor" id="el-owner">로그인·영업 상태·설정</div>
+  <div class="edge-label la-actor" id="el-operator">배포·모니터링</div>
+  <div class="edge-label la-ext" id="el-coreapi">HTTPS REST · AES-GCM</div>
+  <div class="edge-label la-ext" id="el-notifier">WSS 실시간 주문 이벤트</div>
+  <div class="edge-label la-ext" id="el-firebase">KDS 클라우드 동기화</div>
+  <div class="edge-label la-ext" id="el-ota">APK/ZIP·버전 JSON 조회</div>
+  <div class="edge-label la-ext" id="el-mon">크래시·로그 업로드</div>
+  <div class="edge-label la-ext" id="el-van">멤버십 바코드(TCP :8888)</div>
+  <div class="edge-label la-hw" id="el-sunmi">내장 ESC/POS 출력</div>
+  <div class="edge-label la-hw" id="el-extprn">USB/COM 영수증 출력</div>
+  <div class="edge-label la-hw" id="el-label">채널/FFI 라벨 출력</div>
+  <div class="edge-label la-data" id="el-prefs">설정·자격증명 R/W</div>
+  <div class="edge-label la-ext" id="el-trigger">HTTP :8080 외부 트리거</div>
+</div>
+
+<!-- 범례 -->
+<div class="legend">
+  <div class="leg"><b class="lb-c"></b>주문 에이전트</div>
+  <div class="leg"><b class="lb-a"></b>사용자</div>
+  <div class="leg"><b class="lb-e"></b>외부 시스템</div>
+  <div class="leg"><b class="lb-h"></b>하드웨어</div>
+  <div class="leg"><b class="lb-d"></b>로컬 저장소</div>
+</div>
+
+<!-- 줌 인디케이터 -->
+<div class="zoom">
+  <span class="zt">Zoom</span>
+  <span class="on" title="L1 System Context">L1</span>
+  <a class="off" href="c4core-l2.html" title="L2 Container">L2</a>
+  <span class="off" title="L3 Component">L3</span>
+  <span class="off" title="L4 Code">L4</span>
+</div>
+
+<!-- 우측 별첨 도크 (views/ — 동결) -->
+<nav class="dock">
+  <div class="dock-title">상세 뷰 <span class="frozen">별첨 · 동결</span></div>
+  <a class="vbtn vb-pay" href="views/c4-order-flow.html">
+    <div class="vrow"><span class="vn">01</span><span class="vl">주문 흐름</span><span class="go">&rarr;</span></div>
+    <div class="vd">수신 &rarr; 자동접수 4중 가드 &rarr; 출력</div>
+  </a>
+  <a class="vbtn vb-prd" href="views/c4-print-pipeline.html">
+    <div class="vrow"><span class="vn">02</span><span class="vl">출력 파이프라인</span><span class="go">&rarr;</span></div>
+    <div class="vd">라벨 &#8214; 영수증 2레인 · backoff 복구</div>
+  </a>
+  <a class="vbtn vb-ui" href="views/c4-ota-variants.html">
+    <div class="vrow"><span class="vn">03</span><span class="vl">OTA·변형</span><span class="go">&rarr;</span></div>
+    <div class="vd">자가 업데이트 · update/standalone</div>
+  </a>
+</nav>
+
+<script src="c4core.js"></script>
+<script>
+c4Graph([
+  {from:'n-staff',    to:'n-agent',    type:'actor', label:'el-staff',    dash:false},
+  {from:'n-kitchen',  to:'n-agent',    type:'actor', label:'el-kitchen',  dash:false},
+  {from:'n-owner',    to:'n-agent',    type:'actor', label:'el-owner',    dash:false},
+  {from:'n-operator', to:'n-agent',    type:'actor', label:'el-operator', dash:false},
+  {from:'n-agent',    to:'n-coreapi',  type:'ext',   label:'el-coreapi',  dash:false},
+  {from:'n-notifier', to:'n-agent',    type:'ext',   label:'el-notifier', dash:true},
+  {from:'n-agent',    to:'n-firebase', type:'ext',   label:'el-firebase', dash:true},
+  {from:'n-agent',    to:'n-ota',      type:'ext',   label:'el-ota',      dash:false},
+  {from:'n-agent',    to:'n-mon',      type:'ext',   label:'el-mon',      dash:false},
+  {from:'n-agent',    to:'n-van',      type:'ext',   label:'el-van',      dash:false},
+  {from:'n-agent',    to:'n-sunmi',    type:'hw',    label:'el-sunmi',    dash:true},
+  {from:'n-agent',    to:'n-extprn',   type:'hw',    label:'el-extprn',   dash:true},
+  {from:'n-agent',    to:'n-label',    type:'hw',    label:'el-label',    dash:true},
+  {from:'n-agent',    to:'n-prefs',    type:'data',  label:'el-prefs',    dash:false},
+  {from:'n-trigger',  to:'n-agent',    type:'ext',   label:'el-trigger',  dash:false},
+]);
+
+// 중앙 노드 클릭 → L2 (드래그와 구분)
+(function(){
+  const c = document.getElementById('n-agent');
+  let px, py;
+  c.addEventListener('mousedown', e => { px = e.clientX; py = e.clientY; });
+  c.addEventListener('mouseup', e => { if (Math.abs(e.clientX-px) < 5 && Math.abs(e.clientY-py) < 5) location.href = 'c4core-l2.html'; });
+})();
+</script>
+</body>
+</html>

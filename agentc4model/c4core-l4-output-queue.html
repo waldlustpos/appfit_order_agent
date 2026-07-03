@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>C4 · L4 — OutputQueueService (AppFit Order Agent)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="c4core.css">
+<style>
+.amb1{width:560px;height:560px;background:#3b82f6;top:8%;left:22%;}
+.amb2{width:440px;height:440px;background:#8b5cf6;bottom:8%;right:12%;}
+.back{position:fixed;top:60px;left:18px;z-index:30;font-size:12px;color:#60a5fa;text-decoration:none;padding:5px 12px;border:1px solid rgba(59,130,246,.3);border-radius:8px;background:rgba(6,8,13,.6);}
+.back:hover{background:rgba(59,130,246,.1);}
+.swap{position:fixed;top:60px;right:18px;z-index:30;font-size:12px;color:#67e8f9;text-decoration:none;padding:5px 12px;border:1px solid rgba(34,211,238,.3);border-radius:8px;background:rgba(6,8,13,.6);}
+.swap:hover{background:rgba(34,211,238,.1);}
+</style>
+</head>
+<body class="bg-grid">
+
+<div class="ambient amb1"></div>
+<div class="ambient amb2"></div>
+
+<div class="ghdr">
+  <div class="badge">C4 Model</div>
+  <h1>Level 4 — OutputQueueService</h1>
+  <div class="sub mono">lib/services/output_queue_service.dart</div>
+</div>
+<a class="back" href="c4core-l3-output-print.html">&larr; L3 Output &amp; Print</a>
+<a class="swap" href="c4core-l4-brand-registry.html">BrandRegistry &rarr;</a>
+
+<div class="zoom">
+  <span class="zt">Zoom</span>
+  <a class="off" href="c4core-context.html" title="L1">L1</a>
+  <a class="off" href="c4core-l2.html" title="L2">L2</a>
+  <a class="off" href="c4core-l3-output-print.html" title="L3">L3</a>
+  <span class="on" title="L4 Code">L4</span>
+</div>
+
+<div class="l4main">
+  <div class="l4lead">출력 작업의 <b>이중 직렬 큐</b>. 영수증/사운드(<code>_receiptQueue</code>)와 라벨(<code>_labelQueue</code>)을 별도 <code>SerialAsyncQueue</code>로 분리 — 라벨떼기(PAPERNOFETCH) 무한 대기와 영수증 backoff(최대 137s)가 <b>서로를 막지 않는다</b>. 두 프린터가 별개 본체이므로 출력 순서는 보장하지 않음(라벨이 영수증보다 먼저 나올 수 있음).</div>
+
+  <!-- 클래스 구조 -->
+  <div class="sec"><span class="sd" style="background:#3b82f6;"></span>클래스 구조</div>
+  <div class="class-card">
+    <div class="class-head">
+      <div class="class-anno">Provider (outputQueueServiceProvider)</div>
+      <div class="class-name">OutputQueueService</div>
+      <div class="class-layer">이중 직렬 큐 — SerialAsyncQueue&lt;OutputJob&gt; &times;2 + in-flight dedup Set &times;4</div>
+    </div>
+
+    <div class="subsec"><span class="sd2" style="background:#60a5fa;"></span>의존성 (ref.read / 자체 유틸)</div>
+    <div class="deps">
+      <div class="dep"><span class="dep-ic dep-cross"></span><span class="dep-nm">outputAppServiceProvider</span><span class="dep-cr">notifyNewOrder·printOrderLabels</span></div>
+      <div class="dep"><span class="dep-ic dep-cross"></span><span class="dep-nm">printServiceProvider</span><span class="dep-cr">printOrderReceipt(재출력)</span></div>
+      <div class="dep"><span class="dep-ic dep-repo"></span><span class="dep-nm">SerialAsyncQueue</span><span class="dep-ds">자체 구현 · onProcess/onError</span></div>
+      <div class="dep"><span class="dep-ic dep-repo"></span><span class="dep-nm">MonitoringService.instance</span><span class="dep-ds">onError 시 captureError(Sentry)</span></div>
+      <div class="dep"><span class="dep-ic dep-repo"></span><span class="dep-nm">logToFile / logger</span><span class="dep-ds">_life 라이프사이클 로깅</span></div>
+    </div>
+
+    <div class="subsec"><span class="sd2" style="background:#60a5fa;"></span>주요 메서드 <span style="font-size:10.5px;color:#475569;font-weight:500;">(W 큐 추가 / P 내부 처리)</span></div>
+    <div class="methods">
+
+      <div class="method open" onclick="this.classList.toggle('open')">
+        <div class="m-badge mb-w">W</div>
+        <div class="m-head"><span class="m-name">add()</span><span class="m-sig">(order, {playSound=true, printLabel=true, forceOrderReceipt=false})</span><span class="m-tag">진입점</span></div>
+        <div class="m-detail">
+          <div class="md-row"><div class="md-l">가드</div><div class="md-v">동일 <code>orderId</code>가 <code>_inFlightNewOrders</code>에 있으면 즉시 return — <b>WebSocket+폴링 이중 트리거 안전망</b></div></div>
+          <div class="md-row"><div class="md-l">흐름</div><div class="md-flow">
+            <span class="md-step">_inFlightNewOrders.add(id)</span><span class="md-arr">→</span>
+            <span class="md-step hot">_receiptQueue.add(NewOrderJob)</span>
+          </div></div>
+        </div>
+      </div>
+
+      <div class="method" onclick="this.classList.toggle('open')">
+        <div class="m-badge mb-w">W</div>
+        <div class="m-head"><span class="m-name">addLabelOnly()</span><span class="m-sig">(order)</span></div>
+        <div class="m-detail">
+          <div class="md-row"><div class="md-l">용도</div><div class="md-v">KDS PREPARING 자동접수 / 일반 모드 수동접수 등 라벨만 필요한 자동 흐름. <code>_inFlightLabelOnly</code> dedup 후 <code>_labelQueue.add(LabelOnlyJob)</code></div></div>
+        </div>
+      </div>
+
+      <div class="method" onclick="this.classList.toggle('open')">
+        <div class="m-badge mb-w">W</div>
+        <div class="m-head"><span class="m-name">addReprint()</span><span class="m-sig">(order)</span></div>
+        <div class="m-detail">
+          <div class="md-row"><div class="md-l">용도</div><div class="md-v">사용자 요청 라벨 재출력(영수증/사운드 없음). <code>_inFlightReprints</code> dedup 후 <code>_labelQueue.add(ReprintJob)</code> — 라벨 프린터 USB 경쟁 방지 직렬화</div></div>
+        </div>
+      </div>
+
+      <div class="method" onclick="this.classList.toggle('open')">
+        <div class="m-badge mb-w">W</div>
+        <div class="m-head"><span class="m-name">addReceiptReprint()</span><span class="m-sig">(order)</span></div>
+        <div class="m-detail">
+          <div class="md-row"><div class="md-l">용도</div><div class="md-v">사용자 영수증 재출력(라벨 동시 재출력 포함, 사운드 없음). <code>order.status == OrderStatus.CANCELLED</code>면 <code>isCancelReceipt: true</code>로 <code>_receiptQueue.add(ReceiptReprintJob)</code></div></div>
+        </div>
+      </div>
+
+      <div class="method open" onclick="this.classList.toggle('open')">
+        <div class="m-badge mb-p">P</div>
+        <div class="m-head"><span class="m-name">_processReceiptItem()</span><span class="m-sig">(OutputJob) → Future&lt;void&gt;</span><span class="m-tag">영수증 큐 worker</span></div>
+        <div class="m-detail">
+          <div class="md-row"><div class="md-l">핵심</div><div class="md-v"><b>라벨 선-enqueue</b> — NewOrderJob의 라벨 부분(<code>_NewOrderLabelTail</code>)을 영수증 <code>await</code> <b>이전에</b> 라벨 큐로 enqueue. 이전 구현(영수증 await 후 enqueue)은 큐 분리에도 사실상 직렬화되어 외부 영수증 오프라인 시 라벨이 137s 동안 안 나오는 사고 발생</div></div>
+          <div class="md-row"><div class="md-l">흐름</div><div class="md-flow">
+            <span class="md-step">printLabel이면 _labelQueue.add(_NewOrderLabelTail)</span><span class="md-arr">→</span>
+            <span class="md-step cross">outputService.notifyNewOrder(printLabel: false)</span><span class="md-arr">→</span>
+            <span class="md-step">finally: _inFlightNewOrders.remove</span>
+          </div></div>
+          <div class="md-row"><div class="md-l">분기</div><div class="md-v">ReceiptReprintJob → <code>printService.printOrderReceipt(type: 'receipt', isCancelReceipt:)</code>. 라벨 전용 job 유입 시 WARNING 로그(sealed switch exhaustiveness 안전망)</div></div>
+        </div>
+      </div>
+
+      <div class="method" onclick="this.classList.toggle('open')">
+        <div class="m-badge mb-p">P</div>
+        <div class="m-head"><span class="m-name">_processLabelItem()</span><span class="m-sig">(OutputJob) → Future&lt;void&gt;</span><span class="m-tag">라벨 큐 worker</span></div>
+        <div class="m-detail">
+          <div class="md-row"><div class="md-l">분기</div><div class="md-flow">
+            <span class="md-step">LabelOnlyJob → printOrderLabels(order)</span><span class="md-arr">|</span>
+            <span class="md-step">ReprintJob → printOrderLabels(isReprint: true)</span><span class="md-arr">|</span>
+            <span class="md-step">_NewOrderLabelTail → printOrderLabels(order)</span>
+          </div></div>
+          <div class="md-row"><div class="md-l">정리</div><div class="md-v">각 case의 <code>finally</code>에서 해당 in-flight Set에서 orderId 제거. 영수증 전용 job 유입 시 WARNING 안전망</div></div>
+        </div>
+      </div>
+
+      <div class="method" onclick="this.classList.toggle('open')">
+        <div class="m-badge mb-p">P</div>
+        <div class="m-head"><span class="m-name">_life()</span><span class="m-sig">(String message) → void</span></div>
+        <div class="m-detail">
+          <div class="md-row"><div class="md-l">정책</div><div class="md-v">'완료' 계열만 <code>logToFile(PLATFORM)</code>로 파일 기록, '시작'/'enqueue' 단계는 <code>logger.d</code> 콘솔만 — 운영 로그 노이즈 축약</div></div>
+        </div>
+      </div>
+
+      <div class="method" onclick="this.classList.toggle('open')">
+        <div class="m-badge mb-w">W</div>
+        <div class="m-head"><span class="m-name">clear()</span><span class="m-sig">() → void</span><span class="m-tag">로그아웃</span></div>
+        <div class="m-detail">
+          <div class="md-row"><div class="md-l">동작</div><div class="md-v">두 큐(<code>_receiptQueue</code>·<code>_labelQueue</code>) clear + in-flight Set 4개(<code>_inFlightNewOrders</code>·<code>_inFlightLabelOnly</code>·<code>_inFlightReprints</code>·<code>_inFlightLabelTail</code>) 전부 초기화 — 로그아웃 시 잔여 출력 잡 제거</div></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Job 모델 -->
+  <div class="sec"><span class="sd" style="background:#22d3ee;"></span>sealed OutputJob — 공개 4종 + 내부 tail 1종</div>
+  <div class="entity-card">
+    <div class="entity-head">
+      <div class="class-anno" style="color:#67e8f9;background:rgba(34,211,238,.1);">sealed class</div>
+      <div class="entity-name">OutputJob</div>
+      <div class="entity-tag">공통 필드: order (OrderModel) · switch exhaustiveness로 라우팅 오류 검출</div>
+    </div>
+    <div class="fgt">_receiptQueue 행 (영수증/사운드)</div>
+    <div class="fields">
+      <div class="field"><span class="f-col">NewOrderJob</span><span class="f-type">playSound·printLabel·forceOrderReceipt</span><span class="f-desc">신규 주문 자동 출력. printLabel=false는 KDS READY(픽업 알림) 케이스, forceOrderReceipt는 외부 디바이스 접수 PREPARING용</span><span class="f-tag f-enum">진입점</span></div>
+      <div class="field"><span class="f-col">ReceiptReprintJob</span><span class="f-type">isCancelReceipt</span><span class="f-desc">사용자 영수증 재출력(라벨 동시, 사운드 없음)</span></div>
+    </div>
+    <div class="fgt">_labelQueue 행 (라벨)</div>
+    <div class="fields">
+      <div class="field"><span class="f-col">LabelOnlyJob</span><span class="f-type">—</span><span class="f-desc">KDS PREPARING 자동접수 / 일반 수동접수 — 라벨만 직렬 출력</span></div>
+      <div class="field"><span class="f-col">ReprintJob</span><span class="f-type">—</span><span class="f-desc">사용자 요청 라벨 재출력</span></div>
+      <div class="field"><span class="f-col">_NewOrderLabelTail</span><span class="f-type">—</span><span class="f-desc">NewOrderJob의 라벨 부분 내부 tail — 영수증 await 전에 선-enqueue</span><span class="f-tag f-enum">내부 전용</span></div>
+    </div>
+  </div>
+
+  <!-- 외부 인터페이스 -->
+  <div class="sec"><span class="sd" style="background:#34d399;"></span>호출하는 외부 인터페이스</div>
+  <div class="ifc-card">
+    <div class="ifc-list">
+      <div class="ifc"><span class="ifc-m im-ch">CALL</span><span class="ifc-p">outputService.notifyNewOrder(<span style="color:#fbbf24;">order</span>, playSound:, printLabel: false, forceOrderReceipt:)</span><span class="ifc-d">영수증+사운드 (라벨은 별도 큐)</span></div>
+      <div class="ifc"><span class="ifc-m im-ch">CALL</span><span class="ifc-p">outputService.printOrderLabels(<span style="color:#fbbf24;">order</span>, {isReprint})</span><span class="ifc-d">라벨 출력 → LabelPrintOrchestrator</span></div>
+      <div class="ifc"><span class="ifc-m im-ch">CALL</span><span class="ifc-p">printService.printOrderReceipt(order:, type: 'receipt', isCancelReceipt:)</span><span class="ifc-d">영수증 재출력 → PrinterJobQueue</span></div>
+      <div class="ifc"><span class="ifc-m im-post">SENTRY</span><span class="ifc-p">MonitoringService.instance.captureError(error, stack, hint, extras)</span><span class="ifc-d">큐 onError — orderNo·displayNum 첨부</span></div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

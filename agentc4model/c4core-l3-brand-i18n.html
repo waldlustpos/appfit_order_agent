@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>C4 · L3 — Brand &amp; i18n Components</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="c4core.css">
+<style>
+.amb1{width:560px;height:560px;background:#3b82f6;top:8%;left:22%;}
+.amb2{width:440px;height:440px;background:#f59e0b;bottom:8%;right:12%;}
+.back{position:fixed;top:60px;left:18px;z-index:30;font-size:12px;color:#60a5fa;text-decoration:none;padding:5px 12px;border:1px solid rgba(59,130,246,.3);border-radius:8px;background:rgba(6,8,13,.6);}
+.back:hover{background:rgba(59,130,246,.1);}
+
+.l3main{position:relative;z-index:1;max-width:1120px;margin:0 auto;padding:78px 28px 90px;}
+.l3lead{font-size:13px;color:var(--dim);line-height:1.6;margin-bottom:8px;}
+.l3lead b{color:var(--muted);}
+.l3lead code{color:#fbbf24;background:rgba(245,158,11,.08);padding:1px 5px;border-radius:3px;font-size:11.5px;}
+.l3note{font-size:11.5px;color:#475569;margin-bottom:22px;}
+.l3note b{color:#93c5fd;}
+
+.split{display:grid;grid-template-columns:1fr 292px;gap:20px;align-items:start;}
+
+/* layer strip (좌측 3계층 파이프라인) */
+.layer{display:grid;grid-template-columns:104px 1fr;gap:14px;align-items:stretch;}
+.layer-label{display:flex;flex-direction:column;justify-content:center;gap:4px;padding:12px 13px;border-radius:12px;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.05);}
+.layer-label .ln{font-size:13px;font-weight:800;color:#e2e8f0;}
+.layer-label .lt{font-size:9.5px;font-weight:600;color:#64748b;}
+.layer-label .ld{width:9px;height:9px;border-radius:3px;margin-bottom:2px;}
+.comps{display:flex;gap:10px;flex-wrap:wrap;align-content:center;padding:5px 0;}
+.comp{flex:1;min-width:158px;background:rgba(10,18,35,.72);border:1.5px solid rgba(255,255,255,.08);border-radius:12px;padding:11px 14px;transition:border-color .2s,background .2s,transform .2s,box-shadow .2s;}
+.comp.link{cursor:pointer;}
+.comp.link:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(0,0,0,.35);}
+.comp .cn{font-size:13px;font-weight:800;font-family:'JetBrains Mono',monospace;}
+.comp .cr{font-size:10.5px;color:#94a3b8;margin-top:3px;line-height:1.4;}
+.comp .cf{font-size:9.5px;color:#475569;margin-top:4px;}
+.comp .cl4{font-size:9.5px;font-weight:800;color:#60a5fa;margin-top:5px;}
+
+.t-orch{border-color:rgba(59,130,246,.35);} .t-orch .cn{color:#93c5fd;} .t-orch.link:hover{border-color:rgba(96,165,250,.65);}
+.t-gw{border-color:rgba(139,92,246,.35);} .t-gw .cn{color:#c4b5fd;}
+.t-svc{border-color:rgba(245,158,11,.3);} .t-svc .cn{color:#fbbf24;}
+.t-pp{border-color:rgba(34,211,238,.3);} .t-pp .cn{color:#67e8f9;}
+
+.flow-sep{display:flex;justify-content:center;align-items:center;height:20px;color:#475569;}
+.flow-sep span{font-size:10.5px;font-weight:600;padding:0 10px;background:var(--bg);}
+.flow-sep::before,.flow-sep::after{content:'';height:1px;flex:0 0 36px;background:linear-gradient(90deg,transparent,rgba(96,165,250,.3));}
+
+/* prefix 칩 */
+.chips{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px;}
+.chip{font-size:9px;font-weight:800;font-family:'JetBrains Mono',monospace;padding:1px 7px;border-radius:8px;color:#93c5fd;background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.25);}
+
+/* 우측 열 (테마 · i18n) */
+.side{display:flex;flex-direction:column;gap:14px;}
+.side-card{background:rgba(10,18,35,.72);border:1.5px solid rgba(255,255,255,.08);border-radius:13px;padding:13px 15px;}
+.side-card .sh{font-size:12.5px;font-weight:800;display:flex;align-items:center;gap:7px;}
+.side-card .sh .sd{width:8px;height:8px;border-radius:3px;flex-shrink:0;}
+.side-card .sr{font-size:10.5px;color:#94a3b8;margin-top:6px;line-height:1.55;}
+.side-card .sr code{color:#fbbf24;background:rgba(245,158,11,.08);padding:1px 5px;border-radius:3px;font-size:9.5px;}
+.side-card .sr b{color:#e2e8f0;}
+.sc-theme{border-color:rgba(16,185,129,.3);} .sc-theme .sh{color:#6ee7b7;}
+.sc-i18n{border-color:rgba(34,211,238,.3);} .sc-i18n .sh{color:#67e8f9;}
+.callout{border:1.5px solid rgba(245,158,11,.4);border-radius:13px;background:linear-gradient(135deg,rgba(120,53,15,.28),rgba(10,18,35,.75));padding:12px 15px;}
+.callout .ch{font-size:11px;font-weight:800;color:#fbbf24;}
+.callout .cb{font-size:10.5px;color:#cbd5e1;margin-top:5px;line-height:1.55;}
+.callout .cb code{color:#fbbf24;background:rgba(245,158,11,.1);padding:1px 5px;border-radius:3px;font-size:9.5px;}
+
+@keyframes c4-cin{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+.layer,.side-card,.callout{opacity:0;animation:c4-cin .5s ease both;}
+.layer:nth-child(3){animation-delay:.05s;}.layer:nth-child(5){animation-delay:.1s;}
+.side-card{animation-delay:.15s;}.callout{animation-delay:.2s;}
+@media(prefers-reduced-motion:reduce){.layer,.side-card,.callout{animation:none;opacity:1;}}
+@media(max-width:900px){.split{grid-template-columns:1fr;}}
+@media(max-width:760px){
+  .l3main{padding:70px 12px 80px;}
+  .layer{grid-template-columns:1fr;}
+  .layer-label{flex-direction:row;align-items:center;gap:8px;}
+  .layer-label .ld{margin:0;}
+  .comp{min-width:100%;}
+}
+</style>
+</head>
+<body class="bg-grid">
+
+<div class="ambient amb1"></div>
+<div class="ambient amb2"></div>
+
+<div class="ghdr">
+  <div class="badge">C4 Model</div>
+  <h1>Level 3 — Brand &amp; i18n Components</h1>
+  <div class="sub">lib/utils/brand_registry.dart · lib/i18n</div>
+</div>
+<a class="back" href="c4core-l2.html">&larr; L2 Container</a>
+
+<!-- 줌 -->
+<div class="zoom">
+  <span class="zt">Zoom</span>
+  <a class="off" href="c4core-context.html" title="L1">L1</a>
+  <a class="off" href="c4core-l2.html" title="L2">L2</a>
+  <span class="on" title="L3 Component">L3</span>
+  <a class="off" href="c4core-l4-brand-registry.html" title="L4 Code">L4</a>
+</div>
+
+<div class="l3main">
+  <div class="l3lead">브랜드 분기는 <b>3계층</b>: 정체성(<code>BrandRegistry</code> SSOT) &rarr; capability(<code>BrandFeature</code>) &rarr; 전략 seam(구현 주입). 소비처는 <b>브랜드 이름이 아니라 capability로만</b> 분기한다.</div>
+  <div class="l3note"><b>우측 열</b>은 파이프라인과 별개 축 — 테마(부팅 1회 적용)와 i18n(slang standalone) 채널.</div>
+
+  <div class="split">
+    <div>
+      <!-- Layer 1: SSOT -->
+      <div class="layer">
+        <div class="layer-label"><div class="ld" style="background:#3b82f6;"></div><div class="ln">Layer 1</div><div class="lt">정체성 SSOT</div></div>
+        <div class="comps">
+          <div class="comp t-orch link" data-href="c4core-l4-brand-registry.html">
+            <div class="cn">BrandRegistry</div>
+            <div class="cr">매장 ID prefix &rarr; <b>BrandMeta</b>(자산 폴더 · 영수증 로고 · 테마 · 통화 · 서버 env) 단일 정본. <code>resolve()</code>=자산용 fallback(TPCP) / <code>resolveOrNull()</code>=capability 판단용(미지 매장 null)</div>
+            <div class="chips"><span class="chip">TPCP</span><span class="chip">MHST</span><span class="chip">MATA</span><span class="chip">PAIK</span></div>
+            <div class="cf">utils/brand_registry.dart</div>
+            <div class="cl4">&#9654; L4 코드 상세</div>
+          </div>
+        </div>
+      </div>
+      <div class="flow-sep"><span>brand.has(BrandFeature.*)</span></div>
+
+      <!-- Layer 2: capability -->
+      <div class="layer">
+        <div class="layer-label"><div class="ld" style="background:#8b5cf6;"></div><div class="ln">Layer 2</div><div class="lt">capability</div></div>
+        <div class="comps">
+          <div class="comp t-gw"><div class="cn">labelCategoryFilter</div><div class="cr">TPCP 라벨 카테고리 필터(전체/와플만/와플제외)</div><div class="cf">enum BrandFeature</div></div>
+          <div class="comp t-gw"><div class="cn">soundGraphSend</div><div class="cr">MHST 사운드그래프 주문 전송</div><div class="cf">enum BrandFeature</div></div>
+          <div class="comp t-gw"><div class="cn">japanEnvironment</div><div class="cr">일본 서버 환경 사용</div><div class="cf">enum BrandFeature</div></div>
+          <div class="comp t-gw"><div class="cn">autoUpdateForce</div><div class="cr">로그인 시 자동 업데이트 체크 강제 ON</div><div class="cf">enum BrandFeature</div></div>
+        </div>
+      </div>
+      <div class="flow-sep"><span>capability 보유 시에만 구현 주입</span></div>
+
+      <!-- Layer 3: 전략 seam -->
+      <div class="layer">
+        <div class="layer-label"><div class="ld" style="background:#22d3ee;"></div><div class="ln">Layer 3</div><div class="lt">전략 seam</div></div>
+        <div class="comps">
+          <div class="comp t-pp"><div class="cn">LabelFilterStrategy</div><div class="cr">라벨 인쇄 대상 카테고리 필터 전략</div><div class="cf">services/label_printer/label_filter_strategy.dart</div></div>
+          <div class="comp t-pp"><div class="cn">SoundGraphHook</div><div class="cr">자동접수 성공 후 외부 통합 훅</div><div class="cf">services/soundgraph_hook.dart</div></div>
+          <div class="comp t-pp"><div class="cn">qrPayloadStrategyProvider</div><div class="cr">라벨 QR 페이로드 브랜드별 전략</div><div class="cf">services/label_printer/qr_payload_strategy.dart</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 우측 열: 테마 · i18n -->
+    <div class="side">
+      <div class="side-card sc-theme">
+        <div class="sh"><span class="sd" style="background:#10b981;"></span>Theme — BrandTheme</div>
+        <div class="sr"><b>enum 4종</b>(브랜드별 색상 세트). <code>AppStyles.applyBrand</code>가 <b>부팅 시 1회</b> 주입 — 런타임 색 변경 없음, 브랜드 전환은 재시작 필요.<br><span style="color:#475569;font-size:9.5px;">constants/brand_theme.dart · constants/app_styles.dart</span></div>
+      </div>
+      <div class="side-card sc-i18n">
+        <div class="sh"><span class="sd" style="background:#22d3ee;"></span>i18n — slang (ko/en/ja)</div>
+        <div class="sr"><code>strings_{ko,en,ja}.i18n.json</code> &rarr; <code>flutter pub run slang</code> &rarr; <code>strings.g.dart</code> 생성.<br><span style="color:#475569;font-size:9.5px;">lib/i18n/</span></div>
+      </div>
+      <div class="callout">
+        <div class="ch">&#9888; slang은 standalone</div>
+        <div class="cb"><code>slang_build_runner</code> 미사용 — <b>build_runner로는 strings.g.dart가 갱신되지 않는다.</b> i18n JSON 수정 후 <code>flutter pub run slang</code> 필수.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.querySelectorAll('.comp.link').forEach(n => {
+  n.addEventListener('click', () => { const h = n.getAttribute('data-href'); if (h) location.href = h; });
+});
+</script>
+</body>
+</html>

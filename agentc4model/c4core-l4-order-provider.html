@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>C4 · L4 — OrderProvider (AppFit Order Agent)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="c4core.css">
+<style>
+.amb1{width:560px;height:560px;background:#3b82f6;top:8%;left:22%;}
+.amb2{width:440px;height:440px;background:#8b5cf6;bottom:8%;right:12%;}
+.back{position:fixed;top:60px;left:18px;z-index:30;font-size:12px;color:#60a5fa;text-decoration:none;padding:5px 12px;border:1px solid rgba(59,130,246,.3);border-radius:8px;background:rgba(6,8,13,.6);}
+.back:hover{background:rgba(59,130,246,.1);}
+.swap{position:fixed;top:60px;right:18px;z-index:30;font-size:12px;color:#67e8f9;text-decoration:none;padding:5px 12px;border:1px solid rgba(34,211,238,.3);border-radius:8px;background:rgba(6,8,13,.6);}
+.swap:hover{background:rgba(34,211,238,.1);}
+</style>
+</head>
+<body class="bg-grid">
+
+<div class="ambient amb1"></div>
+<div class="ambient amb2"></div>
+
+<div class="ghdr">
+  <div class="badge">C4 Model</div>
+  <h1>Level 4 — OrderProvider</h1>
+  <div class="sub mono">lib/providers/order/order_provider.dart</div>
+</div>
+<a class="back" href="c4core-l3-order-core.html">&larr; L3 Components</a>
+<a class="swap" href="c4core-l4-output-queue.html">OutputQueueService &rarr;</a>
+
+<div class="zoom">
+  <span class="zt">Zoom</span>
+  <a class="off" href="c4core-context.html" title="L1">L1</a>
+  <a class="off" href="c4core-l2.html" title="L2">L2</a>
+  <a class="off" href="c4core-l3-order-core.html" title="L3">L3</a>
+  <span class="on" title="L4 Code">L4</span>
+</div>
+
+<div class="l4main">
+  <div class="l4lead">주문 유입 3경로(WSS 소켓 · 폴링 · 수동 새로고침)의 <b>단일 코디네이터</b>. <code>@Riverpod(keepAlive: true)</code> — <code>build()</code> 1회에서 6개 매니저를 <code>late</code> 생성하고, 자동접수 4중 가드·폴링 병합·출력 enqueue·상세조회 실패 복구 큐를 모두 조율한다.</div>
+
+  <!-- 클래스 구조 -->
+  <div class="sec"><span class="sd" style="background:#3b82f6;"></span>클래스 구조</div>
+  <div class="class-card">
+    <div class="class-head">
+      <div class="class-anno">@Riverpod(keepAlive: true)</div>
+      <div class="class-name">Order</div>
+      <div class="class-layer">extends _$Order — 주문 코디네이터 (state: OrderState)</div>
+    </div>
+
+    <div class="subsec"><span class="sd2" style="background:#60a5fa;"></span>의존 매니저/서비스 (6 매니저 + 2 서비스)</div>
+    <div class="deps">
+      <div class="dep"><span class="dep-ic dep-repo"></span><span class="dep-nm">OrderSocketManager</span><span class="dep-ds">WSS 이벤트·재연결 (onRefreshOrders 콜백)</span></div>
+      <div class="dep"><span class="dep-ic dep-repo"></span><span class="dep-nm">OrderTimerManager</span><span class="dep-ds">폴링·자정 새로고침·캐시 정리</span></div>
+      <div class="dep"><span class="dep-ic dep-repo"></span><span class="dep-nm">OrderQueueManager</span><span class="dep-ds">버퍼·shopOrderNo 정렬·emit</span></div>
+      <div class="dep"><span class="dep-ic dep-repo"></span><span class="dep-nm">OrderSettingsManager</span><span class="dep-ds">자동접수·사운드 설정</span></div>
+      <div class="dep"><span class="dep-ic dep-repo"></span><span class="dep-nm">OrderStateManager</span><span class="dep-ds">activeOrderCount 계산</span></div>
+      <div class="dep"><span class="dep-ic dep-repo"></span><span class="dep-nm">OrderCacheManager</span><span class="dep-ds">상세 캐시·만료 정리</span></div>
+      <div class="dep"><span class="dep-ic dep-cross"></span><span class="dep-nm">OutputQueueService</span><span class="dep-cr">출력 잡 enqueue</span></div>
+      <div class="dep"><span class="dep-ic dep-cross"></span><span class="dep-nm">ApiService</span><span class="dep-cr">REST (appfit_core Dio)</span></div>
+    </div>
+
+    <div class="subsec"><span class="sd2" style="background:#60a5fa;"></span>주요 메서드 <span style="font-size:10.5px;color:#475569;font-weight:500;">(R 조회 / W 변경 / P 내부)</span></div>
+    <div class="methods">
+
+      <div class="method open" onclick="this.classList.toggle('open')">
+        <div class="m-badge mb-w">W</div>
+        <div class="m-head"><span class="m-name">build()</span><span class="m-sig">→ OrderState</span><span class="m-tag">1회 초기화</span></div>
+        <div class="m-detail">
+          <div class="md-row"><div class="md-l">흐름</div><div class="md-flow">
+            <span class="md-step">매니저 6종 late 생성</span><span class="md-arr">→</span>
+            <span class="md-step">microtask(_orderDataInitialize)</span><span class="md-arr">→</span>
+            <span class="md-step">폴링·캐시·자정 타이머</span><span class="md-arr">→</span>
+            <span class="md-step">listenToSocketChanges</span>
+          </div></div>
+          <div class="md-row"><div class="md-l">adaptive</div><div class="md-v"><code>ref.listen(appFitNotifierServiceProvider)</code> — 소켓 연결/단절에 따라 폴링 간격 전환(긴급 모드 ON이면 단절 간격 고정)</div></div>
+          <div class="md-row"><div class="md-l">가드</div><div class="md-v"><code>!_isLoggedOut</code>일 때만 BlinkService·OutputService·OrderQueueService 초기화 — 로그아웃 후 rebuild가 서비스를 되살리지 않게 차단</div></div>
+        </div>
+      </div>
+
+      <div class="method" onclick="this.classList.toggle('open')">
+        <div class="m-badge mb-r">R</div>
+        <div class="m-head"><span class="m-name">updateShouldNotify()</span><span class="m-sig">(previous, next) → bool</span><span class="m-tag">override</span></div>
+        <div class="m-detail">
+          <div class="md-row"><div class="md-l">핵심</div><div class="md-v">기본 <code>!identical</code> 대신 <b>딥 비교</b>(<code>previous != next</code>) — 무변경 폴링마다 KDS 카드 전체가 리빌드되던 저사양(T2_mini_s) 잭 프레임 제거. 비교 비용은 폴링당 1회 sub-ms</div></div>
+        </div>
+      </div>
+
+      <div class="method" onclick="this.classList.toggle('open')">
+        <div class="m-badge mb-w">W</div>
+        <div class="m-head"><span class="m-name">refreshOrders()</span><span class="m-sig">({String? date})</span><span class="m-tag">3경로 합류점</span></div>
+        <div class="m-detail">
+          <div class="md-row"><div class="md-l">dedup</div><div class="md-v">소켓 onRefreshOrders·폴링·수동 새로고침 3경로가 합류 — <code>_isLoggedOut</code> / <code>state.isLoading</code> / <code>_isRefreshing</code> 3중 재진입 차단</div></div>
+          <div class="md-row"><div class="md-l">흐름</div><div class="md-flow">
+            <span class="md-step">getOrders(오늘)</span><span class="md-arr">→</span>
+            <span class="md-step hot">_recentRemovals 부활 차단</span><span class="md-arr">→</span>
+            <span class="md-step">캐시/state 상세 병합</span><span class="md-arr">→</span>
+            <span class="md-step">orderedAt 정렬·state 반영</span><span class="md-arr">→</span>
+            <span class="md-step">_processNewOrdersWhenRefresh</span>
+          </div></div>
+          <div class="md-row"><div class="md-l">병합</div><div class="md-v"><code>resolveMergedStatus</code>로 서버 stale 응답의 <b>상태 다운그레이드 차단</b>(로컬 PREPARING인데 서버 NEW → 재수락 400 방지)</div></div>
+          <div class="md-row"><div class="md-l">reconcile</div><div class="md-v"><code>_pendingDetailReprint.retainWhere(state에 존재)</code> — 복구 큐 stale 마킹 정리(Set 무한 증가 방지)</div></div>
+        </div>
+      </div>
+
+      <div class="method" onclick="this.classList.toggle('open')">
+        <div class="m-badge mb-p">P</div>
+        <div class="m-head"><span class="m-name">_processNewOrder()</span><span class="m-sig">(OrderModel order)</span><span class="m-tag">자동접수</span></div>
+        <div class="m-detail">
+          <div class="md-row"><div class="md-l">가드</div><div class="md-v">KDS 모드는 <code>isKdsAcceptOrders</code> ON 또는 <code>MOCK_</code> 주문만 통과 · 로컬 상태 &ne; NEW면 스킵 · <code>_autoAcceptingOrderIds</code> in-flight 락</div></div>
+          <div class="md-row"><div class="md-l">흐름</div><div class="md-flow">
+            <span class="md-step">NEW 키 캐시 선등록</span><span class="md-arr">→</span>
+            <span class="md-step hot">await updateOrderStatus(PREPARING)</span><span class="md-arr">→</span>
+            <span class="md-step">성공 시 PREPARING 캐시+_selfAcceptedOrderIds 등록</span><span class="md-arr">→</span>
+            <span class="md-step cross">_outputQueueService.add</span>
+          </div></div>
+          <div class="md-row"><div class="md-l">순서</div><div class="md-v">PUT→출력 enqueue를 <b>await 직렬화</b> — emit 루프(_processNextEmit)가 정렬된 shopOrderNo 순서로 이 함수를 await하므로 enqueue 순서 = 정렬 순서</div></div>
+          <div class="md-row"><div class="md-l">실패</div><div class="md-v">NEW로 롤백 + <code>finally</code>에서 in-flight 락 해제. rethrow된 ApiException은 흡수(크래시 방지). 수동접수 모드는 알람만 재생 + 라벨 프린터 사용 시 <code>addLabelOnly</code></div></div>
+        </div>
+      </div>
+
+      <div class="method" onclick="this.classList.toggle('open')">
+        <div class="m-badge mb-w">W</div>
+        <div class="m-head"><span class="m-name">updateOrderStatus()</span><span class="m-sig">(orderModel, newStatus, {readyTime?}) → Future&lt;bool&gt;</span></div>
+        <div class="m-detail">
+          <div class="md-row"><div class="md-l">흐름</div><div class="md-flow">
+            <span class="md-step">동일 상태면 skip</span><span class="md-arr">→</span>
+            <span class="md-step">SocketEventSuppressor 등록</span><span class="md-arr">→</span>
+            <span class="md-step hot">REST PUT (MOCK_은 우회)</span><span class="md-arr">→</span>
+            <span class="md-step">queueOrderExternal</span><span class="md-arr">→</span>
+            <span class="md-step">_performImmediateUIUpdate</span>
+          </div></div>
+          <div class="md-row"><div class="md-l">종결</div><div class="md-v">DONE/CANCELLED 성공 시 <code>_recentRemovals.mark()</code> — replication lag로 폴링이 active 상태를 돌려줘도 부활 차단(기본 TTL 120초)</div></div>
+        </div>
+      </div>
+
+      <div class="method" onclick="this.classList.toggle('open')">
+        <div class="m-badge mb-w">W</div>
+        <div class="m-head"><span class="m-name">queueOrderExternal()</span><span class="m-sig">(OrderModel order)</span><span class="m-tag">외부 진입점</span></div>
+        <div class="m-detail">
+          <div class="md-row"><div class="md-l">dedup</div><div class="md-v"><code>_processedOrderCache.containsOrderStatus</code> — <b>(orderId, status) 조합</b> 단위 중복 enqueue 차단, 상태 전이는 통과 → <code>_queueManager.queueOrder</code></div></div>
+        </div>
+      </div>
+
+      <div class="method" onclick="this.classList.toggle('open')">
+        <div class="m-badge mb-r">R</div>
+        <div class="m-head"><span class="m-name">fetchOrderDetail()</span><span class="m-sig">(orderId) → Future&lt;OrderModel?&gt;</span></div>
+        <div class="m-detail">
+          <div class="md-row"><div class="md-l">가드</div><div class="md-v"><code>_loadingOrderIds</code>로 동시 중복 호출 차단 · 캐시 hit면 API 없이 state만 복원</div></div>
+          <div class="md-row"><div class="md-l">복구</div><div class="md-v">API 성공 + <code>menus.isNotEmpty</code> + <code>_pendingDetailReprint.remove()==true</code>일 때만 출력 재발행 — remove의 동기 원자성으로 동시 다중 fetch에서도 <b>정확히 1회</b></div></div>
+        </div>
+      </div>
+
+      <div class="method" onclick="this.classList.toggle('open')">
+        <div class="m-badge mb-w">W</div>
+        <div class="m-head"><span class="m-name">markPendingReprint()</span><span class="m-sig">(orderId)</span><span class="m-tag">복구 큐 등록</span></div>
+        <div class="m-detail">
+          <div class="md-row"><div class="md-l">용도</div><div class="md-v">상세조회 실패로 빈 영수증/라벨이 스킵된 주문을 마킹 — 메뉴 복구(fetchOrderDetail 성공) 시점 자동 재발행. OutputService가 보유한 참조로 호출(순환 의존 없음), Set이라 반복 마킹 멱등</div></div>
+        </div>
+      </div>
+
+      <div class="method" onclick="this.classList.toggle('open')">
+        <div class="m-badge mb-w">W</div>
+        <div class="m-head"><span class="m-name">cleanupOnLogout()</span><span class="m-sig">→ void</span><span class="m-tag">Auth.logout() 경유</span></div>
+        <div class="m-detail">
+          <div class="md-row"><div class="md-l">흐름</div><div class="md-flow">
+            <span class="md-step">_isLoggedOut = true</span><span class="md-arr">→</span>
+            <span class="md-step">소켓·타이머 정리</span><span class="md-arr">→</span>
+            <span class="md-step cross">_outputQueueService.clear()</span><span class="md-arr">→</span>
+            <span class="md-step">가드 캐시 5종 clear</span><span class="md-arr">→</span>
+            <span class="md-step">OrderState.initial()</span>
+          </div></div>
+          <div class="md-row"><div class="md-l">주의</div><div class="md-v">AudioPlayer stop/dispose는 비동기 예외를 <code>.catchError</code>로 흡수(Sentry APPFIT-ORDER-AGENT-N 재발 방지). 재로그인 시 <code>reloadSettings()</code>가 플래그 해제·서비스 재시작</div></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- State 모델 -->
+  <div class="sec"><span class="sd" style="background:#22d3ee;"></span>State 모델 · 내부 가드</div>
+  <div class="entity-card">
+    <div class="entity-head">
+      <div class="class-anno" style="color:#67e8f9;background:rgba(34,211,238,.1);">UI 상태 (수동 작성 모델)</div>
+      <div class="entity-name">OrderState</div>
+      <div class="entity-tag">models/order_state.dart · ==/copyWith 직접 구현 (freezed 미사용)</div>
+    </div>
+    <div class="fgt">공개 상태 (UI 구독)</div>
+    <div class="fields">
+      <div class="field"><span class="f-col">orders</span><span class="f-type">List&lt;OrderModel&gt;</span><span class="f-desc">오늘자 주문 목록 (orderedAt 오름차순)</span></div>
+      <div class="field"><span class="f-col">activeOrderCount</span><span class="f-type">int</span><span class="f-desc">활성 주문 건수 (블링크·버블 연동)</span></div>
+      <div class="field"><span class="f-col">isAutoReceipt</span><span class="f-type">bool</span><span class="f-desc">자동 접수 설정 (메인 모드)</span></div>
+      <div class="field"><span class="f-col">isKdsAcceptOrders</span><span class="f-type">bool</span><span class="f-desc">KDS 모드 NEW 직접 자동접수 (단독 운영)</span></div>
+      <div class="field"><span class="f-col">visibleOrderCount</span><span class="f-type">int</span><span class="f-desc">KDS 표시 개수 (Pagination · 초기 12)</span></div>
+      <div class="field"><span class="f-col">isLoading / error</span><span class="f-type">bool / String?</span><span class="f-desc">로딩·오류 표시</span></div>
+    </div>
+    <div class="fgt">내부 가드·dedup 캐시 (Notifier 필드 · 로그아웃 시 전부 clear)</div>
+    <div class="fields">
+      <div class="field"><span class="f-col">_autoAcceptingOrderIds</span><span class="f-type">Set&lt;String&gt;</span><span class="f-desc">자동접수 in-flight 락 (소켓&harr;폴링 race)</span></div>
+      <div class="field"><span class="f-col">_selfAcceptedOrderIds</span><span class="f-type">Set&lt;String&gt;</span><span class="f-desc">자가 접수 후행 PREPARING 알림/라벨 dedup</span></div>
+      <div class="field"><span class="f-col">_processedOrderCache</span><span class="f-type">ProcessedOrderCache</span><span class="f-desc">(orderId, status) enqueue 중복 차단</span></div>
+      <div class="field"><span class="f-col">_pendingDetailReprint</span><span class="f-type">Set&lt;String&gt;</span><span class="f-desc">출력 누락 복구 큐 (메뉴 복구 시 1회 재발행)</span></div>
+      <div class="field"><span class="f-col">_recentRemovals</span><span class="f-type">RecentRemovalsCache</span><span class="f-desc">종결 주문 부활 차단 (appfit_core · TTL 120s)</span></div>
+      <div class="field"><span class="f-col">_isLoggedOut / _isRefreshing</span><span class="f-type">bool</span><span class="f-desc">로그아웃·재진입 가드 플래그</span></div>
+    </div>
+  </div>
+
+  <!-- 외부 인터페이스 -->
+  <div class="sec"><span class="sd" style="background:#34d399;"></span>호출하는 외부 인터페이스</div>
+  <div class="ifc-card">
+    <div class="ifc-list">
+      <div class="ifc"><span class="ifc-m im-post">REST</span><span class="ifc-p">_apiService.getOrders(storeId, startDate:, endDate:)</span><span class="ifc-d">오늘자 주문 목록 (폴링/새로고침)</span></div>
+      <div class="ifc"><span class="ifc-m im-post">REST</span><span class="ifc-p">_apiService.getOrder(orderId, storeId:)</span><span class="ifc-d">주문 상세 (메뉴 포함)</span></div>
+      <div class="ifc"><span class="ifc-m im-put">REST</span><span class="ifc-p">_apiService.updateOrderStatus(storeId, newStatus, orderId)</span><span class="ifc-d">접수·픽업·완료·취소 상태 전이</span></div>
+      <div class="ifc"><span class="ifc-m im-put">REST</span><span class="ifc-p">_apiService.bulkCompleteOrders(storeId, from:, to:)</span><span class="ifc-d">READY 일괄 완료 (서버 측 처리)</span></div>
+      <div class="ifc"><span class="ifc-m im-ch">QUEUE</span><span class="ifc-p">_outputQueueService.add(order, playSound:) / addLabelOnly(order)</span><span class="ifc-d">영수증·라벨 출력 잡 enqueue (직렬화)</span></div>
+      <div class="ifc"><span class="ifc-m im-sock">SOCKET</span><span class="ifc-p">SocketEventSuppressor().add(orderId, eventType)</span><span class="ifc-d">자기 발화 이벤트 echo 억제</span></div>
+      <div class="ifc"><span class="ifc-m im-ch">HOOK</span><span class="ifc-p">soundGraphHookProvider.onAutoAccepted(order)</span><span class="ifc-d">브랜드 게이트 훅 (비대상 브랜드 NoOp)</span></div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

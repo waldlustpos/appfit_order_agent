@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0">
+<title>C4 · L2 — Container (Order Agent)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="c4core.css">
+<style>
+#scene{min-width:1020px;}
+.amb1{width:560px;height:560px;background:#3b82f6;top:24%;left:34%;}
+.amb2{width:440px;height:440px;background:#10b981;top:58%;right:14%;}
+.back{position:fixed;top:62px;left:18px;z-index:30;font-size:12px;color:#60a5fa;text-decoration:none;padding:5px 12px;border:1px solid rgba(59,130,246,.3);border-radius:8px;background:rgba(6,8,13,.6);}
+.back:hover{background:rgba(59,130,246,.1);}
+</style>
+</head>
+<body class="bg-grid">
+
+<div class="ambient amb1"></div>
+<div class="ambient amb2"></div>
+
+<div class="ghdr">
+  <div class="badge">C4 Model</div>
+  <h1>Level 2 — Container</h1>
+  <div class="sub">AppFit 주문 에이전트 &middot; 앱 내부 컨테이너 구조</div>
+</div>
+<a class="back" href="c4core-context.html">&larr; L1 System Context</a>
+
+<div id="scene">
+  <svg id="edges"></svg>
+
+  <div class="boundary" style="left:24%;top:18%;width:52%;height:66%;">
+    <div class="boundary-label">&#128241; AppFit Order Agent — Flutter App Boundary</div>
+  </div>
+
+  <!-- ===== 컨테이너 7 (전부 클릭 → L3) ===== -->
+  <div class="node container-node clickable" id="c-shell" style="left:35%;top:29%;" data-href="c4core-l3-app-shell.html">
+    <h3>App Shell</h3><div class="ty">[main.dart · Routes]</div><div class="de">초기화·/login /home /settings·테마</div><div class="drill">L3 &rarr;</div>
+  </div>
+  <div class="node container-node clickable" id="c-auth" style="left:62%;top:29%;" data-href="c4core-l3-auth-session.html">
+    <h3>Auth &amp; Session</h3><div class="ty">[authProvider]</div><div class="de">로그인·Auth.logout() 단일 진입점</div><div class="drill">L3 &rarr;</div>
+  </div>
+  <div class="node container-node clickable" id="c-brand" style="left:34%;top:48%;" data-href="c4core-l3-brand-i18n.html">
+    <h3>Brand &amp; i18n</h3><div class="ty">[BrandRegistry · slang]</div><div class="de">3계층 브랜드·ko/en/ja</div><div class="drill">L3 &rarr;</div>
+  </div>
+  <div class="node container-node clickable" id="c-order" style="left:49%;top:48%;" data-href="c4core-l3-order-core.html">
+    <h3>Order Core</h3><div class="ty">[Riverpod · 6 Managers]</div><div class="de">OrderProvider 코디네이터+6매니저</div><div class="drill">L3 &rarr;</div>
+  </div>
+  <div class="node container-node clickable" id="c-kds" style="left:64%;top:48%;" data-href="c4core-l3-kds.html">
+    <h3>KDS</h3><div class="ty">[kds_unified_providers]</div><div class="de">주방 탭·정렬·버블</div><div class="drill">L3 &rarr;</div>
+  </div>
+  <div class="node container-node clickable" id="c-output" style="left:36%;top:67%;" data-href="c4core-l3-output-print.html">
+    <h3>Output &amp; Print</h3><div class="ty">[Queue · ESC/POS · FFI]</div><div class="de">이중 직렬 큐·영수증·라벨</div><div class="drill">L3 &rarr;</div>
+  </div>
+  <div class="node container-node clickable" id="c-platform" style="left:62%;top:67%;" data-href="c4core-l3-platform-infra.html">
+    <h3>Platform &amp; Infra</h3><div class="ty">[MethodChannel · C++ · appfit_core]</div><div class="de">네이티브 브리지·OTA·모니터링</div><div class="drill">L3 &rarr;</div>
+  </div>
+
+  <!-- ===== 경계 밖 — L1 외부 (단순화 재등장) ===== -->
+  <div class="node external" id="n-notifier" style="left:51%;top:8%;"><h3>AppFit Notifier</h3><div class="ty">[External · WebSocket]</div></div>
+  <div class="node external" id="n-coreapi" style="left:89%;top:29%;"><h3>AppFit Core API</h3><div class="ty">[External · REST]</div></div>
+  <div class="node hardware" id="n-printers" style="left:32%;top:91%;"><h3>Printers</h3><div class="ty">[내장·외부 영수증 + 라벨]</div></div>
+  <div class="node external" id="n-otamon" style="left:70%;top:91%;"><h3>OTA / Monitoring</h3><div class="ty">[Lightsail · Sentry+Slack]</div></div>
+
+  <!-- edge labels -->
+  <div class="edge-label la-int" id="el-shell-auth">부팅 시 세션 복원</div>
+  <div class="edge-label la-int" id="el-order-output">출력 잡 enqueue</div>
+  <div class="edge-label la-int" id="el-order-kds">동일 상태 공유</div>
+  <div class="edge-label la-int" id="el-brand-output">로고·필터 전략 주입</div>
+  <div class="edge-label la-int" id="el-auth-platform">appfit_core 토큰/Dio</div>
+  <div class="edge-label la-ext" id="el-notifier-order">WSS 주문 이벤트</div>
+  <div class="edge-label la-ext" id="el-order-coreapi">주문 상세·상태 변경</div>
+  <div class="edge-label la-hw" id="el-output-printers">ESC/POS·라벨 출력</div>
+  <div class="edge-label la-ext" id="el-platform-otamon">OTA 확인·로그/크래시</div>
+</div>
+
+<div class="legend">
+  <div class="leg"><b class="lb-c"></b>앱 컨테이너</div>
+  <div class="leg"><b class="lb-e"></b>외부 시스템</div>
+  <div class="leg"><b class="lb-h"></b>하드웨어</div>
+</div>
+
+<div class="zoom">
+  <span class="zt">Zoom</span>
+  <a class="off" href="c4core-context.html" title="L1">L1</a>
+  <span class="on" title="L2 Container">L2</span>
+  <span class="off" title="L3 Component">L3</span>
+  <span class="off" title="L4 Code">L4</span>
+</div>
+
+<script src="c4core.js"></script>
+<script>
+c4Graph([
+  {from:'c-shell',    to:'c-auth',     type:'int', label:'el-shell-auth',     dash:false},
+  {from:'c-order',    to:'c-output',   type:'int', label:'el-order-output',   dash:false},
+  {from:'c-order',    to:'c-kds',      type:'int', label:'el-order-kds',      dash:false},
+  {from:'c-brand',    to:'c-output',   type:'int', label:'el-brand-output',   dash:false},
+  {from:'c-auth',     to:'c-platform', type:'int', label:'el-auth-platform',  dash:false},
+  {from:'n-notifier', to:'c-order',    type:'ext', label:'el-notifier-order', dash:true},
+  {from:'c-order',    to:'n-coreapi',  type:'ext', label:'el-order-coreapi',  dash:false},
+  {from:'c-output',   to:'n-printers', type:'hw',  label:'el-output-printers',dash:true},
+  {from:'c-platform', to:'n-otamon',   type:'ext', label:'el-platform-otamon',dash:false},
+]);
+
+document.querySelectorAll('.container-node.clickable').forEach(n => {
+  let px, py;
+  n.addEventListener('mousedown', e => { px = e.clientX; py = e.clientY; });
+  n.addEventListener('mouseup', e => {
+    if (Math.abs(e.clientX-px) < 5 && Math.abs(e.clientY-py) < 5) {
+      const h = n.getAttribute('data-href'); if (h) location.href = h;
+    }
+  });
+});
+</script>
+</body>
+</html>
