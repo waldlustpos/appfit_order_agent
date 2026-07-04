@@ -102,7 +102,7 @@
 </div>
 
 <div class="l3main">
-  <div class="l3lead"><b>3개 출력 채널(Sunmi 내장 영수증 · 외부 영수증 · 라벨)</b>이 컬럼, <b>파이프라인 레이어</b>가 행인 격자. 모든 잡은 <code>OutputQueueService</code> 단일 진입 후, <b>라벨을 영수증 await 이전에 선-enqueue</b>해 두 큐가 진짜 병렬로 흐른다.</div>
+  <div class="l3lead"><b>3개 출력 채널(Sunmi 내장 영수증 · 외부 영수증 · 라벨)</b>이 컬럼, <b>파이프라인 레이어</b>가 행인 격자. 주문 트리거 출력 잡은 <code>OutputQueueService</code> 단일 진입 후, <b>라벨을 영수증 await 이전에 선-enqueue</b>해 두 큐가 진짜 병렬로 흐른다.</div>
   <div class="l3note"><b>구조</b>를 본다. 잡 분해·실패 분기 <b>흐름</b>은 우측 상단 "출력 파이프라인 보기"(별첨). 컴포넌트 클릭 &rarr; L4 코드.</div>
 
   <div class="matrix">
@@ -116,8 +116,8 @@
     <!-- Job (공통 진입) -->
     <div class="lay-h"><div class="ld" style="background:#60a5fa;"></div><div class="ln">Job</div><div class="lt">공통 진입</div></div>
     <div class="common">
-      <div class="sub link" data-href="c4core-l4-output-queue.html"><div class="cn">OutputQueueService</div><div class="cr">단일 진입점 · 이중 직렬 큐</div><div class="cl4">&#9654; L4</div></div>
-      <div class="sub"><div class="cn">sealed OutputJob</div><div class="cr">잡 4종 (sealed class)</div></div>
+      <div class="sub link" data-href="c4core-l4-output-queue.html"><div class="cn">OutputQueueService</div><div class="cr">주문 출력 잡 단일 진입점(취소 영수증·테스트 출력 제외) · 이중 직렬 큐</div><div class="cl4">&#9654; L4</div></div>
+      <div class="sub"><div class="cn">sealed OutputJob</div><div class="cr">공개 잡 4종 + 내부 tail 1종(_NewOrderLabelTail) — sealed class</div></div>
       <div class="sub"><div class="cn">_receiptQueue / _labelQueue</div><div class="cr">큐 분리 — 라벨 무한대기 vs 영수증 backoff 상호 차단 방지</div></div>
     </div>
 
@@ -126,14 +126,14 @@
     <!-- Orchestration (분기) -->
     <div class="lay-h"><div class="ld" style="background:#3b82f6;"></div><div class="ln">Orchestration</div><div class="lt">경로 분기</div></div>
     <div class="cell k-sun" data-ch="Sunmi 내장"><div class="cn">OutputService</div><div class="cr">내장 프린터 경로</div></div>
-    <div class="cell k-ext" data-ch="외부 영수증"><div class="cn">OutputService</div><div class="cr">Platform.isWindows 분기 (USB / COM)</div></div>
-    <div class="cell k-lab link" data-ch="라벨" data-href="c4core-l4-label-orchestrator.html"><div class="cn">LabelPrintOrchestrator</div><div class="cr">라벨 잡 오케스트레이션</div><div class="cl4">&#9654; L4</div></div>
+    <div class="cell k-ext" data-ch="외부 영수증"><div class="cn">OutputService &rarr; PrintService</div><div class="cr">PrintService 매트릭스 분기 — USB/COM 은 transport 주입(_initPrinterQueue)</div></div>
+    <div class="cell k-lab link" data-ch="라벨" data-href="c4core-l4-label-orchestrator.html"><div class="cn">OutputService.printOrderLabels</div><div class="cr">라벨 잡 오케스트레이션 · 1.5s 1회 재시도</div><div class="cl4">&#9654; L4</div></div>
 
     <!-- Builder (분기) -->
     <div class="lay-h"><div class="ld" style="background:#8b5cf6;"></div><div class="ln">Builder</div><div class="lt">데이터 생성</div></div>
-    <div class="cell k-sun" data-ch="Sunmi 내장"><div class="cn">ReceiptEscPosBuilder</div><div class="cr">ESC/POS 바이트 · CP949</div></div>
-    <div class="cell k-ext" data-ch="외부 영수증"><div class="cn">ReceiptEscPosBuilder</div><div class="cr">동일 빌더 공유 · CP949</div></div>
-    <div class="cell k-lab" data-ch="라벨"><div class="cn">LabelPrintData</div><div class="cr">BMP 로고 + QR</div></div>
+    <div class="cell k-sun" data-ch="Sunmi 내장"><div class="cn">toSunmiJson &rarr; SunmiPrintHelper</div><div class="cr">JSON &rarr; 네이티브 렌더 (raw bytes 미지원)</div></div>
+    <div class="cell k-ext" data-ch="외부 영수증"><div class="cn">ReceiptEscPosBuilder</div><div class="cr">Android·Windows 외부 경로 공유 · CP949</div></div>
+    <div class="cell k-lab" data-ch="라벨"><div class="cn">LabelPrintData + LabelPainter</div><div class="cr">필터·QR 페이로드(Data) · BMP 로고+QR PNG 렌더(Painter)</div></div>
 
     <div class="rowarr"><span>바이트/라벨 데이터 &rarr; 물리 채널 전송</span></div>
 
@@ -141,7 +141,7 @@
     <div class="lay-h"><div class="ld" style="background:#22d3ee;"></div><div class="ln">Transport</div><div class="lt">물리 채널</div></div>
     <div class="cell k-sun" data-ch="Sunmi 내장"><div class="cn">SunmiPrintHelper</div><div class="cr">내장 프린터 네이티브</div></div>
     <div class="cell k-ext" data-ch="외부 영수증"><div class="cn">ExternalReceiptPrinter</div><div class="cr">Android USB bulkTransfer / Windows ComPortPrintService (COM 시리얼 · DLE EOT probe)</div></div>
-    <div class="cell k-lab" data-ch="라벨"><div class="cn">MethodChannel printLabel</div><div class="cr">Android Caysn / Windows autoreplyprint FFI</div></div>
+    <div class="cell k-lab" data-ch="라벨"><div class="cn">PrintService.printLabel</div><div class="cr">Android MethodChannel printLabel(Caysn) / Windows WindowsLabelPrinterBackend(autoreplyprint FFI)</div></div>
 
     <!-- 직렬·재시도 (분기) -->
     <div class="lay-h"><div class="ld" style="background:#f59e0b;"></div><div class="ln">직렬·재시도</div><div class="lt">Retry</div></div>

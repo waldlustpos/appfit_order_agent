@@ -106,8 +106,8 @@ body::before{content:'';position:fixed;inset:0;background-image:radial-gradient(
       <div class="st-node">1</div>
       <div class="st-card link" data-href="../c4core-l3-order-core.html">
         <div class="st-head"><div class="st-title">수신</div><div class="st-actor">Notifier WSS + 폴링</div></div>
-        <div class="st-desc">WSS로 <code>ORDER_*</code> 이벤트를 실시간 수신. 소켓이 끊겨도 60초 주기 폴링이 폴백으로 같은 주문을 건져 올린다(자정 전체 새로고침 포함). 수동 <code>refreshOrders</code>까지 3경로가 한 곳으로 합류해 dedup.</div>
-        <div class="chips"><span class="chip mgr">OrderSocketManager</span><span class="chip mgr">OrderTimerManager &middot; 60s</span><span class="chip">refreshOrders</span></div>
+        <div class="st-desc">WSS로 <code>ORDER_*</code> 이벤트를 실시간 수신. 폴링이 폴백으로 같은 주문을 건져 올린다 — 소켓 연결 시 60초, 끊기면 15초로 조여지는 적응형(시작 30초 지연·자정 전체 새로고침 포함). 수동 <code>refreshOrders</code>까지 3경로가 한 곳으로 합류해 dedup.</div>
+        <div class="chips"><span class="chip mgr">OrderSocketManager</span><span class="chip mgr">OrderTimerManager &middot; 60s/15s</span><span class="chip">refreshOrders</span></div>
         <div class="drill">Order Core L3 &rarr;</div>
       </div>
     </div>
@@ -125,7 +125,7 @@ body::before{content:'';position:fixed;inset:0;background-image:radial-gradient(
     <div class="stage" style="--c:#8b5cf6;">
       <div class="st-node">3</div>
       <div class="st-card">
-        <div class="st-head"><div class="st-title">자동접수 판정</div><div class="st-actor">OrderSettingsManager</div></div>
+        <div class="st-head"><div class="st-title">자동접수 판정</div><div class="st-actor">OrderProvider · _processNewOrder</div></div>
         <div class="st-desc">메인 모드는 <code>isAutoReceipt</code>, KDS 모드는 <code>isKdsAcceptOrders</code> 토글로 자동접수 여부를 결정. 중복 접수는 4중 가드가 막는다.</div>
         <div class="gw">
           <div class="gw-item"><div class="gn">_autoAcceptingOrderIds</div><div class="gc">지금 접수 진행 중인 주문 재진입 차단</div></div>
@@ -140,11 +140,11 @@ body::before{content:'';position:fixed;inset:0;background-image:radial-gradient(
       <div class="st-node">4</div>
       <div class="st-card">
         <div class="st-head"><div class="st-title">상세조회</div><div class="st-actor">Core API</div></div>
-        <div class="st-desc">이벤트는 요약뿐이라 <code>getOrder</code>로 전체 상세(메뉴·옵션·수량)를 가져온다. 실패하면 재시도하고, 그래도 실패하면 3중 안전망이 이어받는다.</div>
+        <div class="st-desc">이벤트는 요약뿐이라 <code>getOrder</code>로 전체 상세(메뉴·옵션·수량)를 가져온다. 실패하면 재시도(0·0.5·1.5s)하고, 그래도 실패하면 안전망이 이어받는다.</div>
         <div class="fail">
-          <div class="fail-item"><div class="fn">리포트</div><div class="fc">실패 사실을 모니터링으로 보고</div></div>
-          <div class="fail-item"><div class="fn">폴링 안전망</div><div class="fc">60s 폴링이 다음 주기에 다시 수집</div></div>
-          <div class="fail-item"><div class="fn">복구 큐</div><div class="fc"><code style="color:#fbbf24;background:rgba(245,158,11,.08);padding:0 3px;border-radius:3px;">_pendingDetailReprint</code>로 출력 재발행</div></div>
+          <div class="fail-item"><div class="fn">리포트</div><div class="fc">실패 사실을 모니터링으로 보고 + refreshOrders</div></div>
+          <div class="fail-item"><div class="fn">폴링 안전망</div><div class="fc">폴링(60s/끊김 15s)이 다음 주기에 다시 수집</div></div>
+          <div class="fail-item"><div class="fn">복구 큐</div><div class="fc"><code style="color:#fbbf24;background:rgba(245,158,11,.08);padding:0 3px;border-radius:3px;">_pendingDetailReprint</code> — 메뉴 없이 출력 스킵된 주문, 메뉴 복구 시 재발행</div></div>
         </div>
       </div>
     </div>

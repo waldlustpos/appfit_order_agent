@@ -90,7 +90,7 @@
 </div>
 
 <div class="l3main">
-  <div class="l3lead">메인 모드와 <b>동일한 <code>OrderState</code></b>를 공유하는 주방 디스플레이. 좌측 <b>KDS 상태</b>(<code>kds_unified_providers</code> — 토글·탭·정렬·카드 크기) / 우측 <b>표시 계층</b>(<code>KdsScreen</code> · computed 파생) 2열.</div>
+  <div class="l3lead">메인 모드와 <b>동일한 <code>OrderState</code></b>를 공유하는 주방 디스플레이. 좌측 <b>KDS 상태</b>(<code>kds_unified_providers</code> — 토글·탭·정렬·카드 애니메이션) / 우측 <b>표시 계층</b>(<code>KdsScreen</code> · computed 파생) 2열.</div>
   <div class="l3note"><b>구조</b>를 본다. 주문 유입·가드·상세조회는 L3 Order Core 담당 — KDS 는 상태를 <b>복제하지 않는다</b>.</div>
 
   <div class="matrix">
@@ -114,13 +114,13 @@
 
     <!-- 표시 옵션 (분기) -->
     <div class="lay-h"><div class="ld" style="background:#8b5cf6;"></div><div class="ln">표시 옵션</div><div class="lt">Options</div></div>
-    <div class="cell k-state" data-ch="상태"><div class="cn">정렬 · 카드 크기</div><div class="cr">표시 옵션 상태</div></div>
-    <div class="cell k-view dim" data-ch="표시"><div class="cn">옵션 반영</div><div class="cr">정렬 · 카드 크기 렌더 적용</div></div>
+    <div class="cell k-state" data-ch="상태"><div class="cn">정렬 · 카드 애니메이션</div><div class="cr">표시 옵션 상태</div></div>
+    <div class="cell k-view dim" data-ch="표시"><div class="cn">옵션 반영</div><div class="cr">정렬 · 애니메이션 렌더 적용</div></div>
 
     <!-- 액션 (분기) -->
     <div class="lay-h"><div class="ld" style="background:#f59e0b;"></div><div class="ln">액션</div><div class="lt">Batch Action</div></div>
-    <div class="cell k-state dim" data-ch="상태"><div class="cn">현재 탭 선택</div><div class="cr">일괄 처리 대상 범위</div></div>
-    <div class="cell k-view" data-ch="표시"><div class="cn">일괄 완료</div><div class="cr">현재 탭 주문 일괄 완료</div></div>
+    <div class="cell k-state dim" data-ch="상태"><div class="cn">픽업 탭 노출</div><div class="cr">탭 index 2 에서만 버튼 표시</div></div>
+    <div class="cell k-view" data-ch="표시"><div class="cn">일괄 완료</div><div class="cr">픽업 탭(READY) 주문 일괄 완료 (completeReadyOrders)</div></div>
 
     <div class="rowarr"><span>플랫폼 공통</span></div>
 
@@ -135,7 +135,7 @@
     <div class="lay-h"><div class="ld" style="background:#f87171;"></div><div class="ln">공유 원칙</div><div class="lt">Single State</div></div>
     <div class="common">
       <div class="sub"><div class="cn">OrderState</div><div class="cr">Order Core 와 동일 상태 공유 — KDS 별도 스토어 없음(중복 없음)</div></div>
-      <div class="sub"><div class="cn">kds_unified_providers</div><div class="cr">KDS 는 토글·탭·정렬·크기 등 표시 상태만 보유</div></div>
+      <div class="sub"><div class="cn">kds_unified_providers</div><div class="cr">KDS 는 토글·탭·정렬·스크롤·체크 등 표시 상태만 보유</div></div>
     </div>
 
   </div>

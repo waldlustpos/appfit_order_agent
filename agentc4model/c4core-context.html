@@ -50,10 +50,10 @@
 
   <!-- External Systems (우측~우하단 6) -->
   <div class="node external" id="n-coreapi" style="left:70%;top:22%;">
-    <h3>AppFit Core API</h3><div class="ty">[External System]</div><div class="de">core-api.waldplatform.com<br>HTTPS REST · AES-GCM 암호화</div>
+    <h3>AppFit Core API</h3><div class="ty">[External System]</div><div class="de">core-api·core-jpapi.waldplatform.com (환경별)<br>HTTPS REST · AES-GCM 암호화</div>
   </div>
   <div class="node external" id="n-notifier" style="left:75%;top:36%;">
-    <h3>AppFit Notifier</h3><div class="ty">[External · WebSocket]</div><div class="de">notifier-api.waldplatform.com<br>실시간 주문 이벤트</div>
+    <h3>AppFit Notifier</h3><div class="ty">[External · WebSocket]</div><div class="de">notifier-api·notifier-jpapi.waldplatform.com<br>실시간 주문 이벤트</div>
   </div>
   <div class="node external" id="n-firebase" style="left:76%;top:51%;">
     <h3>Firebase / Firestore</h3><div class="ty">[External · Android 전용]</div><div class="de">KDS 클라우드 동기화</div>
@@ -62,7 +62,7 @@
     <h3>OTA Server</h3><div class="ty">[External · Lightsail]</div><div class="de">waldpay.kokonutstamp2.com<br>APK/ZIP + 버전 JSON</div>
   </div>
   <div class="node external" id="n-mon" style="left:62%;top:78%;">
-    <h3>Monitoring</h3><div class="ty">[External · Sentry+Slack]</div><div class="de">크래시 리포트·로그 파일 업로드</div>
+    <h3>Monitoring</h3><div class="ty">[External · Sentry]</div><div class="de">크래시·에러 리포트 (Slack 로그 업로드는 미병합 브랜치)</div>
   </div>
   <div class="node external" id="n-van" style="left:47%;top:88%;">
     <h3>WaldPOS VAN Bridge</h3><div class="ty">[External · local TCP :8888]</div><div class="de">멤버십 바코드 스캔(Windows)</div>
@@ -98,7 +98,7 @@
   <div class="edge-label la-ext" id="el-notifier">WSS 실시간 주문 이벤트</div>
   <div class="edge-label la-ext" id="el-firebase">KDS 클라우드 동기화</div>
   <div class="edge-label la-ext" id="el-ota">APK/ZIP·버전 JSON 조회</div>
-  <div class="edge-label la-ext" id="el-mon">크래시·로그 업로드</div>
+  <div class="edge-label la-ext" id="el-mon">크래시 리포트</div>
   <div class="edge-label la-ext" id="el-van">멤버십 바코드(TCP :8888)</div>
   <div class="edge-label la-hw" id="el-sunmi">내장 ESC/POS 출력</div>
   <div class="edge-label la-hw" id="el-extprn">USB/COM 영수증 출력</div>

@@ -33,9 +33,9 @@
 .comp{flex:1;min-width:158px;background:rgba(10,18,35,.72);border:1.5px solid rgba(255,255,255,.08);border-radius:12px;padding:11px 14px;transition:border-color .2s,background .2s,transform .2s,box-shadow .2s;}
 .comp.link{cursor:pointer;}
 .comp.link:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(0,0,0,.35);}
-.comp .cn{font-size:13px;font-weight:800;font-family:'JetBrains Mono',monospace;}
+.comp .cn{font-size:13px;font-weight:800;font-family:'JetBrains Mono',monospace;overflow-wrap:anywhere;}
 .comp .cr{font-size:10.5px;color:#94a3b8;margin-top:3px;line-height:1.4;}
-.comp .cf{font-size:9.5px;color:#475569;margin-top:4px;}
+.comp .cf{font-size:9.5px;color:#475569;margin-top:4px;overflow-wrap:anywhere;}
 .comp .cl4{font-size:9.5px;font-weight:800;color:#60a5fa;margin-top:5px;}
 
 .t-orch{border-color:rgba(59,130,246,.35);} .t-orch .cn{color:#93c5fd;} .t-orch.link:hover{border-color:rgba(96,165,250,.65);}
@@ -103,7 +103,7 @@
 </div>
 
 <div class="l3main">
-  <div class="l3lead">브랜드 분기는 <b>3계층</b>: 정체성(<code>BrandRegistry</code> SSOT) &rarr; capability(<code>BrandFeature</code>) &rarr; 전략 seam(구현 주입). 소비처는 <b>브랜드 이름이 아니라 capability로만</b> 분기한다.</div>
+  <div class="l3lead">브랜드 분기는 <b>3계층</b>: 정체성(<code>BrandRegistry</code> SSOT) &rarr; capability(<code>BrandFeature</code>) &rarr; 전략 seam(구현 주입). 소비처는 <b>문자열 prefix 가 아니라 capability(<code>BrandFeature</code>) 게이팅으로</b> 분기한다 — 단 QR 페이로드 전략은 정체성(<code>BrandKey</code>) exhaustive switch (신규 브랜드 추가 시 analyzer 강제).</div>
   <div class="l3note"><b>우측 열</b>은 파이프라인과 별개 축 — 테마(부팅 1회 적용)와 i18n(slang standalone) 채널.</div>
 
   <div class="split">
@@ -133,7 +133,7 @@
           <div class="comp t-gw"><div class="cn">autoUpdateForce</div><div class="cr">로그인 시 자동 업데이트 체크 강제 ON</div><div class="cf">enum BrandFeature</div></div>
         </div>
       </div>
-      <div class="flow-sep"><span>capability 보유 시에만 구현 주입</span></div>
+      <div class="flow-sep"><span>capability 보유 시 구현 주입 (QR 은 BrandKey switch)</span></div>
 
       <!-- Layer 3: 전략 seam -->
       <div class="layer">

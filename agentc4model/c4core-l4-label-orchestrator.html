@@ -16,6 +16,7 @@
 .swap{position:fixed;top:60px;right:18px;z-index:30;font-size:12px;color:#67e8f9;text-decoration:none;padding:5px 12px;border:1px solid rgba(34,211,238,.3);border-radius:8px;background:rgba(6,8,13,.6);}
 .swap:hover{background:rgba(34,211,238,.1);}
 .warn-note{margin-top:10px;padding:10px 14px;border:1px solid rgba(251,191,36,.3);border-left:3px solid #fbbf24;border-radius:10px;background:rgba(251,191,36,.06);font-size:12px;color:#e2e8f0;line-height:1.6;}
+.dep-ds{overflow:hidden;text-overflow:ellipsis;min-width:0;flex-shrink:1;}
 </style>
 </head>
 <body class="bg-grid">
@@ -53,7 +54,7 @@
 
     <div class="subsec"><span class="sd2" style="background:#60a5fa;"></span>의존 Provider / 서비스 (ref.read)</div>
     <div class="deps">
-      <div class="dep"><span class="dep-ic dep-cross"></span><span class="dep-nm">orderProvider (Order)</span><span class="dep-cr">isKdsAcceptOrders·markPendingReprint·getOrderDetail</span></div>
+      <div class="dep"><span class="dep-ic dep-cross"></span><span class="dep-nm">orderProvider</span><span class="dep-cr">state(OrderState).isKdsAcceptOrders 읽기 · notifier(Order)는 ctor 주입 _orderNotifier 로 markPendingReprint·getOrderDetail·updateBlinkStateExternal 호출</span></div>
       <div class="dep"><span class="dep-ic dep-cross"></span><span class="dep-nm">kdsModeProvider</span><span class="dep-cr">KDS 모드 영수증 분기</span></div>
       <div class="dep"><span class="dep-ic dep-repo"></span><span class="dep-nm">preferenceServiceProvider</span><span class="dep-ds">라벨토글·매수·QR·레이아웃·필터모드</span></div>
       <div class="dep"><span class="dep-ic dep-repo"></span><span class="dep-nm">printServiceProvider</span><span class="dep-ds">SDK 호출 1지점 (printLabel)</span></div>
@@ -159,7 +160,7 @@
     <div class="fields">
       <div class="field"><span class="f-col">orderIndex</span><span class="f-type">int</span><span class="f-desc">주문 내 누적 순번 (1..orderTotal)</span></div>
       <div class="field"><span class="f-col">orderTotal</span><span class="f-type">int</span><span class="f-desc">&Sigma; menu.qty — 필터 무관 전체 수량 합산</span></div>
-      <div class="field"><span class="f-col">shopOrderNo</span><span class="f-type">String?</span><span class="f-desc">표시 주문번호 (QR ON 시 -순번 접미사)</span></div>
+      <div class="field"><span class="f-col">shopOrderNo</span><span class="f-type">String?</span><span class="f-desc">표시 주문번호 (raw displayNum — QR ON 시 접미사는 OutputService 가 인쇄 시점에 부가)</span></div>
       <div class="field"><span class="f-col">orderTime</span><span class="f-type">String?</span><span class="f-desc">MM/dd HH:mm:ss 포맷</span></div>
     </div>
     <div class="fgt">표시 내용 / QR</div>
@@ -176,7 +177,7 @@
   <div class="sec"><span class="sd" style="background:#34d399;"></span>호출하는 외부 인터페이스</div>
   <div class="ifc-card">
     <div class="ifc-list">
-      <div class="ifc"><span class="ifc-m im-ch">CHANNEL</span><span class="ifc-p">platform.invokeMethod('printLabel', {imageBytes, autoReplyMode, useFeedToTear, useBackToPrint, useCalibrate})</span><span class="ifc-d">Android — Caysn AutoReplyPrint Java SDK</span></div>
+      <div class="ifc"><span class="ifc-m im-ch">CHANNEL</span><span class="ifc-p">platform.invokeMethod('printLabel', {imageBytes, autoReplyMode, useFeedToTear, useBackToPrint, useCalibrate, orderNo, labelIndex, totalLabels})</span><span class="ifc-d">Android — Caysn AutoReplyPrint Java SDK</span></div>
       <div class="ifc"><span class="ifc-m im-sock">FFI</span><span class="ifc-p">WindowsLabelPrinterBackend.instance.printPng(pngBytes, width, height, options&hellip;)</span><span class="ifc-d">Windows — autoreplyprint.dll 직접 호출 (MethodChannel 핸들러 없음)</span></div>
       <div class="ifc"><span class="ifc-m im-sql">SENTRY</span><span class="ifc-p">MonitoringService.captureError(LabelPrintMissingException | OrderDetailFetchFailedException)</span><span class="ifc-d">누락/상세조회 실패 보고 · runtimeType 별 5분 쿨다운</span></div>
       <div class="ifc"><span class="ifc-m im-put">QUEUE</span><span class="ifc-p">_orderNotifier.markPendingReprint(orderId)</span><span class="ifc-d">출력 누락 등록 — 메뉴 복구 시 자동 재발행 (모든 라벨 경로가 이 깔때기로 수렴)</span></div>

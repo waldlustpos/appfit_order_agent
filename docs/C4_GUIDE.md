@@ -35,7 +35,7 @@ mermaid·structurizr 같은 도구 대신 **의존성 없는 정적 HTML**을 �
 
 | 저장소 | C4 폴더 | As-Is 문서 |
 |--------|---------|-----------|
-| kiosk_v4 | `kioskc4model/` (+ `posapic4model/`) | `docs/v4_architecture_proposal.md` 등 |
+| kiosk_v4 | `kioskc4model/` (+ `posapic4model/` — c4core 규약 도입 전의 구세대 자체완결 포맷(c4-*.html 4장, 스타일 인라인)으로 §2.2 규약 미적용) | `docs/v4_architecture_proposal.md` 등 |
 | appfit_order_agent | `agentc4model/` | `docs/AS-IS.md` |
 | kokonut_order_agent_v2 | `kokonutc4model/` | `docs/AS-IS.md` |
 | did | `didc4model/` | `docs/AS-IS.md` |
@@ -59,7 +59,7 @@ mermaid·structurizr 같은 도구 대신 **의존성 없는 정적 HTML**을 �
 ### 2.3 탐색 동선
 
 - **L1 중앙 노드 클릭** → L2 · **L2 컨테이너 클릭** → L3 · **L3의 `▶ L4` 셀 클릭** → L4
-- 우하단 **zoom 인디케이터**(L1/L2/L3/L4)로 레벨 간 점프, 좌상단 back 링크로 상위 복귀
+- 우하단 **zoom 인디케이터**(L1/L2/L3/L4)로 레벨 간 점프(단 L1·L2 페이지에서는 하위 L3/L4 대상이 여러 개라 비활성 — 노드 클릭으로 내려간다), 좌상단 back 링크로 상위 복귀
 - L1 우측 **도크**에서 별첨 뷰로 이동, 별첨 안에서는 상단 탭으로 뷰 전환
 - 노드는 드래그로 옮겨볼 수 있다(저장은 안 됨 — 좌표 확정은 HTML의 인라인 `left/top` % 수정)
 
@@ -77,7 +77,7 @@ mermaid·structurizr 같은 도구 대신 **의존성 없는 정적 HTML**을 �
 | 시안 `#22d3ee` | 하드웨어 | `.hardware` |
 | 앰버 `#fbbf24` | 데이터 스토어 | `.datastore` |
 
-엣지도 같은 색을 따르고, **점선 애니메이션은 비동기 채널**(WebSocket·TCP 소켓·Firestore 스트림)을 뜻한다.
+엣지도 같은 색을 따르고, **점선 애니메이션은 비동기 스트림 채널**(WebSocket·Firestore 스트림·프린터 출력 채널 등)을 뜻한다 (agent L1의 VAN TCP :8888 은 실선으로 그려져 있음).
 
 ### 3.2 표기 언어
 
@@ -86,7 +86,7 @@ mermaid·structurizr 같은 도구 대신 **의존성 없는 정적 HTML**을 �
 ### 3.3 id 규칙과 가장 흔한 버그
 
 - L1 위성 노드 `n-*`, L2 컨테이너 `c-*`, 엣지 라벨 `el-*`
-- `c4Graph([{from, to, type, label, dash}, ...])`의 모든 `from`/`to`/`label` 값에는 같은 파일 안에 대응하는 `id="..."`가 **반드시** 있어야 한다. 없으면 엔진이 그 엣지를 **조용히 건너뛴다**(에러 없음) — 엣지가 안 보이면 십중팔구 id 오타다.
+- `c4Graph([{from, to, type, label, dash}, ...])`의 모든 `from`/`to`/`label` 값에는 같은 파일 안에 대응하는 `id="..."`가 **반드시** 있어야 한다. 없으면 `from`/`to` 누락 시 엔진이 그 엣지를 통째로 **조용히 건너뛰고**(에러 없음), `label` 누락 시 선은 그려지되 라벨만 조용히 사라진다 — 엣지나 라벨이 안 보이면 십중팔구 id 오타다.
 
 ### 3.4 레벨별 작법
 
@@ -116,10 +116,10 @@ python3 agentc4model/verify_c4.py ../did/didc4model  # 다른 repo 폴더도 인
 
 ## 4. As-Is 문서와의 관계
 
-각 저장소의 `docs/AS-IS.md`는 C4 뷰의 **텍스트 요약본**이다 (Outline 게시용 · GFM 표 중심). C4 HTML이 "지도"라면 As-Is 문서는 "지명 사전"이다. 아키텍처가 바뀌면 **둘 다** 갱신한다: 코드 → C4 뷰 → As-Is 문서 → Outline 재게시 순.
+각 저장소의 As-Is 문서(`docs/AS-IS.md`, kiosk_v4는 `docs/v4_architecture_proposal.md` 등)는 C4 뷰의 **텍스트 요약본**이다 (Outline 게시용 · GFM 표 중심). C4 HTML이 "지도"라면 As-Is 문서는 "지명 사전"이다. 아키텍처가 바뀌면 **둘 다** 갱신한다: 코드 → C4 뷰 → As-Is 문서 → Outline 재게시 순.
 
 | 문서 | 위치 | 용도 |
 |------|------|------|
 | C4 HTML 뷰 | 각 repo `{이름}c4model/` | 구조·흐름 시각화, 온보딩·설계 리뷰 |
-| As-Is 아키텍처 | 각 repo `docs/AS-IS.md` | Outline 게시, 검색 가능한 사실 표 |
+| As-Is 아키텍처 | 각 repo `docs/AS-IS.md` (kiosk_v4 예외 — §2.1) | Outline 게시, 검색 가능한 사실 표 |
 | 본 가이드 | `appfit_order_agent/docs/C4_GUIDE.md` | C4 개념·작성 규약의 단일 정본 |

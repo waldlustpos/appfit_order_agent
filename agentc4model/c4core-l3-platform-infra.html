@@ -104,7 +104,7 @@
     <!-- Entry (분기) -->
     <div class="lay-h"><div class="ld" style="background:#10b981;"></div><div class="ln">Entry</div><div class="lt">부팅 진입</div></div>
     <div class="cell k-and" data-ch="Android"><div class="cn">MainActivity</div><div class="cr">Flutter 임베딩 · 채널 등록</div></div>
-    <div class="cell k-win" data-ch="Windows"><div class="cn">main.cpp</div><div class="cr">단일 인스턴스 뮤텍스 <code>Global\AppfitOrderAgent_SingleInstance_Mutex</code></div></div>
+    <div class="cell k-win" data-ch="Windows"><div class="cn">main.cpp</div><div class="cr">단일 인스턴스 뮤텍스 — update: <code>Global\AppfitOrderAgent_SingleInstance_Mutex</code> / standalone: <code>Global\AppfitOrderAgentStandalone_SingleInstance_Mutex</code> (<code>APPFIT_VARIANT_STANDALONE</code> 컴파일 분기)</div></div>
 
     <div class="rowarr"><span>Dart &harr; 네이티브 브리지</span></div>
 
@@ -135,13 +135,13 @@
     <div class="common">
       <div class="sub"><div class="cn">appfit_core 어댑터</div><div class="cr">Dio 인터셉터 · 인증 헤더 + AES-GCM</div></div>
       <div class="sub"><div class="cn">MonitoringService</div><div class="cr">Sentry 크래시 리포트</div></div>
-      <div class="sub"><div class="cn">WindowsLogFileWriter + SlackDirectSink</div><div class="cr">로그 파일 &rarr; Slack 업로드</div></div>
+      <div class="sub"><div class="cn">WindowsLogFileWriter</div><div class="cr">Windows 로컬 로그 파일 기록 (<code>Documents/appfit</code> · <code>appfit_YYYY-MM-DD.txt</code> · 6개월 보존)</div></div>
     </div>
 
     <!-- 공통 Infra 2 -->
     <div class="lay-h"><div class="ld" style="background:#f87171;"></div><div class="ln">공통 연동</div><div class="lt">Inbound · VAN</div></div>
     <div class="common">
-      <div class="sub"><div class="cn">LocalServerService</div><div class="cr">HTTP :8080 inbound · 외부 트리거 수신</div></div>
+      <div class="sub"><div class="cn">LocalServerService</div><div class="cr">HTTP :8080 inbound · 키오스크 상품 판매상태 조회 API (<code>GET /api/product/{id}</code>)</div></div>
       <div class="sub"><div class="cn">waldpos/</div><div class="cr">WaldPOS VAN Bridge 연동 — 멤버십 바코드 (Windows · local TCP :8888)</div></div>
     </div>
 

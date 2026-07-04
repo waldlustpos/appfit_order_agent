@@ -15,10 +15,10 @@ kokonut_order_agent_v2 의 후속(AppFit 플랫폼 전환) 앱의 현재(As-Is) 
 | 앱 모드 | 메인 모드(주문 접수) ↔ KDS 모드(주방 디스플레이) 토글, Windows는 KDS 버블 모드(80x80 플로팅 윈도우) 추가 |
 | 기술 스택 | Dart SDK ^3.5.0 · Flutter >=3.19.0 |
 | 상태관리 | flutter_riverpod ^2.5.1 + riverpod_annotation ^2.6.1 (riverpod_generator codegen) |
-| 실시간 채널 | AppFit Notifier WebSocket (기본) + REST 폴링 60s (폴백) |
+| 실시간 채널 | AppFit Notifier WebSocket (기본) + REST 폴링 폴백 — 적응형(소켓 연결 60s / 끊김 15s, 시작 30s 지연) |
 | REST | `appfit_core` Dio 인터셉터 경유 (자동 인증 헤더 + AES-GCM 암호화) |
 | i18n | slang standalone CLI — ko(base)/en/ja, 런타임 전환 |
-| 모니터링 | Sentry (`MonitoringService`) + Slack 로그 업로드 |
+| 모니터링 | Sentry (`MonitoringService`, appfit_core) — Slack 로그 업로드는 미병합 `feature/remote-log-collection` 브랜치 전용, main에는 로컬 로그 파일 기록만(`WindowsLogFileWriter`) |
 | 배포 채널 | Lightsail OTA 서버 (`waldpay.kokonutstamp2.com`) — Android APK / Windows ZIP + 버전 JSON |
 | 배포 변형 | `update`(기본, 기존 900+ 매장 덮어쓰기) / `standalone`(병존 설치) — `APPFIT_VARIANT` dart-define |
 | 버전 정본 | **이원화**: Android = `pubspec.yaml`(현재 3.0.0+157), Windows = `version_windows.txt`(현재 3.0.0+157). Windows 빌드 스크립트는 pubspec을 읽지 않음 |
@@ -59,12 +59,12 @@ lib/
 | --- | --- | --- |
 | App Shell | `main.dart` + Routes | 초기화 시퀀스, 명명 라우트 3개(`/login` `/home` `/settings`), 부팅 시 브랜드 테마 1회 적용 |
 | Order Core | `providers/order/` | `OrderProvider` 코디네이터 + 6 매니저(Socket/Timer/Queue/Cache/Settings/State) — 주문 생명주기 전체 |
-| Output & Print | `services/` + `core/orders/` | `OutputQueueService` 이중 직렬 큐(영수증/라벨), ESC/POS 빌더, `PrinterJobQueue` backoff, `LabelPrintOrchestrator` |
-| KDS | `providers/kds/` + `widgets/kds/` | 5 상태 탭·정렬·카드 크기·버블 모드 — Order Core와 동일 `OrderState` 공유(중복 없음) |
+| Output & Print | `services/` + `core/orders/` | `OutputQueueService` 이중 직렬 큐(영수증/라벨), ESC/POS 빌더, `PrinterJobQueue` backoff, `OutputService.printOrderLabels`(라벨 오케스트레이션) |
+| KDS | `providers/kds/` + `widgets/kds/` | 5 상태 탭·정렬·카드 애니메이션·버블 모드(모드 공통) — Order Core와 동일 `OrderState` 공유(중복 없음). 카드 치수는 고정 상수(`KdsCardMetrics`) |
 | Brand & i18n | `utils/brand_registry.dart` 등 | 3계층 브랜드 처리(§3) + slang 다국어 |
 | Auth & Session | `providers/auth_provider.dart` | 로그인·`Auth.logout()` 단일 진입점·세션 복원 |
 | Platform & Infra | `android/` `windows/` + `services/` | MethodChannel·C++ 뮤텍스·FFI·OTA·모니터링·LocalServerService(:8080 외부 트리거) |
-| 외부 패키지 | `../packages/appfit_core` (path 의존) | AppFitConfig(환경 enum)·TokenManager·DioProvider·CryptoUtils·ApiRoutes·MonitoringService |
+| 외부 패키지 | `appfit_core` — **git 의존** `github.com/ratm10/appifit_agent_core.git` (`ref: v1.0.15`, path: `appfit_core`) · 로컬 `../packages/appfit_core`는 미러 사본(빌드는 git ref 기준) | AppFitConfig(환경 enum)·TokenManager·DioProvider·CryptoUtils·ApiRoutes·MonitoringService |
 
 ### 2.3 상태관리 (Riverpod)
 
@@ -117,7 +117,7 @@ lib/
 
 | 단계 | 트리거 | 경로 | 가드 | 결과 |
 | --- | --- | --- | --- | --- |
-| 수신 | WSS `ORDER_*` 이벤트 / 60s 폴링 / 수동 새로고침 | `OrderSocketManager` / `OrderTimerManager` / `refreshOrders` — 3경로 각자 dedup | `ProcessedOrderCache`, `RecentRemovals` | 신규 주문 후보 확보 |
+| 수신 | WSS `ORDER_*` 이벤트 / 적응형 폴링(연결 60s·끊김 15s) / 수동 새로고침 | `OrderSocketManager` / `OrderTimerManager` / `refreshOrders` — 3경로 각자 dedup | `ProcessedOrderCache`, `RecentRemovals` | 신규 주문 후보 확보 |
 | 버퍼·정렬 | 신규 주문 도착 | `OrderQueueManager` 1000ms 버퍼 → `shopOrderNo` 정렬 → 250/500ms throttle 방출 | 정렬 정본은 `orderedAt`(상태), 출력 순서는 `compareByShopOrderNo` | 한 건씩 순차 처리 |
 | 자동접수 판정 | 방출된 주문 | 메인 `isAutoReceipt` / KDS `isKdsAcceptOrders` | 4중 가드: `_autoAcceptingOrderIds`·`ProcessedOrderCache`·`_selfAcceptedOrderIds`·`RecentRemovals` | `updateOrderStatus(PREPARING)` PUT |
 | 상세조회 | 접수 대상 주문 | `getOrder` — transient 오류만 backoff [0, 0.5s, 1.5s] 3회 재시도 | 4xx/파싱은 즉시 실패. 실패 시 `_processNewOrder` 직접 호출 금지 | 실패 시 Sentry 보고 + 폴링 안전망(`refreshOrders`)으로 주문 누락 차단 |
@@ -128,11 +128,11 @@ lib/
 
 | 단계 | 트리거 | 경로 | 가드 | 결과 |
 | --- | --- | --- | --- | --- |
-| 진입 | UI/자동접수의 fire-and-forget `add*()` | `OutputQueueService` — sealed `OutputJob` 4종(NewOrder/LabelOnly/Reprint/ReceiptReprint) 단일 진입점 | 3-set in-flight 락(`_inFlightNewOrders` 등) | `_receiptQueue`/`_labelQueue` **이중 직렬 큐** 분리 배분 |
+| 진입 | UI/자동접수의 fire-and-forget `add*()` | `OutputQueueService` — sealed `OutputJob` 4종(NewOrder/LabelOnly/Reprint/ReceiptReprint) 단일 진입점 | 4-set in-flight 락(`_inFlightNewOrders`·`_inFlightLabelTail`·`_inFlightLabelOnly`·`_inFlightReprints`) | `_receiptQueue`/`_labelQueue` **이중 직렬 큐** 분리 배분 |
 | 라벨 선-enqueue | `NewOrderJob` 분해 | 라벨 tail을 영수증 await **이전에** `_labelQueue`로 enqueue | 라벨 PAPERNOFETCH 무한대기 ↔ 영수증 backoff 137s 상호 차단 방지 | 두 프린터 진짜 병렬 (영수증→라벨 순서 비보장) |
 | 영수증 | `_receiptQueue` worker | `ReceiptEscPosBuilder`(CP949) → `ExternalReceiptPrinter` → `PrinterJobQueue` | backoff 7회(0/2/5/10/20/40/60s, 누적 137s) + sealed 결과 타입(Success/Busy/NoDevice/TransportError) | Android USB bulkTransfer / Windows COM DLE EOT probe |
-| 라벨 | `_labelQueue` worker | `LabelPrintData.fromOrder`(메뉴 `ordrCnt`만큼 N장 확장) → Android `MethodChannel printLabel` / Windows `LabelPrintOrchestrator`→FFI | retry 1회(1.5s), paper-out/cover-up은 무한 대기(운영자 개입), 그 외 ERROR는 0.5s 게이트 후 retry | 최종 실패 시 Sentry `LabelPrintMissingException` |
-| 정리 | 로그아웃 | `OrderProvider.cleanupOnLogout()` | — | `outputQueueService.clear()` + `LabelPrintOrchestrator.clearAllInFlight()` |
+| 라벨 | `_labelQueue` worker | `OutputService.printOrderLabels` → `LabelPrintData.fromOrder`(메뉴 `qty`만큼 N장 확장) → Android `MethodChannel printLabel` / Windows `WindowsLabelPrinterBackend`(FFI 직접 호출) | retry 1회(1.5s), paper-out/cover-up은 무한 대기(운영자 개입) | 최종 실패 시 Sentry `LabelPrintMissingException` |
+| 정리 | 로그아웃 | `OrderProvider.cleanupOnLogout()` | — | `outputQueueService.clear()`(이중 큐 + in-flight 4-set) + 소켓·캐시·가드 Set 일괄 clear |
 
 ### 4.3 인증 · 세션
 
@@ -159,7 +159,7 @@ lib/
 | 내장 영수증 | Sunmi `SunmiPrintHelper` (ESC/POS) | 없음 |
 | 외부 영수증 transport | USB 범용 — `bulkTransfer` (3-tier endpoint 선택 + 4-tier 후보 판정) | COM 시리얼 단일 경로 (`serial_port_win32`) — Winspool 폴백 의도적 배제 |
 | 외부 영수증 false-success 방지 | `verifyConnection` (ESC `@` probe) | DLE EOT 1 probe (`cbInQue` 폴링 300ms) |
-| 라벨 transport | Caysn AutoReplyPrint Java SDK (`autoreplyprint.aar`) — MethodChannel `printLabel` | `autoreplyprint.dll` Dart FFI (vendored `external/autoreplyprint/win64/`) — `LabelPrintOrchestrator` |
+| 라벨 transport | Caysn AutoReplyPrint Java SDK (`autoreplyprint.aar`) — MethodChannel `printLabel` | `autoreplyprint.dll` Dart FFI (vendored `external/autoreplyprint/win64/`) — `WindowsLabelPrinterBackend` 직접 호출 |
 | 라벨 ACK 신호 | `statusCallback` ACK 정상 동작 | ACK 미발화 펌웨어 존재 → paperFetch 비콘이 주 신호. stuck 시 3종 active clear |
 | FFI/스레드 격리 | MethodChannel이 native 별도 thread 처리 | 동기 SDK 호출은 `Isolate.run` boxing (handle raw address만 cross-isolate) |
 | 크래시 격리 | — | `external_receipt_printer_windows.dart`를 deferred import — Android 런타임의 win32 static initializer 크래시 방지 |

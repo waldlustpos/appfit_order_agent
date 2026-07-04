@@ -151,18 +151,18 @@ body::before{content:'';position:fixed;inset:0;background-image:radial-gradient(
         <div class="lane-tagline">컵 라벨 · 주문 항목별 인쇄</div>
         <div class="lane-steps">
           <div class="lane-step"><code>_labelQueue</code>에서 잡을 꺼내 직렬 처리</div>
-          <div class="lane-step"><a class="l4" href="../c4core-l4-label-orchestrator.html" style="color:#fbbf24;">LabelPrintOrchestrator</a> — 항목 수만큼 장수 확장·중복 방지</div>
-          <div class="lane-step"><code>LabelPrintData</code> 구성 — BMP 로고 + QR</div>
+          <div class="lane-step"><a class="l4" href="../c4core-l4-label-orchestrator.html" style="color:#fbbf24;">OutputService.printOrderLabels</a> — <code>LabelPrintData.fromOrder()</code>로 메뉴 qty만큼 장수 확장 (in-flight 중복 방지는 상류 OutputQueueService)</div>
+          <div class="lane-step"><code>LabelPrintData</code> 구성(QR 페이로드) &rarr; <code>LabelPainter</code> 이미지 생성 — BMP 로고 + QR 렌더</div>
           <div class="lane-step">전송 후 <b>ACK / 용지 상태 머신</b>으로 결과 확인</div>
         </div>
         <div class="lane-sub">
           <div class="lane-sub-h">플랫폼 분기 — 전송 계층</div>
           <div class="lane-sub-row">
             <div class="pfitem pf-and"><div class="vt">Android</div><div class="vd">MethodChannel <code style="color:#fbbf24;background:rgba(245,158,11,.08);padding:0 3px;border-radius:3px;">printLabel</code><br>Caysn SDK</div></div>
-            <div class="pfitem pf-win"><div class="vt">Windows</div><div class="vd">LabelPrinterService<br>autoreplyprint.dll FFI</div></div>
+            <div class="pfitem pf-win"><div class="vt">Windows</div><div class="vd">WindowsLabelPrinterBackend<br>autoreplyprint.dll FFI</div></div>
           </div>
         </div>
-        <div class="lane-mode">실패: 상태 머신 감지 &rarr; 복구 큐 &darr;</div>
+        <div class="lane-mode">용지/커버: 상태 머신 무한대기 · 그 외 실패: 1.5s 재시도 &rarr; 누락 로그+Sentry</div>
       </div>
     </div>
 
@@ -175,7 +175,7 @@ body::before{content:'';position:fixed;inset:0;background-image:radial-gradient(
         <div class="lane-steps">
           <div class="lane-step"><code>_receiptQueue</code>에서 잡을 꺼내 직렬 처리</div>
           <div class="lane-step"><code>ReceiptEscPosBuilder</code> — ESC/POS 바이트 생성 (CP949)</div>
-          <div class="lane-step"><code>ExternalReceiptPrinter</code>가 전송 담당</div>
+          <div class="lane-step"><code>ExternalReceiptPrinter</code> — 플랫폼-무관 진입점, PrinterJobQueue 에 enqueue (전송은 큐의 PrinterTransport)</div>
           <div class="lane-step"><a class="l4" href="../c4core-l4-printer-job-queue.html" style="color:#93c5fd;">PrinterJobQueue</a> — backoff <code>0/2/5/10/20/40/60s</code> 재시도 (누적 137s)</div>
         </div>
         <div class="lane-sub">
@@ -185,28 +185,28 @@ body::before{content:'';position:fixed;inset:0;background-image:radial-gradient(
             <div class="pfitem pf-win"><div class="vt">Windows</div><div class="vd">COM 시리얼<br><code style="color:#fbbf24;background:rgba(245,158,11,.08);padding:0 3px;border-radius:3px;">DLE EOT</code> probe</div></div>
           </div>
         </div>
-        <div class="lane-mode">실패: backoff 소진 &rarr; 복구 큐 &darr;</div>
+        <div class="lane-mode">backoff 소진 &rarr; 최종실패 로그+Sentry (수동 재출력)</div>
       </div>
     </div>
 
   </div>
 
   <!-- MERGE: 복구 큐 -->
-  <div class="section-title"><div class="st-dot" style="background:#f87171;"></div>합류 — 실패 시 복구 큐</div>
+  <div class="section-title"><div class="st-dot" style="background:#f87171;"></div>복구 큐 — 상세조회 실패 시 재발행</div>
   <div class="merge">
     <div class="mh">&#128260; markPendingReprint &rarr; 재발행</div>
-    <div class="md">어느 레인이든 최종 실패하면 <code>markPendingReprint</code>로 <b>복구 큐에 표시</b>해 두고, 조건이 회복되면(프린터 재연결·용지 보충 등) 해당 주문의 출력 잡을 <b>재발행</b>한다. 인쇄물 유실 대신 지연으로 강등.</div>
+    <div class="md">상세조회 실패로 메뉴를 못 얻어 출력을 스킵한 주문은 <code>markPendingReprint</code>로 <b>복구 큐(_pendingDetailReprint)에 등록</b>해 두고, <b>메뉴가 복구되는(fetchOrderDetail 성공) 시점</b>에 해당 주문의 출력 잡을 1회 <b>재발행</b>한다. 인쇄물 유실 대신 지연으로 강등. (프린터 하드웨어 최종 실패는 이 큐가 아니라 로그+Sentry — 운영자 재출력으로 복구.)</div>
   </div>
 
   <!-- 실패 분기 다이아몬드 -->
   <div class="section-title"><div class="st-dot" style="background:#f87171;"></div>실패 분기 — 현장에서 실제로 겪는 4가지</div>
-  <div class="section-sub">전송 계층에서 감지되는 실패 유형. <b>유형마다 감지 방법이 다르고</b>, 전부 위 복구 큐로 수렴한다.</div>
+  <div class="section-sub">전송 계층에서 감지되는 실패 유형. <b>유형마다 감지 방법과 흡수 방식이 다르다</b> — backoff·무한대기·재시도로 각 레인 안에서 흡수되고, 최종 실패는 로그+Sentry 로 남아 운영자 재출력으로 복구한다.</div>
   <div class="diamond-wrap"><div class="diamond"></div></div>
   <div class="fails">
     <div class="fail-card"><div class="fh">BUSY 점유</div><div class="fd">다른 프로세스/앱이 프린터를 잡고 있음. 영수증 레인은 backoff 재시도로 점유 해제를 기다린다.</div></div>
-    <div class="fail-card"><div class="fh">용지 없음</div><div class="fd">라벨은 용지 상태 머신이, 영수증은 <code>DLE EOT</code> 상태 probe가 감지. 보충 후 재발행.</div></div>
-    <div class="fail-card"><div class="fh">커버 열림</div><div class="fd">프린터 상태 비트로 감지. 닫힐 때까지 인쇄 불가 — 잡은 복구 큐에 대기.</div></div>
-    <div class="fail-card"><div class="fh">좀비 연결</div><div class="fd">연결 핸들은 살아 있는데 실제로는 죽은 상태. 전송 실패로 드러나면 재연결 후 재발행.</div></div>
+    <div class="fail-card"><div class="fh">용지 없음</div><div class="fd">라벨은 용지 상태 머신이 감지해 보충까지 무한 대기 후 이어서 인쇄. 영수증 프린터는 용지없음을 직접 감지하지 못한다 — <code>DLE EOT</code> probe 는 생존 확인 전용이며, 오프라인화되면 backoff 재시도로 흡수.</div></div>
+    <div class="fail-card"><div class="fh">커버 열림</div><div class="fd">프린터 상태 비트로 감지. 닫힐 때까지 인쇄 불가 — 현재 잡이 라벨 큐에서 무한 대기하다 닫히면 이어서 인쇄.</div></div>
+    <div class="fail-card"><div class="fh">좀비 연결</div><div class="fd">연결 핸들은 살아 있는데 실제로는 죽은 상태. 라벨은 다음 재시도에서 재연결로 자동 회복, 영수증은 전송 전 <code>DLE EOT</code> probe 가 감지해 backoff 재시도.</div></div>
   </div>
 
   <div class="note"><b>이중 직렬 큐의 핵심:</b> 라벨과 영수증은 실패 모드가 정반대다 — 라벨은 <b>PAPERNOFETCH 무한대기</b>(사람이 라벨을 떼야 진행), 영수증은 <b>backoff 137초 재시도</b>. 한 큐에 섞으면 라벨 대기가 영수증을, 영수증 재시도가 라벨을 막는다. 그래서 <code>_labelQueue</code>와 <code>_receiptQueue</code>를 분리하고 라벨을 <b>선-enqueue</b>해 두 레인이 병렬로 돌게 했다. 각 큐 내부는 여전히 직렬이라 같은 채널에서 인쇄 순서는 절대 뒤집히지 않는다.</div>

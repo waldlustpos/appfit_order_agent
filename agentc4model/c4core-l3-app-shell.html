@@ -93,7 +93,7 @@
   <div class="layer">
     <div class="layer-label"><div class="ld" style="background:#22d3ee;"></div><div class="ln">Guard</div><div class="lt">&#9312; 진입 게이트</div></div>
     <div class="comps">
-      <div class="comp t-pp"><div class="cn">SingleInstanceMutex</div><div class="cr">이중 실행 차단(뮤텍스) — 실패 시 즉시 종료</div><div class="cf">windows/runner · main.dart</div><div class="cp cp-win">Windows</div></div>
+      <div class="comp t-pp"><div class="cn">SingleInstanceMutex</div><div class="cr">이중 실행 차단(뮤텍스) — 기존 창 전면 표시 후 즉시 종료</div><div class="cf">windows/runner/main.cpp</div><div class="cp cp-win">Windows</div></div>
       <div class="comp t-pp"><div class="cn">window_manager</div><div class="cr">창 초기화 <code>ensureInitialized()</code></div><div class="cf">main.dart</div><div class="cp cp-win">Windows</div></div>
     </div>
   </div>
@@ -104,7 +104,7 @@
     <div class="layer-label"><div class="ld" style="background:#3b82f6;"></div><div class="ln">Config</div><div class="lt">&#9313;&#9314; 환경·관측</div></div>
     <div class="comps">
       <div class="comp t-orch"><div class="cn">AppFitConfig.configure</div><div class="cr">PreferenceService로 저장된 환경 읽기 &rarr; appfit_core 서버 설정</div><div class="cf">main.dart · appfit_core</div><div class="cp cp-all">공통</div></div>
-      <div class="comp t-orch"><div class="cn">MonitoringService</div><div class="cr">Sentry 초기화(DSN 있을 때만) — 이후 단계 오류 <code>captureError</code></div><div class="cf">services/monitoring</div><div class="cp cp-all">공통</div></div>
+      <div class="comp t-orch"><div class="cn">MonitoringService</div><div class="cr">Sentry 초기화(DSN 있을 때만) — 이후 단계 오류 <code>captureError</code></div><div class="cf">appfit_core · services/monitoring(컨텍스트)</div><div class="cp cp-all">공통</div></div>
     </div>
   </div>
   <div class="flow-sep"><span>&#9315; Windows &middot; release 빌드 한정</span></div>
@@ -122,9 +122,9 @@
   <div class="layer">
     <div class="layer-label"><div class="ld" style="background:#f59e0b;"></div><div class="ln">Services</div><div class="lt">&#9316;&#9317;&#9318; 기반 서비스</div></div>
     <div class="comps">
-      <div class="comp t-svc"><div class="cn">Firebase.initializeApp</div><div class="cr">KDS 클라우드 동기화용 Firestore 기반</div><div class="cf">main.dart · firebase_options.dart</div><div class="cp cp-and">Android</div></div>
-      <div class="comp t-svc"><div class="cn">PreferenceService</div><div class="cr"><code>init()</code>에서 V2 마이그레이션 포함 초기화</div><div class="cf">services/preference_service.dart</div><div class="cp cp-all">공통</div></div>
-      <div class="comp t-svc"><div class="cn">LabelPrinter warmup</div><div class="cr"><code>warmupOpen()</code> — autoreplyprint 백엔드 선연결</div><div class="cf">services/label_printer</div><div class="cp cp-win">Windows</div></div>
+      <div class="comp t-svc"><div class="cn">Firebase.initializeApp</div><div class="cr">Firebase 코어 초기화(비-Windows 게이트) — Firestore 동기화 코드는 제거되어 현재 활성 사용처 없음</div><div class="cf">main.dart · firebase_options.dart</div><div class="cp cp-and">Android</div></div>
+      <div class="comp t-svc"><div class="cn">PreferenceService</div><div class="cr"><code>init()</code> 재확인(멱등) — V2 마이그레이션은 &#9313; 환경 읽기 시점의 첫 <code>init()</code>에서 이미 수행</div><div class="cf">services/preference_service.dart</div><div class="cp cp-all">공통</div></div>
+      <div class="comp t-svc"><div class="cn">LabelPrinter warmup</div><div class="cr"><code>warmupOpen()</code> — 라벨 프린터 사용 ON 시 autoreplyprint 백엔드 선연결(비차단)</div><div class="cf">services/label_printer</div><div class="cp cp-win">Windows</div></div>
     </div>
   </div>
   <div class="flow-sep"><span>&#9319; 브랜드 테마 1회 적용 (색 변경은 재시작 필요)</span></div>
@@ -133,7 +133,7 @@
   <div class="layer">
     <div class="layer-label"><div class="ld" style="background:#10b981;"></div><div class="ln">Launch</div><div class="lt">&#9319;&#9320; 기동</div></div>
     <div class="comps">
-      <div class="comp t-ui"><div class="cn">AppStyles.applyBrand</div><div class="cr">storeId prefix &rarr; BrandTheme 색상 주입(부팅 1회)</div><div class="cf">constants/app_styles.dart</div><div class="cp cp-all">공통</div></div>
+      <div class="comp t-ui"><div class="cn">AppStyles.applyBrand</div><div class="cr">저장된 테마 ID(prefs, 설정에서 선택) &rarr; BrandTheme 색상 주입(부팅 1회)</div><div class="cf">constants/app_styles.dart</div><div class="cp cp-all">공통</div></div>
       <div class="comp t-ui"><div class="cn">runApp(ProviderScope)</div><div class="cr">Riverpod 루트 &rarr; MaterialApp 기동</div><div class="cf">main.dart</div><div class="cp cp-all">공통</div></div>
     </div>
   </div>
@@ -146,7 +146,7 @@
       <div class="comp t-ps"><div class="cn">/login</div><div class="cr">LoginScreen — 세션 복원·로그인</div><div class="cf">screens/login_screen.dart</div></div>
       <div class="comp t-ps"><div class="cn">/home</div><div class="cr">HomeScreen — 메인(접수)/KDS 모드 토글</div><div class="cf">screens/home_screen.dart</div></div>
       <div class="comp t-ps"><div class="cn">/settings</div><div class="cr">SettingsScreen — 프린터·환경 설정</div><div class="cf">screens/settings_screen.dart</div></div>
-      <div class="comp t-ps"><div class="cn">lifecycleProvider</div><div class="cr">종료 감지 &rarr; <code>uploadLogsOnExit</code> &rarr; Slack 로그 업로드</div><div class="cf">providers/lifecycle_provider.dart</div></div>
+      <div class="comp t-ps"><div class="cn">appLifecycleObserverProvider</div><div class="cr">앱 라이프사이클 상태 관찰. <code>uploadLogsOnExit()</code>는 현재 스텁(종료 다이얼로그에서 특정 매장만 호출) — Slack 업로드는 feature/remote-log-collection 브랜치 예정</div><div class="cf">providers/lifecycle_provider.dart</div></div>
     </div>
   </div>
 </div>

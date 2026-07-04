@@ -111,11 +111,14 @@ table.vt{width:100%;min-width:680px;border-collapse:collapse;font-size:12px;}
   <div class="lead">에이전트는 OTA 서버(<b>waldpay.kokonutstamp2.com</b> · Lightsail)에서 스스로 새 버전을 내려받아 교체한다. 하나의 코드베이스가 <code>--dart-define=APPFIT_VARIANT</code>로 <b>update / standalone</b> 두 변형으로 갈라지며, OTA 채널·뮤텍스·임시 폴더가 <b>완전 분리</b>되어 같은 머신에 병존 설치·실행이 가능하다.</div>
 
   <div class="pattern">
-    <span class="pbox pb-def">--dart-define=APPFIT_VARIANT</span><span class="arr">&rarr;</span>
+    <span class="pk">빌드 스크립트 <b>-Variant</b></span><span class="arr">&rarr;</span>
+    <span class="pbox pb-def">&#9312; --dart-define=APPFIT_VARIANT</span><span class="arr">&rarr;</span>
     <span class="pbox pb-env">AppEnv.isStandalone (const)</span><span class="arr">&rarr;</span>
     <span class="pk">컴파일 타임 분기</span>
     <span class="pbox pb-out">UpdateConfig (Win OTA)</span>
     <span class="pbox pb-out">OtaConfig (Android OTA)</span>
+    <span class="pbox pb-def">&#9313; APPFIT_WINDOWS_VARIANT env</span><span class="arr">&rarr;</span>
+    <span class="pbox pb-env">CMake 매크로</span><span class="arr">&rarr;</span>
     <span class="pbox pb-out">main.cpp 뮤텍스·창 제목</span>
   </div>
 
@@ -140,7 +143,7 @@ table.vt{width:100%;min-width:680px;border-collapse:collapse;font-size:12px;}
       <div class="ota-sub">Sunmi 단말 대상 — 교체 자체는 시스템 패키지 설치기가 수행.</div>
       <div class="ostep"><div class="num">1</div><div><div class="sn"><code>OtaConfig</code> 채널 확인</div><div class="sd">변형별 <code>*_version.json</code> 으로 서버 최신 버전 조회.</div></div></div>
       <div class="ostep"><div class="num">2</div><div><div class="sn">APK 다운로드</div><div class="sd">변형별 <code>appfit_order_agent[_standalone].apk</code> 를 내려받는다.</div></div></div>
-      <div class="ostep"><div class="num">3</div><div><div class="sn"><code>app_installer</code> 설치</div><div class="sd">설치 인텐트를 띄워 시스템 설치기로 위임 &rarr; 설치 완료 후 재실행.</div></div></div>
+      <div class="ostep"><div class="num">3</div><div><div class="sn"><code>app_installer</code> 설치</div><div class="sd">설치 인텐트를 띄워 시스템 설치기로 위임 — 교체·재실행은 앱 코드 외부(시스템/운영자)에서 이뤄진다.</div></div></div>
     </div>
   </div>
 

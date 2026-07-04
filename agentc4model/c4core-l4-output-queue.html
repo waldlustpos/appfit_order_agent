@@ -15,6 +15,7 @@
 .back:hover{background:rgba(59,130,246,.1);}
 .swap{position:fixed;top:60px;right:18px;z-index:30;font-size:12px;color:#67e8f9;text-decoration:none;padding:5px 12px;border:1px solid rgba(34,211,238,.3);border-radius:8px;background:rgba(6,8,13,.6);}
 .swap:hover{background:rgba(34,211,238,.1);}
+.dep-ds{overflow:hidden;text-overflow:ellipsis;min-width:0;flex-shrink:1;}
 </style>
 </head>
 <body class="bg-grid">
@@ -94,7 +95,7 @@
         <div class="m-badge mb-w">W</div>
         <div class="m-head"><span class="m-name">addReceiptReprint()</span><span class="m-sig">(order)</span></div>
         <div class="m-detail">
-          <div class="md-row"><div class="md-l">용도</div><div class="md-v">사용자 영수증 재출력(라벨 동시 재출력 포함, 사운드 없음). <code>order.status == OrderStatus.CANCELLED</code>면 <code>isCancelReceipt: true</code>로 <code>_receiptQueue.add(ReceiptReprintJob)</code></div></div>
+          <div class="md-row"><div class="md-l">용도</div><div class="md-v">사용자 영수증 재출력(영수증만, 사운드 없음 — 라벨 재출력은 별도 <code>addReprint</code> 경로). <code>order.status == OrderStatus.CANCELLED</code>면 <code>isCancelReceipt: true</code>로 <code>_receiptQueue.add(ReceiptReprintJob)</code></div></div>
         </div>
       </div>
 
@@ -155,7 +156,7 @@
     <div class="fgt">_receiptQueue 행 (영수증/사운드)</div>
     <div class="fields">
       <div class="field"><span class="f-col">NewOrderJob</span><span class="f-type">playSound·printLabel·forceOrderReceipt</span><span class="f-desc">신규 주문 자동 출력. printLabel=false는 KDS READY(픽업 알림) 케이스, forceOrderReceipt는 외부 디바이스 접수 PREPARING용</span><span class="f-tag f-enum">진입점</span></div>
-      <div class="field"><span class="f-col">ReceiptReprintJob</span><span class="f-type">isCancelReceipt</span><span class="f-desc">사용자 영수증 재출력(라벨 동시, 사운드 없음)</span></div>
+      <div class="field"><span class="f-col">ReceiptReprintJob</span><span class="f-type">isCancelReceipt</span><span class="f-desc">사용자 영수증 재출력(영수증만, 사운드 없음)</span></div>
     </div>
     <div class="fgt">_labelQueue 행 (라벨)</div>
     <div class="fields">
@@ -170,8 +171,8 @@
   <div class="ifc-card">
     <div class="ifc-list">
       <div class="ifc"><span class="ifc-m im-ch">CALL</span><span class="ifc-p">outputService.notifyNewOrder(<span style="color:#fbbf24;">order</span>, playSound:, printLabel: false, forceOrderReceipt:)</span><span class="ifc-d">영수증+사운드 (라벨은 별도 큐)</span></div>
-      <div class="ifc"><span class="ifc-m im-ch">CALL</span><span class="ifc-p">outputService.printOrderLabels(<span style="color:#fbbf24;">order</span>, {isReprint})</span><span class="ifc-d">라벨 출력 → LabelPrintOrchestrator</span></div>
-      <div class="ifc"><span class="ifc-m im-ch">CALL</span><span class="ifc-p">printService.printOrderReceipt(order:, type: 'receipt', isCancelReceipt:)</span><span class="ifc-d">영수증 재출력 → PrinterJobQueue</span></div>
+      <div class="ifc"><span class="ifc-m im-ch">CALL</span><span class="ifc-p">outputService.printOrderLabels(<span style="color:#fbbf24;">order</span>, {isReprint})</span><span class="ifc-d">라벨 출력 → OutputService.printOrderLabels (L4: Label Orchestration)</span></div>
+      <div class="ifc"><span class="ifc-m im-ch">CALL</span><span class="ifc-p">printService.printOrderReceipt(order:, type: 'receipt', isCancelReceipt:)</span><span class="ifc-d">영수증 재출력 — 내장(Sunmi)은 MethodChannel 직행, 외부 프린터 분기만 PrinterJobQueue 경유</span></div>
       <div class="ifc"><span class="ifc-m im-post">SENTRY</span><span class="ifc-p">MonitoringService.instance.captureError(error, stack, hint, extras)</span><span class="ifc-d">큐 onError — orderNo·displayNum 첨부</span></div>
     </div>
   </div>

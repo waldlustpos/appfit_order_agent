@@ -110,13 +110,13 @@
     <!-- 컬럼 헤더 -->
     <div class="cap"></div>
     <div class="cap"><div class="col-h col-wss"><div class="ch">WSS 소켓</div><div class="cs">실시간 push</div></div></div>
-    <div class="cap"><div class="col-h col-poll"><div class="ch">폴링</div><div class="cs">60s 주기</div></div></div>
+    <div class="cap"><div class="col-h col-poll"><div class="ch">폴링</div><div class="cs">연결 60s · 끊김 15s</div></div></div>
     <div class="cap"><div class="col-h col-man"><div class="ch">수동</div><div class="cs">새로고침</div></div></div>
 
     <!-- 수신 (분기) -->
     <div class="lay-h"><div class="ld" style="background:#10b981;"></div><div class="ln">수신</div><div class="lt">Ingress</div></div>
     <div class="cell k-wss" data-ch="WSS"><div class="cn">OrderSocketManager</div><div class="cr">Notifier WSS · ORDER_* 이벤트 수신</div></div>
-    <div class="cell k-poll" data-ch="폴링"><div class="cn">OrderTimerManager</div><div class="cr">60s 주기 폴링 · 자정 새로고침</div></div>
+    <div class="cell k-poll" data-ch="폴링"><div class="cn">OrderTimerManager</div><div class="cr">적응형 폴링(연결 60s·끊김 15s·시작 30s 지연) · 자정 새로고침</div></div>
     <div class="cell k-man" data-ch="수동"><div class="cn">refreshOrders</div><div class="cr">사용자 트리거 새로고침</div></div>
 
     <div class="rowarr"><span>OrderProvider 합류 — queueOrderExternal · 폴링 병합 · 3경로 dedup</span></div>
@@ -137,7 +137,7 @@
     <!-- 가드 (공통) -->
     <div class="lay-h"><div class="ld" style="background:#f59e0b;"></div><div class="ln">가드</div><div class="lt">중복·자동접수</div></div>
     <div class="common">
-      <div class="sub"><div class="cn">OrderSettingsManager</div><div class="cr">shouldAutoAccept — 자동접수 판정</div></div>
+      <div class="sub"><div class="cn">OrderSettingsManager</div><div class="cr">isAutoReceipt·isKdsAcceptOrders 토글 영속화 — 판정은 OrderProvider._processNewOrder</div></div>
       <div class="sub"><div class="cn">_autoAcceptingOrderIds</div><div class="cr">자동접수 진행 중 중복 차단</div></div>
       <div class="sub"><div class="cn">ProcessedOrderCache · RecentRemovals</div><div class="cr">처리 완료 · 제거 이력 가드</div></div>
     </div>
@@ -145,8 +145,8 @@
     <!-- 상세조회 (공통) -->
     <div class="lay-h"><div class="ld" style="background:#60a5fa;"></div><div class="ln">상세조회</div><div class="lt">Detail Fetch</div></div>
     <div class="common">
-      <div class="sub"><div class="cn">getOrder 상세조회</div><div class="cr">실패 시 재시도</div></div>
-      <div class="sub"><div class="cn">_pendingDetailReprint</div><div class="cr">재시도 실패 시 폴링 안전망 + 복구 큐 재발행</div></div>
+      <div class="sub"><div class="cn">getOrder 상세조회</div><div class="cr">실패 시 재시도(0·0.5·1.5s) — 소진 시 리포트 + 폴링 안전망</div></div>
+      <div class="sub"><div class="cn">_pendingDetailReprint</div><div class="cr">메뉴 없이 출력 스킵된 주문 등록 — 메뉴 복구 시 재발행</div></div>
     </div>
 
     <div class="rowarr"><span>상세 확보 &rarr; 상태 반영</span></div>
@@ -154,7 +154,7 @@
     <!-- 상태 반영 (공통) -->
     <div class="lay-h"><div class="ld" style="background:#22d3ee;"></div><div class="ln">상태 반영</div><div class="lt">State</div></div>
     <div class="common">
-      <div class="sub"><div class="cn">OrderStateManager</div><div class="cr">OrderState 반영 · UI/KDS 구독</div></div>
+      <div class="sub"><div class="cn">OrderStateManager</div><div class="cr">OrderState 계산·반영 — UI/KDS가 구독</div></div>
     </div>
 
     <!-- 부수효과 (공통) -->

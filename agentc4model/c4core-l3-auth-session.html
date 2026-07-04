@@ -90,7 +90,7 @@
 </div>
 
 <div class="l3main">
-  <div class="l3lead">로그인은 <b>토큰 발급 &rarr; 프로젝트 정보(AES apiKey) &rarr; 영속화 &rarr; 소켓 연결</b>의 직렬 파이프라인. 세션 정리는 <b><code>Auth.logout()</code> 단일 진입점</b>만 허용된다.</div>
+  <div class="l3lead">로그인은 <b>토큰 발급 &rarr; 프로젝트 정보(AES apiKey) &rarr; 영속화 &rarr; 소켓 연결</b>의 직렬 파이프라인. 자격증명·세션 정리는 <b><code>Auth.logout()</code> 단일 진입점</b>만 허용된다.</div>
   <div class="l3note"><b>모든 REST 호출</b>은 appfit_core Dio 인터셉터 경유(자동 인증 헤더 + AES-GCM 암호화) — 직접 http/Dio 금지.</div>
 
   <!-- Entry -->
@@ -107,7 +107,7 @@
     <div class="layer-label"><div class="ld" style="background:#3b82f6;"></div><div class="ln">Coordinator</div><div class="lt">인증 오케스트레이션</div></div>
     <div class="comps">
       <div class="comp t-orch"><div class="cn">Auth (authProvider)</div><div class="cr">로그인/로그아웃/재연결 상태 머신 코디네이터</div><div class="cf">providers/auth_provider.dart</div></div>
-      <div class="comp t-orch"><div class="cn">Prefix 전환 감지</div><div class="cr">브랜드 prefix가 바뀐 재로그인이면 이전 매장 상태 정리</div><div class="cf">providers/auth_provider.dart</div></div>
+      <div class="comp t-orch"><div class="cn">매장 전환 감지</div><div class="cr">저장 토큰의 shopCode가 로그인 storeId와 다르면(매장 전환) 이전 자격증명(토큰·비밀번호·projectId·apiKey) 정리</div><div class="cf">providers/auth_provider.dart</div></div>
     </div>
   </div>
   <div class="flow-sep"><span>토큰 발급 &rarr; 프로젝트 정보 조회</span></div>
@@ -120,14 +120,13 @@
       <div class="comp t-gw"><div class="cn">getProjectInfo()</div><div class="cr">복호화된 projectId + AES apiKey 반환</div><div class="cf">apiServiceProvider (appfit_core Dio)</div></div>
     </div>
   </div>
-  <div class="flow-sep"><span>자격증명 영속화 &rarr; 매장 상태 반영</span></div>
+  <div class="flow-sep"><span>자격증명 영속화</span></div>
 
-  <!-- Persist / State -->
+  <!-- Persist -->
   <div class="layer">
-    <div class="layer-label"><div class="ld" style="background:#f59e0b;"></div><div class="ln">Persist</div><div class="lt">저장 · 상태</div></div>
+    <div class="layer-label"><div class="ld" style="background:#f59e0b;"></div><div class="ln">Persist</div><div class="lt">저장</div></div>
     <div class="comps">
-      <div class="comp t-svc"><div class="cn">SecureStorage 저장</div><div class="cr">자격증명·apiKey 보관(자동 로그인 복원용)</div><div class="cf">services/secure_storage_service.dart</div></div>
-      <div class="comp t-svc"><div class="cn">Store.setStoreModel</div><div class="cr">매장 정보 전역 상태 반영</div><div class="cf">providers/store_provider.dart</div></div>
+      <div class="comp t-svc"><div class="cn">SecureStorage 저장</div><div class="cr">projectId·apiKey 보관(코어 Dio 헤더용) — 자동 로그인 비밀번호는 PreferenceService/TokenManager가 별도 보안 저장</div><div class="cf">services/secure_storage_service.dart</div></div>
     </div>
   </div>
   <div class="flow-sep"><span>실시간 주문 이벤트 구독 (WSS · 비동기)</span></div>
@@ -139,12 +138,21 @@
       <div class="comp t-pp"><div class="cn">WebSocket connect()</div><div class="cr">apiKey로 AppFit Notifier 연결 &rarr; Order Core에 주문 이벤트 스트림 공급</div><div class="cf">appFitNotifierServiceProvider</div></div>
     </div>
   </div>
+  <div class="flow-sep"><span>매장 정보 로드 (로그인 성공 후)</span></div>
+
+  <!-- Store State -->
+  <div class="layer">
+    <div class="layer-label"><div class="ld" style="background:#f59e0b;"></div><div class="ln">Store</div><div class="lt">매장 상태</div></div>
+    <div class="comps">
+      <div class="comp t-svc"><div class="cn">Store.setStoreModel</div><div class="cr">LoginScreen이 login() 성공 반환 후 호출(소켓 연결 이후) — 매장 정보 전역 상태 반영</div><div class="cf">providers/store_provider.dart</div></div>
+    </div>
+  </div>
 
   <!-- 로그아웃 강조 -->
   <div class="spot">
     <span class="st">Auth.logout()</span><span class="sb">단일 진입점 — 절대 규칙</span>
     <ul>
-      <li>세션 정리는 <b>오직 <code>Auth.logout()</code></b>으로만. UI/다른 서비스가 disconnect를 직접 호출하지 않는다.</li>
+      <li>credentials·토큰·SecureStorage 정리는 <b>오직 <code>Auth.logout()</code></b>. 소켓 <code>disconnect</code>는 타이밍 이슈 회피를 위해 <b>HomeScreen이 선(先)호출</b>하며, 환경 변경 시엔 <code>Auth.unauthenticate()</code>가 disconnect만 수행한다.</li>
       <li><code>disconnect()</code> 호출 후에는 dependency가 outdated &rarr; <b>모든 <code>ref.read()</code>는 disconnect 호출 전에 미리 캐시</b>해야 한다.</li>
       <li>UI 계층 책임은 <b>logout 호출 + 영업 상태 변경 + OrderProvider cleanup + 네비게이션</b>까지만.</li>
     </ul>

@@ -20,6 +20,7 @@
 .bo-table td{padding:6px 10px;border-bottom:1px solid rgba(148,163,184,.08);color:#cbd5e1;vertical-align:top;}
 .bo-table td.mono{font-family:'JetBrains Mono',monospace;color:#fbbf24;white-space:nowrap;}
 .bo-wrap{overflow-x:auto;}
+.dep-ds{overflow:hidden;text-overflow:ellipsis;min-width:0;flex-shrink:1;}
 </style>
 </head>
 <body class="bg-grid">
@@ -33,7 +34,7 @@
   <div class="sub mono">lib/services/printer_job_queue.dart</div>
 </div>
 <a class="back" href="c4core-l3-output-print.html">&larr; L3 Output &amp; Print</a>
-<a class="swap" href="c4core-l4-label-orchestrator.html">LabelPrintOrchestrator &rarr;</a>
+<a class="swap" href="c4core-l4-label-orchestrator.html">OutputService (Label) &rarr;</a>
 
 <div class="zoom">
   <span class="zt">Zoom</span>
@@ -59,7 +60,7 @@
     <div class="deps">
       <div class="dep"><span class="dep-ic dep-repo"></span><span class="dep-nm">setTransport(PrinterTransport)</span><span class="dep-ds">플랫폼별 transport 주입 — 미주입 시 잡 즉시 noDevice 종료</span></div>
       <div class="dep"><span class="dep-ic dep-repo"></span><span class="dep-nm">onFinalFailure</span><span class="dep-ds">PrinterFinalFailureCallback — maxAttempts 소진 시 1회 호출</span></div>
-      <div class="dep"><span class="dep-ic dep-cross"></span><span class="dep-nm">AndroidUsbTransport</span><span class="dep-cr">MethodChannel 'printReceiptBytes'</span></div>
+      <div class="dep"><span class="dep-ic dep-cross"></span><span class="dep-nm">AndroidUsbTransport</span><span class="dep-cr">MethodChannel 메서드 'printReceiptBytes'</span></div>
       <div class="dep"><span class="dep-ic dep-cross"></span><span class="dep-nm">WindowsTransport</span><span class="dep-cr">deferred-loaded (win32 크래시 방지)</span></div>
       <div class="dep"><span class="dep-ic dep-repo"></span><span class="dep-nm">logToFile</span><span class="dep-ds">enqueue·success·attempt 실패·final-failure 기록</span></div>
     </div>
@@ -155,8 +156,8 @@
     <div class="fields">
       <div class="field"><span class="f-col">id</span><span class="f-type">int</span><span class="f-desc">_nextId++ — 큐 로그 동일 잡 추적</span></div>
       <div class="field"><span class="f-col">bytes</span><span class="f-type">Uint8List</span><span class="f-desc">ESC/POS 바이트 — backoff 재시도 시 동일 바이트 재사용</span></div>
-      <div class="field"><span class="f-col">jobName</span><span class="f-type">String</span><span class="f-desc">'RECEIPT_123' 등 운영 로깅용 라벨</span></div>
-      <div class="field"><span class="f-col">kind</span><span class="f-type">String</span><span class="f-desc">'order' | 'receipt' | 'alert' — transport 동작 무관, 로깅 분류</span></div>
+      <div class="field"><span class="f-col">jobName</span><span class="f-type">String</span><span class="f-desc">'영수증_123'·'주문서_123'·'TEST' — 운영 로깅용 라벨 (kind 파생 prefix)</span></div>
+      <div class="field"><span class="f-col">kind</span><span class="f-type">String</span><span class="f-desc">'order' | 'receipt' | 'misc' — transport 동작 무관, 로깅 분류</span></div>
     </div>
     <div class="fgt">진행 상태</div>
     <div class="fields">
