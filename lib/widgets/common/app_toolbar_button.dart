@@ -225,39 +225,37 @@ class _ButtonContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (isLoading) {
-      return SizedBox(
-        width: 18,
-        height: 18,
-        child: CircularProgressIndicator(
-          strokeWidth: 2,
-          valueColor: AlwaysStoppedAnimation<Color>(color),
-        ),
-      );
-    }
+    final labelStyle = AppTextStyles.bodySm.copyWith(
+      color: color,
+      fontWeight: FontWeight.w600,
+    );
 
-    if (icon == null) {
-      return Text(
-        label,
-        style: AppTextStyles.bodySm.copyWith(
-          color: color,
-          fontWeight: FontWeight.w600,
-        ),
-      );
-    }
+    final content = icon == null
+        ? Text(label, style: labelStyle)
+        : Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 16, color: color),
+              const SizedBox(width: AppSpacing.s4),
+              Text(label, style: labelStyle),
+            ],
+          );
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
+    // 로딩 중에도 동일한 레이아웃(아이콘+라벨)을 투명하게 유지해 버튼 크기가
+    // 스피너로 바뀌는 순간 좁아지지 않도록 함.
+    return Stack(
+      alignment: Alignment.center,
       children: [
-        Icon(icon, size: 16, color: color),
-        const SizedBox(width: AppSpacing.s4),
-        Text(
-          label,
-          style: AppTextStyles.bodySm.copyWith(
-            color: color,
-            fontWeight: FontWeight.w600,
+        Opacity(opacity: isLoading ? 0.0 : 1.0, child: content),
+        if (isLoading)
+          SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation<Color>(color),
+            ),
           ),
-        ),
       ],
     );
   }

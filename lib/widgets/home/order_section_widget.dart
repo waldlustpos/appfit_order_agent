@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:appfit_order_agent/constants/app_styles.dart';
@@ -30,7 +32,11 @@ class OrderSectionWidget extends ConsumerStatefulWidget {
 }
 
 class _OrderSectionWidgetState extends ConsumerState<OrderSectionWidget> {
+  static const _batchCompleteCooldown = Duration(seconds: 5);
+
   late final ScrollController _scrollController;
+  bool _batchCompleteBusy = false;
+  Timer? _batchCompleteCooldownTimer;
 
   @override
   void initState() {
@@ -41,7 +47,17 @@ class _OrderSectionWidgetState extends ConsumerState<OrderSectionWidget> {
   @override
   void dispose() {
     _scrollController.dispose();
+    _batchCompleteCooldownTimer?.cancel();
     super.dispose();
+  }
+
+  void _onBadgeTap() {
+    if (_batchCompleteBusy) return;
+    setState(() => _batchCompleteBusy = true);
+    _batchCompleteCooldownTimer = Timer(_batchCompleteCooldown, () {
+      if (mounted) setState(() => _batchCompleteBusy = false);
+    });
+    _handleBatchComplete();
   }
 
   Future<void> _handleBatchComplete() async {
@@ -97,7 +113,8 @@ class _OrderSectionWidgetState extends ConsumerState<OrderSectionWidget> {
         title: widget.title,
         orderCount: widget.orders.length,
         showBadgeHighlight: showBadgeHighlight,
-        onBadgeTap: showBadgeHighlight ? _handleBatchComplete : null,
+        onBadgeTap: showBadgeHighlight ? _onBadgeTap : null,
+        isBusy: _batchCompleteBusy,
       ),
       content: Stack(
         children: [

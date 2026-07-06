@@ -13,6 +13,7 @@ class OrderSectionHeader extends StatelessWidget {
     required this.orderCount,
     required this.showBadgeHighlight,
     this.onBadgeTap,
+    this.isBusy = false,
   });
 
   final String title;
@@ -23,6 +24,9 @@ class OrderSectionHeader extends StatelessWidget {
 
   /// null이면 뱃지 탭 비활성화.
   final VoidCallback? onBadgeTap;
+
+  /// true면 연타 방지 대기 중 — 탭 비활성화 + 반투명 표시.
+  final bool isBusy;
 
   @override
   Widget build(BuildContext context) {
@@ -43,29 +47,32 @@ class OrderSectionHeader extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.s8),
             GestureDetector(
-              onTap: onBadgeTap,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.s12,
-                  vertical: AppSpacing.s4,
-                ),
-                decoration: BoxDecoration(
-                  color: showBadgeHighlight
-                      ? AppStyles.kMainColor.withValues(alpha: 0.08)
-                      : AppStyles.gray2,
-                  borderRadius: AppRadius.bMd,
-                  border: showBadgeHighlight
-                      ? Border.all(color: AppStyles.kMainColor)
-                      : null,
-                ),
-                child: Text(
-                  t.order_status.order_count(n: orderCount),
-                  style: AppTextStyles.bodySm.copyWith(
-                    fontSize: AppStyles.kSectionCountSize,
-                    fontWeight: FontWeight.w600,
+              onTap: isBusy ? null : onBadgeTap,
+              child: Opacity(
+                opacity: isBusy ? 0.5 : 1.0,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.s12,
+                    vertical: AppSpacing.s4,
+                  ),
+                  decoration: BoxDecoration(
                     color: showBadgeHighlight
-                        ? AppStyles.kMainColor
-                        : AppStyles.gray9,
+                        ? AppStyles.kMainColor.withValues(alpha: 0.08)
+                        : AppStyles.gray2,
+                    borderRadius: AppRadius.bMd,
+                    border: showBadgeHighlight
+                        ? Border.all(color: AppStyles.kMainColor)
+                        : null,
+                  ),
+                  child: Text(
+                    t.order_status.order_count(n: orderCount),
+                    style: AppTextStyles.bodySm.copyWith(
+                      fontSize: AppStyles.kSectionCountSize,
+                      fontWeight: FontWeight.w600,
+                      color: showBadgeHighlight
+                          ? AppStyles.kMainColor
+                          : AppStyles.gray9,
+                    ),
                   ),
                 ),
               ),

@@ -11,6 +11,7 @@ import 'package:appfit_order_agent/providers/providers.dart';
 import 'package:appfit_order_agent/constants/app_styles.dart';
 import 'package:appfit_order_agent/constants/card_types.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/utils/model_parse_utils.dart';
 import 'package:appfit_order_agent/widgets/order/order_detail_popup.dart';
 import 'package:appfit_order_agent/widgets/common/common_dialog.dart';
@@ -52,6 +53,11 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
 
   // 탭 중복 선택 감지를 위한 변수
   int? _lastSelectedTabIndex;
+
+  // 일괄완료 버튼 연타 방지 (5초 대기)
+  static const _batchCompleteCooldownTimerKey = 'batch_complete_cooldown';
+  static const _batchCompleteCooldown = Duration(seconds: 5);
+  bool _batchCompleteBusy = false;
 
   // Timer 관리를 위한 맵 (메모리 누수 방지)
   final Map<String, Timer> _timers = {};
@@ -683,6 +689,9 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
       ),
       indicatorSize: TabBarIndicatorSize.label,
       onTap: (int index) {
+        const tabNames = ['전체', '진행', '픽업', '완료', '취소'];
+        logToFile(
+            tag: LogTag.UI_ACTION, message: 'KDS 탭 선택: ${tabNames[index]}');
         // 중복 선택 감지: 같은 탭을 다시 선택한 경우 스크롤 초기화
         if (_lastSelectedTabIndex == index) {
           _resetScrollForTab(index);
@@ -785,10 +794,10 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
                 .read(kdsTabSortDirectionsProvider.notifier)
                 .setSortDirection(currentTabIndex, value);
             ref.read(kdsSortDirectionProvider.notifier).updateDirection(value);
-            logger.d(
-                'KDS: 탭 $currentTabIndex 정렬 변경 - ${value == OrderSortDirection.ASC ? "오래된 주문순" : "최신 주문순"}');
-            logger.d(
-                'KDS: 정렬 변경 후 상태 - ${ref.read(kdsTabSortDirectionsProvider)}');
+            logToFile(
+                tag: LogTag.UI_ACTION,
+                message: 'KDS 정렬방향 변경: '
+                    '${value == OrderSortDirection.ASC ? "오래된순" : "최신순"}');
           }
         });
       },
@@ -841,67 +850,81 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
     return AppToolbarButton.primary(
       label: t.kds.btn_batch_complete,
       icon: Icons.done_all,
+      isLoading: _batchCompleteBusy,
       onPressed: () async {
-        final currentOrdersResult = ref.read(orderHistoryProvider);
-        const readyStatus = OrderStatus.READY;
+        if (_batchCompleteBusy) return;
+        setState(() => _batchCompleteBusy = true);
+        _setTimer(_batchCompleteCooldownTimerKey, _batchCompleteCooldown, () {
+          setState(() => _batchCompleteBusy = false);
+        });
 
-        currentOrdersResult.whenData((orders) async {
-          final pickupOrders =
-              orders.where((o) => o.status == readyStatus).toList();
+        logToFile(tag: LogTag.UI_ACTION, message: 'KDS 일괄완료 버튼 터치');
+        // 픽업 탭에 실제 표시되는 목록과 동일한 소스(kdsTabOrdersProvider, 오늘
+        // 실시간 데이터)를 사용. orderHistoryProvider는 날짜별 이력 조회용이라
+        // 대상이 어긋나 '완료할 픽업 주문이 없습니다'가 잘못 뜨는 문제가 있었음.
+        final pickupOrders = ref.read(kdsTabOrdersProvider).pickup;
 
-          if (pickupOrders.isEmpty) {
+        if (pickupOrders.isEmpty) {
+          CommonDialog.showErrorDialog(
+            context: context,
+            title: t.common.error,
+            content: t.kds.msg_no_pickup_to_complete,
+          );
+          return;
+        }
+
+        final confirmed = await CommonDialog.showConfirmDialog(
+          context: context,
+          title: t.kds.btn_batch_complete,
+          content: t.order_status
+              .batch_complete_confirm_content(n: pickupOrders.length),
+          confirmText: t.common.confirm,
+          cancelText: t.common.cancel,
+        );
+
+        if (confirmed == true) {
+          logToFile(
+              tag: LogTag.UI_ACTION,
+              message: 'KDS 일괄완료 확인: 대상 ${pickupOrders.length}건');
+          try {
+            final result =
+                await ref.read(orderProvider.notifier).completeReadyOrders();
+
+            ref.invalidate(orderHistoryProvider);
+
+            logToFile(
+                tag: LogTag.UI_ACTION,
+                message: 'KDS 일괄완료 결과: 성공 ${result.successCount}건, '
+                    '실패 ${result.failCount}건');
+
+            if (!context.mounted) return;
+            final String resultMessage;
+            if (result.failCount == 0 && result.successCount > 0) {
+              resultMessage =
+                  t.order_status.batch_result_success(n: result.successCount);
+            } else if (result.successCount > 0) {
+              resultMessage = t.order_status.batch_result_partial(
+                  success: result.successCount, fail: result.failCount);
+            } else {
+              resultMessage =
+                  t.order_status.batch_result_fail(error: result.failCount);
+            }
+
+            CommonDialog.showInfoDialog(
+              context: context,
+              title: t.kds.btn_batch_complete,
+              content: resultMessage,
+            );
+          } catch (e) {
+            logToFile(tag: LogTag.UI_ACTION, message: 'KDS 일괄완료 오류: $e');
+            if (!context.mounted) return;
             CommonDialog.showErrorDialog(
               context: context,
               title: t.common.error,
-              content: t.kds.msg_no_pickup_to_complete,
+              content: t.order_status.batch_result_error,
             );
-            return;
           }
-
-          final confirmed = await CommonDialog.showConfirmDialog(
-            context: context,
-            title: t.kds.btn_batch_complete,
-            content: t.order_status
-                .batch_complete_confirm_content(n: pickupOrders.length),
-            confirmText: t.common.confirm,
-            cancelText: t.common.cancel,
-          );
-
-          if (confirmed == true) {
-            try {
-              final result =
-                  await ref.read(orderProvider.notifier).completeReadyOrders();
-
-              ref.invalidate(orderHistoryProvider);
-
-              if (!context.mounted) return;
-              final String resultMessage;
-              if (result.failCount == 0 && result.successCount > 0) {
-                resultMessage =
-                    t.order_status.batch_result_success(n: result.successCount);
-              } else if (result.successCount > 0) {
-                resultMessage = t.order_status.batch_result_partial(
-                    success: result.successCount, fail: result.failCount);
-              } else {
-                resultMessage =
-                    t.order_status.batch_result_fail(error: result.failCount);
-              }
-
-              CommonDialog.showInfoDialog(
-                context: context,
-                title: t.kds.btn_batch_complete,
-                content: resultMessage,
-              );
-            } catch (e) {
-              if (!context.mounted) return;
-              CommonDialog.showErrorDialog(
-                context: context,
-                title: t.common.error,
-                content: t.order_status.batch_result_error,
-              );
-            }
-          }
-        });
+        }
       },
     );
   }
@@ -920,7 +943,7 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
     return AppToolbarButton.secondary(
       label: t.order_history.search_today,
       onPressed: () {
-        logger.d('KDS: 오늘날짜조회 버튼 클릭');
+        logToFile(tag: LogTag.UI_ACTION, message: 'KDS 오늘조회 버튼 터치');
         ref.read(selectedDateProvider.notifier).updateDate(todayDateString());
         _ensureTabSyncAfterRefresh();
       },
@@ -940,6 +963,7 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
 
   // 달력 다이얼로그 표시
   void _showCalendarDialog() {
+    logToFile(tag: LogTag.UI_ACTION, message: 'KDS 달력 버튼 터치');
     final selectedDay = DateTime.parse(ref.read(selectedDateProvider));
     final focusedDayForCalendar = selectedDay;
 
@@ -985,7 +1009,7 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
     final dateString = newSelectedDay.toString().substring(0, 10);
     final isToday = dateString == todayDateString();
 
-    logger.d('KDS: 날짜 선택 - $dateString, 오늘 여부: $isToday');
+    logToFile(tag: LogTag.UI_ACTION, message: 'KDS 날짜 선택: $dateString');
 
     // 선택된 날짜 업데이트
     ref.read(selectedDateProvider.notifier).updateDate(dateString);
