@@ -2,7 +2,7 @@
 
 > 버전 0.1 (초판) · 2026-07-03
 >
-> 적용 저장소: `kiosk_v4`(원조) · `appfit_order_agent` · `kokonut_order_agent_v2` · `did`
+> 적용 저장소: `kiosk_v4`(원조) · `appfit_order_agent` · `kokonut_order_agent_v2` · `did` · `appfit_core`(공유 라이브러리 — 앱이 아닌 패키지라 §2.1 참조)
 
 ---
 
@@ -39,6 +39,7 @@ mermaid·structurizr 같은 도구 대신 **의존성 없는 정적 HTML**을 �
 | appfit_order_agent | `agentc4model/` | `docs/AS-IS.md` |
 | kokonut_order_agent_v2 | `kokonutc4model/` | `docs/AS-IS.md` |
 | did | `didc4model/` | `docs/AS-IS.md` |
+| appfit_core (`appifit_agent_core` repo) | `corec4model/` | `docs/AS-IS.md` — **라이브러리 판형**: L1의 "사용자"는 사람이 아니라 소비자 앱, 하드웨어 노드 없음, L2 컨테이너는 런타임 프로세스가 아닌 `lib/src` 논리 모듈 그룹 |
 
 ### 2.2 폴더 내부 구조
 
