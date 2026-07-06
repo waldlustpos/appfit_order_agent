@@ -50,10 +50,15 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
     super.initState();
     _menuScrollController = ScrollController();
     _originalOrder = widget.order;
+    final origin = widget.isFromKds
+        ? 'KDS'
+        : widget.isFromHistory
+            ? '주문내역'
+            : '주문현황';
     logToFile(
         tag: LogTag.UI_ACTION,
         message:
-            '주문 상세 팝업창 열기: orderId=${_originalOrder.orderNo}, simpleNum=${_originalOrder.shopOrderNo}, displayNum=${_originalOrder.displayNum}');
+            '주문 상세 팝업창 열기: orderId=${_originalOrder.orderNo}, simpleNum=${_originalOrder.shopOrderNo}, displayNum=${_originalOrder.displayNum}, 출처=$origin');
     Future.microtask(() {
       final orderDetailNotifier = ref.read(orderDetailProvider.notifier);
       orderDetailNotifier.setOrder(widget.order);

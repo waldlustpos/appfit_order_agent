@@ -8,6 +8,7 @@ import 'package:appfit_order_agent/constants/app_styles.dart';
 import 'package:appfit_order_agent/widgets/order/order_detail_popup.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/utils/model_parse_utils.dart';
 import 'package:appfit_order_agent/models/order_model.dart';
 import 'package:appfit_order_agent/providers/order/order_history_provider.dart';
@@ -53,6 +54,7 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen> {
   }
 
   void _showCalendarDialog() {
+    logToFile(tag: LogTag.UI_ACTION, message: '주문내역 달력 버튼 터치');
     final selectedDay = DateTime.parse(ref.read(selectedDateProvider));
     final focusedDayForCalendar = selectedDay;
 
@@ -106,9 +108,9 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen> {
   }
 
   void _onDaySelectedInCalendar(DateTime newSelectedDay, DateTime focusedDay) {
-    ref
-        .read(selectedDateProvider.notifier)
-        .updateDate(newSelectedDay.toString().substring(0, 10));
+    final dateString = newSelectedDay.toString().substring(0, 10);
+    logToFile(tag: LogTag.UI_ACTION, message: '주문내역 날짜 선택: $dateString');
+    ref.read(selectedDateProvider.notifier).updateDate(dateString);
 
     // 필터를 전체주문(ALL)으로 설정
     ref.read(orderFilterProvider.notifier).state = OrderFilter.ALL;
@@ -166,6 +168,9 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen> {
                           ),
                         ),
                         onPressed: () {
+                          logToFile(
+                              tag: LogTag.UI_ACTION,
+                              message: '주문내역 오늘조회 버튼 터치');
                           ref
                               .read(selectedDateProvider.notifier)
                               .updateDate(todayDateString());
@@ -257,20 +262,28 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen> {
           _FilterSegmentButton(
             title: t.order_history.filter_all,
             isSelected: selectedFilter == OrderFilter.ALL,
-            onPressed: () =>
-                ref.read(orderFilterProvider.notifier).state = OrderFilter.ALL,
+            onPressed: () {
+              logToFile(tag: LogTag.UI_ACTION, message: '주문내역 필터 선택: 전체');
+              ref.read(orderFilterProvider.notifier).state = OrderFilter.ALL;
+            },
           ),
           _FilterSegmentButton(
             title: t.order_history.filter_completed,
             isSelected: selectedFilter == OrderFilter.COMPLETED,
-            onPressed: () => ref.read(orderFilterProvider.notifier).state =
-                OrderFilter.COMPLETED,
+            onPressed: () {
+              logToFile(tag: LogTag.UI_ACTION, message: '주문내역 필터 선택: 완료');
+              ref.read(orderFilterProvider.notifier).state =
+                  OrderFilter.COMPLETED;
+            },
           ),
           _FilterSegmentButton(
             title: t.order_history.filter_cancelled,
             isSelected: selectedFilter == OrderFilter.CANCELLED,
-            onPressed: () => ref.read(orderFilterProvider.notifier).state =
-                OrderFilter.CANCELLED,
+            onPressed: () {
+              logToFile(tag: LogTag.UI_ACTION, message: '주문내역 필터 선택: 취소');
+              ref.read(orderFilterProvider.notifier).state =
+                  OrderFilter.CANCELLED;
+            },
           ),
         ],
       ),
@@ -336,13 +349,17 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen> {
       child: InkWell(
         borderRadius: AppRadius.bSm,
         onTap: () {
+          final newDirection = sortDirection == OrderSortDirection.ASC
+              ? OrderSortDirection.DESC
+              : OrderSortDirection.ASC;
+          logToFile(
+              tag: LogTag.UI_ACTION,
+              message: '주문내역 정렬방향 변경: '
+                  '${newDirection == OrderSortDirection.ASC ? "오래된순" : "최신순"}');
           if (_scrollController.hasClients) {
             _scrollController.jumpTo(0.0);
           }
-          ref.read(orderSortDirectionProvider.notifier).state =
-              sortDirection == OrderSortDirection.ASC
-                  ? OrderSortDirection.DESC
-                  : OrderSortDirection.ASC;
+          ref.read(orderSortDirectionProvider.notifier).state = newDirection;
         },
         child: Container(
           height: 48,

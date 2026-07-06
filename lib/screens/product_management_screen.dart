@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:appfit_order_agent/constants/app_styles.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:appfit_order_agent/providers/product_provider.dart';
+import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/widgets/product/product_card_widget.dart';
 import 'package:appfit_order_agent/models/product_model.dart';
 import 'package:appfit_order_agent/i18n/strings.g.dart';
@@ -86,6 +87,7 @@ class _ProductManagementScreenState
         child: InkWell(
           borderRadius: AppRadius.bMd,
           onTap: () {
+            logToFile(tag: LogTag.UI_ACTION, message: '상품관리 카테고리 선택: $title');
             FocusScope.of(context).unfocus();
             setState(() {
               if (isAllCategory) {
@@ -157,7 +159,10 @@ class _ProductManagementScreenState
           ElevatedButton.icon(
             icon: const Icon(Icons.refresh),
             label: Text(t.common.refresh),
-            onPressed: () => ref.read(productProvider.notifier).refresh(),
+            onPressed: () {
+              logToFile(tag: LogTag.UI_ACTION, message: '상품관리 새로고침 버튼 터치');
+              ref.read(productProvider.notifier).refresh();
+            },
             style: AppStyles.primaryButton(),
           ),
         ],
@@ -291,8 +296,12 @@ class _ProductManagementScreenState
                               .copyWith(color: AppStyles.gray9),
                         ),
                         IconButton(
-                          onPressed: () =>
-                              ref.read(productProvider.notifier).refresh(),
+                          onPressed: () {
+                            logToFile(
+                                tag: LogTag.UI_ACTION,
+                                message: '상품관리 새로고침 버튼 터치');
+                            ref.read(productProvider.notifier).refresh();
+                          },
                           icon: const Icon(
                             Icons.refresh_outlined,
                             size: 28,
