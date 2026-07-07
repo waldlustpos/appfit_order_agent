@@ -8,6 +8,8 @@ import 'package:appfit_order_agent/utils/logger.dart';
 
 /// 기기 식별 정보 묶음. 관재 운영 표기(매장명+매장코드+기기모델+시리얼)에 사용.
 class DeviceIdentity {
+  /// 프로젝트명(=브랜드명). /v0/project/info 의 projectName(예: "발트커피").
+  final String? projectName;
   final String? shopName;
   final String? shopCode;
 
@@ -25,6 +27,7 @@ class DeviceIdentity {
   final String idSource;
 
   const DeviceIdentity({
+    required this.projectName,
     required this.shopName,
     required this.shopCode,
     required this.deviceModel,
@@ -70,6 +73,7 @@ class DeviceIdentityService {
   Future<DeviceIdentity> resolve() async {
     if (_cached != null) return _cached!;
 
+    final projectName = _prefs.getProjectName();
     final shopName = _prefs.getStoreName();
     final shopCode = _prefs.getId();
 
@@ -128,6 +132,7 @@ class DeviceIdentityService {
     }
 
     _cached = DeviceIdentity(
+      projectName: projectName,
       shopName: shopName,
       shopCode: shopCode,
       deviceModel: deviceModel,

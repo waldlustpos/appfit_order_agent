@@ -24,6 +24,8 @@ class PreferenceService {
   static const String KEY_PWD = "KOKONUT_M_PWD";
   static const String KEY_STORE_ID = "KOKONUT_STORE_ID";
   static const String KEY_STORE_NAME = "KOKONUT_STORE_NAME";
+  // 프로젝트명(=브랜드명). /v0/project/info 의 projectName. 로그인 시 저장.
+  static const String KEY_PROJECT_NAME = "APPFIT_PROJECT_NAME";
   static const String KEY_REWARD_TYPE = "KOKONUT_STORE_TYPE";
   static const String KEY_WAIT_MIN = "KEY_WAIT_MIN";
   static const String KEY_AUTO_RECEIPT = "KEY_AUTO_RECEIPT";
@@ -499,6 +501,13 @@ class PreferenceService {
 
   String? getStoreId() => _prefs.getString(KEY_STORE_ID);
   String? getStoreName() => _prefs.getString(KEY_STORE_NAME);
+
+  /// 프로젝트명(=브랜드명) 조회. /v0/project/info 의 projectName, 로그인 시 저장.
+  String? getProjectName() => _prefs.getString(KEY_PROJECT_NAME);
+
+  /// 프로젝트명(=브랜드명) 저장.
+  Future<void> setProjectName(String name) =>
+      _prefs.setString(KEY_PROJECT_NAME, name);
   String? getRewardType() => _prefs.getString(KEY_REWARD_TYPE);
 
   /// 설치 단위 고유 ID. 없으면 생성·영속 후 반환(이후 항상 동일 값).

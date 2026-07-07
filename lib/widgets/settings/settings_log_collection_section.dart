@@ -3,8 +3,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:appfit_core/appfit_core.dart';
-
 import 'package:appfit_order_agent/constants/app_styles.dart';
 import 'package:appfit_order_agent/i18n/strings.g.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
@@ -94,9 +92,15 @@ class _SettingsLogCollectionSectionState
         ? 'appfit_logs_$fromStr.zip'
         : 'appfit_logs_${fromStr}_$toStr.zip';
     final platformName = Platform.isWindows ? 'Windows' : 'Android';
+    // 매장명은 앱바와 동일한 소스(storeProvider)를 사용한다.
+    final storeName = ref.read(storeProvider).value?.name ?? '';
     final caption = <String>[
       '[AppFit 로그]',
-      if (id.storeLabel.isNotEmpty) '매장: ${id.storeLabel}',
+      if (id.projectName != null && id.projectName!.isNotEmpty)
+        '브랜드: ${id.projectName}',
+      if (storeName.isNotEmpty) '매장명: $storeName',
+      if (id.shopCode != null && id.shopCode!.isNotEmpty)
+        '매장코드: ${id.shopCode}',
       '기기: ${id.deviceLabel} ($platformName)',
       '기간: $fromStr ~ $toStr',
     ].join('\n');
@@ -153,7 +157,8 @@ class _SettingsLogCollectionSectionState
   Widget build(BuildContext context) {
     final t = Translations.of(context);
     final id = _identity;
-    final isConnected = ref.watch(appFitNotifierServiceProvider).isConnected;
+    // 매장명은 앱바와 동일한 소스(storeProvider)를 사용한다.
+    final storeName = ref.watch(storeProvider).value?.name ?? '';
 
     return SettingsSectionCard(
       title: t.settings.log_collection.section_title,
@@ -166,30 +171,20 @@ class _SettingsLogCollectionSectionState
         const SizedBox(height: AppSpacing.s12),
         if (id != null) ...[
           _kv(
-            t.settings.log_collection.store_label,
-            id.storeLabel.isEmpty ? '-' : id.storeLabel,
+            t.settings.log_collection.brand_label,
+            (id.projectName?.isNotEmpty ?? false) ? id.projectName! : '-',
+          ),
+          _kv(
+            t.settings.log_collection.store_name_label,
+            storeName.isEmpty ? '-' : storeName,
+          ),
+          _kv(
+            t.settings.log_collection.store_code_label,
+            (id.shopCode?.isNotEmpty ?? false) ? id.shopCode! : '-',
           ),
           _kv(
             t.settings.log_collection.device_label,
             id.deviceLabel,
-          ),
-          Row(
-            children: [
-              Icon(
-                isConnected ? Icons.check_circle_outline : Icons.error_outline,
-                size: 14,
-                color: isConnected ? AppStyles.green100 : AppStyles.kRed,
-              ),
-              const SizedBox(width: AppSpacing.s4),
-              Text(
-                isConnected
-                    ? t.settings.connection.connected
-                    : t.settings.connection.disconnected,
-                style: AppTextStyles.caption.copyWith(
-                  color: isConnected ? AppStyles.green100 : AppStyles.kRed,
-                ),
-              ),
-            ],
           ),
           const SizedBox(height: AppSpacing.s12),
         ],

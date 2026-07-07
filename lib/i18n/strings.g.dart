@@ -4,9 +4,9 @@
 /// To regenerate, run: `dart run slang`
 ///
 /// Locales: 3
-/// Strings: 1289 (429 per locale)
+/// Strings: 1298 (432 per locale)
 ///
-/// Built on 2026-07-07 at 02:55 UTC
+/// Built on 2026-07-07 at 04:34 UTC
 
 // coverage:ignore-file
 // ignore_for_file: type=lint
@@ -973,6 +973,9 @@ class _StringsSettingsLogCollectionKo {
 	String get section_title => '로그 전송';
 	String get section_desc => '선택한 기간의 로그를 압축해 Slack으로 전송합니다.';
 	String get store_label => '매장';
+	String get brand_label => '브랜드';
+	String get store_name_label => '매장명';
+	String get store_code_label => '매장코드';
 	String get device_label => '기기';
 	String get range_today => '오늘';
 	String get range_7days => '최근 7일';
@@ -2096,6 +2099,9 @@ class _StringsSettingsLogCollectionEn extends _StringsSettingsLogCollectionKo {
 	@override String get section_title => 'Send Logs';
 	@override String get section_desc => 'Compress logs for the selected period and send them to Slack.';
 	@override String get store_label => 'Store';
+	@override String get brand_label => 'Brand';
+	@override String get store_name_label => 'Store name';
+	@override String get store_code_label => 'Store code';
 	@override String get device_label => 'Device';
 	@override String get range_today => 'Today';
 	@override String get range_7days => 'Last 7 days';
@@ -3211,6 +3217,9 @@ class _StringsSettingsLogCollectionJa extends _StringsSettingsLogCollectionKo {
 	@override String get section_title => 'ログ送信';
 	@override String get section_desc => '選択した期間のログを圧縮して Slack に送信します。';
 	@override String get store_label => '店舗';
+	@override String get brand_label => 'ブランド';
+	@override String get store_name_label => '店舗名';
+	@override String get store_code_label => '店舗コード';
 	@override String get device_label => '端末';
 	@override String get range_today => '今日';
 	@override String get range_7days => '直近7日';

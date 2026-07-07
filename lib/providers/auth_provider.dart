@@ -128,6 +128,13 @@ class Auth extends _$Auth {
           final projectInfo = await appFitApiService.getProjectInfo();
           projectId = projectInfo.projectId;
           apiKey = projectInfo.apiKey;
+          // projectName(=브랜드명)을 로그 전송/식별 표기용으로 영속화.
+          final projectName = projectInfo.data['projectName'] as String?;
+          if (projectName != null && projectName.isNotEmpty) {
+            await ref
+                .read(preferenceServiceProvider)
+                .setProjectName(projectName);
+          }
           logToFile(
               tag: LogTag.API,
               message: '[Auth] V2 Project Info Validation Success');
@@ -315,6 +322,11 @@ class Auth extends _$Auth {
       final projectInfo = await ref.read(apiServiceProvider).getProjectInfo();
       final projectId = projectInfo.projectId;
       final apiKey = projectInfo.apiKey;
+      // projectName(=브랜드명) 최신값 영속화(로그인 이후 변경 반영).
+      final projectName = projectInfo.data['projectName'] as String?;
+      if (projectName != null && projectName.isNotEmpty) {
+        await ref.read(preferenceServiceProvider).setProjectName(projectName);
+      }
 
       if (projectId.isNotEmpty && apiKey.isNotEmpty) {
         await ref.read(appFitNotifierServiceProvider.notifier).connect(
