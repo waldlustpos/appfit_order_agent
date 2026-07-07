@@ -4,9 +4,9 @@
 /// To regenerate, run: `dart run slang`
 ///
 /// Locales: 3
-/// Strings: 1298 (432 per locale)
+/// Strings: 1313 (437 per locale)
 ///
-/// Built on 2026-07-07 at 04:34 UTC
+/// Built on 2026-07-07 at 08:31 UTC
 
 // coverage:ignore-file
 // ignore_for_file: type=lint
@@ -262,6 +262,7 @@ class _StringsSettingsKo {
 	late final _StringsSettingsKdsAcceptOrdersKo kds_accept_orders = _StringsSettingsKdsAcceptOrdersKo._(_root);
 	late final _StringsSettingsLabelFilterKo label_filter = _StringsSettingsLabelFilterKo._(_root);
 	late final _StringsSettingsLabelLayoutKo label_layout = _StringsSettingsLabelLayoutKo._(_root);
+	late final _StringsSettingsLabelQrPayloadKo label_qr_payload = _StringsSettingsLabelQrPayloadKo._(_root);
 	late final _StringsSettingsDeveloperOptionsKo developer_options = _StringsSettingsDeveloperOptionsKo._(_root);
 	late final _StringsSettingsKioskKo kiosk = _StringsSettingsKioskKo._(_root);
 	late final _StringsSettingsLocalServerKo local_server = _StringsSettingsLocalServerKo._(_root);
@@ -877,6 +878,20 @@ class _StringsSettingsLabelLayoutKo {
 	String get btn_v2 => '신규 (V2)';
 }
 
+// Path: settings.label_qr_payload
+class _StringsSettingsLabelQrPayloadKo {
+	_StringsSettingsLabelQrPayloadKo._(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+	String get title => '라벨 QR 포맷';
+	String get desc_legacy => '기존 포맷으로 QR을 생성합니다. (주문번호-상품ID-컵순번)';
+	String get desc_new => '신규(테스트) 포맷으로 QR을 생성합니다. (표시번호-컵순번)';
+	String get btn_legacy => '기존';
+	String get btn_new => '신규';
+}
+
 // Path: settings.developer_options
 class _StringsSettingsDeveloperOptionsKo {
 	_StringsSettingsDeveloperOptionsKo._(this._root);
@@ -1380,6 +1395,7 @@ class _StringsSettingsEn extends _StringsSettingsKo {
 	@override late final _StringsSettingsKdsAcceptOrdersEn kds_accept_orders = _StringsSettingsKdsAcceptOrdersEn._(_root);
 	@override late final _StringsSettingsLabelFilterEn label_filter = _StringsSettingsLabelFilterEn._(_root);
 	@override late final _StringsSettingsLabelLayoutEn label_layout = _StringsSettingsLabelLayoutEn._(_root);
+	@override late final _StringsSettingsLabelQrPayloadEn label_qr_payload = _StringsSettingsLabelQrPayloadEn._(_root);
 	@override late final _StringsSettingsDeveloperOptionsEn developer_options = _StringsSettingsDeveloperOptionsEn._(_root);
 	@override late final _StringsSettingsKioskEn kiosk = _StringsSettingsKioskEn._(_root);
 	@override late final _StringsSettingsLocalServerEn local_server = _StringsSettingsLocalServerEn._(_root);
@@ -2003,6 +2019,20 @@ class _StringsSettingsLabelLayoutEn extends _StringsSettingsLabelLayoutKo {
 	@override String get btn_v2 => 'New (V2)';
 }
 
+// Path: settings.label_qr_payload
+class _StringsSettingsLabelQrPayloadEn extends _StringsSettingsLabelQrPayloadKo {
+	_StringsSettingsLabelQrPayloadEn._(_StringsEn root) : this._root = root, super._(root);
+
+	@override final _StringsEn _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'Label QR Format';
+	@override String get desc_legacy => 'Generate the QR with the original format. (orderNo-itemId-cupIndex)';
+	@override String get desc_new => 'Generate the QR with the new (test) format. (displayNo-cupIndex)';
+	@override String get btn_legacy => 'Legacy';
+	@override String get btn_new => 'New';
+}
+
 // Path: settings.developer_options
 class _StringsSettingsDeveloperOptionsEn extends _StringsSettingsDeveloperOptionsKo {
 	_StringsSettingsDeveloperOptionsEn._(_StringsEn root) : this._root = root, super._(root);
@@ -2506,6 +2536,7 @@ class _StringsSettingsJa extends _StringsSettingsKo {
 	@override late final _StringsSettingsKdsAcceptOrdersJa kds_accept_orders = _StringsSettingsKdsAcceptOrdersJa._(_root);
 	@override late final _StringsSettingsLabelFilterJa label_filter = _StringsSettingsLabelFilterJa._(_root);
 	@override late final _StringsSettingsLabelLayoutJa label_layout = _StringsSettingsLabelLayoutJa._(_root);
+	@override late final _StringsSettingsLabelQrPayloadJa label_qr_payload = _StringsSettingsLabelQrPayloadJa._(_root);
 	@override late final _StringsSettingsDeveloperOptionsJa developer_options = _StringsSettingsDeveloperOptionsJa._(_root);
 	@override late final _StringsSettingsKioskJa kiosk = _StringsSettingsKioskJa._(_root);
 	@override late final _StringsSettingsLocalServerJa local_server = _StringsSettingsLocalServerJa._(_root);
@@ -3119,6 +3150,20 @@ class _StringsSettingsLabelLayoutJa extends _StringsSettingsLabelLayoutKo {
 	@override String get desc_v2 => '新しいレイアウト(QR右上・商品名下部)でラベルを印刷します。';
 	@override String get btn_v1 => '標準 (V1)';
 	@override String get btn_v2 => '新規 (V2)';
+}
+
+// Path: settings.label_qr_payload
+class _StringsSettingsLabelQrPayloadJa extends _StringsSettingsLabelQrPayloadKo {
+	_StringsSettingsLabelQrPayloadJa._(_StringsJa root) : this._root = root, super._(root);
+
+	@override final _StringsJa _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'ラベルQRフォーマット';
+	@override String get desc_legacy => '従来のフォーマットでQRを生成します。(注文番号-商品ID-カップ順番)';
+	@override String get desc_new => '新規(テスト)フォーマットでQRを生成します。(表示番号-カップ順番)';
+	@override String get btn_legacy => '従来';
+	@override String get btn_new => '新規';
 }
 
 // Path: settings.developer_options

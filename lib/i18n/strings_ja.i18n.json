@@ -198,6 +198,13 @@
             "btn_v1": "標準 (V1)",
             "btn_v2": "新規 (V2)"
         },
+        "label_qr_payload": {
+            "title": "ラベルQRフォーマット",
+            "desc_legacy": "従来のフォーマットでQRを生成します。(注文番号-商品ID-カップ順番)",
+            "desc_new": "新規(テスト)フォーマットでQRを生成します。(表示番号-カップ順番)",
+            "btn_legacy": "従来",
+            "btn_new": "新規"
+        },
         "developer_options": {
             "title": "開発者オプション",
             "appfit_test": {

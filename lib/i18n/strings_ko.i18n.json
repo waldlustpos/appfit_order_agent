@@ -198,6 +198,13 @@
             "btn_v1": "기본 (V1)",
             "btn_v2": "신규 (V2)"
         },
+        "label_qr_payload": {
+            "title": "라벨 QR 포맷",
+            "desc_legacy": "기존 포맷으로 QR을 생성합니다. (주문번호-상품ID-컵순번)",
+            "desc_new": "신규(테스트) 포맷으로 QR을 생성합니다. (표시번호-컵순번)",
+            "btn_legacy": "기존",
+            "btn_new": "신규"
+        },
         "developer_options": {
             "title": "개발자 옵션",
             "appfit_test": {

@@ -198,6 +198,13 @@
             "btn_v1": "Default (V1)",
             "btn_v2": "New (V2)"
         },
+        "label_qr_payload": {
+            "title": "Label QR Format",
+            "desc_legacy": "Generate the QR with the original format. (orderNo-itemId-cupIndex)",
+            "desc_new": "Generate the QR with the new (test) format. (displayNo-cupIndex)",
+            "btn_legacy": "Legacy",
+            "btn_new": "New"
+        },
         "developer_options": {
             "title": "Developer Options",
             "appfit_test": {

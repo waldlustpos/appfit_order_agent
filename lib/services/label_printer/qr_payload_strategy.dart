@@ -57,6 +57,32 @@ class DefaultQrPayloadStrategy extends QrPayloadStrategy {
   }
 }
 
+/// 신규(테스트용) QR 페이로드 전략. 포맷: "{DisplayNum}-{CupIdx}" (예: 0795-0).
+///
+/// 설정 화면 "라벨 QR 포맷" 토글이 "신규"일 때 output_service 가 브랜드 전략
+/// 대신 이 전략을 주입한다(전역 오버라이드). 브랜드 게이팅과 무관한 테스트 포맷.
+///
+/// - DisplayNum: display no 4자리 (LabelOrderInfo.displayNum, 이미 zero-pad)
+/// - CupIdx    : 같은 메뉴 안에서 0-based 라벨 sequence (labelSeq - 1)
+class DisplayNumIndexQrPayloadStrategy extends QrPayloadStrategy {
+  const DisplayNumIndexQrPayloadStrategy();
+
+  @override
+  String buildPayload(
+    LabelOrderInfo orderInfo,
+    LabelMenuInfo menuInfo,
+    int labelIndex,
+    int labelTotal,
+  ) {
+    final cupIdx = menuInfo.labelSeq - 1; // 1-based labelSeq → 0-based cupIdx
+    final payload = '${orderInfo.displayNum}-$cupIdx';
+    logger.d('[Label][QR][신규] $labelIndex/$labelTotal'
+        ' ${menuInfo.itemName} (${menuInfo.labelSeq}/${menuInfo.qty})'
+        ' → $payload');
+    return payload;
+  }
+}
+
 /// 현재 브랜드에 맞는 [QrPayloadStrategy] 를 제공한다.
 ///
 /// 현재는 모든 브랜드가 [DefaultQrPayloadStrategy] 를 쓴다. 다른 포맷이 필요한

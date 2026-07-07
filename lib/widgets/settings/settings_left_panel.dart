@@ -43,6 +43,7 @@ class SettingsLeftPanel extends ConsumerStatefulWidget {
     required this.externalPrintReceipt,
     required this.labelFilterMode,
     required this.labelLayoutVersion,
+    required this.labelQrPayloadFormat,
     required this.isShowOrderTypeBadge,
     required this.isOrderSourceColor,
     required this.onModeSwitch,
@@ -62,6 +63,7 @@ class SettingsLeftPanel extends ConsumerStatefulWidget {
     required this.onExternalPrintReceiptChanged,
     required this.onLabelFilterModeChanged,
     required this.onLabelLayoutVersionChanged,
+    required this.onLabelQrPayloadFormatChanged,
     required this.onShowOrderTypeBadgeChanged,
     required this.onOrderSourceColorChanged,
     required this.isSoundGraphEnabled,
@@ -87,6 +89,7 @@ class SettingsLeftPanel extends ConsumerStatefulWidget {
   final bool externalPrintReceipt;
   final int labelFilterMode;
   final int labelLayoutVersion;
+  final int labelQrPayloadFormat;
   final bool isShowOrderTypeBadge;
   final bool isOrderSourceColor;
 
@@ -107,6 +110,7 @@ class SettingsLeftPanel extends ConsumerStatefulWidget {
   final void Function(bool) onExternalPrintReceiptChanged;
   final void Function(int) onLabelFilterModeChanged;
   final void Function(int) onLabelLayoutVersionChanged;
+  final void Function(int) onLabelQrPayloadFormatChanged;
   final void Function(bool) onShowOrderTypeBadgeChanged;
   final void Function(bool) onOrderSourceColorChanged;
   final bool isSoundGraphEnabled;
@@ -227,6 +231,35 @@ class _SettingsLeftPanelState extends ConsumerState<SettingsLeftPanel> {
     );
   }
 
+  // 라벨 QR 페이로드 포맷 선택 버튼 (라벨 레이아웃 버튼과 동일 스타일)
+  Widget _buildQrPayloadButton(String label, int format) {
+    final isSelected = widget.labelQrPayloadFormat == format;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          widget.onLabelQrPayloadFormatChanged(format);
+          logToFile(tag: LogTag.UI_ACTION, message: '라벨 QR 포맷 변경 -> $format');
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.s12),
+          decoration: BoxDecoration(
+            color: isSelected ? AppStyles.kMainColor : AppStyles.gray2,
+            borderRadius: AppRadius.bSm,
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: AppTextStyles.bodySm.copyWith(
+              color: isSelected ? Colors.white : AppStyles.gray9,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildFilterModeButton(String label, int mode) {
     final isSelected = widget.labelFilterMode == mode;
     return Expanded(
@@ -303,6 +336,7 @@ class _SettingsLeftPanelState extends ConsumerState<SettingsLeftPanel> {
     final showFilterItem = widget.isUseLabelPrinter && canLabelFilter;
     final showQrItem = widget.isUseLabelPrinter;
     final showLayoutItem = widget.isUseLabelPrinter;
+    final showQrPayloadItem = widget.isUseLabelPrinter;
 
     return Scrollbar(
       controller: _scrollController,
@@ -611,8 +645,10 @@ class _SettingsLeftPanelState extends ConsumerState<SettingsLeftPanel> {
                   additionalContent: LabelPrinterSubSettings(
                     isUseLabelPrinter: widget.isUseLabelPrinter,
                   ),
-                  showDivider:
-                      !(showFilterItem || showQrItem || showLayoutItem),
+                  showDivider: !(showFilterItem ||
+                      showQrItem ||
+                      showLayoutItem ||
+                      showQrPayloadItem),
                 ),
                 if (showFilterItem)
                   SettingsItemWidget(
@@ -672,6 +708,25 @@ class _SettingsLeftPanelState extends ConsumerState<SettingsLeftPanel> {
                         const SizedBox(width: AppSpacing.s8),
                         _buildLayoutVersionButton(
                             t.settings.label_layout.btn_v2, 1),
+                      ],
+                    ),
+                  ),
+                if (showQrPayloadItem)
+                  SettingsItemWidget(
+                    title: t.settings.label_qr_payload.title,
+                    description: switch (widget.labelQrPayloadFormat) {
+                      1 => t.settings.label_qr_payload.desc_new,
+                      _ => t.settings.label_qr_payload.desc_legacy,
+                    },
+                    isVertical: true,
+                    showDivider: false,
+                    trailing: Row(
+                      children: [
+                        _buildQrPayloadButton(
+                            t.settings.label_qr_payload.btn_legacy, 0),
+                        const SizedBox(width: AppSpacing.s8),
+                        _buildQrPayloadButton(
+                            t.settings.label_qr_payload.btn_new, 1),
                       ],
                     ),
                   ),
