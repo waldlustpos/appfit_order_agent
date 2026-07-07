@@ -16,6 +16,7 @@ import 'package:appfit_order_agent/widgets/settings/settings_section_card.dart';
 import 'package:appfit_order_agent/widgets/settings/settings_item_widget.dart';
 import 'package:appfit_order_agent/widgets/settings/settings_developer_options.dart';
 import 'package:appfit_order_agent/widgets/settings/settings_brand_theme_section.dart';
+import 'package:appfit_order_agent/widgets/settings/settings_log_collection_section.dart';
 
 /// 설정화면 우측 패널 — 알림/키오스크/출력/업데이트 설정.
 class SettingsRightPanel extends ConsumerStatefulWidget {
@@ -605,6 +606,10 @@ class _SettingsRightPanelState extends ConsumerState<SettingsRightPanel> {
                 ),
               ],
             ),
+            const SizedBox(height: AppSpacing.s16),
+
+            // ── 로그 전송 카드 (기기 식별 + 기간 선택 + Slack 전송) ──────────
+            const SettingsLogCollectionSection(),
             const SizedBox(height: AppSpacing.s16),
 
             // ── 개발자 옵션 (숨김) ─────────────────────────────────────────

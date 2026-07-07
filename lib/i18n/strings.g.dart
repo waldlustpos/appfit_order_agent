@@ -4,9 +4,9 @@
 /// To regenerate, run: `dart run slang`
 ///
 /// Locales: 3
-/// Strings: 1244 (414 per locale)
+/// Strings: 1289 (429 per locale)
 ///
-/// Built on 2026-07-01 at 00:47 UTC
+/// Built on 2026-07-07 at 02:55 UTC
 
 // coverage:ignore-file
 // ignore_for_file: type=lint
@@ -268,6 +268,7 @@ class _StringsSettingsKo {
 	late final _StringsSettingsConnectionKo connection = _StringsSettingsConnectionKo._(_root);
 	late final _StringsSettingsSoundgraphKo soundgraph = _StringsSettingsSoundgraphKo._(_root);
 	late final _StringsSettingsAppUpdateKo app_update = _StringsSettingsAppUpdateKo._(_root);
+	late final _StringsSettingsLogCollectionKo log_collection = _StringsSettingsLogCollectionKo._(_root);
 }
 
 // Path: home
@@ -962,6 +963,30 @@ class _StringsSettingsAppUpdateKo {
 	String get check_btn => '버전 확인';
 }
 
+// Path: settings.log_collection
+class _StringsSettingsLogCollectionKo {
+	_StringsSettingsLogCollectionKo._(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+	String get section_title => '로그 전송';
+	String get section_desc => '선택한 기간의 로그를 압축해 Slack으로 전송합니다.';
+	String get store_label => '매장';
+	String get device_label => '기기';
+	String get range_today => '오늘';
+	String get range_7days => '최근 7일';
+	String get range_30days => '최근 30일';
+	String get send_btn => '로그 전송';
+	String get stage_flushing => '로그 정리 중...';
+	String get stage_collecting => '로그 수집 중...';
+	String get stage_zipping => '압축 중...';
+	String get stage_uploading => '업로드 중...';
+	String success({required Object count, required Object size}) => '전송 완료 (${count}개 파일, ${size})';
+	String failed({required Object error}) => '전송 실패: ${error}';
+	String get not_configured => 'Slack 전송 설정이 없습니다. 빌드 설정을 확인하세요.';
+}
+
 // Path: home.tabs
 class _StringsHomeTabsKo {
 	_StringsHomeTabsKo._(this._root);
@@ -1358,6 +1383,7 @@ class _StringsSettingsEn extends _StringsSettingsKo {
 	@override late final _StringsSettingsConnectionEn connection = _StringsSettingsConnectionEn._(_root);
 	@override late final _StringsSettingsSoundgraphEn soundgraph = _StringsSettingsSoundgraphEn._(_root);
 	@override late final _StringsSettingsAppUpdateEn app_update = _StringsSettingsAppUpdateEn._(_root);
+	@override late final _StringsSettingsLogCollectionEn log_collection = _StringsSettingsLogCollectionEn._(_root);
 }
 
 // Path: home
@@ -2060,6 +2086,30 @@ class _StringsSettingsAppUpdateEn extends _StringsSettingsAppUpdateKo {
 	@override String get check_btn => 'Check Version';
 }
 
+// Path: settings.log_collection
+class _StringsSettingsLogCollectionEn extends _StringsSettingsLogCollectionKo {
+	_StringsSettingsLogCollectionEn._(_StringsEn root) : this._root = root, super._(root);
+
+	@override final _StringsEn _root; // ignore: unused_field
+
+	// Translations
+	@override String get section_title => 'Send Logs';
+	@override String get section_desc => 'Compress logs for the selected period and send them to Slack.';
+	@override String get store_label => 'Store';
+	@override String get device_label => 'Device';
+	@override String get range_today => 'Today';
+	@override String get range_7days => 'Last 7 days';
+	@override String get range_30days => 'Last 30 days';
+	@override String get send_btn => 'Send logs';
+	@override String get stage_flushing => 'Flushing logs...';
+	@override String get stage_collecting => 'Collecting logs...';
+	@override String get stage_zipping => 'Compressing...';
+	@override String get stage_uploading => 'Uploading...';
+	@override String success({required Object count, required Object size}) => 'Sent (${count} files, ${size})';
+	@override String failed({required Object error}) => 'Send failed: ${error}';
+	@override String get not_configured => 'Slack upload is not configured. Check the build settings.';
+}
+
 // Path: home.tabs
 class _StringsHomeTabsEn extends _StringsHomeTabsKo {
 	_StringsHomeTabsEn._(_StringsEn root) : this._root = root, super._(root);
@@ -2456,6 +2506,7 @@ class _StringsSettingsJa extends _StringsSettingsKo {
 	@override late final _StringsSettingsConnectionJa connection = _StringsSettingsConnectionJa._(_root);
 	@override late final _StringsSettingsSoundgraphJa soundgraph = _StringsSettingsSoundgraphJa._(_root);
 	@override late final _StringsSettingsAppUpdateJa app_update = _StringsSettingsAppUpdateJa._(_root);
+	@override late final _StringsSettingsLogCollectionJa log_collection = _StringsSettingsLogCollectionJa._(_root);
 }
 
 // Path: home
@@ -3148,6 +3199,30 @@ class _StringsSettingsAppUpdateJa extends _StringsSettingsAppUpdateKo {
 	@override String get check_failed => 'バージョン確認に失敗しました';
 	@override String get update_btn => '更新';
 	@override String get check_btn => 'バージョン確認';
+}
+
+// Path: settings.log_collection
+class _StringsSettingsLogCollectionJa extends _StringsSettingsLogCollectionKo {
+	_StringsSettingsLogCollectionJa._(_StringsJa root) : this._root = root, super._(root);
+
+	@override final _StringsJa _root; // ignore: unused_field
+
+	// Translations
+	@override String get section_title => 'ログ送信';
+	@override String get section_desc => '選択した期間のログを圧縮して Slack に送信します。';
+	@override String get store_label => '店舗';
+	@override String get device_label => '端末';
+	@override String get range_today => '今日';
+	@override String get range_7days => '直近7日';
+	@override String get range_30days => '直近30日';
+	@override String get send_btn => 'ログ送信';
+	@override String get stage_flushing => 'ログ整理中...';
+	@override String get stage_collecting => 'ログ収集中...';
+	@override String get stage_zipping => '圧縮中...';
+	@override String get stage_uploading => 'アップロード中...';
+	@override String success({required Object count, required Object size}) => '送信完了 (${count}件, ${size})';
+	@override String failed({required Object error}) => '送信失敗: ${error}';
+	@override String get not_configured => 'Slack 送信設定がありません。ビルド設定を確認してください。';
 }
 
 // Path: home.tabs

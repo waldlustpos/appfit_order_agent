@@ -633,6 +633,174 @@ public class MainActivity extends FlutterActivity {
         startActivity(intent);
     }
 
+    // Resolve the directory where log files actually live, mirroring the
+    // selection used by appendLogsToFile(): prefer the public Documents/appfit
+    // directory (requires MANAGE_EXTERNAL_STORAGE on API 30+), fall back to the
+    // app-private external files dir. Returns an absolute path, or null.
+    public String getLogDirPath() {
+        try {
+            boolean canUsePublic = Build.VERSION.SDK_INT < Build.VERSION_CODES.R
+                    || Environment.isExternalStorageManager();
+            if (canUsePublic) {
+                File documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
+                if (documentsDir != null) {
+                    File logDir = new File(documentsDir, "appfit");
+                    if (logDir.exists() || logDir.mkdirs()) {
+                        return logDir.getAbsolutePath();
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Log.w("FileWriter", "getLogDirPath public dir failed: " + e.getMessage());
+        }
+        File fallback = getExternalFilesDir("logs");
+        return fallback != null ? fallback.getAbsolutePath() : null;
+    }
+
+    // Best-effort hardware serial for general/non-Sunmi devices
+    // (e.g. IM H092W -> "H092W24A1G00862"). Tries system properties first
+    // (readable on most POS/industrial ROMs without a permission), then
+    // Build.getSerial() if READ_PHONE_STATE is granted, then legacy Build.SERIAL.
+    // Returns null if none yield a valid value (Dart then falls back to installId).
+    public String getDeviceSerial() {
+        String[] propKeys = {
+                "ro.serialno", "ro.boot.serialno", "ro.vendor.serialno",
+                "gsm.sn1", "persist.sys.serialno", "ro.boot.serial", "ril.serialnumber"
+        };
+        // 0) /proc/cmdline androidboot.serialno (plain file read; no perm/exec/hidden-API).
+        //    Usually equals the ADB device serial; most reliable on locked-down ROMs.
+        String cmdSerial = getSerialFromProcCmdline();
+        Log.i("DeviceSerial", "proc/cmdline androidboot.serialno = " + cmdSerial);
+        if (isValidSerial(cmdSerial)) return cmdSerial.trim();
+
+        // 1) getprop binary via exec (bypasses hidden-API reflection block).
+        for (String key : propKeys) {
+            String v = getPropViaExec(key);
+            Log.i("DeviceSerial", "getprop " + key + " = " + v);
+            if (isValidSerial(v)) return v.trim();
+        }
+        // 2) SystemProperties reflection (often blocked on Android 12+).
+        for (String key : propKeys) {
+            String v = getSystemProperty(key);
+            Log.i("DeviceSerial", "SystemProperties " + key + " = " + v);
+            if (isValidSerial(v)) return v.trim();
+        }
+        // 3) Build.getSerial() (O/P need READ_PHONE_STATE; Q+ need privileged perm,
+        //    usually throws/returns unknown for normal apps) / legacy Build.SERIAL.
+        try {
+            String v = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+                    ? Build.getSerial() : Build.SERIAL;
+            Log.i("DeviceSerial", "Build serial = " + v);
+            if (isValidSerial(v)) return v.trim();
+        } catch (Exception e) {
+            Log.w("DeviceSerial", "Build serial read failed: " + e.getMessage());
+        }
+        // 4) Diagnostic: dump every prop whose name/value mentions serial so we can
+        //    pin down the exact key holding the serial on this device.
+        dumpSerialProps();
+        Log.w("DeviceSerial", "no serial source succeeded");
+        return null;
+    }
+
+    private String getSerialFromProcCmdline() {
+        java.io.BufferedReader reader = null;
+        try {
+            reader = new java.io.BufferedReader(
+                    new java.io.FileReader("/proc/cmdline"));
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                sb.append(line).append(' ');
+            }
+            for (String tok : sb.toString().split("\\s+")) {
+                if (tok.startsWith("androidboot.serialno=")) {
+                    return tok.substring("androidboot.serialno=".length()).trim();
+                }
+            }
+        } catch (Exception e) {
+            Log.w("DeviceSerial", "proc/cmdline read failed: " + e.getMessage());
+        } finally {
+            if (reader != null) {
+                try {
+                    reader.close();
+                } catch (Exception ignored) {
+                }
+            }
+        }
+        return null;
+    }
+
+    private String getPropViaExec(String key) {
+        java.io.BufferedReader reader = null;
+        try {
+            Process p = Runtime.getRuntime().exec(new String[] {"getprop", key});
+            reader = new java.io.BufferedReader(
+                    new java.io.InputStreamReader(p.getInputStream()));
+            String line = reader.readLine();
+            p.waitFor();
+            return line != null ? line.trim() : null;
+        } catch (Exception e) {
+            Log.w("DeviceSerial", "getprop exec failed for " + key + ": " + e.getMessage());
+            return null;
+        } finally {
+            if (reader != null) {
+                try {
+                    reader.close();
+                } catch (Exception ignored) {
+                }
+            }
+        }
+    }
+
+    private void dumpSerialProps() {
+        java.io.BufferedReader reader = null;
+        try {
+            Process p = Runtime.getRuntime().exec("getprop");
+            reader = new java.io.BufferedReader(
+                    new java.io.InputStreamReader(p.getInputStream()));
+            String line;
+            int count = 0;
+            while ((line = reader.readLine()) != null) {
+                String low = line.toLowerCase();
+                if (low.contains("serial") || low.contains("serialno")
+                        || low.contains(".sn]") || low.contains("bootserial")) {
+                    Log.i("DeviceSerial", "DUMP " + line);
+                    count++;
+                }
+            }
+            p.waitFor();
+            Log.i("DeviceSerial", "DUMP serial-related props count=" + count);
+        } catch (Exception e) {
+            Log.w("DeviceSerial", "getprop dump failed: " + e.getMessage());
+        } finally {
+            if (reader != null) {
+                try {
+                    reader.close();
+                } catch (Exception ignored) {
+                }
+            }
+        }
+    }
+
+    private String getSystemProperty(String key) {
+        try {
+            Class<?> sp = Class.forName("android.os.SystemProperties");
+            java.lang.reflect.Method get = sp.getMethod("get", String.class);
+            Object v = get.invoke(sp, key);
+            return v != null ? v.toString() : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private boolean isValidSerial(String s) {
+        if (s == null) return false;
+        String t = s.trim();
+        if (t.isEmpty()) return false;
+        String low = t.toLowerCase();
+        return !low.equals("unknown") && !low.equals("0") && !low.equals("000000000000");
+    }
+
     public boolean isSunmiDevice() {
         return Build.MANUFACTURER.startsWith("SUNMI");
     }

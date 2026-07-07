@@ -245,6 +245,23 @@
             "check_failed": "Version check failed",
             "update_btn": "Update",
             "check_btn": "Check Version"
+        },
+        "log_collection": {
+            "section_title": "Send Logs",
+            "section_desc": "Compress logs for the selected period and send them to Slack.",
+            "store_label": "Store",
+            "device_label": "Device",
+            "range_today": "Today",
+            "range_7days": "Last 7 days",
+            "range_30days": "Last 30 days",
+            "send_btn": "Send logs",
+            "stage_flushing": "Flushing logs...",
+            "stage_collecting": "Collecting logs...",
+            "stage_zipping": "Compressing...",
+            "stage_uploading": "Uploading...",
+            "success": "Sent ({count} files, {size})",
+            "failed": "Send failed: {error}",
+            "not_configured": "Slack upload is not configured. Check the build settings."
         }
     },
     "home": {

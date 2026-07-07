@@ -29,6 +29,58 @@ class WindowsLogFileWriter {
     return task;
   }
 
+  /// 큐에 남아있는 모든 쓰기 작업이 끝날 때까지 대기한다.
+  ///
+  /// 로그 수집(zip) 직전 호출해 버퍼링된 최신 로그가 디스크에 반영되도록 보장한다.
+  /// `_writeQueue` 는 항상 catchError 로 감싸져 throw 하지 않지만, 방어적으로 try.
+  static Future<void> flushPending() async {
+    try {
+      await _writeQueue;
+    } catch (_) {}
+  }
+
+  /// 로그 디렉터리의 `appfit_YYYY-MM-DD.txt` 파일 목록을 반환한다.
+  ///
+  /// [from]/[to] 가 주어지면 파일명의 날짜가 해당 기간(양끝 포함, 일 단위)에
+  /// 속하는 파일만 반환한다. 디렉터리가 없으면 빈 리스트. 날짜 오름차순 정렬.
+  static Future<List<File>> listLogFiles({DateTime? from, DateTime? to}) async {
+    final result = <File>[];
+    try {
+      final dir = await _resolveLogDir(create: false);
+      if (dir == null || !await dir.exists()) return result;
+
+      final fromDay =
+          from == null ? null : DateTime(from.year, from.month, from.day);
+      final toDay = to == null ? null : DateTime(to.year, to.month, to.day);
+
+      await for (final entity in dir.list(followLinks: false)) {
+        if (entity is! File) continue;
+        final name = _basename(entity.path);
+        if (!name.startsWith(_filePrefix) || !name.endsWith(_fileSuffix)) {
+          continue;
+        }
+        if (name.length < 18) continue;
+
+        final dateStr = name.substring(7, 17); // "yyyy-MM-dd"
+        final fileDate = _tryParseDate(dateStr);
+        if (fileDate == null) continue;
+
+        if (fromDay != null && fileDate.isBefore(fromDay)) continue;
+        if (toDay != null && fileDate.isAfter(toDay)) continue;
+        result.add(entity);
+      }
+    } catch (e, s) {
+      developer.log(
+        'WindowsLogFileWriter.listLogFiles failed',
+        name: 'AppfitAgent',
+        error: e,
+        stackTrace: s,
+      );
+    }
+    result.sort((a, b) => _basename(a.path).compareTo(_basename(b.path)));
+    return result;
+  }
+
   /// 6개월 이상 된 로그 파일 삭제. 앱 시작 시 1회 호출되도록 멱등 가드.
   static Future<void> deleteOldLogs() async {
     if (_cleanupRan) return;

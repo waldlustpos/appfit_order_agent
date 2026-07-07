@@ -98,6 +98,8 @@ Android·Windows 모두 두 가지 배포 변형을 지원합니다. **변형마
 - `APPFIT_AES_KEY` — API 암호화용 32바이트 AES 키
 - `SENTRY_DSN` — Sentry 오류 추적 엔드포인트
 - `IS_ROTATED_180` — 선택적 180도 화면 회전
+- `SLACK_BOT_TOKEN` — 로그 업로드용 Slack 봇 토큰(`xoxb-`, `files:write` 스코프). 대상 채널에 봇 초대 필수. 없으면 설정화면 "로그 전송" 카드가 비활성(`SlackDirectSink`). 클라이언트 바이너리에 박히므로 최소 스코프·단일 채널로 제한
+- `SLACK_CHANNEL_ID` — 로그를 게시할 단일 채널 ID(예: `C0XXXXXXX`)
 
 Windows 빌드는 추가로 루트의 `version_windows.txt`(`x.y.z+n` 형식)가 필수입니다.
 

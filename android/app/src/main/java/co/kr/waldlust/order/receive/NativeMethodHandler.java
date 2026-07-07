@@ -550,6 +550,61 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
                 break;
             }
 
+            case "getLogDirPath":
+                // Absolute path of the directory holding appfit_YYYY-MM-DD.txt logs.
+                // Dart reads these files directly to build the log archive.
+                result.success(activity.getLogDirPath());
+                break;
+
+            case "getDeviceSerial": {
+                // Sunmi: device serial via the bound printer service (e.g. D3 MINI
+                // "DE33256H10784"). Non-Sunmi (e.g. IM H092W "H092W24A1G00862") and
+                // any Sunmi fallback: SystemProperties/Build serial via getDeviceSerial().
+                if (!activity.isSunmiDevice()) {
+                    result.success(activity.getDeviceSerial());
+                    break;
+                }
+                final SunmiPrintHelper snHelper = SunmiPrintHelper.getInstance();
+                if (snHelper.isReady()) {
+                    String sn = snHelper.getPrinterSerialNo();
+                    result.success((sn != null && !sn.isEmpty())
+                            ? sn : activity.getDeviceSerial());
+                    break;
+                }
+                final java.util.concurrent.atomic.AtomicBoolean snReplied =
+                        new java.util.concurrent.atomic.AtomicBoolean(false);
+                final android.os.Handler snHandler =
+                        new android.os.Handler(android.os.Looper.getMainLooper());
+                final int[] snTries = {0};
+                final int snMaxTries = 30;
+                final long snIntervalMs = 50;
+                Runnable snProbe = new Runnable() {
+                    @Override
+                    public void run() {
+                        if (snReplied.get()) return;
+                        if (snHelper.isReady()) {
+                            if (snReplied.compareAndSet(false, true)) {
+                                String sn = snHelper.getPrinterSerialNo();
+                                result.success((sn != null && !sn.isEmpty())
+                                        ? sn : activity.getDeviceSerial());
+                            }
+                            return;
+                        }
+                        snTries[0]++;
+                        if (snTries[0] >= snMaxTries) {
+                            if (snReplied.compareAndSet(false, true)) {
+                                Log.w(TAG, "getDeviceSerial: Sunmi service bind timeout");
+                                result.success(activity.getDeviceSerial());
+                            }
+                            return;
+                        }
+                        snHandler.postDelayed(this, snIntervalMs);
+                    }
+                };
+                snHandler.postDelayed(snProbe, snIntervalMs);
+                break;
+            }
+
             default:
                 result.notImplemented();
                 break;

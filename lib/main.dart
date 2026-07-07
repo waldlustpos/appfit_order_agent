@@ -102,7 +102,14 @@ void main() async {
 
   // 기기 및 앱 정보 수집 (MonitoringService 초기화에 필요)
   final monitoringContext = await _buildMonitoringContext();
-  _logStartupInfo(monitoringContext);
+  // 기기 시리얼(예: H092W24A1G00862). Sunmi 는 프린터 서비스 폴링이 있어 시작
+  // 지연을 막기 위해 1초 타임아웃 best-effort.
+  String? deviceSerial;
+  try {
+    deviceSerial = await PlatformService.getDeviceSerial()
+        .timeout(const Duration(seconds: 1), onTimeout: () => null);
+  } catch (_) {}
+  _logStartupInfo(monitoringContext, deviceSerial);
 
   // MonitoringService 초기화 (Sentry DSN이 있을 때만)
   if (AppEnv.hasSentryDsn) {
@@ -205,12 +212,16 @@ void main() async {
 }
 
 /// 앱 시작 시 기기/앱 정보를 로그로 기록
-void _logStartupInfo(OrderAgentMonitoringContext ctx) {
+void _logStartupInfo(OrderAgentMonitoringContext ctx, String? deviceSerial) {
   const sep = '[SYSTEM] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━';
+  final serialSuffix = (deviceSerial != null && deviceSerial.isNotEmpty)
+      ? ' ($deviceSerial)'
+      : '';
   logger.i(sep);
   logger.i(
       '[SYSTEM]  앱 시작 — Appfit 주문 에이전트 v${ctx.appVersion} (${ctx.buildNumber})');
-  logger.i('[SYSTEM]  기기: ${ctx.deviceManufacturer} ${ctx.deviceModel}');
+  logger.i(
+      '[SYSTEM]  기기: ${ctx.deviceManufacturer} ${ctx.deviceModel}$serialSuffix');
   logger.i('[SYSTEM]  환경: ${ctx.environment}');
   logger.i(sep);
 }
