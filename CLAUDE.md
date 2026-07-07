@@ -36,6 +36,7 @@
 - 테스트 작성·실행 방법(characterization 전략·PreferenceService seam·fake 패턴): [docs/TESTING.md](docs/TESTING.md)
 - 브랜드별 라벨/영수증 로고 자원 분기·BMP 사양·새 브랜드 추가 절차: [docs/BRAND_ASSETS.md](docs/BRAND_ASSETS.md)
 - 리팩토링 로드맵(Phase 0~3·하지 말 것 목록·작업 규율): [docs/REFACTORING.md](docs/REFACTORING.md)
+- 기기·앱 모니터링 최소 시스템 설계(설치 UUID·register/heartbeat 스키마·sink 추상화 — 설계 확정, 구현 미착수): [docs/DEVICE_MONITORING.md](docs/DEVICE_MONITORING.md)
 - As-Is 아키텍처 요약(Outline 게시용·표 중심): [docs/AS-IS.md](docs/AS-IS.md)
 - C4 모델 개념·작성 규약(4개 repo 공통 정본): [docs/C4_GUIDE.md](docs/C4_GUIDE.md)
 - C4 시각 모델(L1~L4+특화 뷰, 진입점 `c4core-context.html` — 아키텍처 변경 시 함께 갱신, 검증은 `agentc4model/verify_c4.py`): [agentc4model/](agentc4model/)
