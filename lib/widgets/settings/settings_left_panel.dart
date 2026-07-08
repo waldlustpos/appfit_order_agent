@@ -41,6 +41,8 @@ class SettingsLeftPanel extends ConsumerStatefulWidget {
     required this.builtinPrintReceipt,
     required this.externalPrintOrder,
     required this.externalPrintReceipt,
+    required this.builtinPrintCall,
+    required this.externalPrintCall,
     required this.labelFilterMode,
     required this.labelLayoutVersion,
     required this.labelQrPayloadFormat,
@@ -61,6 +63,8 @@ class SettingsLeftPanel extends ConsumerStatefulWidget {
     required this.onBuiltinPrintReceiptChanged,
     required this.onExternalPrintOrderChanged,
     required this.onExternalPrintReceiptChanged,
+    required this.onBuiltinPrintCallChanged,
+    required this.onExternalPrintCallChanged,
     required this.onLabelFilterModeChanged,
     required this.onLabelLayoutVersionChanged,
     required this.onLabelQrPayloadFormatChanged,
@@ -87,6 +91,8 @@ class SettingsLeftPanel extends ConsumerStatefulWidget {
   final bool builtinPrintReceipt;
   final bool externalPrintOrder;
   final bool externalPrintReceipt;
+  final bool builtinPrintCall;
+  final bool externalPrintCall;
   final int labelFilterMode;
   final int labelLayoutVersion;
   final int labelQrPayloadFormat;
@@ -108,6 +114,8 @@ class SettingsLeftPanel extends ConsumerStatefulWidget {
   final void Function(bool) onBuiltinPrintReceiptChanged;
   final void Function(bool) onExternalPrintOrderChanged;
   final void Function(bool) onExternalPrintReceiptChanged;
+  final void Function(bool) onBuiltinPrintCallChanged;
+  final void Function(bool) onExternalPrintCallChanged;
   final void Function(int) onLabelFilterModeChanged;
   final void Function(int) onLabelLayoutVersionChanged;
   final void Function(int) onLabelQrPayloadFormatChanged;
@@ -580,9 +588,11 @@ class _SettingsLeftPanelState extends ConsumerState<SettingsLeftPanel> {
                       available: builtinAvailable,
                       printOrder: widget.builtinPrintOrder,
                       printReceipt: widget.builtinPrintReceipt,
+                      printCall: widget.builtinPrintCall,
                       onPrintOrderChanged: widget.onBuiltinPrintOrderChanged,
                       onPrintReceiptChanged:
                           widget.onBuiltinPrintReceiptChanged,
+                      onPrintCallChanged: widget.onBuiltinPrintCallChanged,
                     ),
                   );
                 }),
@@ -618,8 +628,10 @@ class _SettingsLeftPanelState extends ConsumerState<SettingsLeftPanel> {
                     isUseExternalPrinter: widget.isUseExternalPrinter,
                     printOrder: widget.externalPrintOrder,
                     printReceipt: widget.externalPrintReceipt,
+                    printCall: widget.externalPrintCall,
                     onPrintOrderChanged: widget.onExternalPrintOrderChanged,
                     onPrintReceiptChanged: widget.onExternalPrintReceiptChanged,
+                    onPrintCallChanged: widget.onExternalPrintCallChanged,
                   ),
                 ),
                 SettingsItemWidget(

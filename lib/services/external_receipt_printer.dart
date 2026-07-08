@@ -67,6 +67,20 @@ class ExternalReceiptPrinter {
     return _sendBytes(data, 'TEST');
   }
 
+  /// 기기 호출(DEVICE_CALL_REQUESTED) 알림 슬립 출력. Windows / Android 동일.
+  Future<bool> printDeviceCall({
+    required String deviceId,
+    required String dateTime,
+    required String phrase,
+  }) async {
+    final data = await ReceiptEscPosBuilder.buildDeviceCallBytes(
+      deviceId: deviceId,
+      dateTime: dateTime,
+      phrase: phrase,
+    );
+    return _sendBytes(data, '기기호출_$deviceId');
+  }
+
   /// (Android) UsbReceiptPrinter 의 bulkOut endpoint 확보 여부.
   /// Windows 는 COM 포트 enumerate / Winspool default 가용성으로 판단.
   Future<bool> isConnected() async {

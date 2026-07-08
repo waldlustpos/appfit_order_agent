@@ -30,8 +30,10 @@ class ExternalPrinterSubSettings extends ConsumerStatefulWidget {
     required this.isUseExternalPrinter,
     required this.printOrder,
     required this.printReceipt,
+    required this.printCall,
     required this.onPrintOrderChanged,
     required this.onPrintReceiptChanged,
+    required this.onPrintCallChanged,
   });
 
   final bool isUseExternalPrinter;
@@ -42,8 +44,12 @@ class ExternalPrinterSubSettings extends ConsumerStatefulWidget {
   /// 매트릭스: 영수증 출력 여부.
   final bool printReceipt;
 
+  /// 매트릭스: 기기 호출 알림 출력 여부.
+  final bool printCall;
+
   final void Function(bool) onPrintOrderChanged;
   final void Function(bool) onPrintReceiptChanged;
+  final void Function(bool) onPrintCallChanged;
 
   @override
   ConsumerState<ExternalPrinterSubSettings> createState() =>
@@ -211,6 +217,17 @@ class _ExternalPrinterSubSettingsState
                   .read(printServiceProvider)
                   .updatePrinterSettings(externalPrintReceipt: v);
               widget.onPrintReceiptChanged(v);
+            },
+          ),
+          const SizedBox(height: AppSpacing.s8),
+          _buildMatrixRow(
+            label: '기기 호출 알림 출력',
+            value: widget.printCall,
+            onChanged: (v) {
+              ref
+                  .read(printServiceProvider)
+                  .updatePrinterSettings(externalPrintCall: v);
+              widget.onPrintCallChanged(v);
             },
           ),
         ],

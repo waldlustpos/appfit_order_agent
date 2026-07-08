@@ -148,6 +148,14 @@ class OrderSocketManager {
         return;
       }
 
+      // 1-b. 기기 호출(DEVICE_CALL_REQUESTED) — 주문 라이프사이클이 아니라 orderId 가
+      //      없어 appfit_core dispatcher 가 무효/미처리로 버린다. dispatcher 진입 전에
+      //      조기 분기해 앱 내부에서 직접 처리(영수증 알림 슬립 출력). core 미수정.
+      if (preEventType == 'DEVICE_CALL_REQUESTED') {
+        await _handleDeviceCall(prePayload);
+        return;
+      }
+
       // 2. dispatcher classify — 파싱·페이로드·shopCode·정책 단일 진입점.
       final dispatcher = appfit_core.SocketEventDispatcher(
         resolveStoreId: () => ref.read(preferenceServiceProvider).getId(),
@@ -278,6 +286,50 @@ class OrderSocketManager {
       }
     } catch (e, s) {
       logger.e('[AppFit] 이벤트 처리 오류', error: e, stackTrace: s);
+    }
+  }
+
+  /// 기기 호출(DEVICE_CALL_REQUESTED) 처리 — 영수증 프린터에 알림 슬립 출력.
+  ///
+  /// dispatcher 를 우회하므로 매장(shopCode) 검증을 직접 수행(dispatcher 의 대소문자
+  /// 무시 비교와 동일). 문구는 [deviceCallType] enum 으로 분기하며 미지 값은 원문
+  /// (또는 기본 문구)으로 fallback 해 silent drop 을 방지한다.
+  Future<void> _handleDeviceCall(Map<String, dynamic> payload) async {
+    final myShop = ref.read(preferenceServiceProvider).getId();
+    final eventShop = payload['shopCode']?.toString();
+    if (myShop != null &&
+        myShop.isNotEmpty &&
+        eventShop != null &&
+        eventShop.isNotEmpty &&
+        myShop.toLowerCase() != eventShop.toLowerCase()) {
+      logger.d('[AppFit Event] 타 매장 기기 호출 무시: $eventShop');
+      return;
+    }
+
+    final deviceId = payload['deviceId']?.toString() ?? '-';
+    final rawType = payload['deviceCallType']?.toString() ?? '';
+    final phrase = _deviceCallPhrase(rawType);
+
+    logger.i('[AppFit] 기기 호출 수신: deviceId=$deviceId, type=$rawType');
+
+    try {
+      await ref
+          .read(printServiceProvider)
+          .printDeviceCall(deviceId: deviceId, phrase: phrase);
+    } catch (e, s) {
+      logger.e('[AppFit] 기기 호출 출력 실패', error: e, stackTrace: s);
+    }
+  }
+
+  /// deviceCallType → 출력 문구 매핑. 미지 값은 원문/기본 문구로 fallback.
+  String _deviceCallPhrase(String type) {
+    switch (type) {
+      case 'PAPER_SHORTAGE':
+        return '키오스크 프린터 용지를 확인해주세요';
+      case 'STAFF_CALL':
+        return '직원 호출';
+      default:
+        return type.isEmpty ? '기기 호출' : type;
     }
   }
 

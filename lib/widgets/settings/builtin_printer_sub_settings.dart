@@ -17,8 +17,10 @@ class BuiltinPrinterSubSettings extends ConsumerStatefulWidget {
     required this.available,
     required this.printOrder,
     required this.printReceipt,
+    required this.printCall,
     required this.onPrintOrderChanged,
     required this.onPrintReceiptChanged,
+    required this.onPrintCallChanged,
   });
 
   /// 내장 프린터 토글 ON 여부 (PreferenceService 값과 동일).
@@ -33,8 +35,12 @@ class BuiltinPrinterSubSettings extends ConsumerStatefulWidget {
   /// 매트릭스: 영수증 출력 여부.
   final bool printReceipt;
 
+  /// 매트릭스: 기기 호출 알림 출력 여부.
+  final bool printCall;
+
   final void Function(bool) onPrintOrderChanged;
   final void Function(bool) onPrintReceiptChanged;
+  final void Function(bool) onPrintCallChanged;
 
   @override
   ConsumerState<BuiltinPrinterSubSettings> createState() =>
@@ -103,6 +109,17 @@ class _BuiltinPrinterSubSettingsState
                   .read(printServiceProvider)
                   .updatePrinterSettings(builtinPrintReceipt: v);
               widget.onPrintReceiptChanged(v);
+            },
+          ),
+          const SizedBox(height: AppSpacing.s8),
+          _buildMatrixRow(
+            label: '기기 호출 알림 출력',
+            value: widget.printCall,
+            onChanged: (v) {
+              ref
+                  .read(printServiceProvider)
+                  .updatePrinterSettings(builtinPrintCall: v);
+              widget.onPrintCallChanged(v);
             },
           ),
           const SizedBox(height: AppSpacing.s12),

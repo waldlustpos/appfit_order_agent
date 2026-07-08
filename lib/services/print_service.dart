@@ -64,6 +64,8 @@ class PrintService {
   bool? _cachedBuiltinPrintReceipt;
   bool? _cachedExternalPrintOrder;
   bool? _cachedExternalPrintReceipt;
+  bool? _cachedBuiltinPrintCall;
+  bool? _cachedExternalPrintCall;
 
   var tag = '프린트';
 
@@ -158,11 +160,13 @@ class PrintService {
     _cachedBuiltinPrintReceipt = _preferenceService.getBuiltinPrintReceipt();
     _cachedExternalPrintOrder = _preferenceService.getExternalPrintOrder();
     _cachedExternalPrintReceipt = _preferenceService.getExternalPrintReceipt();
+    _cachedBuiltinPrintCall = _preferenceService.getBuiltinPrintCall();
+    _cachedExternalPrintCall = _preferenceService.getExternalPrintCall();
     logToFile(
         tag: LogTag.PLATFORM,
         message:
-            '프린터 설정 업데이트: 내장=${_cachedBuiltinPrinter}(주문서=$_cachedBuiltinPrintOrder/영수증=$_cachedBuiltinPrintReceipt), '
-            '외부=${_cachedExternalPrinter}(주문서=$_cachedExternalPrintOrder/영수증=$_cachedExternalPrintReceipt), '
+            '프린터 설정 업데이트: 내장=${_cachedBuiltinPrinter}(주문서=$_cachedBuiltinPrintOrder/영수증=$_cachedBuiltinPrintReceipt/기기호출=$_cachedBuiltinPrintCall), '
+            '외부=${_cachedExternalPrinter}(주문서=$_cachedExternalPrintOrder/영수증=$_cachedExternalPrintReceipt/기기호출=$_cachedExternalPrintCall), '
             '라벨=${_cachedLabelPrinter}');
   }
 
@@ -333,6 +337,8 @@ class PrintService {
     bool? builtinPrintReceipt,
     bool? externalPrintOrder,
     bool? externalPrintReceipt,
+    bool? builtinPrintCall,
+    bool? externalPrintCall,
   }) {
     if (builtinPrinter != null) _cachedBuiltinPrinter = builtinPrinter;
     if (externalPrinter != null) _cachedExternalPrinter = externalPrinter;
@@ -346,11 +352,13 @@ class PrintService {
     if (externalPrintReceipt != null) {
       _cachedExternalPrintReceipt = externalPrintReceipt;
     }
+    if (builtinPrintCall != null) _cachedBuiltinPrintCall = builtinPrintCall;
+    if (externalPrintCall != null) _cachedExternalPrintCall = externalPrintCall;
     logToFile(
         tag: LogTag.PLATFORM,
         message:
-            '프린터 설정 수동 업데이트: 내장=$_cachedBuiltinPrinter(주문서=$_cachedBuiltinPrintOrder/영수증=$_cachedBuiltinPrintReceipt), '
-            '외부=$_cachedExternalPrinter(주문서=$_cachedExternalPrintOrder/영수증=$_cachedExternalPrintReceipt), '
+            '프린터 설정 수동 업데이트: 내장=$_cachedBuiltinPrinter(주문서=$_cachedBuiltinPrintOrder/영수증=$_cachedBuiltinPrintReceipt/기기호출=$_cachedBuiltinPrintCall), '
+            '외부=$_cachedExternalPrinter(주문서=$_cachedExternalPrintOrder/영수증=$_cachedExternalPrintReceipt/기기호출=$_cachedExternalPrintCall), '
             '라벨=$_cachedLabelPrinter');
   }
 
@@ -450,6 +458,68 @@ class PrintService {
       logger.e('Failed to print order', error: e, stackTrace: s);
       rethrow;
     }
+  }
+
+  /// 기기 호출(DEVICE_CALL_REQUESTED) 알림 슬립 출력.
+  ///
+  /// deviceId / 일시 / [phrase] 3줄을 영수증 프린터로 인쇄한다. 주문 영수증과
+  /// 동일하게 내장(Sunmi) + 외부 프린터 양쪽을 대상으로 하되, 설정 매트릭스의
+  /// 기기 호출 컬럼([_cachedBuiltinPrintCall]/[_cachedExternalPrintCall], 기본 ON)
+  /// 으로 대상 프린터를 지정한다.
+  Future<bool> printDeviceCall({
+    required String deviceId,
+    required String phrase,
+    DateTime? at,
+  }) async {
+    // 캐시된 설정값이 없는 경우에만 로드 (printOrderReceipt 동일 패턴).
+    if (_cachedBuiltinPrinter == null || _cachedExternalPrinter == null) {
+      _loadPrinterSettings();
+    }
+
+    final bool useBuiltin =
+        (_cachedBuiltinPrinter ?? false) && (_cachedBuiltinPrintCall ?? true);
+    final bool useExternal =
+        (_cachedExternalPrinter ?? false) && (_cachedExternalPrintCall ?? true);
+
+    final now = at ?? DateTime.now();
+    final dateTime =
+        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} '
+        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}';
+
+    logToFile(
+        tag: LogTag.PLATFORM,
+        message:
+            '기기호출출력: deviceId=$deviceId, 문구=$phrase (내장=$useBuiltin/외부=$useExternal)');
+
+    // 내장(Android Sunmi) — raw bytes 미지원이라 전용 MethodChannel 사용.
+    if (useBuiltin && Platform.isAndroid) {
+      try {
+        await platform.invokeMethod('printDeviceCall', {
+          'headline': phrase,
+          'deviceIdLabel': '키오스크번호',
+          'deviceId': deviceId,
+          'dateLabel': '일시',
+          'dateValue': dateTime,
+        });
+      } on PlatformException catch (e, s) {
+        logger.e('[PrintService] Sunmi 내장 기기호출 출력 실패', error: e, stackTrace: s);
+      }
+    }
+
+    // 외부 영수증 프린터 (Windows COM/Winspool, Android 범용 USB).
+    if (useExternal) {
+      try {
+        await ExternalReceiptPrinter().printDeviceCall(
+          deviceId: deviceId,
+          dateTime: dateTime,
+          phrase: phrase,
+        );
+      } catch (e, s) {
+        logger.e('[PrintService] 외부 기기호출 출력 실패', error: e, stackTrace: s);
+      }
+    }
+
+    return useBuiltin || useExternal;
   }
 
   /// 설정 화면 "라벨 테스트 출력" 버튼용. 간단한 mock 라벨 1장 인쇄.

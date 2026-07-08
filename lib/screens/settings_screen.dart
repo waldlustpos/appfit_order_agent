@@ -47,6 +47,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _builtinPrintReceipt = true;
   bool _externalPrintOrder = true;
   bool _externalPrintReceipt = true;
+  bool _builtinPrintCall = true;
+  bool _externalPrintCall = true;
 
   int _labelAutoReplyMode = 1;
   bool _labelUseFeedToTear = true;
@@ -115,6 +117,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _builtinPrintReceipt = _preferenceService.getBuiltinPrintReceipt();
       _externalPrintOrder = _preferenceService.getExternalPrintOrder();
       _externalPrintReceipt = _preferenceService.getExternalPrintReceipt();
+      _builtinPrintCall = _preferenceService.getBuiltinPrintCall();
+      _externalPrintCall = _preferenceService.getExternalPrintCall();
 
       _labelAutoReplyMode = _preferenceService.getLabelAutoReplyMode();
       _labelUseFeedToTear = _preferenceService.getLabelUseFeedToTear();
@@ -160,6 +164,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await _preferenceService.setBuiltinPrintReceipt(_builtinPrintReceipt);
       await _preferenceService.setExternalPrintOrder(_externalPrintOrder);
       await _preferenceService.setExternalPrintReceipt(_externalPrintReceipt);
+      await _preferenceService.setBuiltinPrintCall(_builtinPrintCall);
+      await _preferenceService.setExternalPrintCall(_externalPrintCall);
       await _preferenceService.setLabelAutoReplyMode(_labelAutoReplyMode);
       await _preferenceService.setLabelUseFeedToTear(_labelUseFeedToTear);
       await _preferenceService.setLabelUseBackToPrint(_labelUseBackToPrint);
@@ -539,6 +545,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               builtinPrintReceipt: _builtinPrintReceipt,
               externalPrintOrder: _externalPrintOrder,
               externalPrintReceipt: _externalPrintReceipt,
+              builtinPrintCall: _builtinPrintCall,
+              externalPrintCall: _externalPrintCall,
               labelFilterMode: _labelFilterMode,
               labelLayoutVersion: _labelLayoutVersion,
               labelQrPayloadFormat: _labelQrPayloadFormat,
@@ -579,6 +587,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   _setAndSave(() => _externalPrintOrder = v),
               onExternalPrintReceiptChanged: (v) =>
                   _setAndSave(() => _externalPrintReceipt = v),
+              onBuiltinPrintCallChanged: (v) =>
+                  _setAndSave(() => _builtinPrintCall = v),
+              onExternalPrintCallChanged: (v) =>
+                  _setAndSave(() => _externalPrintCall = v),
               onLabelFilterModeChanged: (v) =>
                   _setAndSave(() => _labelFilterMode = v),
               onLabelLayoutVersionChanged: (v) =>

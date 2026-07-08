@@ -71,6 +71,10 @@ class PreferenceService {
       "KOKONUT_EXTERNAL_PRINT_ORDER"; // 외부 × 주문서 (기본 true)
   static const String KEY_EXTERNAL_PRINT_RECEIPT =
       "KOKONUT_EXTERNAL_PRINT_RECEIPT"; // 외부 × 영수증 (기본 true)
+  static const String KEY_BUILTIN_PRINT_CALL =
+      "KOKONUT_BUILTIN_PRINT_CALL"; // 내장 × 기기 호출 알림 (기본 true)
+  static const String KEY_EXTERNAL_PRINT_CALL =
+      "KOKONUT_EXTERNAL_PRINT_CALL"; // 외부 × 기기 호출 알림 (기본 true)
 
   static const String KEY_SHOW_ORDER_TYPE_BADGE =
       "KEY_SHOW_ORDER_TYPE_BADGE"; // 주문 상세 헤더의 매장/포장 pill 노출 여부
@@ -583,6 +587,9 @@ class PreferenceService {
       _prefs.getBool(KEY_EXTERNAL_PRINT_ORDER) ?? true;
   bool getExternalPrintReceipt() =>
       _prefs.getBool(KEY_EXTERNAL_PRINT_RECEIPT) ?? true;
+  bool getBuiltinPrintCall() => _prefs.getBool(KEY_BUILTIN_PRINT_CALL) ?? true;
+  bool getExternalPrintCall() =>
+      _prefs.getBool(KEY_EXTERNAL_PRINT_CALL) ?? true;
 
   bool getShowOrderTypeBadge() =>
       _prefs.getBool(KEY_SHOW_ORDER_TYPE_BADGE) ??
@@ -683,6 +690,10 @@ class PreferenceService {
       _prefs.setBool(KEY_EXTERNAL_PRINT_ORDER, value);
   Future<void> setExternalPrintReceipt(bool value) async =>
       _prefs.setBool(KEY_EXTERNAL_PRINT_RECEIPT, value);
+  Future<void> setBuiltinPrintCall(bool value) async =>
+      _prefs.setBool(KEY_BUILTIN_PRINT_CALL, value);
+  Future<void> setExternalPrintCall(bool value) async =>
+      _prefs.setBool(KEY_EXTERNAL_PRINT_CALL, value);
 
   Future<void> setShowOrderTypeBadge(bool value) async {
     await _prefs.setBool(KEY_SHOW_ORDER_TYPE_BADGE, value);

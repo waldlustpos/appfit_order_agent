@@ -1002,6 +1002,65 @@ public class SunmiPrintHelper {
         }
     }
 
+    /**
+     * 기기 호출(DEVICE_CALL_REQUESTED) 알림 슬립 출력.
+     * 상단 헤드라인(호출 문구) + 키오스크번호 + 일시를 내장 프린터로 인쇄한다.
+     */
+    public void printDeviceCall(String headline, String deviceIdLabel, String deviceId,
+                                String dateLabel, String dateValue) {
+        if (sunmiPrinterService == null) {
+            Log.e("SunmiPrintHelper", "프린터 서비스에 연결되지 않았습니다.");
+            return;
+        }
+
+        try {
+            sunmiPrinterService.printerInit(null);
+
+            // 헤드라인 = 호출 문구 (가운데, 볼드, 강조)
+            sunmiPrinterService.setAlignment(1, null);
+            try {
+                sunmiPrinterService.setPrinterStyle(WoyouConsts.ENABLE_BOLD, WoyouConsts.ENABLE);
+            } catch (RemoteException e) {
+                sunmiPrinterService.sendRAWData(ESCUtil.boldOn(), null);
+            }
+            sunmiPrinterService.printTextWithFont(
+                    (headline != null ? headline : "") + "\n", null, receiptFontSize, null);
+            try {
+                sunmiPrinterService.setPrinterStyle(WoyouConsts.ENABLE_BOLD, WoyouConsts.DISABLE);
+            } catch (RemoteException e) {
+                sunmiPrinterService.sendRAWData(ESCUtil.boldOff(), null);
+            }
+            sunmiPrinterService.printText(" \n", null);
+
+            // 키오스크번호 / 일시 (왼쪽 정렬, 위아래 전체 폭 구분선)
+            sunmiPrinterService.setAlignment(0, null);
+            drawLine();
+            sunmiPrinterService.printTextWithFont(
+                    (deviceIdLabel != null ? deviceIdLabel : "키오스크번호") + " : "
+                            + (deviceId != null ? deviceId : "-") + "\n",
+                    null, receiptInfoFontSize, null);
+            sunmiPrinterService.printTextWithFont(
+                    (dateLabel != null ? dateLabel : "일시") + " : "
+                            + (dateValue != null ? dateValue : "") + "\n",
+                    null, receiptInfoFontSize, null);
+            drawLine();
+            sunmiPrinterService.printText(" \n", null);
+            sunmiPrinterService.printText(" \n", null);
+            sunmiPrinterService.printText(" \n", null);
+
+            try {
+                sunmiPrinterService.autoOutPaper(null);
+            } catch (Exception e) {
+                Log.e("SunmiPrintHelper", "용지 배출 오류: " + e.getMessage());
+                cutpaper();
+            }
+        } catch (RemoteException e) {
+            Log.e("SunmiPrintHelper", "프린터 원격 오류: " + e.getMessage());
+        } catch (Exception e) {
+            Log.e("SunmiPrintHelper", "기타 오류: " + e.getMessage());
+        }
+    }
+
 
     public static String getPriceFormatter(int price)
     {

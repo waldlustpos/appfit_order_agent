@@ -258,6 +258,18 @@ class ReceiptEscPosBuilder {
     return await b.toBytesCp949();
   }
 
+  /// 기기 호출(DEVICE_CALL_REQUESTED) 알림 슬립 — deviceId / 일시 / 문구.
+  static Future<Uint8List> buildDeviceCallBytes({
+    required String deviceId,
+    required String dateTime,
+    required String phrase,
+    int width = 48,
+  }) async {
+    final b = ReceiptEscPosBuilder();
+    _appendDeviceCall(b, deviceId, dateTime, phrase, width);
+    return await b.toBytesCp949();
+  }
+
   // ---- 내부 헬퍼 ----
 
   static Future<void> _appendReceipt(
@@ -570,6 +582,41 @@ class ReceiptEscPosBuilder {
       ..textLn(t.receipt.test_ok)
       // 종이 절단 위치 확보용 명시적 line feed.
       ..ln()
+      ..ln()
+      ..ln()
+      ..ln()
+      ..ln()
+      ..cut();
+  }
+
+  static void _appendDeviceCall(
+    ReceiptEscPosBuilder b,
+    String deviceId,
+    String dateTime,
+    String phrase,
+    int width,
+  ) {
+    // '키오스크번호'(EUC-KR 12 byte) 기준 라벨 컬럼 폭. '일시' 라벨도 이 폭에 맞춰
+    // padding 해 콜론 위치를 정렬한다.
+    const labelW = 12;
+
+    b
+      ..init()
+      // 상단 헤드라인 = 호출 문구(용지 확인 / 직원 호출) 자체.
+      ..setAlign(EscPos.alignCenter)
+      ..setSize(EscPos.fontTall)
+      ..boldOn()
+      ..textLn(phrase)
+      ..boldOff()
+      ..setSize(EscPos.fontNormal)
+      ..ln()
+      ..setAlign(EscPos.alignLeft)
+      // 구분선은 용지 폭 전체(width)로 그린다.
+      ..textLn(separatorLine(width))
+      ..textLn('${padRight('키오스크번호', labelW)}: $deviceId')
+      ..textLn('${padRight(t.receipt.datetime, labelW)}: $dateTime')
+      ..textLn(separatorLine(width))
+      // 종이 절단 위치 확보용 명시적 line feed.
       ..ln()
       ..ln()
       ..ln()

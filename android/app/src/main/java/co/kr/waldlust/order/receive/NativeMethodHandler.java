@@ -303,6 +303,21 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
                 }
                 break;
 
+            case "printDeviceCall": {
+                String callHeadline = call.argument("headline");
+                String callDeviceIdLabel = call.argument("deviceIdLabel");
+                String callDeviceId = call.argument("deviceId");
+                String callDateLabel = call.argument("dateLabel");
+                String callDateValue = call.argument("dateValue");
+                if (activity.isSunmiDevice()) {
+                    SunmiPrintHelper.getInstance().printDeviceCall(
+                            callHeadline, callDeviceIdLabel, callDeviceId,
+                            callDateLabel, callDateValue);
+                }
+                result.success(true);
+                break;
+            }
+
             case "moveToBackground":
                 try {
                     activity.moveTaskToBack(true);
