@@ -270,14 +270,16 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
           ref.watch(membershipProvider.select((s) => s.customerName));
       if (customerName.isNotEmpty) {
         return SizedBox(
-          height: 30,
+          height: 34,
           child: Align(
             alignment: Alignment.centerRight,
-            child: TextButton.icon(
+            child: ElevatedButton.icon(
               icon: const Icon(Icons.refresh, size: 18),
               label: Text(
                 t.membership.search.btn_other_member,
-                style: AppTextStyles.bodySm,
+                style: AppTextStyles.bodySm.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               onPressed: () {
                 logToFile(
@@ -287,15 +289,21 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
                 _inputController.clear();
                 FocusScope.of(context).requestFocus(_keyboardFocusNode);
               },
-              style: TextButton.styleFrom(
-                foregroundColor: AppStyles.gray6,
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
+              style: AppStyles.outlinedButton(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.s12,
+                ),
+                minimumSize: const Size(0, 34),
+              ).copyWith(
+                foregroundColor: const WidgetStatePropertyAll(AppStyles.gray6),
+                iconColor: const WidgetStatePropertyAll(AppStyles.gray6),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
             ),
           ),
         );
       }
-      return const SizedBox(height: 30);
+      return const SizedBox(height: 34);
     });
   }
 
@@ -393,7 +401,8 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
                 if (hasScanner) ...[
                   SizedBox(
                     width: double.infinity,
-                    child: _scanTriggerButton(enabled: !isLoading && !isScanning),
+                    child:
+                        _scanTriggerButton(enabled: !isLoading && !isScanning),
                   ),
                   const SizedBox(height: AppSpacing.s8),
                 ],
