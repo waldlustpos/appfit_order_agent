@@ -712,7 +712,6 @@ class ApiService {
         'stampCount': stampCount,
         'orderId': orderId,
         'requestSource': 'AGENT',
-        'items': [], // 필요 시 주문 아이템 목록 전달 가능
       });
       return response.statusCode == 200;
     } catch (e, s) {
