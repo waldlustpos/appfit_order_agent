@@ -362,15 +362,29 @@ class LabelPainter extends CustomPainter {
       ..isAntiAlias = false
       ..style = PaintingStyle.fill;
 
-    canvas.save();
-    canvas.translate(originX, originY);
     // quiet zone 포함 흰 배경(데이터 영역 + 사방 4모듈). 라벨 배경이 흰색이라도
     // 명시적으로 깔아 스캐너 여백을 보장한다.
+    //
+    // 단, 흰 배경 상단은 예약 박스 상단(origin.dy)까지만 확장하도록 clamp 한다.
+    // QR 은 헤더 다음에 그려지므로(paint(): _drawHeader → _drawBody), quiet zone 을
+    // 위로 무한정 펼치면 바로 위에 이미 그려진 헤더(로고/시각/순번)를 흰색으로 덮어
+    // "헤더 잘림"이 난다. 모듈 수가 적을수록(짧은 QR payload) quietPx(=modulePx*4)가
+    // 커져 침범 폭이 커진다. 박스 상단 위쪽은 어차피 라벨 흰 배경이라 스캐너 여백은
+    // 그대로 보장되므로 clamp 해도 인식률 손해는 없다.
+    final double quietTop = originY - quietPx;
+    final double clampedTop = quietTop < origin.dy ? origin.dy : quietTop;
     canvas.drawRect(
-      Rect.fromLTWH(
-          -quietPx, -quietPx, dataPx + quietPx * 2, dataPx + quietPx * 2),
+      Rect.fromLTRB(
+        originX - quietPx,
+        clampedTop,
+        originX + dataPx + quietPx,
+        originY + dataPx + quietPx,
+      ),
       whitePaint,
     );
+
+    canvas.save();
+    canvas.translate(originX, originY);
     for (int r = 0; r < moduleCount; r++) {
       for (int c = 0; c < moduleCount; c++) {
         if (qrImage.isDark(r, c)) {
