@@ -507,6 +507,11 @@
             "status_converted": "Converted",
             "status_issued": "Issued",
             "status_expired": "Expired",
+            "status_used": "Used",
+            "stamp_status_issued": "Earned",
+            "stamp_status_canceled": "Canceled",
+            "stamp_status_expired": "Expired",
+            "stamp_status_used": "Converted to Coupon",
             "prev_page": "Prev",
             "next_page": "Next"
         },

@@ -501,6 +501,11 @@
             "status_converted": "クーポン変換完了",
             "status_issued": "発行完了",
             "status_expired": "期間満了",
+            "status_used": "使用完了",
+            "stamp_status_issued": "積立",
+            "stamp_status_canceled": "キャンセル",
+            "stamp_status_expired": "期限切れ",
+            "stamp_status_used": "クーポン変換",
             "prev_page": "前のページ",
             "next_page": "次のページ"
         },

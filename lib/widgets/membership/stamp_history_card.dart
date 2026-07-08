@@ -72,6 +72,9 @@ class StampHistoryCard extends StatelessWidget {
       case 'CANCELED':
       case '7':
         return _StampVariant.cancelled;
+      case 'EXPIRED':
+        return _StampVariant.expired;
+      case 'USED':
       case 'CONVERTED':
       case '9':
         return _StampVariant.converted;
@@ -88,17 +91,22 @@ class StampHistoryCard extends StatelessWidget {
         return null;
       case _StampVariant.cancelled:
         return Text(
-          t.membership.history.status_cancelled,
+          t.membership.history.stamp_status_canceled,
           style: AppTextStyles.bodySm.copyWith(color: AppStyles.kMainColor),
+        );
+      case _StampVariant.expired:
+        return Text(
+          t.membership.history.stamp_status_expired,
+          style: AppTextStyles.bodySm.copyWith(color: AppStyles.gray6),
         );
       case _StampVariant.converted:
         return Text(
-          t.membership.history.status_converted,
+          t.membership.history.stamp_status_used,
           style: AppTextStyles.bodySm.copyWith(color: AppStyles.gray6),
         );
       case _StampVariant.issued:
         return Text(
-          t.membership.history.status_issued,
+          t.membership.history.stamp_status_issued,
           style: AppTextStyles.bodySm.copyWith(color: AppStyles.gray6),
         );
       case _StampVariant.other:
@@ -113,7 +121,7 @@ class StampHistoryCard extends StatelessWidget {
   }
 }
 
-enum _StampVariant { accrued, cancelled, converted, issued, other }
+enum _StampVariant { accrued, cancelled, expired, converted, issued, other }
 
 class _StampBadge extends StatelessWidget {
   const _StampBadge({required this.variant, required this.count});
@@ -131,6 +139,11 @@ class _StampBadge extends StatelessWidget {
         ),
       _StampVariant.cancelled => (
           '−$count',
+          AppStyles.gray2,
+          AppStyles.gray6,
+        ),
+      _StampVariant.expired => (
+          '$count',
           AppStyles.gray2,
           AppStyles.gray6,
         ),

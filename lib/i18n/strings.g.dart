@@ -4,9 +4,9 @@
 /// To regenerate, run: `dart run slang`
 ///
 /// Locales: 3
-/// Strings: 1313 (437 per locale)
+/// Strings: 1328 (442 per locale)
 ///
-/// Built on 2026-07-07 at 08:31 UTC
+/// Built on 2026-07-08 at 00:10 UTC
 
 // coverage:ignore-file
 // ignore_for_file: type=lint
@@ -1164,6 +1164,11 @@ class _StringsMembershipHistoryKo {
 	String get status_converted => '쿠폰변환완료';
 	String get status_issued => '발급완료';
 	String get status_expired => '기간만료';
+	String get status_used => '사용완료';
+	String get stamp_status_issued => '적립';
+	String get stamp_status_canceled => '취소';
+	String get stamp_status_expired => '만료';
+	String get stamp_status_used => '쿠폰 변환';
 	String get prev_page => '이전 페이지';
 	String get next_page => '다음 페이지';
 }
@@ -2305,6 +2310,11 @@ class _StringsMembershipHistoryEn extends _StringsMembershipHistoryKo {
 	@override String get status_converted => 'Converted';
 	@override String get status_issued => 'Issued';
 	@override String get status_expired => 'Expired';
+	@override String get status_used => 'Used';
+	@override String get stamp_status_issued => 'Earned';
+	@override String get stamp_status_canceled => 'Canceled';
+	@override String get stamp_status_expired => 'Expired';
+	@override String get stamp_status_used => 'Converted to Coupon';
 	@override String get prev_page => 'Prev';
 	@override String get next_page => 'Next';
 }
@@ -3438,6 +3448,11 @@ class _StringsMembershipHistoryJa extends _StringsMembershipHistoryKo {
 	@override String get status_converted => 'クーポン変換完了';
 	@override String get status_issued => '発行完了';
 	@override String get status_expired => '期間満了';
+	@override String get status_used => '使用完了';
+	@override String get stamp_status_issued => '積立';
+	@override String get stamp_status_canceled => 'キャンセル';
+	@override String get stamp_status_expired => '期限切れ';
+	@override String get stamp_status_used => 'クーポン変換';
 	@override String get prev_page => '前のページ';
 	@override String get next_page => '次のページ';
 }

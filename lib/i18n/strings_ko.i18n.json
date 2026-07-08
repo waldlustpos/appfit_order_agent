@@ -501,6 +501,11 @@
             "status_converted": "쿠폰변환완료",
             "status_issued": "발급완료",
             "status_expired": "기간만료",
+            "status_used": "사용완료",
+            "stamp_status_issued": "적립",
+            "stamp_status_canceled": "취소",
+            "stamp_status_expired": "만료",
+            "stamp_status_used": "쿠폰 변환",
             "prev_page": "이전 페이지",
             "next_page": "다음 페이지"
         },

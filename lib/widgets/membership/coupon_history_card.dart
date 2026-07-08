@@ -23,6 +23,7 @@ class CouponHistoryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final statusLabel = _statusLabel(coupon.status);
+    final displayDate = _displayDate(coupon);
 
     return Material(
       color: AppStyles.gray1,
@@ -50,7 +51,7 @@ class CouponHistoryCard extends StatelessWidget {
                   Row(
                     children: [
                       Text(
-                        DateFormat('yyyy-MM-dd HH:mm').format(coupon.useDate),
+                        DateFormat('yyyy-MM-dd HH:mm').format(displayDate),
                         style: AppTextStyles.bodySm
                             .copyWith(color: AppStyles.gray6),
                       ),
@@ -83,21 +84,26 @@ class CouponHistoryCard extends StatelessWidget {
     return s == 'USED' || s == '9';
   }
 
+  /// 서버 정의 enum(/v0/coupons/history)에 맞춘 상태 표시.
+  /// ISSUED: 발급완료, USED: 사용완료, EXPIRED: 기간만료, CANCELLED: 취소완료.
   Widget? _statusLabel(String status) {
     switch (status.toUpperCase()) {
+      case 'ISSUED':
+        return Text(
+          t.membership.history.status_issued,
+          style: AppTextStyles.bodySm.copyWith(color: AppStyles.kBlue),
+        );
       case 'USED':
       case '9':
-        return null;
+        return Text(
+          t.membership.history.status_used,
+          style: AppTextStyles.bodySm.copyWith(color: AppStyles.gray6),
+        );
       case 'EXPIRED':
       case '7':
         return Text(
           t.membership.history.status_expired,
           style: AppTextStyles.bodySm.copyWith(color: AppStyles.gray6),
-        );
-      case 'ISSUED':
-        return Text(
-          t.membership.history.status_issued,
-          style: AppTextStyles.bodySm.copyWith(color: AppStyles.kBlue),
         );
       case 'CANCELLED':
       case 'CANCELED':
@@ -110,6 +116,16 @@ class CouponHistoryCard extends StatelessWidget {
           status.isNotEmpty ? status : t.common.unknown,
           style: AppTextStyles.bodySm.copyWith(color: AppStyles.gray6),
         );
+    }
+  }
+
+  /// 발급(ISSUED) 건은 발급일시(issuedAt), 그 외에는 사용/처리 일시(usedAt)를 표시.
+  DateTime _displayDate(CouponHistoryInfo coupon) {
+    switch (coupon.status.toUpperCase()) {
+      case 'ISSUED':
+        return coupon.issueDate;
+      default:
+        return coupon.useDate;
     }
   }
 }
