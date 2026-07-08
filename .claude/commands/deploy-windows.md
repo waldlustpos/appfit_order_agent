@@ -1,29 +1,35 @@
 ---
-description: Windows 릴리즈 빌드(ZIP) 후 Lightsail 서버에 OTA 배포 (update / standalone / 둘다 선택)
+description: Windows 릴리즈 빌드(ZIP) 후 Lightsail 서버에 OTA 배포 (japan / korea / 둘다 선택)
 ---
 
 이 명령어는 **Windows** Release 빌드를 ZIP으로 압축해 Lightsail 서버에 업로드하는 **비가역적 OTA 배포**다.
 Android 배포는 별도(`/deploy-android`, `deploy_apk.sh`), 신규 설치용 인스톨러(`Setup.exe`)도 별도(`build_installer.ps1`)다. 아래 순서를 반드시 지킨다.
 
-## 배포 변형(flavor)
+## 배포 변형(variant)
 
-`deploy_windows.ps1` 은 `-Variant` 인자를 받는다. 변형마다 **별도 OTA 채널**(ZIP + 버전 JSON)로 업로드된다:
+단일 실행파일(`appfit_order_agent.exe`)로 통합되었다. 국가는 `-Variant` 인자 →
+`--dart-define=APPFIT_VARIANT` 로만 구분되며, 지역별 서버 기본값이 다르므로 OTA
+채널(ZIP + 버전 JSON)만 분리된다:
 
 | 변형 | 실행파일 | 채널 파일 (ZIP / 버전 JSON) | 용도 |
 | --- | --- | --- | --- |
-| `update` | `appfit_order_agent.exe` | `appfit_order_agent_windows.zip` / `appfit_order_agent_windows_version.json` | 기존 매장 OTA (구앱 덮어쓰기) |
-| `standalone` | `appfit_order_agent_standalone.exe` | `appfit_order_agent_standalone_windows.zip` / `appfit_order_agent_standalone_windows_version.json` | 구앱과 병존 설치 (사전 설치용) |
+| `japan` (기본) | `appfit_order_agent.exe` | `appfit_order_agent_windows.zip` / `appfit_order_agent_windows_version.json` | 일본 매장 OTA. 레거시 채널을 **계속 사용**(동결 아님) |
+| `korea` | `appfit_order_agent.exe` | `appfit_order_agent_korea_windows.zip` / `appfit_order_agent_korea_windows_version.json` | 한국 신규 채널(아직 미배포) |
 
-OTA URL 분기는 빌드 타임 `--dart-define=APPFIT_VARIANT` 로 결정되며(`lib/config/update_config.dart`), 변형에 따라 CMake 가 실행파일명(BINARY_NAME)도 분기한다. 스크립트가 `-Variant` 에 맞춰 자동 주입한다.
+OTA URL 분기는 빌드 타임 `--dart-define=APPFIT_VARIANT` 로 결정된다 (`lib/config/update_config.dart`).
 
-> CMake 는 BINARY_NAME 을 configure 시점에 고정하므로, **직전 빌드와 변형이 다르면 `build\windows` 를 통째로 지우고 클린 재구성**한다(스크립트 자동 처리). 따라서 "둘다" 배포는 update·standalone 각각 풀 빌드가 일어나 시간이 더 걸린다.
+> **Android 와 정책이 다르다**: Android 는 무접미 레거시 채널을 동결하고 `_japan`
+> 신규 채널로 옮기지만, Windows japan 은 레거시 무접미 채널을 **그대로 계속 사용**한다.
+> Windows 는 패키지 개념이 없고 exe명이 통일되어(`appfit_order_agent.exe`) 기존 japan
+> 설치본이 레거시 채널로 자연스럽게 업데이트되기 때문이다. exe명·CMake 는 이제
+> 변형과 무관하므로 변형 전환 시 클린 재구성도 없다(증분 빌드).
 
 ## 1단계 — 변형 선택
 
 `AskUserQuestion` 으로 어떤 변형을 배포할지 묻는다:
-- **update** — 운영 채널 (대부분의 경우)
-- **standalone** — 병존 설치 채널
-- **둘다** — update 먼저, 성공 시 standalone 순차 배포
+- **japan** — 일본 운영 채널 (현재 유일한 라이브, 대부분의 경우)
+- **korea** — 한국 신규 병존 설치 채널 (미배포)
+- **둘다** — japan 먼저, 성공 시 korea 순차 배포
 
 ## 2단계 — 배포 전 상태 확인
 
@@ -35,8 +41,8 @@ git log --oneline -3
 **(b) 버전 비교** — 배포할 빌드번호와 현재 서버 버전을 **선택한 변형의 채널별로** 조회해 명시한다:
 - 업데이트할 버전: `version_windows.txt` 의 값(예: `3.3.6+152` → 빌드번호 `152`)을 읽는다. (**Windows 버전 정본 = `version_windows.txt`**, pubspec.yaml 아님. 형식 `x.y.z+n`, `+` 뒤가 빌드번호)
 - 현재 서버 버전: 변형에 해당하는 버전 JSON을 조회한다 (응답 `{"version": <int>}` = 현재 배포된 빌드번호):
-  - update: `curl -fsS --max-time 10 http://waldpay.kokonutstamp2.com/appfit_order_agent_windows_version.json`
-  - standalone: `curl -fsS --max-time 10 http://waldpay.kokonutstamp2.com/appfit_order_agent_standalone_windows_version.json`
+  - japan: `curl -fsS --max-time 10 http://waldpay.kokonutstamp2.com/appfit_order_agent_windows_version.json`
+  - korea: `curl -fsS --max-time 10 http://waldpay.kokonutstamp2.com/appfit_order_agent_korea_windows_version.json`
   - "둘다" 선택 시 두 채널 모두 조회한다.
 - 조회 실패(네트워크/404 등) 시: 실패 사실만 알리고 차단하지 않는다(서버에 아직 파일이 없는 첫 배포일 수 있음).
 
@@ -44,7 +50,7 @@ git log --oneline -3
 
 | 변형 | 현재 서버 버전 | 업데이트할 버전 |
 | --- | --- | --- |
-| update | 151 | 152 |
+| japan | 151 | 152 |
 
 - 업데이트할 빌드번호가 서버 버전보다 **낮거나 같으면 경고**한다(버전 미상향 — OTA가 안 내려가거나 다운그레이드 위험).
 
@@ -54,10 +60,10 @@ git log --oneline -3
 ## 3단계 — 사용자가 yes 입력 시에만 실행
 
 `deploy_windows.ps1` 은 PowerShell 스크립트다. **레포 루트에서** PowerShell 로 실행한다 (Bash 툴에서는 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File` 로 호출):
-- update: `powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./deploy_windows.ps1 -Variant update`
-- standalone: `powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./deploy_windows.ps1 -Variant standalone`
-- 둘다: update 실행·성공 확인 후 standalone
-  - update 단계가 실패하면 standalone 은 실행하지 않고 중단·보고한다.
+- japan: `powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./deploy_windows.ps1 -Variant japan`
+- korea: `powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./deploy_windows.ps1 -Variant korea`
+- 둘다: japan 실행·성공 확인 후 korea
+  - japan 단계가 실패하면 korea 는 실행하지 않고 중단·보고한다.
 
 > 에이전트 셸에서 PowerShell 호출이 거부/실패하면, 사용자에게 **레포 루트의 PowerShell 터미널에서 직접** `.\deploy_windows.ps1 -Variant <변형>` 을 실행하도록 안내한다.
 

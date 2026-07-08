@@ -37,29 +37,17 @@ android {
     }
 
     defaultConfig {
-        applicationId = "co.kr.waldlust.order.receive"
+        // 단일 패키지로 통합. 한국/일본은 --dart-define=APPFIT_VARIANT 로만 구분하며
+        // applicationId 는 국가 무관하게 .appfit 하나로 고정한다.
+        // namespace(co.kr.waldlust.order.receive)는 R클래스/매니페스트 병합용이라
+        // applicationId 와 달라도 무방하므로 그대로 둔다.
+        applicationId = "co.kr.waldlust.order.receive.appfit"
         versionCode = flutterVersionCode
         versionName = flutterVersionName
 
         // Android 7 (API 24) 이상 지원
         minSdk = 24
         targetSdk = 35
-    }
-
-    // 배포 변형: update(구앱 덮어쓰기, 기존 패키지 유지) / standalone(구앱과 병존 설치)
-    // namespace 는 그대로 두고 applicationId 만 suffix 로 분기한다.
-    flavorDimensions += "distribution"
-
-    productFlavors {
-        create("update") {
-            dimension = "distribution"
-            // applicationId 그대로: co.kr.waldlust.order.receive
-        }
-        create("standalone") {
-            dimension = "distribution"
-            applicationIdSuffix = ".appfit"  // -> co.kr.waldlust.order.receive.appfit
-            // versionNameSuffix 미사용 (두 변형 동일 버전 공유)
-        }
     }
 
     signingConfigs {

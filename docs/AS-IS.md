@@ -171,20 +171,22 @@ lib/
 
 ## 6. 배포 · OTA
 
-### 6.1 배포 변형 비교 (update vs standalone)
+### 6.1 배포 변형 비교 (japan vs korea)
 
-| 항목 | update (기본) | standalone |
+단일 패키지(`co.kr.waldlust.order.receive.appfit`)·단일 exe(`appfit_order_agent.exe`)로 통합. flavor 없이 `--dart-define=APPFIT_VARIANT=japan|korea` 로만 국가를 구분하며, 국가별로 다른 것은 release 서버·OTA 채널 URL·KR/JP 배지뿐이다.
+
+| 항목 | japan (기본) | korea |
 | --- | --- | --- |
-| 목표 | 기존 900+ 매장 구앱 덮어쓰기 OTA | 신규 병존 설치 (사전 설치용) |
-| Android 패키지 | `co.kr.waldlust.order.receive` | `co.kr.waldlust.order.receive.appfit` (flavor `applicationIdSuffix`) |
-| Windows exe | `appfit_order_agent.exe` | `appfit_order_agent_standalone.exe` |
-| Android 채널 | `appfit_order_agent_version.json` / `.apk` | `appfit_order_agent_standalone_version.json` / `_standalone.apk` |
-| Windows 채널 | `appfit_order_agent_windows_version.json` / `_windows.zip` | `appfit_order_agent_standalone_windows_version.json` / `_standalone_windows.zip` |
-| Windows 뮤텍스 | `...AppfitOrderAgent_SingleInstance_Mutex` | `...AppfitOrderAgentStandalone_SingleInstance_Mutex` |
-| 임시 작업 dir | `appfit_order_agent_update_extracted` | `appfit_order_agent_standalone_update_extracted` |
-| 설정 승계 | 기존 설정 유지 | 승계 없음 (마이그레이션 미구현), Inno Setup GUID 영구 분리 |
+| 목표 | 일본 매장 | 신규 900매장 예정(미배포) |
+| Android 패키지 | `co.kr.waldlust.order.receive.appfit` | ← 동일 |
+| Windows exe / 뮤텍스 / 설치 GUID | `appfit_order_agent.exe` / 단일 | ← 동일 |
+| release 서버 | `japanLive` | `live` |
+| Android 채널 | `appfit_order_agent_japan_version.json` / `_japan.apk` | `appfit_order_agent_korea_version.json` / `_korea.apk` |
+| Windows 채널 | `appfit_order_agent_windows_version.json` / `_windows.zip` (레거시 계속 사용) | `appfit_order_agent_korea_windows_version.json` / `_korea_windows.zip` |
+| 병존 설치 | 불가 (머신당 1개, 재설치 시 in-place 업그레이드) | ← 동일 |
 
-- 분기 메커니즘: 빌드 시 `--dart-define=APPFIT_VARIANT=update|standalone` → `AppEnv.variant`/`AppEnv.isStandalone`(**const** 필수, `lib/config/app_env.dart`) → `UpdateConfig`(Windows)·`OtaConfig`(Android) 컴파일 타임 채널 분기. Windows 네이티브는 CMake `APPFIT_WINDOWS_VARIANT` → `APPFIT_VARIANT_STANDALONE` 매크로로 뮤텍스/제목 분리.
+- 분기 메커니즘: 빌드 시 `--dart-define=APPFIT_VARIANT=japan|korea` → `AppEnv.region`/`AppEnv.isKorea`(**const** 필수, `lib/config/app_env.dart`) → `main.dart` release 서버 고정 + `UpdateConfig`(Windows)·`OtaConfig`(Android) 컴파일 타임 채널 URL 분기. exe명·뮤텍스·설치 GUID 는 국가와 무관하게 통일(CMake variant 분기 제거).
+- **Android 레거시 무접미 채널 동결(FROZEN)**: 구 패키지(`co.kr.waldlust.order.receive`)로 설치된 일본 매장 1곳 전용 — 업로드 금지, 신규 japan 은 `_japan` 채널. Windows japan 은 레거시 채널을 계속 사용(패키지 개념 없어 자연 업데이트, 정책 반대).
 - 공통 OTA base URL: `http://waldpay.kokonutstamp2.com/`. 타임아웃: connect 15s / check 10s / download 10m.
 
 ### 6.2 버전 정본 이원화

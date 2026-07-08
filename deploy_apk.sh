@@ -5,10 +5,11 @@
 # Firebase Remote Config 자동 업데이트 스크립트
 ###############################################################################
 
-# 배포 변형 선택: update(기본, 기존 OTA 호환) | standalone(구앱과 병존 설치)
-FLAVOR="${1:-update}"
-if [ "$FLAVOR" != "update" ] && [ "$FLAVOR" != "standalone" ]; then
-  echo "사용법: ./deploy_apk.sh [update|standalone]  (기본: update)"
+# 배포 지역 변형 선택: japan(기본, 일본) | korea(한국)
+# 단일 패키지(co.kr.waldlust.order.receive.appfit) — 국가는 dart-define 로만 구분.
+FLAVOR="${1:-japan}"
+if [ "$FLAVOR" != "japan" ] && [ "$FLAVOR" != "korea" ]; then
+  echo "사용법: ./deploy_apk.sh [japan|korea]  (기본: japan)"
   exit 1
 fi
 
@@ -19,15 +20,20 @@ REMOTE_USER="ec2-user"
 REMOTE_HOST="52.78.172.188"
 REMOTE_DIR="/var/www/docs/waldpay_html"
 
-# update 변형은 기존 OTA 파일명을 그대로 유지(900개 매장 호환).
-# standalone 변형은 별도 채널로 업로드해 update 앱 OTA 를 오염시키지 않는다.
-# (standalone 은 사전 설치용이라 OTA 자체가 불필요할 수 있음 — 필요 시에만 사용)
-if [ "$FLAVOR" = "standalone" ]; then
-  APK_NAME="appfit_order_agent_standalone.apk"
-  VERSION_JSON_NAME="appfit_order_agent_standalone_version.json"
+###############################################################################
+# !!! 경고: 레거시 무접미 채널(appfit_order_agent.apk / appfit_order_agent_version.json)
+#     은 동결(FROZEN)이다. 이 스크립트는 절대 그 이름으로 업로드하지 않는다.
+#     구 패키지(co.kr.waldlust.order.receive)로 설치된 일본 매장 1곳이 해당
+#     채널을 폴링 중이라, .appfit 패키지 APK 를 그 이름으로 올리면 패키지
+#     불일치로 설치가 실패한다. 신규 패키지로 수동 재설치되기 전까지 유지.
+#     japan 은 신규 _japan 채널, korea 는 _korea 채널로 각각 분리 업로드한다.
+###############################################################################
+if [ "$FLAVOR" = "korea" ]; then
+  APK_NAME="appfit_order_agent_korea.apk"
+  VERSION_JSON_NAME="appfit_order_agent_korea_version.json"
 else
-  APK_NAME="appfit_order_agent.apk"
-  VERSION_JSON_NAME="appfit_order_agent_version.json"
+  APK_NAME="appfit_order_agent_japan.apk"
+  VERSION_JSON_NAME="appfit_order_agent_japan_version.json"
 fi
 
 # 1) 프로젝트 디렉토리로 이동
@@ -37,8 +43,8 @@ cd "$PROJECT_PATH" || {
   exit 1
 }
 
-# 2) Flutter Release 빌드 (변형별 flavor)
-echo "==== 2) Flutter build apk --release --flavor $FLAVOR ===="
+# 2) Flutter Release 빌드 (flavor 없이 dart-define 로 국가 주입)
+echo "==== 2) Flutter build apk --release (variant: $FLAVOR) ===="
 
 # .env 파일에서 AES Key 읽기
 if [ -f ".env" ]; then
@@ -51,20 +57,20 @@ if [ -z "$APPFIT_AES_KEY" ]; then
   # 필요 시 exit 1 로 중단 가능
 fi
 
-echo ".env 주입하여 빌드... (flavor: $FLAVOR)"
-flutter build apk --release --flavor "$FLAVOR" --dart-define-from-file=.env --dart-define=APPFIT_VARIANT="$FLAVOR"
+echo ".env 주입하여 빌드... (variant: $FLAVOR)"
+flutter build apk --release --dart-define-from-file=.env --dart-define=APPFIT_VARIANT="$FLAVOR"
 if [ $? -ne 0 ]; then
   echo "[오류] Flutter 빌드 실패!"
   exit 1
 fi
 
-# 빌드된 apk 기본 경로 (flavor 도입 후 app-<flavor>-release.apk)
-BUILT_APK="$PROJECT_PATH/build/app/outputs/flutter-apk/app-${FLAVOR}-release.apk"
+# 빌드된 apk 기본 경로 (flavor 미사용 → 단일 app-release.apk)
+BUILT_APK="$PROJECT_PATH/build/app/outputs/flutter-apk/app-release.apk"
 
 # 3) 빌드된 apk 이름 변경
-echo "==== 3) Rename app-${FLAVOR}-release.apk -> $APK_NAME ===="
+echo "==== 3) Rename app-release.apk -> $APK_NAME ===="
 if [ ! -f "$BUILT_APK" ]; then
-  echo "[오류] 빌드 산출물(app-${FLAVOR}-release.apk) 없음: $BUILT_APK"
+  echo "[오류] 빌드 산출물(app-release.apk) 없음: $BUILT_APK"
   exit 1
 fi
 

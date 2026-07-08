@@ -3,12 +3,12 @@
 # 해당 버전 폴더를 탐색기로 연다. (PowerShell)
 #
 # 사용법:
-#   .\archive_windows.ps1 -SrcArtifact <경로> [-Variant update|standalone] [-ArchiveBase <dir>]
+#   .\archive_windows.ps1 -SrcArtifact <경로> [-Variant japan|korea] [-ArchiveBase <dir>]
 #     - -SrcArtifact : 보관할 산출물. 다음 셋 중 하나
 #         * ZIP 파일 (deploy_windows.ps1 산출물)        → 그대로 복사
 #         * 설치본 .exe (build_installer.ps1 산출물)    → 그대로 복사
 #         * Release 폴더 (build_windows.ps1 산출물)     → <project>_windows.zip 으로 압축해 보관
-#     - -Variant     : update(기본) | standalone  (appfit 은 변형이 둘)
+#     - -Variant     : japan(기본) | korea  (appfit 은 변형이 둘)
 #     - -ArchiveBase : 공용 보관소 베이스 (기본: ~\Documents\!Project Files)
 #
 # 보관 구조: <ArchiveBase>\<프로젝트명>\windows\<버전>\<산출물> + release_notes_<variant>.txt
@@ -22,7 +22,7 @@
 
 param(
     [Parameter(Mandatory = $true)][string]$SrcArtifact,
-    [ValidateSet('update', 'standalone')][string]$Variant = 'update',
+    [ValidateSet('japan', 'korea')][string]$Variant = 'japan',
     [string]$ArchiveBase = (Join-Path $env:USERPROFILE 'Documents\!Project Files')
 )
 
@@ -48,12 +48,8 @@ if (Test-Path 'version_windows.txt') {
 }
 $buildNumber = ($version -replace '.*\+', '')
 
-# variant -> 패키지명
-if ($Variant -eq 'standalone') {
-    $appId = 'co.kr.waldlust.order.receive.appfit'
-} else {
-    $appId = 'co.kr.waldlust.order.receive'
-}
+# 단일 패키지 (국가 무관)
+$appId = 'co.kr.waldlust.order.receive.appfit'
 
 $archiveDir = Join-Path $ArchiveBase (Join-Path $projectName (Join-Path 'windows' $version))
 

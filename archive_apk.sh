@@ -6,7 +6,7 @@
 #
 # 사용법: bash ./archive_apk.sh <built_apk_path> <flavor>
 #   - <built_apk_path> : 보관할 APK 파일 경로
-#   - <flavor>         : update(기본) | standalone
+#   - <flavor>         : japan(기본) | korea
 #
 # 보관 구조: <ARCHIVE_BASE>/<프로젝트명>/apk/<버전>/<APK> + release_notes_<flavor>.txt
 #   예) /Users/.../!Project Files/appfit_order_agent/apk/3.3.6+152/
@@ -16,7 +16,7 @@
 ###############################################################################
 
 SRC_APK="$1"
-FLAVOR="${2:-update}"
+FLAVOR="${2:-japan}"
 
 # 공용 보관소 베이스. archive_windows.ps1 과 동일하게 홈 디렉터리에서 동적으로
 # 구해 머신/OS 에 무관하게 동작한다 (macOS: /Users/<user>, Windows Git Bash:
@@ -31,12 +31,8 @@ PROJECT_NAME=$(grep "^name:" pubspec.yaml | cut -d' ' -f2 | tr -d '"' | tr -d "'
 VERSION=$(grep "^version:" pubspec.yaml | cut -d' ' -f2 | tr -d '"' | tr -d "'")
 BUILD_NUMBER=$(echo "$VERSION" | sed 's/.*+//')
 
-# flavor -> 패키지명
-if [ "$FLAVOR" = "standalone" ]; then
-  APP_ID="co.kr.waldlust.order.receive.appfit"
-else
-  APP_ID="co.kr.waldlust.order.receive"
-fi
+# 단일 패키지 (국가 무관)
+APP_ID="co.kr.waldlust.order.receive.appfit"
 
 ARCHIVE_DIR="$ARCHIVE_BASE/$PROJECT_NAME/apk/$VERSION"
 

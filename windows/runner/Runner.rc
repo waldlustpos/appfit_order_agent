@@ -52,11 +52,7 @@ END
 
 // Icon with lowest ID value placed first to ensure application icon
 // remains consistent on all systems.
-#if defined(APPFIT_VARIANT_STANDALONE)
-IDI_APP_ICON            ICON                    "resources\\app_icon_standalone.ico"
-#else
 IDI_APP_ICON            ICON                    "resources\\app_icon.ico"
-#endif
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -76,18 +72,13 @@ IDI_APP_ICON            ICON                    "resources\\app_icon.ico"
 #define VERSION_AS_STRING "1.0.0"
 #endif
 
-// Variant-specific product identity. ProductName drives the per-user data
-// directory chosen by path_provider_windows (%APPDATA%\CompanyName\ProductName),
-// so a distinct ProductName isolates SharedPreferences and app-support files
-// between the update and standalone variants. Keep ASCII only.
-// APPFIT_VARIANT_STANDALONE is injected by CMake (see runner/CMakeLists.txt).
-#if defined(APPFIT_VARIANT_STANDALONE)
-#define APPFIT_PRODUCT_NAME "appfit_order_agent_standalone"
-#define APPFIT_EXE_NAME     "appfit_order_agent_standalone.exe"
-#else
+// Product identity (unified across korea and japan). ProductName drives the
+// per-user data directory chosen by path_provider_windows
+// (%APPDATA%\CompanyName\ProductName). Kept as the legacy name so existing
+// japan Windows installs retain their SharedPreferences and app-support files.
+// Keep ASCII only.
 #define APPFIT_PRODUCT_NAME "appfit_order_agent"
 #define APPFIT_EXE_NAME     "appfit_order_agent.exe"
-#endif
 
 VS_VERSION_INFO VERSIONINFO
  FILEVERSION VERSION_AS_NUMBER

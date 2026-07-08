@@ -1,9 +1,9 @@
 ﻿# 윈도우 릴리스 빌드 스크립트 (PowerShell)
-# 사용법: .\build_windows.ps1 [-Variant update|standalone]
+# 사용법: .\build_windows.ps1 [-Variant japan|korea]
 
 param(
-    [ValidateSet('update','standalone')]
-    [string]$Variant = 'update'
+    [ValidateSet('japan','korea')]
+    [string]$Variant = 'japan'
 )
 
 # 콘솔/파이프라인 인코딩 UTF-8 고정 (한글 출력 깨짐 방지)
@@ -14,24 +14,11 @@ chcp 65001 > $null
 $ErrorActionPreference = "Stop"
 
 # === Build variant selection ===
-# standalone makes CMake branch the exe name (BINARY_NAME) and compile macros.
-# CMake freezes BINARY_NAME at configure time, so if the previous build used a
-# different variant, wipe build/windows to force a clean reconfigure.
-$VariantSentinel = "build\.appfit_windows_variant"
-$prevVariant = if (Test-Path $VariantSentinel) { (Get-Content $VariantSentinel -Raw).Trim() } else { "" }
-if ($prevVariant -ne $Variant -and (Test-Path "build\windows")) {
-    Write-Host "[INFO] Build variant changed ($prevVariant -> $Variant): cleaning build/windows" -ForegroundColor Yellow
-    Remove-Item "build\windows" -Recurse -Force
-}
-New-Item -ItemType Directory -Force -Path "build" | Out-Null
-Set-Content -Path $VariantSentinel -Value $Variant -NoNewline
-if ($Variant -eq 'standalone') {
-    $env:APPFIT_WINDOWS_VARIANT = 'standalone'
-    $ExeName = 'appfit_order_agent_standalone.exe'
-} else {
-    Remove-Item Env:\APPFIT_WINDOWS_VARIANT -ErrorAction SilentlyContinue
-    $ExeName = 'appfit_order_agent.exe'
-}
+# Single unified exe name for both regions. The variant only drives the
+# --dart-define=APPFIT_VARIANT injected below (server default + OTA channel),
+# NOT the on-disk exe name or CMake config, so no clean reconfigure is needed
+# when switching variants (Flutter fingerprints the dart-define change itself).
+$ExeName = 'appfit_order_agent.exe'
 Write-Host "[INFO] Build variant: $Variant (exe: $ExeName)" -ForegroundColor Cyan
 
 Write-Host "🚀 Windows Release 빌드 시작..." -ForegroundColor Green

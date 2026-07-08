@@ -5,7 +5,7 @@ description: 릴리즈 APK 빌드 (배포 없이 로컬 빌드만)
 ## 1단계: 현재 OTA 배포 서버 버전 확인
 빌드 전에 Bash 툴로 현재 배포 서버에 올라가 있는 버전을 조회해 보고한다:
 ```
-curl -fsS --max-time 10 http://waldpay.kokonutstamp2.com/appfit_order_agent_version.json
+curl -fsS --max-time 10 http://waldpay.kokonutstamp2.com/appfit_order_agent_japan_version.json
 ```
 - 응답은 `{"version": <int>}` 형태(= 현재 배포된 빌드번호).
 - `pubspec.yaml` 의 `version`(예: 3.3.5+148, 빌드번호 148)을 함께 읽어, **배포된 버전 vs 빌드할 버전**을 비교해 알려준다.
@@ -13,13 +13,16 @@ curl -fsS --max-time 10 http://waldpay.kokonutstamp2.com/appfit_order_agent_vers
 - 조회 실패(네트워크/서버 오류) 시: 실패 사실만 알리고 빌드는 계속 진행한다(빌드 차단 X).
 
 ## 2단계: APK 빌드
-기본은 `update` 변형이다. standalone(구앱과 병존 설치) 빌드가 필요하면 사용자에게 확인한다.
-Bash 툴로 실행:
+단일 패키지(`co.kr.waldlust.order.receive.appfit`)로 통합됐고, flavor 없이
+`--dart-define=APPFIT_VARIANT` 로만 국가를 구분한다. 기본은 `japan` 이다.
+korea 빌드가 필요하면 사용자에게 확인한다. Bash 툴로 실행:
 ```
-./build_main.sh              # update (기본)
-# ./build_main.sh standalone # 병존 설치용 변형
+./build_main.sh              # japan (기본)
+# ./build_main.sh korea      # 한국 채널
 ```
-변형마다 `--dart-define=APPFIT_VARIANT` 가 자동 주입돼 OTA 채널이 분기된다. 1단계 버전 조회 URL은 update 채널 기준이며, standalone 은 `appfit_order_agent_standalone_version.json` 이다.
+변형마다 `--dart-define=APPFIT_VARIANT` 가 자동 주입돼 OTA 채널이 분기된다. 1단계 조회 URL은 japan 신규 채널(`_japan`)이며, korea 는 `appfit_order_agent_korea_version.json` 이다.
+
+> ⚠️ 레거시 무접미 채널(`appfit_order_agent_version.json` / `.apk`)은 동결(구 패키지 일본 매장 전용). 이 릴리즈 산출물을 그 채널로 업로드 금지.
 
 ## 3단계: 결과 보고
 - 빌드 성공 시 생성된 APK 경로와 파일 크기를 출력

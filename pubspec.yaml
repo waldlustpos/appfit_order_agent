@@ -120,17 +120,21 @@ dev_dependencies:
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
+# 단일 패키지 통합 런처 아이콘. 한국/일본 공통으로 그라데이션(#fb3e7e -> #9843cb)
+# + 흰색 "w." 로고를 사용한다. 그라데이션 PNG 는 tool/gen_korea_icon.dart 로 생성.
+# 재생성: flutter pub run flutter_launcher_icons  (인자 없이 이 블록 사용)
+# windows 키는 두지 않는다 — Windows 아이콘은 정성 제작한 다해상도
+# windows/runner/resources/app_icon.ico 를 직접 관리하며, 자동 생성이 이를
+# 단일 256px 로 덮어쓰지 않도록 막는다.
 flutter_launcher_icons:
   android: true
   ios: false
-  image_path: "assets/icons/app_icon.png"
+  # 레거시(비-adaptive) 런처용: 그라데이션 + 로고 합성본
+  image_path: "assets/icons/app_icon_korea.png"
   min_sdk_android: 24
-  adaptive_icon_background: "#fb3e7e"
-  adaptive_icon_foreground: "assets/icons/app_icon.png"
-  windows:
-    generate: true
-    image_path: "assets/icons/app_icon.png"
-    icon_size: 256
+  # adaptive: 그라데이션 배경 + 투명 배경 흰색 로고 전경
+  adaptive_icon_background: "assets/icons/app_icon_korea_bg.png"
+  adaptive_icon_foreground: "assets/icons/app_icon_transparent.png"
 
 # The following section is specific to Flutter packages.
 flutter:

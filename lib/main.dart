@@ -79,13 +79,18 @@ void main() async {
   final preferenceServiceForEnv = PreferenceService();
   await preferenceServiceForEnv.init();
   final savedEnv = preferenceServiceForEnv.getEnvironment();
-  final environment = switch (savedEnv) {
-    'live' => AppFitEnvironment.live,
-    'japanLive' => AppFitEnvironment.japanLive,
-    'dev' => AppFitEnvironment.dev,
-    'staging' => AppFitEnvironment.staging,
-    _ => AppFitEnvironment.live,
-  };
+  // 릴리즈 산출물은 빌드 변형(japan/korea)으로 서버를 고정한다.
+  // 개발(debug/profile)에서는 서버선택 UI로 고른 저장값을 그대로 사용해
+  // dev/staging 테스트를 허용한다.
+  final environment = kReleaseMode
+      ? (AppEnv.isKorea ? AppFitEnvironment.live : AppFitEnvironment.japanLive)
+      : switch (savedEnv) {
+          'live' => AppFitEnvironment.live,
+          'japanLive' => AppFitEnvironment.japanLive,
+          'dev' => AppFitEnvironment.dev,
+          'staging' => AppFitEnvironment.staging,
+          _ => AppFitEnvironment.live,
+        };
 
   // AppFit 공통 패키지 설정
   AppFitConfig.configure(

@@ -1,16 +1,16 @@
-// standalone(신규) 변형 런처 아이콘 자산 생성기.
+// 런처 아이콘 자산 생성기 (한국/일본 단일 패키지 공통).
 //
 // 로그인 화면과 동일한 대각선 그라데이션(BrandTheme.appfitDefault.loginGradient:
 // topLeft #fb3e7e -> bottomRight #9843cb)을 아이콘 배경에 적용한다.
 //
 // 산출물:
-//   assets/icons/app_icon_standalone_bg.png        - 그라데이션만 (Android adaptive 배경 레이어)
-//   assets/icons/app_icon_standalone.png           - 그라데이션 + 흰색 로고 합성 (Android 레거시 아이콘)
-//   windows/runner/resources/app_icon_standalone.ico - Windows 런처/설치 아이콘
+//   assets/icons/app_icon_korea_bg.png        - 그라데이션만 (Android adaptive 배경 레이어)
+//   assets/icons/app_icon_korea.png           - 그라데이션 + 흰색 로고 합성 (Android 레거시 아이콘)
+//   windows/runner/resources/app_icon.ico     - Windows 런처/설치 아이콘 (단일 공통)
 //
-// 실행: dart run tool/gen_standalone_icon.dart
-// 이후(Android): flutter pub run flutter_launcher_icons -f standalone
-// (Windows ico 는 Runner.rc 가 APPFIT_VARIANT_STANDALONE 일 때 직접 참조하므로 추가 단계 없음)
+// 실행: dart run tool/gen_korea_icon.dart
+// 이후(Android): flutter pub run flutter_launcher_icons  (pubspec 기본 블록 사용)
+// (Windows ico 는 Runner.rc 의 단일 IDI_APP_ICON 이 직접 참조하므로 추가 단계 없음)
 //
 // image 는 flutter_launcher_icons 의 전이 의존성이라 직접 의존성 선언 없이 사용한다.
 // ignore_for_file: depend_on_referenced_packages
@@ -49,7 +49,7 @@ void main() {
     }
   }
 
-  File('assets/icons/app_icon_standalone_bg.png')
+  File('assets/icons/app_icon_korea_bg.png')
       .writeAsBytesSync(img.encodePng(bg));
 
   // 레거시 아이콘: 그라데이션 위에 투명 배경 흰색 로고를 합성.
@@ -65,18 +65,18 @@ void main() {
       : img.copyResize(logo, width: size, height: size);
   final composite = bg.clone();
   img.compositeImage(composite, logoSized);
-  File('assets/icons/app_icon_standalone.png')
+  File('assets/icons/app_icon_korea.png')
       .writeAsBytesSync(img.encodePng(composite));
 
   // Windows 런처/설치 아이콘(.ico) — 합성본을 256px ICO 로 인코딩.
-  // 기존 update 변형 ico(flutter_launcher_icons icon_size: 256)와 동일 규격.
+  // Runner.rc 의 단일 IDI_APP_ICON 이 참조하는 공통 아이콘.
   final ico = img.copyResize(composite, width: 256, height: 256);
-  File('windows/runner/resources/app_icon_standalone.ico')
+  File('windows/runner/resources/app_icon.ico')
       .writeAsBytesSync(img.encodeIco(ico));
 
   stdout.writeln(
-    '생성 완료: assets/icons/app_icon_standalone_bg.png, '
-    'assets/icons/app_icon_standalone.png, '
-    'windows/runner/resources/app_icon_standalone.ico',
+    '생성 완료: assets/icons/app_icon_korea_bg.png, '
+    'assets/icons/app_icon_korea.png, '
+    'windows/runner/resources/app_icon.ico',
   );
 }

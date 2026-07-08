@@ -11,14 +11,16 @@ OTA 서버 배포는 별도(`/deploy-windows`, `deploy_windows.ps1`)다.
 
 `AskUserQuestion` 으로 어떤 산출물을 만들지 묻는다:
 
-- **installer** — `build_installer.ps1` → Inno Setup 으로 `dist\AppfitOrderAgent[-Standalone]-Setup-<semver>.exe` 생성 (신규 설치/재설치용). ISCC(Inno Setup 6) 필요.
+- **installer** — `build_installer.ps1` → Inno Setup 으로 `dist\AppfitOrderAgent[Korea]-Setup-<semver>.exe` 생성 (신규 설치/재설치용). ISCC(Inno Setup 6) 필요.
 - **release_folder** — `build_windows.ps1` → `build\windows\x64\runner\Release` 폴더 빌드 (아카이브 시 `appfit_order_agent_windows.zip` 으로 압축 보관).
 
 ## 2단계 — 변형(variant) 선택
 
+단일 exe(`appfit_order_agent.exe`)로 통합됐다. 변형은 `--dart-define=APPFIT_VARIANT`
+(서버 기본값 + OTA 채널)와 설치본 출력 파일명 라벨만 바꾸며, exe명·CMake 는 동일하다.
 `AskUserQuestion` 으로 변형을 묻는다:
-- **update** — 기존 채널 (대부분의 경우)
-- **standalone** — 병존 설치 채널 (`co.kr.waldlust.order.receive.appfit`, exe 이름 분기)
+- **japan** — 일본 채널 (레거시 ZIP 채널 계속 사용, 대부분의 경우)
+- **korea** — 한국 신규 채널 (미배포)
 
 > Windows 버전 정본은 `version_windows.txt`(`x.y.z+n`)다. pubspec.yaml 아님.
 
@@ -40,7 +42,7 @@ git log --oneline -3
 
 ## 실행 후
 
-- 생성된 산출물 경로(설치본 `.exe` 또는 Release 폴더)와 핵심 파일(`appfit_order_agent[_standalone].exe`, VC++ 런타임 DLL `vcruntime140.dll`/`vcruntime140_1.dll`/`msvcp140.dll`) 포함 여부를 보고
+- 생성된 산출물 경로(설치본 `.exe` 또는 Release 폴더)와 핵심 파일(`appfit_order_agent.exe`, VC++ 런타임 DLL `vcruntime140.dll`/`vcruntime140_1.dll`/`msvcp140.dll`) 포함 여부를 보고
 - **자동 아카이브** 결과를 요약: `!Project Files/appfit_order_agent/windows/<버전>/` 에 산출물 + `release_notes_<변형>.txt` 가 보관되고 폴더가 열린다
 - 빌드 실패 시 오류 메시지를 분석하고 원인·수정 방법을 제안
   - `.env` 누락(APPFIT_AES_KEY, SENTRY_DSN), `version_windows.txt` 형식 오류(`x.y.z+n` 아님), ISCC.exe 미설치(installer) 안내

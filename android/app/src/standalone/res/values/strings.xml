@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <!-- standalone 런처 라벨. 현재는 아이콘(그라데이션)으로 구분하므로 update 와
-         동일한 이름을 쓴다. 이름으로도 구분하려면 이 값만 바꾸면 된다. -->
-    <string name="app_name">Appfit 주문 접수</string>
-</resources>

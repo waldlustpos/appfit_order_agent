@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:appfit_order_agent/config/app_env.dart';
 import 'package:appfit_order_agent/widgets/common/app_loading_indicator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
@@ -942,6 +943,30 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     );
   }
 
+  /// 빌드 variant 고정 국가 표시(KR/JP). 릴리즈 포함 항상 표시하며 제스처는 없다.
+  Widget _buildRegionBadge() {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.s8,
+        vertical: AppSpacing.s4,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.16),
+        borderRadius: AppRadius.bSm,
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.24),
+        ),
+      ),
+      child: Text(
+        AppEnv.isKorea ? 'KR' : 'JP',
+        style: AppTextStyles.caption.copyWith(
+          color: Colors.white,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
   Widget _buildExitButton(BuildContext context) {
     final t = Translations.of(context);
     return AppIconAction(
@@ -1283,16 +1308,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             ),
           ),
 
-          // 개발 계정 선택 (좌측 하단 연타)
-          Positioned(
-            bottom: 0,
-            left: 0,
-            child: GestureDetector(
-              onTap: _onDevAreaTap,
-              behavior: HitTestBehavior.opaque,
-              child: const SizedBox(width: 80, height: 80),
+          // 개발 계정 선택 (좌측 하단 연타) — 릴리즈 산출물에서는 숨김
+          if (AppEnv.showInternalUi)
+            Positioned(
+              bottom: 0,
+              left: 0,
+              child: GestureDetector(
+                onTap: _onDevAreaTap,
+                behavior: HitTestBehavior.opaque,
+                child: const SizedBox(width: 80, height: 80),
+              ),
             ),
-          ),
 
           // 종료 버튼 + 언어 선택 위젯 + 서버 환경 표시 (우측 상단)
           Positioned(
@@ -1312,7 +1338,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                     ],
                   ),
                   const SizedBox(height: AppSpacing.s4),
-                  _buildEnvBadge(),
+                  _buildRegionBadge(),
+                  if (AppEnv.showInternalUi) ...[
+                    const SizedBox(height: AppSpacing.s4),
+                    _buildEnvBadge(),
+                  ],
                 ],
               ),
             ),

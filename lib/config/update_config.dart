@@ -2,39 +2,31 @@ import 'package:appfit_order_agent/config/app_env.dart';
 
 /// Windows 자동업데이트용 상수 모음.
 ///
-/// 배포 변형(update | standalone)에 따라 OTA 채널을 분기한다.
-/// standalone 은 구앱과 병존 설치되므로 update 채널을 오염시키지 않도록
-/// 별도 채널 파일(appfit_order_agent_standalone*_windows*.zip/.json)을 사용하고,
-/// 임시 작업 파일명도 분리해 동시 업데이트 시 충돌을 방지한다.
+/// 단일 exe(appfit_order_agent.exe) + 단일 뮤텍스로 통합되어 두 변형이 같은
+/// 머신에서 동시 실행될 수 없으므로, 임시 작업 파일명은 분리하지 않고 통일한다.
+/// 다만 지역별 서버 기본값이 다르므로 OTA 채널(zip/json)은 접미사로 분리한다.
+///
+/// japan 은 레거시 무접미 채널을 계속 사용한다(동결 아님). Windows 는 패키지
+/// 개념이 없고 통일 후 exe명이 기존 japan 설치본과 동일하므로, 기존 설치본이
+/// 레거시 채널로 자연스럽게 자동 업데이트된다. Android 의 레거시 채널 동결
+/// 정책과는 반대이니 혼동 주의.
 class UpdateConfig {
   static const String _base = 'http://waldpay.kokonutstamp2.com/';
 
-  static const String versionUrl = AppEnv.isStandalone
-      ? '${_base}appfit_order_agent_standalone_windows_version.json'
+  static const String versionUrl = AppEnv.isKorea
+      ? '${_base}appfit_order_agent_korea_windows_version.json'
       : '${_base}appfit_order_agent_windows_version.json';
-  static const String downloadUrl = AppEnv.isStandalone
-      ? '${_base}appfit_order_agent_standalone_windows.zip'
+  static const String downloadUrl = AppEnv.isKorea
+      ? '${_base}appfit_order_agent_korea_windows.zip'
       : '${_base}appfit_order_agent_windows.zip';
 
-  static const String zipFileName = AppEnv.isStandalone
-      ? 'appfit_order_agent_standalone_windows.zip'
-      : 'appfit_order_agent_windows.zip';
-  static const String exeName = AppEnv.isStandalone
-      ? 'appfit_order_agent_standalone.exe'
-      : 'appfit_order_agent.exe';
+  static const String zipFileName = 'appfit_order_agent_windows.zip';
 
-  static const String extractDirName = AppEnv.isStandalone
-      ? 'appfit_order_agent_standalone_update_extracted'
-      : 'appfit_order_agent_update_extracted';
-  static const String updaterBatName = AppEnv.isStandalone
-      ? 'appfit_order_agent_standalone_updater.bat'
-      : 'appfit_order_agent_updater.bat';
-  static const String updaterVbsName = AppEnv.isStandalone
-      ? 'appfit_order_agent_standalone_updater_launcher.vbs'
-      : 'appfit_order_agent_updater_launcher.vbs';
-  static const String updaterLogName = AppEnv.isStandalone
-      ? 'appfit_order_agent_standalone_updater.log'
-      : 'appfit_order_agent_updater.log';
+  static const String extractDirName = 'appfit_order_agent_update_extracted';
+  static const String updaterBatName = 'appfit_order_agent_updater.bat';
+  static const String updaterVbsName =
+      'appfit_order_agent_updater_launcher.vbs';
+  static const String updaterLogName = 'appfit_order_agent_updater.log';
 
   static const Duration connectTimeout = Duration(seconds: 15);
   static const Duration checkReceiveTimeout = Duration(seconds: 10);

@@ -14,12 +14,12 @@
 # This script is for the "initial install" installer only.
 # OTA (zip) publishing continues to use deploy_windows.ps1.
 #
-# Usage: .\build_installer.ps1 [-Variant update|standalone]
+# Usage: .\build_installer.ps1 [-Variant japan|korea]
 ###############################################################################
 
 param(
-    [ValidateSet('update','standalone')]
-    [string]$Variant = 'update'
+    [ValidateSet('japan','korea')]
+    [string]$Variant = 'japan'
 )
 
 # Force UTF-8 console so that ISCC output is readable even if it contains
@@ -29,22 +29,9 @@ $OutputEncoding = [System.Text.Encoding]::UTF8
 chcp 65001 > $null
 
 # === Variant selection ===
-# standalone makes CMake branch the exe name (BINARY_NAME) and compile macros.
-# The CMake cache freezes BINARY_NAME at configure time, so if the previous
-# build used a different variant, wipe build/windows to force a clean reconfigure.
-$VariantSentinel = "build\.appfit_windows_variant"
-$prevVariant = if (Test-Path $VariantSentinel) { (Get-Content $VariantSentinel -Raw).Trim() } else { "" }
-if ($prevVariant -ne $Variant -and (Test-Path "build\windows")) {
-    Write-Host "[INFO] Build variant changed ($prevVariant -> $Variant): cleaning build/windows"
-    Remove-Item "build\windows" -Recurse -Force
-}
-New-Item -ItemType Directory -Force -Path "build" | Out-Null
-Set-Content -Path $VariantSentinel -Value $Variant -NoNewline
-if ($Variant -eq 'standalone') {
-    $env:APPFIT_WINDOWS_VARIANT = 'standalone'
-} else {
-    Remove-Item Env:\APPFIT_WINDOWS_VARIANT -ErrorAction SilentlyContinue
-}
+# Single unified exe name; the variant only drives --dart-define=APPFIT_VARIANT
+# (server default + OTA channel) and the installer's OutputBaseName label
+# (/DKorea below), so no clean reconfigure is needed.
 Write-Host "[INFO] Installer variant: $Variant"
 
 # Path constants
@@ -274,13 +261,13 @@ New-Item -ItemType Directory -Force -Path $DIST_DIR | Out-Null
 # 6) Compile installer via ISCC.exe
 Write-Host "==== 4) Compile installer with Inno Setup ===="
 $isccArgs = @("/DMyAppVersion=$semver")
-if ($Variant -eq 'standalone') { $isccArgs += "/DStandalone=1" }
+if ($Variant -eq 'korea') { $isccArgs += "/DKorea=1" }
 & $iscc @isccArgs $ISS_FILE
 if ($LASTEXITCODE -ne 0) { Write-Error "[ERROR] ISCC compile failed"; exit 1 }
 
 # 7) Verify installer artifact
-if ($Variant -eq 'standalone') {
-    $installerPath = Join-Path $DIST_DIR "AppfitOrderAgentStandalone-Setup-$semver.exe"
+if ($Variant -eq 'korea') {
+    $installerPath = Join-Path $DIST_DIR "AppfitOrderAgentKorea-Setup-$semver.exe"
 } else {
     $installerPath = Join-Path $DIST_DIR "AppfitOrderAgent-Setup-$semver.exe"
 }

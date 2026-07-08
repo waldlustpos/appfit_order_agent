@@ -11,15 +11,15 @@ import 'package:window_manager/window_manager.dart';
 /// 교대 렌더링한다. 드래그는 [windowManager.startDragging], 클릭은
 /// [WindowsBubbleService.exitBubbleMode]로 매핑된다.
 ///
-/// standalone 변형에서는 "주문 있음"(on) 배경을 런처 아이콘과 동일한 대각선
-/// 그라데이션(`bubble_on_standalone.svg`)으로 통일한다. off 상태는 깜빡임
+/// korea 변형에서는 "주문 있음"(on) 배경을 런처 아이콘과 동일한 대각선
+/// 그라데이션(`bubble_on_korea.svg`)으로 통일한다. off 상태는 깜빡임
 /// 대비를 위해 두 변형 모두 흰색을 공용한다.
 class WindowsBubbleOverlay extends StatelessWidget {
   const WindowsBubbleOverlay({super.key});
 
-  /// "주문 있음"(on) 상태 버블 SVG 경로. standalone 은 그라데이션 배경.
-  static const String _onAsset = AppEnv.isStandalone
-      ? 'assets/images/bubble_on_standalone.svg'
+  /// "주문 있음"(on) 상태 버블 SVG 경로. korea 는 그라데이션 배경.
+  static const String _onAsset = AppEnv.isKorea
+      ? 'assets/images/bubble_on_korea.svg'
       : 'assets/images/bubble_on.svg';
 
   @override

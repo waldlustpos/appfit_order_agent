@@ -57,7 +57,7 @@ POST /v0/device/register            // 제안 경로 — 수신단 확정 시 �
   "deviceModel": "D3 MINI",
   "deviceManufacturer": "SUNMI",
   "environment": "live",            // dev | staging | live | japanLive
-  "appVariant": "update",           // update | standalone (AppEnv.isStandalone)
+  "appVariant": "japan",            // japan | korea (AppEnv.region)
   "reportedAt": "2026-07-07T09:00:00Z"
 }
 ```

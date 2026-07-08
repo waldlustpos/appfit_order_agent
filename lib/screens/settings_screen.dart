@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:appfit_order_agent/config/app_env.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:appfit_order_agent/utils/label_painter.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
@@ -651,6 +652,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               onCheckUpdate: _checkUpdateFromSettings,
               onPerformUpdate: _performUpdateFromSettings,
               onDevOptionsTap: () {
+                if (!AppEnv.showInternalUi) return; // 릴리즈에선 진입 불가
                 setState(() {
                   _devOptionsTapCount++;
                   if (_devOptionsTapCount >= 5) {

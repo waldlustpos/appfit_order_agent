@@ -3,6 +3,7 @@ import 'dart:io' show Platform;
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:appfit_order_agent/config/app_env.dart';
 import 'package:appfit_order_agent/constants/app_styles.dart';
 import 'package:appfit_order_agent/constants/brand_theme.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
@@ -463,8 +464,8 @@ class _SettingsRightPanelState extends ConsumerState<SettingsRightPanel> {
             ),
             const SizedBox(height: AppSpacing.s16),
 
-            // ── 서버 설정 카드 (일반 모드만) ───────────────────────────────
-            if (!widget.isKdsMode) ...[
+            // ── 서버 설정 카드 (일반 모드만, 릴리즈 산출물에서는 숨김) ──────
+            if (!widget.isKdsMode && AppEnv.showInternalUi) ...[
               SettingsSectionCard(
                 title: t.settings.section_server,
                 icon: Icons.dns_outlined,
@@ -580,7 +581,7 @@ class _SettingsRightPanelState extends ConsumerState<SettingsRightPanel> {
                 // 탭 영역을 넓고 관대하게: 가로 전체 + 넉넉한 padding +
                 // 빈 공간도 히트되도록 opaque. 손이 빗나가도 개발자 옵션 진입 가능.
                 GestureDetector(
-                  onTap: widget.onDevOptionsTap,
+                  onTap: AppEnv.showInternalUi ? widget.onDevOptionsTap : null,
                   behavior: HitTestBehavior.opaque,
                   child: Container(
                     width: double.infinity,
@@ -590,13 +591,15 @@ class _SettingsRightPanelState extends ConsumerState<SettingsRightPanel> {
                     child: Platform.isWindows
                         ? Text(
                             'v${const String.fromEnvironment('WINDOWS_APP_VERSION', defaultValue: '0.0.0')} '
-                            '(${const String.fromEnvironment('WINDOWS_APP_BUILD', defaultValue: '0')})',
+                            '(${const String.fromEnvironment('WINDOWS_APP_BUILD', defaultValue: '0')})'
+                            ' · ${AppEnv.isKorea ? 'KR' : 'JP'}',
                             style: AppTextStyles.caption
                                 .copyWith(color: AppStyles.gray4),
                           )
                         : ref.watch(appInfoProvider).whenOrNull(
                                   data: (info) => Text(
-                                    'v${info.version} (${info.buildNumber})',
+                                    'v${info.version} (${info.buildNumber})'
+                                    ' · ${AppEnv.isKorea ? 'KR' : 'JP'}',
                                     style: AppTextStyles.caption
                                         .copyWith(color: AppStyles.gray4),
                                   ),
@@ -609,8 +612,11 @@ class _SettingsRightPanelState extends ConsumerState<SettingsRightPanel> {
             const SizedBox(height: AppSpacing.s16),
 
             // ── 로그 전송 카드 (기기 식별 + 기간 선택 + Slack 전송) ──────────
-            const SettingsLogCollectionSection(),
-            const SizedBox(height: AppSpacing.s16),
+            // 릴리즈 산출물에서는 숨김
+            if (AppEnv.showInternalUi) ...[
+              const SettingsLogCollectionSection(),
+              const SizedBox(height: AppSpacing.s16),
+            ],
 
             // ── 개발자 옵션 (숨김) ─────────────────────────────────────────
             if (widget.isDevOptionsVisible) ...[

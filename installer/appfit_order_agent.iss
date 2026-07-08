@@ -1,41 +1,40 @@
 ; ----------------------------------------------------------------------
 ; Appfit Order Agent -- Inno Setup 6 script
 ;
-; Build (update variant, default):
+; Build (japan variant, default):
 ;   ISCC.exe /DMyAppVersion=3.2.1 installer\appfit_order_agent.iss
-; Build (standalone variant, coexists with the old/update app):
-;   ISCC.exe /DMyAppVersion=3.2.1 /DStandalone=1 installer\appfit_order_agent.iss
+; Build (korea variant):
+;   ISCC.exe /DMyAppVersion=3.2.1 /DKorea=1 installer\appfit_order_agent.iss
 ; Output:
-;   dist\AppfitOrderAgent-Setup-<version>.exe            (update)
-;   dist\AppfitOrderAgentStandalone-Setup-<version>.exe  (standalone)
+;   dist\AppfitOrderAgent-Setup-<version>.exe         (japan)
+;   dist\AppfitOrderAgentKorea-Setup-<version>.exe    (korea)
 ;
 ; Notes:
-;   - Each variant's AppId is a permanent GUID. Do NOT regenerate; changing it
-;     causes duplicate entries in "Programs and Features". The two variants use
-;     different AppIds on purpose so they install/uninstall independently.
-;   - AppMutex must match the constant defined in
-;     windows/runner/main.cpp (kSingleInstanceMutexName) for each variant.
-;   - The Korean AppName is kept inside this UTF-8 .iss (not passed via /D) so
-;     the console code page cannot corrupt it.
+;   - Single unified package: korea and japan share the same exe name, AppId,
+;     mutex, and install dir. The region is a runtime concept
+;     (--dart-define=APPFIT_VARIANT), so only ONE build installs per machine and
+;     re-running the other variant's installer UPGRADES in place (does not
+;     coexist). Only the OutputBaseFilename differs, purely to label the setup
+;     file. Do NOT regenerate MyAppId; changing it causes duplicate entries in
+;     "Programs and Features". The retired korea GUID
+;     {{E448C213-990C-AEED-03A8-6A695F9EED14} must never be reused.
+;   - AppMutex must match kSingleInstanceMutexName in windows/runner/main.cpp.
 ; ----------------------------------------------------------------------
 
 #ifndef MyAppVersion
   #define MyAppVersion "0.0.0"
 #endif
 
-#ifdef Standalone
-  #define MyAppName        "Appfit Order Agent"
-  #define MyAppExeName     "appfit_order_agent_standalone.exe"
-  #define MyAppMutex       "Global\AppfitOrderAgentStandalone_SingleInstance_Mutex"
-  #define MyAppId          "{{E448C213-990C-AEED-03A8-6A695F9EED14}"
-  #define MyAppDirName     "AppfitOrderAgentStandalone"
-  #define MyOutputBaseName "AppfitOrderAgentStandalone-Setup-" + MyAppVersion
+#define MyAppName        "Appfit Order Agent"
+#define MyAppExeName     "appfit_order_agent.exe"
+#define MyAppMutex       "Global\AppfitOrderAgent_SingleInstance_Mutex"
+#define MyAppId          "{{8E19A1C4-AFDA-4061-B0FF-186FB71B1745}"
+#define MyAppDirName     "AppfitOrderAgent"
+
+; Only the output setup filename is region-labeled.
+#ifdef Korea
+  #define MyOutputBaseName "AppfitOrderAgentKorea-Setup-" + MyAppVersion
 #else
-  #define MyAppName        "Appfit Order Agent"
-  #define MyAppExeName     "appfit_order_agent.exe"
-  #define MyAppMutex       "Global\AppfitOrderAgent_SingleInstance_Mutex"
-  #define MyAppId          "{{8E19A1C4-AFDA-4061-B0FF-186FB71B1745}"
-  #define MyAppDirName     "AppfitOrderAgent"
   #define MyOutputBaseName "AppfitOrderAgent-Setup-" + MyAppVersion
 #endif
 
@@ -71,11 +70,7 @@ Compression=lzma2/ultra
 SolidCompression=yes
 
 ; === Wizard UI ===
-#ifdef Standalone
-SetupIconFile=..\windows\runner\resources\app_icon_standalone.ico
-#else
 SetupIconFile=..\windows\runner\resources\app_icon.ico
-#endif
 UninstallDisplayIcon={app}\{#MyAppExeName}
 UninstallDisplayName={#MyAppName}
 WizardStyle=modern

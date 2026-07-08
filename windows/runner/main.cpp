@@ -7,19 +7,12 @@
 
 namespace {
 
-// Variant-specific identity. The mutex name must differ between variants so the
-// update and standalone builds do not see each other as "already running"; the
-// window title must differ so each variant only foregrounds its own window.
-// APPFIT_VARIANT_STANDALONE is injected by CMake (see runner/CMakeLists.txt).
-#if defined(APPFIT_VARIANT_STANDALONE)
-constexpr const wchar_t kSingleInstanceMutexName[] =
-    L"Global\\AppfitOrderAgentStandalone_SingleInstance_Mutex";
-constexpr const wchar_t kWindowTitle[] = L"appfit_order_agent_standalone";
-#else
+// Single-instance identity. Unified across korea and japan builds: the region
+// is a runtime concept, so both share one mutex name and window title. Only one
+// instance of the app runs on a machine regardless of region.
 constexpr const wchar_t kSingleInstanceMutexName[] =
     L"Global\\AppfitOrderAgent_SingleInstance_Mutex";
 constexpr const wchar_t kWindowTitle[] = L"appfit_order_agent";
-#endif
 
 // Brings the already-running instance's window to the foreground.
 BOOL CALLBACK BringExistingWindowToFront(HWND hwnd, LPARAM lparam) {
