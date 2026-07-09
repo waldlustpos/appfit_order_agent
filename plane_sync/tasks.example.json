@@ -1,0 +1,14 @@
+[
+  {
+    "name": "외부 영수증 프린터 BUSY backoff 실기기 검증",
+    "description": "PR800/D3MINI 점유 충돌 시 backoff 7회(누적 137s) 동작을 실기기에서 확인한다.\n\nUSB Busy Holder helper APK 로 재현 후 본 앱 측 claimInterface failed 로그를 수집한다.",
+    "priority": "high",
+    "labels": ["printer", "android"]
+  },
+  {
+    "name": "login-bg.png 죽은 자산 669KB 제거",
+    "description": "T2_mini_s UI 성능 감사 후속. 사용되지 않는 login-bg.png 를 자산에서 제거하고 pubspec 갱신.",
+    "priority": "low",
+    "labels": ["cleanup"]
+  }
+]

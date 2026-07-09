@@ -120,6 +120,10 @@ coverage/
 /.env
 lib/config/app_env.dart
 
+# plane_sync (Plane 이슈 동기화 — 상태 사이드카 + 실제 작업 데이터)
+plane_sync/.plane_sync_state.json
+plane_sync/tasks.json
+
 # Claude Code (Personal)
 .claude/settings.local.json
 
