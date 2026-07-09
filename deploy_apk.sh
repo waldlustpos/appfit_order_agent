@@ -7,7 +7,7 @@
 
 # 단일 빌드(단일 패키지 co.kr.waldlust.order.receive.appfit)가 한국/일본을
 # 모두 서빙한다. 서버(live/japanLive)는 앱 로그인 화면에서 런타임 선택되므로
-# 빌드 인자가 없다. OTA 채널은 _appfit 하나만 사용한다.
+# 빌드 인자가 없다. OTA 채널은 _release 하나만 사용한다.
 
 # 0) 사용자 정의 변수
 PROJECT_PATH="."
@@ -23,8 +23,8 @@ REMOTE_DIR="/var/www/docs/waldpay_html"
 #     채널을 폴링 중이라, .appfit 패키지 APK 를 그 이름으로 올리면 패키지
 #     불일치로 설치가 실패한다. 신규 패키지로 수동 재설치되기 전까지 유지.
 ###############################################################################
-APK_NAME="appfit_order_agent_appfit.apk"
-VERSION_JSON_NAME="appfit_order_agent_appfit_version.json"
+APK_NAME="appfit_order_agent_release.apk"
+VERSION_JSON_NAME="appfit_order_agent_release_version.json"
 
 # 1) 프로젝트 디렉토리로 이동
 echo "==== 1) Move to Flutter project path ===="

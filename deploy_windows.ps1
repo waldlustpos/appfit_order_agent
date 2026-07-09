@@ -22,7 +22,7 @@ $REMOTE_HOST       = "52.78.172.188"
 $REMOTE_DIR        = "/var/www/docs/waldpay_html"
 # 채널은 레거시 무접미 하나만 사용한다. Windows 는 패키지 개념이 없고 exe명이
 # 기존 설치본과 동일하므로, 기존 설치본이 이 채널로 자연스럽게 자동 업데이트된다.
-# (Android 는 구 패키지 일본 매장 때문에 무접미 채널을 동결하고 _appfit 채널을
+# (Android 는 구 패키지 일본 매장 때문에 무접미 채널을 동결하고 _release 채널을
 #  사용한다. 정책이 반대이니 혼동 주의.)
 $ZIP_NAME          = "appfit_order_agent_windows.zip"
 $VERSION_JSON_NAME = "appfit_order_agent_windows_version.json"

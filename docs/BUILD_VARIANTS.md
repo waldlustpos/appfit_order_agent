@@ -37,11 +37,11 @@ flowchart TD
 
 | 플랫폼 | 산출물 | OTA 채널 (version JSON / 파일) |
 | --- | --- | --- |
-| Android | `app-release.apk` (패키지 `co.kr.waldlust.order.receive.appfit`) | `appfit_order_agent_appfit_version.json` / `appfit_order_agent_appfit.apk` |
+| Android | `app-release.apk` (패키지 `co.kr.waldlust.order.receive.appfit`) | `appfit_order_agent_release_version.json` / `appfit_order_agent_release.apk` |
 | Windows | `appfit_order_agent.exe` (Release 폴더 ZIP) | `appfit_order_agent_windows_version.json` / `appfit_order_agent_windows.zip` (레거시 무접미 계속 사용) |
 
 - 공통 OTA base URL: `http://waldpay.kokonutstamp2.com/`. 타임아웃: connect 15s / check 10s / download 10m ([update_config.dart](../lib/config/update_config.dart), [ota_config.dart](../lib/config/ota_config.dart)).
-- **Android 레거시 채널 동결(FROZEN)**: 무접미 `appfit_order_agent.apk` / `appfit_order_agent_version.json` 은 구 패키지(`co.kr.waldlust.order.receive`)로 설치된 일본 매장 1곳 전용이라 **업로드 금지**(신규 패키지로 수동 재설치 시까지). 구 `_japan`/`_korea` 채널은 폐기(미사용).
+- **Android 레거시 채널 동결(FROZEN)**: 무접미 `appfit_order_agent.apk` / `appfit_order_agent_version.json` 은 구 패키지(`co.kr.waldlust.order.receive`)로 설치된 일본 매장 1곳 전용이라 **업로드 금지**(신규 패키지로 수동 재설치 시까지). 구 `_japan`/`_korea`/`_appfit` 채널은 폐기(미사용).
 - **Windows 는 레거시 채널이 곧 단일 채널(동결 아님)**: 패키지 개념이 없고 exe명이 동일해 기존 설치본이 자연 업데이트된다. Android 와 정책이 반대이니 주의.
 - 채널이 플랫폼당 하나이므로 업로드 즉시 **한국/일본 동시 롤아웃**된다(지역별 시차 배포 불가).
 
@@ -69,7 +69,7 @@ flowchart LR
 | [main.dart](../lib/main.dart) | 시작 시 저장 환경 로드 + release 클램프 |
 | [login_screen.dart](../lib/screens/login_screen.dart) | 서버 배지·선택 다이얼로그·`_applyEnvironment`·프리픽스 자동 전환 |
 | [brand_registry.dart](../lib/utils/brand_registry.dart) | 브랜드별 `serverEnvironment` SSOT |
-| [ota_config.dart](../lib/config/ota_config.dart) | Android OTA 채널(`_appfit`) + 레거시 동결 경고 |
+| [ota_config.dart](../lib/config/ota_config.dart) | Android OTA 채널(`_release`) + 레거시 동결 경고 |
 | [update_config.dart](../lib/config/update_config.dart) | Windows OTA 채널(레거시 무접미) |
 | [windows/runner/main.cpp](../windows/runner/main.cpp) | 단일 mutex/제목 |
 | [version_windows.txt](../version_windows.txt) | Windows 버전 정본 |

@@ -5,7 +5,7 @@ description: 릴리즈 APK 빌드 (배포 없이 로컬 빌드만)
 ## 1단계: 현재 OTA 배포 서버 버전 확인
 빌드 전에 Bash 툴로 현재 배포 서버에 올라가 있는 버전을 조회해 보고한다:
 ```
-curl -fsS --max-time 10 http://waldpay.kokonutstamp2.com/appfit_order_agent_appfit_version.json
+curl -fsS --max-time 10 http://waldpay.kokonutstamp2.com/appfit_order_agent_release_version.json
 ```
 - 응답은 `{"version": <int>}` 형태(= 현재 배포된 빌드번호).
 - `pubspec.yaml` 의 `version`(예: 3.3.5+148, 빌드번호 148)을 함께 읽어, **배포된 버전 vs 빌드할 버전**을 비교해 알려준다.
@@ -19,7 +19,7 @@ curl -fsS --max-time 10 http://waldpay.kokonutstamp2.com/appfit_order_agent_appf
 ```
 ./build_main.sh
 ```
-OTA 채널은 `_appfit` 하나다 (`lib/config/ota_config.dart`).
+OTA 채널은 `_release` 하나다 (`lib/config/ota_config.dart`).
 
 > ⚠️ 레거시 무접미 채널(`appfit_order_agent_version.json` / `.apk`)은 동결(구 패키지 일본 매장 전용). 이 릴리즈 산출물을 그 채널로 업로드 금지.
 

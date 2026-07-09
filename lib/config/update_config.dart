@@ -3,7 +3,7 @@
 /// 단일 빌드가 한국/일본을 모두 서빙하며 채널은 레거시 무접미 하나만 사용한다.
 /// Windows 는 패키지 개념이 없고 exe명(appfit_order_agent.exe)이 기존 설치본과
 /// 동일하므로, 기존 설치본이 이 채널로 자연스럽게 자동 업데이트된다.
-/// (Android 는 구 패키지 일본 매장 때문에 무접미 채널을 동결하고 `_appfit`
+/// (Android 는 구 패키지 일본 매장 때문에 무접미 채널을 동결하고 `_release`
 /// 채널을 쓴다 — OtaConfig 참조. 정책이 반대이니 혼동 주의.)
 class UpdateConfig {
   static const String _base = 'http://waldpay.kokonutstamp2.com/';

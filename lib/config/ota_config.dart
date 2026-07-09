@@ -1,7 +1,7 @@
 /// Android OTA 자동업데이트용 상수 모음.
 ///
 /// 단일 빌드(단일 패키지 co.kr.waldlust.order.receive.appfit)가 한국/일본을
-/// 모두 서빙하므로 OTA 채널도 `_appfit` 하나만 사용한다. 서버(live/japanLive)는
+/// 모두 서빙하므로 OTA 채널도 `_release` 하나만 사용한다. 서버(live/japanLive)는
 /// 로그인 화면에서 런타임 선택하며 OTA 채널과 무관하다.
 ///
 /// 레거시 무접미 채널(appfit_order_agent.apk / appfit_order_agent_version.json)은
@@ -12,6 +12,6 @@ class OtaConfig {
   static const String _base = 'http://waldpay.kokonutstamp2.com/';
 
   static const String versionUrl =
-      '${_base}appfit_order_agent_appfit_version.json';
-  static const String downloadUrl = '${_base}appfit_order_agent_appfit.apk';
+      '${_base}appfit_order_agent_release_version.json';
+  static const String downloadUrl = '${_base}appfit_order_agent_release.apk';
 }

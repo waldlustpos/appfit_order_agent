@@ -18,7 +18,7 @@ OTA 채널은 레거시 무접미 하나다 (`lib/config/update_config.dart`):
 | `appfit_order_agent_windows.zip` / `appfit_order_agent_windows_version.json` | 한국·일본 전 매장 공용 OTA 채널. 기존 설치본이 자연 업데이트됨 |
 
 > **Android 와 정책이 다르다**: Android 는 구 패키지 일본 매장 때문에 무접미
-> 레거시 채널을 동결하고 `_appfit` 채널을 쓰지만, Windows 는 패키지 개념이 없고
+> 레거시 채널을 동결하고 `_release` 채널을 쓰지만, Windows 는 패키지 개념이 없고
 > exe명이 기존 설치본과 동일해(`appfit_order_agent.exe`) 레거시 무접미 채널을
 > **그대로 계속 사용**한다. 구 `_korea_windows` 채널은 폐기(미사용)됐다.
 

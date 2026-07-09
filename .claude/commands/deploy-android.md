@@ -1,5 +1,5 @@
 ---
-description: Android 릴리즈 APK 빌드 후 Lightsail 서버에 배포 (단일 채널 _appfit)
+description: Android 릴리즈 APK 빌드 후 Lightsail 서버에 배포 (단일 채널 _release)
 ---
 
 이 명령어는 **Android** APK를 빌드해 Lightsail 서버에 업로드하는 **비가역적 배포**다.
@@ -15,7 +15,7 @@ OTA 채널은 하나다 (`lib/config/ota_config.dart`):
 
 | 채널 파일 | 용도 |
 | --- | --- |
-| `appfit_order_agent_appfit_version.json` / `appfit_order_agent_appfit.apk` | 한국·일본 전 매장 공용 OTA 채널 |
+| `appfit_order_agent_release_version.json` / `appfit_order_agent_release.apk` | 한국·일본 전 매장 공용 OTA 채널 |
 
 > ⚠️ **한국/일본 동시 롤아웃**: 채널이 하나이므로 업로드 즉시 양국 매장이 같은
 > 빌드로 업데이트된다. 지역별 시차 배포는 불가능하다.
@@ -25,7 +25,7 @@ OTA 채널은 하나다 (`lib/config/ota_config.dart`):
 > (`co.kr.waldlust.order.receive`)로 설치된 일본 매장 1곳이 이 채널을 폴링 중이라,
 > `.appfit` 패키지 APK 를 올리면 **패키지 불일치로 설치가 실패**한다. 해당 매장이
 > 신규 패키지로 **수동 재설치**되기 전까지 유지한다. `deploy_apk.sh` 는 이 이름으로
-> 업로드하지 않도록 되어 있다. 구 `_japan`/`_korea` 채널은 폐기(미사용)됐다.
+> 업로드하지 않도록 되어 있다. 구 `_japan`/`_korea`/`_appfit` 채널은 폐기(미사용)됐다.
 
 ## 1단계 — 배포 전 상태 확인
 
@@ -36,7 +36,7 @@ git log --oneline -3
 
 **(b) 버전 비교** — 배포할 빌드번호와 현재 서버 버전을 조회해 명시한다:
 - 업데이트할 버전: `pubspec.yaml` 의 `version`(예: `3.3.5+148` → 빌드번호 `148`)을 읽는다. (Android 버전 정본 = pubspec.yaml)
-- 현재 서버 버전: `curl -fsS --max-time 10 http://waldpay.kokonutstamp2.com/appfit_order_agent_appfit_version.json` (응답 `{"version": <int>}` = 현재 배포된 빌드번호)
+- 현재 서버 버전: `curl -fsS --max-time 10 http://waldpay.kokonutstamp2.com/appfit_order_agent_release_version.json` (응답 `{"version": <int>}` = 현재 배포된 빌드번호)
 - 조회 실패(네트워크/404 등) 시: 실패 사실만 알리고 차단하지 않는다(서버에 아직 파일이 없는 첫 배포일 수 있음).
 
 아래 형식으로 **현재 서버 버전 → 업데이트할 버전** 을 보여준다:

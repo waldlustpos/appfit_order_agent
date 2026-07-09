@@ -179,7 +179,7 @@ lib/
 | --- | --- |
 | 서버 결정 | 런타임 — 저장값(`appfit_environment`, 기본 `live`) + 로그인 화면 배지(KR/JP) 탭 선택(릴리즈 live/japanLive 2종) + 매장 ID 프리픽스 자동 전환(`BrandRegistry.serverEnvironment`: TPCP·PAIK→japanLive, MHST·MATA→live) |
 | 미등록 프리픽스 | 명시 선택 이력 없으면 로그인 시 서버선택 다이얼로그 1회 강제 (`appfit_environment_manual_override` 기록) |
-| Android 채널 | `appfit_order_agent_appfit_version.json` / `appfit_order_agent_appfit.apk` (단일) |
+| Android 채널 | `appfit_order_agent_release_version.json` / `appfit_order_agent_release.apk` (단일) |
 | Windows 채널 | `appfit_order_agent_windows_version.json` / `appfit_order_agent_windows.zip` (레거시 무접미 = 단일 채널, 기존 설치본 자연 업데이트) |
 | 병존 설치 | 불가 (머신당 1개, 재설치 시 in-place 업그레이드) |
 

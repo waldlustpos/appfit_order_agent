@@ -44,8 +44,8 @@ flutter test test/<파일_경로>
 - **서버는 런타임 결정**: 서버(live=한국 / japanLive=일본)는 저장값(`PreferenceService.getEnvironment()`, 기본 `live`)으로 시작하고, 로그인 화면 우상단 배지(KR/JP)를 탭해 변경할 수 있습니다(릴리즈는 live/japanLive 2종, 개발 빌드는 dev/staging 포함 4종).
 - **매장 ID 프리픽스 자동 전환**: 로그인 시 입력한 매장코드의 브랜드(`BrandRegistry.serverEnvironment` — TPCP·PAIK→japanLive, MHST·MATA→live)로 서버가 자동 전환됩니다. 미등록 프리픽스는 명시 선택 이력이 없으면 서버선택 다이얼로그를 1회 띄웁니다. release 에서 dev/staging 잔존 저장값은 시작 시 live 로 클램프됩니다(`main.dart`).
 - **OTA 채널은 플랫폼별 1개** (`lib/config/ota_config.dart` / `lib/config/update_config.dart`):
-  - Android — `appfit_order_agent_appfit_version.json` / `appfit_order_agent_appfit.apk`
-    - ⚠️ 레거시 무접미 채널(`appfit_order_agent.apk` / `appfit_order_agent_version.json`)은 **동결(FROZEN)**. 구 패키지(`co.kr.waldlust.order.receive`)로 설치된 일본 매장 1곳 전용이라 `.appfit` APK 를 올리면 패키지 불일치로 설치 실패 — 업로드 금지. 구 `_japan`/`_korea` 채널은 폐기(미사용).
+  - Android — `appfit_order_agent_release_version.json` / `appfit_order_agent_release.apk`
+    - ⚠️ 레거시 무접미 채널(`appfit_order_agent.apk` / `appfit_order_agent_version.json`)은 **동결(FROZEN)**. 구 패키지(`co.kr.waldlust.order.receive`)로 설치된 일본 매장 1곳 전용이라 `.appfit` APK 를 올리면 패키지 불일치로 설치 실패 — 업로드 금지. 구 `_japan`/`_korea`/`_appfit` 채널은 폐기(미사용).
   - Windows — `appfit_order_agent_windows_version.json` / `appfit_order_agent_windows.zip` (레거시 무접미 채널 **계속 사용** — 패키지 개념이 없고 exe명이 동일해 기존 설치본이 자연 업데이트. Android 와 정책 반대)
   - ⚠️ 채널이 하나이므로 업로드 즉시 **한국/일본 동시 롤아웃**됩니다(지역별 시차 배포 불가).
 - **실행**: 모든 빌드/배포 스크립트는 인자가 없습니다 — `./build_main.sh`, `./deploy_apk.sh`, `.\build_windows.ps1`, `.\deploy_windows.ps1`, `.\build_installer.ps1`.
