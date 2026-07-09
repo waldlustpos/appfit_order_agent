@@ -1,55 +1,49 @@
-# 빌드 변형 흐름 (Build Variants Flow)
+# 단일 빌드 모델 (Single Build Flow)
 
-`japan` / `korea` 두 변형이 하나의 코드베이스에서 어떻게 분기되는지의 **시각적 흐름**만 담은 문서다.
-빌드/배포 **명령어·환경설정·인스톨러**는 [docs/BUILD.md](BUILD.md)에 있으므로 여기서는 분기 구조와 채널 분리에 집중한다.
+단일 빌드가 한국/일본을 어떻게 모두 서빙하는지의 **시각적 흐름**만 담은 문서다.
+빌드/배포 **명령어·환경설정·인스톨러**는 [docs/BUILD.md](BUILD.md)에 있으므로 여기서는 서버 결정 구조와 OTA 채널에 집중한다.
 
-> 한 줄 요약: **단일 패키지·단일 exe로 통합**. `--dart-define=APPFIT_VARIANT` → `AppEnv.isKorea` → (release 서버 분기 japanLive/live + UpdateConfig·OtaConfig **OTA 채널만** 분기).
-> applicationId·Windows exe명·mutex·설치 GUID는 국가와 무관하게 하나로 통일되어, **머신당 하나만 설치/실행**된다(병존 불가).
+> 한 줄 요약: **단일 패키지·단일 exe·단일 빌드**. 빌드 변형(`APPFIT_VARIANT` dart-define)은
+> 제거됐고, 서버(live/japanLive)는 **런타임**에 결정된다 — 저장값(기본 live) +
+> 로그인 화면 서버선택 배지 + 매장 ID 프리픽스 자동 전환.
+> applicationId·Windows exe명·mutex·설치 GUID는 국가와 무관하게 하나로 통일되어, **머신당 하나만 설치/실행**된다.
 
 ---
 
-## 1. 변형 분기
+## 1. 서버 결정 (런타임)
 
 ```mermaid
 flowchart TD
-    DEF["빌드 시 --dart-define=APPFIT_VARIANT=japan|korea<br/>(기본 japan)"]
-    ENV["AppEnv.region / AppEnv.isKorea (const)"]
-    DEF --> ENV
-    ENV --> SRV["main.dart release 서버 분기<br/>japan→japanLive / korea→live"]
-    ENV --> UC["UpdateConfig (Windows OTA 채널 URL)"]
-    ENV --> OC["OtaConfig (Android OTA 채널 URL)"]
-    ENV --> BADGE["로그인/설정 KR·JP 배지"]
+    START["앱 시작: PreferenceService.getEnvironment()<br/>(키 appfit_environment, 기본 'live')"]
+    CLAMP["release: dev/staging 잔존값은 live 로 클램프<br/>(main.dart, 저장값도 정정)"]
+    CONF["AppFitConfig.configure(environment)"]
+    BADGE["로그인 우상단 배지(KR/JP) 탭 → 서버선택 다이얼로그<br/>릴리즈 2종(live/japanLive) / 개발 4종(+dev/staging)"]
+    PREFIX["로그인 시 매장 ID 프리픽스 (BrandRegistry)<br/>TPCP·PAIK→japanLive / MHST·MATA→live"]
+    UNKNOWN["미등록 프리픽스 + 명시 선택 이력 없음<br/>→ 서버선택 다이얼로그 1회 강제"]
+
+    START --> CLAMP --> CONF
+    BADGE -->|_applyEnvironment| CONF
+    PREFIX -->|현재 선택과 불일치 시 자동 전환| CONF
+    UNKNOWN --> BADGE
 ```
 
-- `AppEnv.region`은 `String.fromEnvironment('APPFIT_VARIANT', defaultValue: 'japan')`, `isKorea = region == 'korea'` ([app_env.dart](../lib/config/app_env.dart)). 둘 다 **const**여야 함(getter 불가 — 컴파일 타임 트리 셰이킹). dart-define 키 이름은 `APPFIT_VARIANT` 그대로이고 값만 `japan`/`korea` 로 쓴다.
-- release 빌드는 변형에 따라 서버가 고정된다: `main.dart` 가 `AppEnv.isKorea` 로 `japan→japanLive`, `korea→live` 서버를 선택한다(`AppFitConfig.configure` 이전). 서버선택 UI는 릴리즈에서 잠긴다(`AppEnv.showInternalUi`).
-- **Android flavor 없음**: applicationId 는 국가 무관하게 `co.kr.waldlust.order.receive.appfit` 하나. 변형은 dart-define 로만 주입된다.
-- **Windows 네이티브 통일**: exe명(BINARY_NAME)·mutex·윈도우 제목·설치 GUID 가 국가와 무관하게 단일. CMake variant 분기와 `APPFIT_VARIANT_KOREA` 매크로는 제거됐다.
+- 저장 키: `appfit_environment`(기본 `live`), 명시 선택 이력: `appfit_environment_manual_override`(배지/다이얼로그에서 선택 시 기록 — 미등록 프리픽스의 1회 다이얼로그 재출현 방지).
+- 전환 시퀀스([login_screen.dart](../lib/screens/login_screen.dart) `_applyEnvironment`): WebSocket 해제 → 환경 저장 → `AppFitConfig.configure` → 토큰/자격증명 정리 → tokenManager/dio invalidate. `appFitNotifierServiceProvider` 는 invalidate 금지(`late final` — disconnect 만). 순서 변경 금지(서버 전환 후 재로그인 크래시 방어).
+- 프리픽스 자동 전환은 **live/japanLive 세션에서만** 동작한다(개발 빌드의 dev/staging 테스트 보호).
 
 ---
 
-## 2. japan vs korea 비교
+## 2. 산출물과 OTA 채널
 
-> 통합 후 **applicationId·exe명·mutex·설치 GUID·임시 파일은 국가 무관하게 동일**하다.
-> 국가별로 다른 것은 **release 서버**와 **OTA 채널 URL**, 그리고 화면의 **KR/JP 배지**뿐이다.
-
-| 항목 | japan | korea |
+| 플랫폼 | 산출물 | OTA 채널 (version JSON / 파일) |
 | --- | --- | --- |
-| 목표 | 일본 매장 | 한국 신규 900매장(아직 미배포) |
-| applicationId | `co.kr.waldlust.order.receive.appfit` | ← 동일 |
-| release 서버 | `japanLive` | `live` |
-| Windows exe | `appfit_order_agent.exe` | ← 동일 |
-| Windows mutex / 설치 GUID | 단일 | ← 동일 |
-| Windows version json | `appfit_order_agent_windows_version.json` (레거시, 계속 사용) | `appfit_order_agent_korea_windows_version.json` |
-| Windows zip | `appfit_order_agent_windows.zip` (레거시, 계속 사용) | `appfit_order_agent_korea_windows.zip` |
-| Windows installer 출력명 | `AppfitOrderAgent-Setup-<ver>.exe` | `AppfitOrderAgentKorea-Setup-<ver>.exe` |
-| Android version json | `appfit_order_agent_japan_version.json` | `appfit_order_agent_korea_version.json` |
-| Android apk | `appfit_order_agent_japan.apk` | `appfit_order_agent_korea.apk` |
+| Android | `app-release.apk` (패키지 `co.kr.waldlust.order.receive.appfit`) | `appfit_order_agent_appfit_version.json` / `appfit_order_agent_appfit.apk` |
+| Windows | `appfit_order_agent.exe` (Release 폴더 ZIP) | `appfit_order_agent_windows_version.json` / `appfit_order_agent_windows.zip` (레거시 무접미 계속 사용) |
 
 - 공통 OTA base URL: `http://waldpay.kokonutstamp2.com/`. 타임아웃: connect 15s / check 10s / download 10m ([update_config.dart](../lib/config/update_config.dart), [ota_config.dart](../lib/config/ota_config.dart)).
-- **Android 레거시 채널 동결(FROZEN)**: 무접미 `appfit_order_agent.apk` / `appfit_order_agent_version.json` 은 구 패키지(`co.kr.waldlust.order.receive`)로 설치된 일본 매장 1곳 전용이라 **업로드 금지**. 신규 japan 빌드는 `_japan` 채널로 올린다.
-- **Windows japan 은 레거시 채널 계속 사용(동결 아님)**: Windows 는 패키지 개념이 없고 exe명이 통일되어 기존 japan 설치본이 레거시 채널로 자연 업데이트된다. Android 와 정책이 반대이니 주의.
-- 통합으로 두 변형이 같은 머신에서 **병존 불가**(mutex·GUID 단일). 재설치 시 in-place 업그레이드된다.
+- **Android 레거시 채널 동결(FROZEN)**: 무접미 `appfit_order_agent.apk` / `appfit_order_agent_version.json` 은 구 패키지(`co.kr.waldlust.order.receive`)로 설치된 일본 매장 1곳 전용이라 **업로드 금지**(신규 패키지로 수동 재설치 시까지). 구 `_japan`/`_korea` 채널은 폐기(미사용).
+- **Windows 는 레거시 채널이 곧 단일 채널(동결 아님)**: 패키지 개념이 없고 exe명이 동일해 기존 설치본이 자연 업데이트된다. Android 와 정책이 반대이니 주의.
+- 채널이 플랫폼당 하나이므로 업로드 즉시 **한국/일본 동시 롤아웃**된다(지역별 시차 배포 불가).
 
 ---
 
@@ -72,10 +66,11 @@ flowchart LR
 
 | 파일 | 역할 |
 | --- | --- |
-| [app_env.dart](../lib/config/app_env.dart) | `region`/`isKorea`(const, `APPFIT_VARIANT`) |
-| [main.dart](../lib/main.dart) | `AppEnv.isKorea` 로 release 서버(japanLive/live) 분기 |
-| [update_config.dart](../lib/config/update_config.dart) | Windows OTA 채널 URL 분기(임시파일은 통일) |
-| [ota_config.dart](../lib/config/ota_config.dart) | Android OTA 채널 URL 분기(레거시 동결 경고) |
-| [windows/runner/main.cpp](../windows/runner/main.cpp) | 단일 mutex/제목(변형 분기 제거) |
+| [main.dart](../lib/main.dart) | 시작 시 저장 환경 로드 + release 클램프 |
+| [login_screen.dart](../lib/screens/login_screen.dart) | 서버 배지·선택 다이얼로그·`_applyEnvironment`·프리픽스 자동 전환 |
+| [brand_registry.dart](../lib/utils/brand_registry.dart) | 브랜드별 `serverEnvironment` SSOT |
+| [ota_config.dart](../lib/config/ota_config.dart) | Android OTA 채널(`_appfit`) + 레거시 동결 경고 |
+| [update_config.dart](../lib/config/update_config.dart) | Windows OTA 채널(레거시 무접미) |
+| [windows/runner/main.cpp](../windows/runner/main.cpp) | 단일 mutex/제목 |
 | [version_windows.txt](../version_windows.txt) | Windows 버전 정본 |
 | [pubspec.yaml](../pubspec.yaml) | Android 버전 정본 |

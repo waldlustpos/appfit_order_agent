@@ -1,10 +1,8 @@
-import 'package:appfit_order_agent/config/app_env.dart';
-
 /// Android OTA 자동업데이트용 상수 모음.
 ///
-/// 단일 패키지(co.kr.waldlust.order.receive.appfit)로 통합되었으며,
-/// 배포 지역 변형(japan | korea)은 --dart-define=APPFIT_VARIANT 로만 구분한다.
-/// 지역별로 서버 기본값이 다르므로 OTA 채널도 접미사(_japan / _korea)로 분리한다.
+/// 단일 빌드(단일 패키지 co.kr.waldlust.order.receive.appfit)가 한국/일본을
+/// 모두 서빙하므로 OTA 채널도 `_appfit` 하나만 사용한다. 서버(live/japanLive)는
+/// 로그인 화면에서 런타임 선택하며 OTA 채널과 무관하다.
 ///
 /// 레거시 무접미 채널(appfit_order_agent.apk / appfit_order_agent_version.json)은
 /// 동결(FROZEN)한다. 구 패키지(co.kr.waldlust.order.receive)로 설치된 일본 매장
@@ -13,10 +11,7 @@ import 'package:appfit_order_agent/config/app_env.dart';
 class OtaConfig {
   static const String _base = 'http://waldpay.kokonutstamp2.com/';
 
-  static const String versionUrl = AppEnv.isKorea
-      ? '${_base}appfit_order_agent_korea_version.json'
-      : '${_base}appfit_order_agent_japan_version.json';
-  static const String downloadUrl = AppEnv.isKorea
-      ? '${_base}appfit_order_agent_korea.apk'
-      : '${_base}appfit_order_agent_japan.apk';
+  static const String versionUrl =
+      '${_base}appfit_order_agent_appfit_version.json';
+  static const String downloadUrl = '${_base}appfit_order_agent_appfit.apk';
 }

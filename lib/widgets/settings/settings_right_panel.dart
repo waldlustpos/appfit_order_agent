@@ -118,6 +118,13 @@ class _SettingsRightPanelState extends ConsumerState<SettingsRightPanel> {
   final AudioPlayer _audioPlayer = AudioPlayer();
   bool _isVolumeChanging = false;
 
+  /// 버전 라인의 지역 접미. 현재 선택된 서버(런타임)를 따른다.
+  String get _envSuffix => switch (widget.selectedEnv) {
+        'live' => 'KR',
+        'japanLive' => 'JP',
+        _ => widget.selectedEnv,
+      };
+
   @override
   void dispose() {
     _scrollController.dispose();
@@ -592,14 +599,14 @@ class _SettingsRightPanelState extends ConsumerState<SettingsRightPanel> {
                         ? Text(
                             'v${const String.fromEnvironment('WINDOWS_APP_VERSION', defaultValue: '0.0.0')} '
                             '(${const String.fromEnvironment('WINDOWS_APP_BUILD', defaultValue: '0')})'
-                            ' · ${AppEnv.isKorea ? 'KR' : 'JP'}',
+                            ' · $_envSuffix',
                             style: AppTextStyles.caption
                                 .copyWith(color: AppStyles.gray4),
                           )
                         : ref.watch(appInfoProvider).whenOrNull(
                                   data: (info) => Text(
                                     'v${info.version} (${info.buildNumber})'
-                                    ' · ${AppEnv.isKorea ? 'KR' : 'JP'}',
+                                    ' · $_envSuffix',
                                     style: AppTextStyles.caption
                                         .copyWith(color: AppStyles.gray4),
                                   ),

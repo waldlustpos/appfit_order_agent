@@ -14,13 +14,8 @@
 # This script is for the "initial install" installer only.
 # OTA (zip) publishing continues to use deploy_windows.ps1.
 #
-# Usage: .\build_installer.ps1 [-Variant japan|korea]
+# Usage: .\build_installer.ps1
 ###############################################################################
-
-param(
-    [ValidateSet('japan','korea')]
-    [string]$Variant = 'japan'
-)
 
 # Force UTF-8 console so that ISCC output is readable even if it contains
 # localized strings.
@@ -28,11 +23,9 @@ param(
 $OutputEncoding = [System.Text.Encoding]::UTF8
 chcp 65001 > $null
 
-# === Variant selection ===
-# Single unified exe name; the variant only drives --dart-define=APPFIT_VARIANT
-# (server default + OTA channel) and the installer's OutputBaseName label
-# (/DKorea below), so no clean reconfigure is needed.
-Write-Host "[INFO] Installer variant: $Variant"
+# Single unified installer for both regions. The server (live/japanLive) is
+# chosen at runtime on the login screen, so there is no variant argument or
+# APPFIT_VARIANT dart-define injection.
 
 # Path constants
 $BUILD_DIR      = "build\windows\x64"
@@ -160,14 +153,13 @@ Write-Host "[INFO] Windows 버전: $WinBuildName ($WinBuildNumber)"
 function Invoke-FlutterWindowsBuild {
     flutter build windows --release `
         --dart-define-from-file=.env `
-        --dart-define=APPFIT_VARIANT="$Variant" `
         --build-name="$WinBuildName" `
         --build-number="$WinBuildNumber"
 }
 
 # 산출물 무결성 검사: 종료 코드 0 만으로는 부족하다.
 # fresh CMake configure 직후 첫 INSTALL 패스가 비결정적으로 실패하면 exe 는 생기지만
-# data\ (app.so 등) 와 flutter_windows.dll 복사가 통째로 누락된다. 두 파일은 variant 무관이라
+# data\ (app.so 등) 와 flutter_windows.dll 복사가 통째로 누락된다. 두 파일이
 # 깨진 빌드의 확실한 지표가 된다.
 function Test-BuildArtifactComplete {
     return (Test-Path (Join-Path $BUILD_OUTPUT "flutter_windows.dll")) `
@@ -261,16 +253,11 @@ New-Item -ItemType Directory -Force -Path $DIST_DIR | Out-Null
 # 6) Compile installer via ISCC.exe
 Write-Host "==== 4) Compile installer with Inno Setup ===="
 $isccArgs = @("/DMyAppVersion=$semver")
-if ($Variant -eq 'korea') { $isccArgs += "/DKorea=1" }
 & $iscc @isccArgs $ISS_FILE
 if ($LASTEXITCODE -ne 0) { Write-Error "[ERROR] ISCC compile failed"; exit 1 }
 
 # 7) Verify installer artifact
-if ($Variant -eq 'korea') {
-    $installerPath = Join-Path $DIST_DIR "AppfitOrderAgentKorea-Setup-$semver.exe"
-} else {
-    $installerPath = Join-Path $DIST_DIR "AppfitOrderAgent-Setup-$semver.exe"
-}
+$installerPath = Join-Path $DIST_DIR "AppfitOrderAgent-Setup-$semver.exe"
 if (-not (Test-Path $installerPath)) {
     Write-Error "[ERROR] Installer not produced: $installerPath"
     exit 1
@@ -294,4 +281,4 @@ Start-Process "explorer.exe" -ArgumentList "/select,`"$absInstallerPath`""
 
 # 로컬 아카이브 보관 (설치본 .exe 를 버전별 보관 + 노트 기록)
 Write-Host ""
-& "$PSScriptRoot\archive_windows.ps1" -SrcArtifact $installerPath -Variant $Variant
+& "$PSScriptRoot\archive_windows.ps1" -SrcArtifact $installerPath

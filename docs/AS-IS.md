@@ -20,9 +20,9 @@ kokonut_order_agent_v2 의 후속(AppFit 플랫폼 전환) 앱의 현재(As-Is) 
 | i18n | slang standalone CLI — ko(base)/en/ja, 런타임 전환 |
 | 모니터링 | Sentry (`MonitoringService`, appfit_core) — Slack 로그 업로드는 미병합 `feature/remote-log-collection` 브랜치 전용, main에는 로컬 로그 파일 기록만(`WindowsLogFileWriter`) |
 | 배포 채널 | Lightsail OTA 서버 (`waldpay.kokonutstamp2.com`) — Android APK / Windows ZIP + 버전 JSON |
-| 배포 변형 | `update`(기본, 기존 900+ 매장 덮어쓰기) / `standalone`(병존 설치) — `APPFIT_VARIANT` dart-define |
-| 버전 정본 | **이원화**: Android = `pubspec.yaml`(현재 3.0.0+157), Windows = `version_windows.txt`(현재 3.0.0+157). Windows 빌드 스크립트는 pubspec을 읽지 않음 |
-| 패키지 ID | `co.kr.waldlust.order.receive` (standalone: `.appfit` suffix) |
+| 빌드 모델 | **단일 빌드** — flavor·변형 인자 없음. 서버(live/japanLive)는 로그인 화면 런타임 선택 + 매장 ID 프리픽스 자동 전환 (§6.1) |
+| 버전 정본 | **이원화**: Android = `pubspec.yaml`(현재 3.0.0+158), Windows = `version_windows.txt`(현재 3.0.0+157). Windows 빌드 스크립트는 pubspec을 읽지 않음 |
+| 패키지 ID | `co.kr.waldlust.order.receive.appfit` (단일) |
 
 ## 2. 앱 아키텍처
 
@@ -171,22 +171,20 @@ lib/
 
 ## 6. 배포 · OTA
 
-### 6.1 배포 변형 비교 (japan vs korea)
+### 6.1 단일 빌드 · 런타임 서버선택
 
-단일 패키지(`co.kr.waldlust.order.receive.appfit`)·단일 exe(`appfit_order_agent.exe`)로 통합. flavor 없이 `--dart-define=APPFIT_VARIANT=japan|korea` 로만 국가를 구분하며, 국가별로 다른 것은 release 서버·OTA 채널 URL·KR/JP 배지뿐이다.
+단일 패키지(`co.kr.waldlust.order.receive.appfit`)·단일 exe(`appfit_order_agent.exe`)·**단일 빌드**가 한국/일본을 모두 서빙한다. 빌드 변형(`APPFIT_VARIANT` dart-define)은 제거됐다.
 
-| 항목 | japan (기본) | korea |
-| --- | --- | --- |
-| 목표 | 일본 매장 | 신규 900매장 예정(미배포) |
-| Android 패키지 | `co.kr.waldlust.order.receive.appfit` | ← 동일 |
-| Windows exe / 뮤텍스 / 설치 GUID | `appfit_order_agent.exe` / 단일 | ← 동일 |
-| release 서버 | `japanLive` | `live` |
-| Android 채널 | `appfit_order_agent_japan_version.json` / `_japan.apk` | `appfit_order_agent_korea_version.json` / `_korea.apk` |
-| Windows 채널 | `appfit_order_agent_windows_version.json` / `_windows.zip` (레거시 계속 사용) | `appfit_order_agent_korea_windows_version.json` / `_korea_windows.zip` |
-| 병존 설치 | 불가 (머신당 1개, 재설치 시 in-place 업그레이드) | ← 동일 |
+| 항목 | 내용 |
+| --- | --- |
+| 서버 결정 | 런타임 — 저장값(`appfit_environment`, 기본 `live`) + 로그인 화면 배지(KR/JP) 탭 선택(릴리즈 live/japanLive 2종) + 매장 ID 프리픽스 자동 전환(`BrandRegistry.serverEnvironment`: TPCP·PAIK→japanLive, MHST·MATA→live) |
+| 미등록 프리픽스 | 명시 선택 이력 없으면 로그인 시 서버선택 다이얼로그 1회 강제 (`appfit_environment_manual_override` 기록) |
+| Android 채널 | `appfit_order_agent_appfit_version.json` / `appfit_order_agent_appfit.apk` (단일) |
+| Windows 채널 | `appfit_order_agent_windows_version.json` / `appfit_order_agent_windows.zip` (레거시 무접미 = 단일 채널, 기존 설치본 자연 업데이트) |
+| 병존 설치 | 불가 (머신당 1개, 재설치 시 in-place 업그레이드) |
 
-- 분기 메커니즘: 빌드 시 `--dart-define=APPFIT_VARIANT=japan|korea` → `AppEnv.region`/`AppEnv.isKorea`(**const** 필수, `lib/config/app_env.dart`) → `main.dart` release 서버 고정 + `UpdateConfig`(Windows)·`OtaConfig`(Android) 컴파일 타임 채널 URL 분기. exe명·뮤텍스·설치 GUID 는 국가와 무관하게 통일(CMake variant 분기 제거).
-- **Android 레거시 무접미 채널 동결(FROZEN)**: 구 패키지(`co.kr.waldlust.order.receive`)로 설치된 일본 매장 1곳 전용 — 업로드 금지, 신규 japan 은 `_japan` 채널. Windows japan 은 레거시 채널을 계속 사용(패키지 개념 없어 자연 업데이트, 정책 반대).
+- 전환 시퀀스는 `login_screen.dart _applyEnvironment` — WebSocket 해제 → 환경 저장 → `AppFitConfig.configure` → 자격증명 정리 → tokenManager/dio invalidate (`appFitNotifierServiceProvider` invalidate 금지, 순서 변경 금지).
+- **Android 레거시 무접미 채널 동결(FROZEN)**: 구 패키지(`co.kr.waldlust.order.receive`)로 설치된 일본 매장 1곳 전용 — 업로드 금지(수동 재설치 시까지). 구 `_japan`/`_korea` 채널은 폐기(미사용). 채널이 하나이므로 업로드 즉시 한국/일본 동시 롤아웃된다.
 - 공통 OTA base URL: `http://waldpay.kokonutstamp2.com/`. 타임아웃: connect 15s / check 10s / download 10m.
 
 ### 6.2 버전 정본 이원화

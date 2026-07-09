@@ -1,21 +1,16 @@
 ; ----------------------------------------------------------------------
 ; Appfit Order Agent -- Inno Setup 6 script
 ;
-; Build (japan variant, default):
+; Build:
 ;   ISCC.exe /DMyAppVersion=3.2.1 installer\appfit_order_agent.iss
-; Build (korea variant):
-;   ISCC.exe /DMyAppVersion=3.2.1 /DKorea=1 installer\appfit_order_agent.iss
 ; Output:
-;   dist\AppfitOrderAgent-Setup-<version>.exe         (japan)
-;   dist\AppfitOrderAgentKorea-Setup-<version>.exe    (korea)
+;   dist\AppfitOrderAgent-Setup-<version>.exe
 ;
 ; Notes:
-;   - Single unified package: korea and japan share the same exe name, AppId,
-;     mutex, and install dir. The region is a runtime concept
-;     (--dart-define=APPFIT_VARIANT), so only ONE build installs per machine and
-;     re-running the other variant's installer UPGRADES in place (does not
-;     coexist). Only the OutputBaseFilename differs, purely to label the setup
-;     file. Do NOT regenerate MyAppId; changing it causes duplicate entries in
+;   - Single unified build for both regions (KR/JP). The server (live/japanLive)
+;     is selected at runtime on the app's login screen, so there is no region
+;     define and only ONE build installs per machine.
+;     Do NOT regenerate MyAppId; changing it causes duplicate entries in
 ;     "Programs and Features". The retired korea GUID
 ;     {{E448C213-990C-AEED-03A8-6A695F9EED14} must never be reused.
 ;   - AppMutex must match kSingleInstanceMutexName in windows/runner/main.cpp.
@@ -31,12 +26,7 @@
 #define MyAppId          "{{8E19A1C4-AFDA-4061-B0FF-186FB71B1745}"
 #define MyAppDirName     "AppfitOrderAgent"
 
-; Only the output setup filename is region-labeled.
-#ifdef Korea
-  #define MyOutputBaseName "AppfitOrderAgentKorea-Setup-" + MyAppVersion
-#else
-  #define MyOutputBaseName "AppfitOrderAgent-Setup-" + MyAppVersion
-#endif
+#define MyOutputBaseName "AppfitOrderAgent-Setup-" + MyAppVersion
 
 #define MyAppPublisher  "waldlust"
 #define MyAppURL        "http://waldpay.kokonutstamp2.com/"

@@ -3,15 +3,14 @@
 # 해당 버전 폴더를 탐색기로 연다. (PowerShell)
 #
 # 사용법:
-#   .\archive_windows.ps1 -SrcArtifact <경로> [-Variant japan|korea] [-ArchiveBase <dir>]
+#   .\archive_windows.ps1 -SrcArtifact <경로> [-ArchiveBase <dir>]
 #     - -SrcArtifact : 보관할 산출물. 다음 셋 중 하나
 #         * ZIP 파일 (deploy_windows.ps1 산출물)        → 그대로 복사
 #         * 설치본 .exe (build_installer.ps1 산출물)    → 그대로 복사
 #         * Release 폴더 (build_windows.ps1 산출물)     → <project>_windows.zip 으로 압축해 보관
-#     - -Variant     : japan(기본) | korea  (appfit 은 변형이 둘)
 #     - -ArchiveBase : 공용 보관소 베이스 (기본: ~\Documents\!Project Files)
 #
-# 보관 구조: <ArchiveBase>\<프로젝트명>\windows\<버전>\<산출물> + release_notes_<variant>.txt
+# 보관 구조: <ArchiveBase>\<프로젝트명>\windows\<버전>\<산출물> + release_notes.txt
 #   예) C:\Users\<user>\Documents\!Project Files\appfit_order_agent\windows\3.3.6+152\
 #
 # 버전 정본: appfit Windows 는 version_windows.txt 가 정본 (pubspec.yaml 과 분리).
@@ -22,7 +21,6 @@
 
 param(
     [Parameter(Mandatory = $true)][string]$SrcArtifact,
-    [ValidateSet('japan', 'korea')][string]$Variant = 'japan',
     [string]$ArchiveBase = (Join-Path $env:USERPROFILE 'Documents\!Project Files')
 )
 
@@ -87,8 +85,8 @@ try {
     exit 0
 }
 
-# 빌드 노트 기록 (variant 별 분리, 덮어쓰기)
-$notesFile = Join-Path $archiveDir "release_notes_$Variant.txt"
+# 빌드 노트 기록 (덮어쓰기)
+$notesFile = Join-Path $archiveDir "release_notes.txt"
 $gitLog = (git log --oneline -5 2>$null)
 if (-not $gitLog) { $gitLog = '(git 정보 없음)' }
 
@@ -96,7 +94,6 @@ $notes = @"
 === $projectName Windows 빌드 노트 ===
 버전: $version
 빌드번호: $buildNumber
-변형(variant): $Variant
 패키지명: $appId
 빌드 일시: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
 산출물: $artifactName

@@ -10,27 +10,25 @@ PC 에서 이 저장소를 `git pull` 한 뒤 아래 절차대로 실행하세�
 
 ## 전제
 - 빌드/배포 스크립트가 산출물을 만든 상태.
-- appfit 은 변형이 둘입니다: `japan`(기본) / `korea`. 단일 패키지·단일 exe(`appfit_order_agent.exe`)이고 국가는 dart-define 로만 구분하며, ZIP 채널만 분리됩니다. 패키지는 둘 다 `co.kr.waldlust.order.receive.appfit`.
-  - japan → ZIP: `appfit_order_agent_windows.zip` (레거시 채널 계속 사용)
-  - korea → ZIP: `appfit_order_agent_korea_windows.zip`
+- appfit 은 **단일 빌드**입니다: 단일 패키지(`co.kr.waldlust.order.receive.appfit`)·단일 exe(`appfit_order_agent.exe`)가 한국/일본을 모두 서빙하고, 서버(live/japanLive)는 앱 로그인 화면에서 런타임 선택됩니다. ZIP 채널도 하나입니다: `appfit_order_agent_windows.zip`.
 - 버전 정본은 `version_windows.txt` 입니다 (pubspec.yaml 과 분리).
 
 ## 입력(`-SrcArtifact`) — 3가지 산출물 지원
 | 산출물 | 생성 스크립트 | 보관 방식 |
 | --- | --- | --- |
 | ZIP 파일 | `deploy_windows.ps1` | 그대로 복사 |
-| 설치본 `.exe` | `build_installer.ps1` (`dist\AppfitOrderAgent[Korea]-Setup-<semver>.exe`) | 그대로 복사 |
+| 설치본 `.exe` | `build_installer.ps1` (`dist\AppfitOrderAgent-Setup-<semver>.exe`) | 그대로 복사 |
 | Release 폴더 | `build_windows.ps1` (`build\windows\x64\runner\Release`) | `appfit_order_agent_windows.zip` 으로 압축 |
 
 ## 실행 (수동)
 프로젝트 루트(`pubspec.yaml` 이 있는 폴더)에서 PowerShell 로:
 
 ```powershell
-# ZIP 보관 (update)
+# ZIP 보관
 .\archive_windows.ps1 -SrcArtifact .\appfit_order_agent_windows.zip
 
-# 설치본 보관 (korea)
-.\archive_windows.ps1 -SrcArtifact .\dist\AppfitOrderAgentKorea-Setup-3.3.6.exe -Variant korea
+# 설치본 보관
+.\archive_windows.ps1 -SrcArtifact .\dist\AppfitOrderAgent-Setup-3.3.6.exe
 
 # Release 폴더 보관 (폴더를 주면 자동으로 ZIP 압축)
 .\archive_windows.ps1 -SrcArtifact .\build\windows\x64\runner\Release
@@ -49,11 +47,11 @@ powershell -ExecutionPolicy Bypass -File .\archive_windows.ps1 -SrcArtifact .\ap
 ```
 <ArchiveBase>\appfit_order_agent\windows\<버전>\
    ├─ appfit_order_agent_windows.zip      (또는 설치본 .exe)
-   └─ release_notes_japan.txt             (또는 release_notes_korea.txt)
+   └─ release_notes.txt
 ```
 예: `C:\Users\<user>\Documents\!Project Files\appfit_order_agent\windows\3.3.6+152\`
 
-`release_notes_<variant>.txt` 에는 버전 / 빌드번호 / 패키지명 / 빌드 일시 / 산출물 파일명 /
+`release_notes.txt` 에는 버전 / 빌드번호 / 패키지명 / 빌드 일시 / 산출물 파일명 /
 최근 git 커밋 5개가 기록됩니다. 완료 후 해당 버전 폴더가 탐색기로 열립니다.
 
 ## 동작 메모

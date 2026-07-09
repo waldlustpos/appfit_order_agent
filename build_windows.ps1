@@ -1,10 +1,5 @@
 ﻿# 윈도우 릴리스 빌드 스크립트 (PowerShell)
-# 사용법: .\build_windows.ps1 [-Variant japan|korea]
-
-param(
-    [ValidateSet('japan','korea')]
-    [string]$Variant = 'japan'
-)
+# 사용법: .\build_windows.ps1
 
 # 콘솔/파이프라인 인코딩 UTF-8 고정 (한글 출력 깨짐 방지)
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
@@ -13,13 +8,11 @@ chcp 65001 > $null
 
 $ErrorActionPreference = "Stop"
 
-# === Build variant selection ===
-# Single unified exe name for both regions. The variant only drives the
-# --dart-define=APPFIT_VARIANT injected below (server default + OTA channel),
-# NOT the on-disk exe name or CMake config, so no clean reconfigure is needed
-# when switching variants (Flutter fingerprints the dart-define change itself).
+# Single unified build for both regions. The server (live/japanLive) is chosen
+# at runtime on the login screen, so there is no variant argument or
+# APPFIT_VARIANT dart-define injection.
 $ExeName = 'appfit_order_agent.exe'
-Write-Host "[INFO] Build variant: $Variant (exe: $ExeName)" -ForegroundColor Cyan
+Write-Host "[INFO] Build exe: $ExeName" -ForegroundColor Cyan
 
 Write-Host "🚀 Windows Release 빌드 시작..." -ForegroundColor Green
 Write-Host ""
@@ -62,7 +55,6 @@ function Invoke-FlutterWindowsBuild {
         --dart-define-from-file=.env `
         --dart-define=WINDOWS_APP_VERSION="$WinBuildName" `
         --dart-define=WINDOWS_APP_BUILD="$WinBuildNumber" `
-        --dart-define=APPFIT_VARIANT="$Variant" `
         --build-name="$WinBuildName" `
         --build-number="$WinBuildNumber"
 }
@@ -188,4 +180,4 @@ Write-Host "ℹ️  Release 폴더 전체를 ZIP 으로 압축해 배포하면 �
 
 # --- 로컬 아카이브 보관 (Release 폴더를 ZIP 으로 압축해 버전별 보관 + 노트 기록 + 폴더 열기) ---
 Write-Host ""
-& "$PSScriptRoot\archive_windows.ps1" -SrcArtifact $buildOutput -Variant $Variant
+& "$PSScriptRoot\archive_windows.ps1" -SrcArtifact $buildOutput

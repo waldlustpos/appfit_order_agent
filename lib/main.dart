@@ -79,18 +79,24 @@ void main() async {
   final preferenceServiceForEnv = PreferenceService();
   await preferenceServiceForEnv.init();
   final savedEnv = preferenceServiceForEnv.getEnvironment();
-  // 릴리즈 산출물은 빌드 변형(japan/korea)으로 서버를 고정한다.
-  // 개발(debug/profile)에서는 서버선택 UI로 고른 저장값을 그대로 사용해
-  // dev/staging 테스트를 허용한다.
-  final environment = kReleaseMode
-      ? (AppEnv.isKorea ? AppFitEnvironment.live : AppFitEnvironment.japanLive)
-      : switch (savedEnv) {
-          'live' => AppFitEnvironment.live,
-          'japanLive' => AppFitEnvironment.japanLive,
-          'dev' => AppFitEnvironment.dev,
-          'staging' => AppFitEnvironment.staging,
-          _ => AppFitEnvironment.live,
-        };
+  // 단일 빌드: 서버는 런타임 저장값(로그인 화면 서버선택 + 매장 ID 프리픽스
+  // 자동 전환)으로 결정한다. 릴리즈는 live/japanLive 만 허용하며 dev/staging
+  // 잔존값은 live 로 클램프한다(개발 빌드에서 넘어온 기기 방어).
+  var environment = switch (savedEnv) {
+    'live' => AppFitEnvironment.live,
+    'japanLive' => AppFitEnvironment.japanLive,
+    'dev' => AppFitEnvironment.dev,
+    'staging' => AppFitEnvironment.staging,
+    _ => AppFitEnvironment.live,
+  };
+  if (kReleaseMode &&
+      environment != AppFitEnvironment.live &&
+      environment != AppFitEnvironment.japanLive) {
+    environment = AppFitEnvironment.live;
+    // 저장값도 함께 정정해 로그인 화면 배지·프리픽스 자동 전환 로직과
+    // 어긋나지 않게 한다.
+    await preferenceServiceForEnv.setEnvironment('live');
+  }
 
   // AppFit 공통 패키지 설정
   AppFitConfig.configure(

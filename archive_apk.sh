@@ -4,11 +4,10 @@
 # APK 산출물을 로컬 공용 보관소에 아카이브하고 빌드 노트를 기록한 뒤
 # 해당 버전 폴더를 Finder 로 연다.
 #
-# 사용법: bash ./archive_apk.sh <built_apk_path> <flavor>
+# 사용법: bash ./archive_apk.sh <built_apk_path>
 #   - <built_apk_path> : 보관할 APK 파일 경로
-#   - <flavor>         : japan(기본) | korea
 #
-# 보관 구조: <ARCHIVE_BASE>/<프로젝트명>/apk/<버전>/<APK> + release_notes_<flavor>.txt
+# 보관 구조: <ARCHIVE_BASE>/<프로젝트명>/apk/<버전>/<APK> + release_notes.txt
 #   예) /Users/.../!Project Files/appfit_order_agent/apk/3.3.6+152/
 #
 # 주의: deploy/build 가 이미 끝난 뒤 호출되므로, 아카이브 실패가 전체 흐름을
@@ -16,7 +15,6 @@
 ###############################################################################
 
 SRC_APK="$1"
-FLAVOR="${2:-japan}"
 
 # 공용 보관소 베이스. archive_windows.ps1 과 동일하게 홈 디렉터리에서 동적으로
 # 구해 머신/OS 에 무관하게 동작한다 (macOS: /Users/<user>, Windows Git Bash:
@@ -56,13 +54,12 @@ cp "$SRC_APK" "$ARCHIVE_DIR/" || {
   exit 0
 }
 
-# 빌드 노트 기록 (flavor 별 분리, 덮어쓰기)
-NOTES_FILE="$ARCHIVE_DIR/release_notes_${FLAVOR}.txt"
+# 빌드 노트 기록 (덮어쓰기)
+NOTES_FILE="$ARCHIVE_DIR/release_notes.txt"
 {
   echo "=== $PROJECT_NAME 빌드 노트 ==="
   echo "버전: $VERSION"
   echo "빌드번호: $BUILD_NUMBER"
-  echo "변형(flavor): $FLAVOR"
   echo "패키지명: $APP_ID"
   echo "빌드 일시: $(date '+%Y-%m-%d %H:%M:%S')"
   echo "APK 파일: $(basename "$SRC_APK")"

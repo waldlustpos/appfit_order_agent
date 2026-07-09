@@ -5,10 +5,10 @@ project(appfit_order_agent LANGUAGES CXX)
 # The name of the executable created for the application. Change this to change
 # the on-disk name of your application.
 #
-# Single unified exe name for both korea and japan builds. The region is a
-# runtime concept (--dart-define=APPFIT_VARIANT), not a separate on-disk
-# identity, so there is no per-variant binary name. OTA channels differ only by
-# the download URL (see lib/config/update_config.dart), not by exe name.
+# Single unified exe name for both korea and japan. The server (live/japanLive)
+# is selected at runtime on the app's login screen, so there is no per-region
+# binary name or build-time define. The OTA channel is a single URL
+# (see lib/config/update_config.dart).
 set(BINARY_NAME "appfit_order_agent")
 
 # Explicitly opt in to modern CMake behaviors to avoid warnings with recent

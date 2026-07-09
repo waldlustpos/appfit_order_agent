@@ -1,6 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50" width="50" height="50">
+  <defs>
+    <linearGradient id="bubbleGrad" x1="0" y1="0" x2="50" y2="50" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FB3E7E"/>
+      <stop offset="0.4" stop-color="#E63F8E"/>
+      <stop offset="0.7" stop-color="#C541A8"/>
+      <stop offset="1" stop-color="#9843CB"/>
+    </linearGradient>
+  </defs>
   <path d="M25,0.25c8.816,0 15.015,1.762 19.002,5.748C47.988,9.985 49.75,16.184 49.75,25c0,8.816 -1.762,15.015 -5.748,19.002C40.015,47.988 33.816,49.75 25,49.75c-8.816,0 -15.015,-1.762 -19.002,-5.748C2.012,40.015 0.25,33.816 0.25,25c0,-8.816 1.762,-15.015 5.748,-19.002C9.985,2.012 16.184,0.25 25,0.25z"
-        fill="#FB3E7E" stroke="#FB3E7E" stroke-width="0.5" stroke-opacity="0.1" fill-rule="evenodd"/>
+        fill="url(#bubbleGrad)" stroke="#FB3E7E" stroke-width="0.5" stroke-opacity="0.1" fill-rule="evenodd"/>
   <path d="M28.5,33c0,2.21 -1.567,4 -3.5,4s-3.5,-1.79 -3.5,-4h0M18.5,20.587c-0.685,4.009 -1.156,5.944 -3.5,6.517L15,32.6h20v-5.496c-2.052,-0.502 -2.815,-2.508 -3.5,-6.517C30.979,17.54 29.6,14 25,14S19.021,17.54 18.5,20.587z"
         fill="none" stroke="#FFFFFF" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" fill-rule="evenodd"/>
 </svg>

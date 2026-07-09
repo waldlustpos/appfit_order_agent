@@ -2,23 +2,17 @@
 # Flutter Windows Release 빌드 후 Lightsail(EC2) 서버에 ZIP 업로드 및
 # Windows 버전 JSON 자동 업데이트 스크립트 (PowerShell)
 #
-# 사용법: .\deploy_windows.ps1 [-Variant japan|korea]
+# 사용법: .\deploy_windows.ps1
 ###############################################################################
-
-param(
-    [ValidateSet('japan','korea')]
-    [string]$Variant = 'japan'
-)
 
 # 콘솔/파이프라인 인코딩 UTF-8 고정 (한글 출력 깨짐 방지)
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $OutputEncoding = [System.Text.Encoding]::UTF8
 chcp 65001 > $null
 
-# === Deploy variant selection ===
-# Single unified exe name; the variant only drives --dart-define=APPFIT_VARIANT
-# (server default + OTA channel), so no clean reconfigure is needed.
-Write-Host "[INFO] Deploy variant: $Variant"
+# Single unified build for both regions. The server (live/japanLive) is chosen
+# at runtime on the login screen, so there is no variant argument or
+# APPFIT_VARIANT dart-define injection.
 
 # 0) 사용자 정의 변수
 # Windows OpenSSH scp는 -i 경로에 슬래시(/) 사용 필요
@@ -26,17 +20,12 @@ $PEM_KEY_PATH      = ($env:USERPROFILE + "/.ssh/LightsailDefaultKey-ap-northeast
 $REMOTE_USER       = "ec2-user"
 $REMOTE_HOST       = "52.78.172.188"
 $REMOTE_DIR        = "/var/www/docs/waldpay_html"
-# ZIP/JSON 채널은 지역별 서버 기본값이 다르므로 분리 유지한다.
-# 주의: japan 은 레거시 무접미 채널을 계속 사용한다(동결 아님). Windows 는 패키지
-# 개념이 없고 exe명이 통일되어 기존 japan 설치본이 이 채널로 자연 업데이트된다.
-# (Android 의 레거시 채널 '동결' 정책과 반대이니 혼동 주의 — Android 는 _japan 신규 채널.)
-if ($Variant -eq 'korea') {
-    $ZIP_NAME          = "appfit_order_agent_korea_windows.zip"
-    $VERSION_JSON_NAME = "appfit_order_agent_korea_windows_version.json"
-} else {
-    $ZIP_NAME          = "appfit_order_agent_windows.zip"
-    $VERSION_JSON_NAME = "appfit_order_agent_windows_version.json"
-}
+# 채널은 레거시 무접미 하나만 사용한다. Windows 는 패키지 개념이 없고 exe명이
+# 기존 설치본과 동일하므로, 기존 설치본이 이 채널로 자연스럽게 자동 업데이트된다.
+# (Android 는 구 패키지 일본 매장 때문에 무접미 채널을 동결하고 _appfit 채널을
+#  사용한다. 정책이 반대이니 혼동 주의.)
+$ZIP_NAME          = "appfit_order_agent_windows.zip"
+$VERSION_JSON_NAME = "appfit_order_agent_windows_version.json"
 $BUILD_DIR         = "build\windows\x64"
 $CACHE_FILE        = "$BUILD_DIR\CMakeCache.txt"
 $BUILD_OUTPUT      = "$BUILD_DIR\runner\Release"
@@ -144,7 +133,6 @@ Write-Host "[INFO] Windows 버전: $WinBuildName ($WinBuildNumber)"
 
 flutter build windows --release `
     --dart-define-from-file=.env `
-    --dart-define=APPFIT_VARIANT="$Variant" `
     --build-name="$WinBuildName" `
     --build-number="$WinBuildNumber"
 if ($LASTEXITCODE -ne 0) { Write-Error "[오류] Flutter Windows 빌드 실패!"; exit 1 }
@@ -265,7 +253,7 @@ Write-Host "[INFO] version JSON 업로드 완료: version = $buildNumber"
 
 # 6) 로컬 아카이브 보관 + 노트 기록 + 폴더 열기 (배포 성공분만 보관)
 Write-Host "==== 6) Archive Windows ZIP to local Project Files ===="
-& "$PSScriptRoot\archive_windows.ps1" -SrcArtifact $ZIP_NAME -Variant $Variant
+& "$PSScriptRoot\archive_windows.ps1" -SrcArtifact $ZIP_NAME
 
 Write-Host "###############################################################################"
 Write-Host "[완료] Windows 배포 완료!"

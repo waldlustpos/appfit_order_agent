@@ -396,7 +396,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         }
 
         // 자동 로그인 수행
-        await _login();
+        await _login(isAutoAttempt: true);
       } else {
         logger.w(
             '[LoginScreen] 자동 로그인 실패: 저장된 비밀번호가 없거나 비어 있습니다. (최초 1회 수동 로그인 필요)');
@@ -414,7 +414,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     });
   }
 
-  Future<void> _login() async {
+  Future<void> _login({bool isAutoAttempt = false}) async {
     logToFile(tag: LogTag.API, message: '로그인시도');
 
     // 인터넷 연결 확인
@@ -426,6 +426,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       if (!_formKey.currentState!.validate()) {
         return;
       }
+    }
+
+    // 매장 ID 프리픽스로 서버 환경을 결정한다. 자동 로그인은 저장 ID·저장
+    // 환경이 이전 세션에서 이미 정합이므로 개입하지 않는다.
+    if (!isAutoAttempt) {
+      final canProceed = await _resolveEnvironmentForStoreId(
+        _idController.text.trim().toUpperCase(),
+      );
+      if (!canProceed) return;
     }
 
     // 로그인 시도 전에 현재 선택된 탭의 모드 설정을 먼저 저장
@@ -906,13 +915,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   }
 
   String _envLabel(String env) => switch (env) {
-        'live' => 'Live',
-        'japanLive' => 'JP Live',
+        'live' => 'KR · Live',
+        'japanLive' => 'JP · Live',
         'dev' => 'Dev',
         'staging' => 'Stage',
         _ => env,
       };
 
+  /// 우상단 배지용 축약 라벨. 운영 환경은 지역(KR/JP)만 표시한다.
+  String _envBadgeLabel(String env) => switch (env) {
+        'live' => 'KR',
+        'japanLive' => 'JP',
+        _ => _envLabel(env),
+      };
+
+  /// 현재 서버 환경 배지(우상단, 릴리즈 포함 항상 표시). 탭하면 서버선택
+  /// 다이얼로그가 열린다 — 릴리즈는 live/japanLive 2종, 개발은 4종.
   Widget _buildEnvBadge() {
     return GestureDetector(
       onTap: _showEnvSelectDialog,
@@ -932,36 +950,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              _envLabel(_selectedEnv),
-              style: AppTextStyles.caption.copyWith(color: Colors.white),
+              _envBadgeLabel(_selectedEnv),
+              style: AppTextStyles.caption.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+              ),
             ),
             const SizedBox(width: AppSpacing.s4),
             const Icon(Icons.arrow_drop_down, size: 14, color: Colors.white),
           ],
-        ),
-      ),
-    );
-  }
-
-  /// 빌드 variant 고정 국가 표시(KR/JP). 릴리즈 포함 항상 표시하며 제스처는 없다.
-  Widget _buildRegionBadge() {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.s8,
-        vertical: AppSpacing.s4,
-      ),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.16),
-        borderRadius: AppRadius.bSm,
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.24),
-        ),
-      ),
-      child: Text(
-        AppEnv.isKorea ? 'KR' : 'JP',
-        style: AppTextStyles.caption.copyWith(
-          color: Colors.white,
-          fontWeight: FontWeight.w700,
         ),
       ),
     );
@@ -1043,7 +1040,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
   Future<void> _showEnvSelectDialog() async {
     final t = Translations.of(context);
-    final envOptions = ['dev', 'staging', 'live', 'japanLive'];
+    // 릴리즈 출고본은 운영 2종만 노출한다. dev/staging 은 개발 빌드 전용.
+    const envOptions = AppEnv.showInternalUi
+        ? ['dev', 'staging', 'live', 'japanLive']
+        : ['live', 'japanLive'];
 
     final selected = await showDialog<String>(
       context: context,
@@ -1165,15 +1165,34 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       },
     );
 
-    if (selected == null || selected == _selectedEnv) return;
+    if (selected == null) return;
+    if (selected == _selectedEnv) {
+      // 변경이 없어도 명시적 확인으로 기록한다 — 미등록 프리픽스 로그인의
+      // 1회 지정 다이얼로그가 같은 선택을 반복해서 묻지 않게 한다.
+      await ref
+          .read(preferenceServiceProvider)
+          .setEnvironmentManualOverride(true);
+      return;
+    }
 
-    // 이전 환경 잔존 상태 제거: WebSocket 해제 → 자격증명/토큰 정리 → Provider invalidate
+    await _applyEnvironment(selected, reason: '수동 선택');
+  }
+
+  /// 서버 환경 전환을 적용한다.
+  ///
+  /// 이전 환경 잔존 상태 제거: WebSocket 해제 → 환경 저장 → AppFitConfig 재구성
+  /// → 자격증명/토큰 정리 → Provider invalidate. (서버 전환 후 재로그인 크래시
+  /// 방어 시퀀스 — 순서 변경 금지)
+  Future<void> _applyEnvironment(String env, {required String reason}) async {
     ref.read(authProvider.notifier).unauthenticate();
 
     final preferenceService = ref.read(preferenceServiceProvider);
-    await preferenceService.setEnvironment(selected);
+    await preferenceService.setEnvironment(env);
+    // 환경이 명시적으로 확정됐음을 기록한다(설정 화면 경로와 동일 정책).
+    // 미등록 프리픽스 로그인의 1회 지정 다이얼로그 재출현을 막는다.
+    await preferenceService.setEnvironmentManualOverride(true);
 
-    final newEnvironment = switch (selected) {
+    final newEnvironment = switch (env) {
       'live' => AppFitEnvironment.live,
       'japanLive' => AppFitEnvironment.japanLive,
       'dev' => AppFitEnvironment.dev,
@@ -1202,8 +1221,43 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     // LateInitializationError 발생. disconnect() 만으로 이전 연결 정리 충분하며
     // 재로그인 시 같은 인스턴스에 새 shopCode/projectId/apiKey 로 connect() 호출.
 
-    setState(() => _selectedEnv = selected);
-    logger.i('[LoginScreen] 서버 환경 수동 변경: → $selected');
+    if (mounted) {
+      setState(() => _selectedEnv = env);
+    }
+    logger.i('[LoginScreen] 서버 환경 전환($reason): → $env');
+  }
+
+  /// 로그인 직전 매장 ID 프리픽스로 서버 환경을 결정한다.
+  ///
+  /// live/japanLive 운영 세션에서만 동작한다(dev/staging 개발 테스트 보호).
+  /// - 등록 브랜드: BrandRegistry.serverEnvironment 와 현재 선택이 다르면
+  ///   자동 전환한다.
+  /// - 미등록 프리픽스: 명시 선택 이력(manual override)이 없으면 서버선택
+  ///   다이얼로그로 1회 지정을 요구한다. 취소하면 false → 로그인 중단.
+  Future<bool> _resolveEnvironmentForStoreId(String storeId) async {
+    if (_selectedEnv != 'live' && _selectedEnv != 'japanLive') return true;
+
+    final brand = BrandRegistry.resolveOrNull(storeId);
+    if (brand != null) {
+      final target = brand.serverEnvironment;
+      if (target != _selectedEnv) {
+        await _applyEnvironment(target,
+            reason: '브랜드 ${brand.storeIdPrefix} 프리픽스 자동');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Server → ${_envLabel(target)}')),
+          );
+        }
+      }
+      return true;
+    }
+
+    final preferenceService = ref.read(preferenceServiceProvider);
+    if (preferenceService.getEnvironmentManualOverride()) return true;
+
+    // 미등록 프리픽스 + 명시 이력 없음 → 서버를 1회 지정하게 한다.
+    await _showEnvSelectDialog();
+    return preferenceService.getEnvironmentManualOverride();
   }
 
   void _onDevAreaTap() {
@@ -1338,11 +1392,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                     ],
                   ),
                   const SizedBox(height: AppSpacing.s4),
-                  _buildRegionBadge(),
-                  if (AppEnv.showInternalUi) ...[
-                    const SizedBox(height: AppSpacing.s4),
-                    _buildEnvBadge(),
-                  ],
+                  _buildEnvBadge(),
                 ],
               ),
             ),

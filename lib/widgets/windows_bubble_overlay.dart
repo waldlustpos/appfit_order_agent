@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:appfit_order_agent/config/app_env.dart';
 import 'package:appfit_order_agent/services/windows_bubble_service.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -11,16 +10,13 @@ import 'package:window_manager/window_manager.dart';
 /// 교대 렌더링한다. 드래그는 [windowManager.startDragging], 클릭은
 /// [WindowsBubbleService.exitBubbleMode]로 매핑된다.
 ///
-/// korea 변형에서는 "주문 있음"(on) 배경을 런처 아이콘과 동일한 대각선
-/// 그라데이션(`bubble_on_korea.svg`)으로 통일한다. off 상태는 깜빡임
-/// 대비를 위해 두 변형 모두 흰색을 공용한다.
+/// "주문 있음"(on) 배경은 런처 아이콘과 동일한 대각선 그라데이션으로 통일했고,
+/// off 상태는 깜빡임 대비를 위해 흰색을 사용한다.
 class WindowsBubbleOverlay extends StatelessWidget {
   const WindowsBubbleOverlay({super.key});
 
-  /// "주문 있음"(on) 상태 버블 SVG 경로. korea 는 그라데이션 배경.
-  static const String _onAsset = AppEnv.isKorea
-      ? 'assets/images/bubble_on_korea.svg'
-      : 'assets/images/bubble_on.svg';
+  /// "주문 있음"(on) 상태 버블 SVG 경로.
+  static const String _onAsset = 'assets/images/bubble_on.svg';
 
   @override
   Widget build(BuildContext context) {

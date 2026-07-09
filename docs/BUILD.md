@@ -2,7 +2,7 @@
 
 빌드 명령어, 환경 변수, 다국어(Slang) 워크플로 등 작업 시점에만 필요한 참조 정보입니다.
 
-> 변형(japan/korea) 분기·채널 분리·버전 이원화를 도식으로 본 문서: [docs/BUILD_VARIANTS.md](BUILD_VARIANTS.md).
+> 단일 빌드 모델(런타임 서버선택)·OTA 채널·버전 이원화를 도식으로 본 문서: [docs/BUILD_VARIANTS.md](BUILD_VARIANTS.md).
 
 ## 빌드 및 실행 명령어
 
@@ -22,13 +22,11 @@ flutter analyze
 # 릴리즈 APK 빌드 (.env 파일에 APPFIT_AES_KEY, SENTRY_DSN 필요)
 flutter build apk --release --dart-define-from-file=.env
 
-# 전체 클린 + 빌드 (변형 인자: japan[기본] | korea)
+# 전체 클린 + 빌드 (단일 빌드 — 인자 없음)
 ./build_main.sh
-./build_main.sh korea
 
-# 빌드 + Lightsail 서버 배포 (SCP 업로드 + 버전 JSON 업데이트, 변형 인자 동일)
+# 빌드 + Lightsail 서버 배포 (SCP 업로드 + 버전 JSON 업데이트)
 ./deploy_apk.sh
-./deploy_apk.sh korea
 
 # 전체 테스트 실행
 flutter test
@@ -39,25 +37,19 @@ flutter test test/<파일_경로>
 
 **중요**: 모델(`freezed`/`json_serializable`)·프로바이더(`riverpod_generator`)를 변경한 후에는 `flutter pub run build_runner build --delete-conflicting-outputs`를, i18n JSON(`*.i18n.json`)을 변경한 후에는 `flutter pub run slang`을 재실행해야 합니다. **slang 은 standalone 설정(`slang_build_runner` 미사용)이라 build_runner 로는 `strings.g.dart` 가 갱신되지 않습니다.** Flutter 프로젝트라 `dart run` 은 SDK 해석 에러가 나므로 `flutter pub run` 을 씁니다. `.g.dart` 또는 `.freezed.dart`로 끝나는 생성된 파일은 절대 직접 수정하지 않습니다.
 
-## 배포 변형 (japan / korea) 과 OTA 채널
+## 단일 빌드와 런타임 서버선택, OTA 채널
 
-**단일 패키지(`co.kr.waldlust.order.receive.appfit`)·단일 exe(`appfit_order_agent.exe`)로 통합**되었습니다. Android flavor 는 없고, 국가는 `--dart-define=APPFIT_VARIANT` 로만 구분합니다. 국가별로 다른 것은 **release 서버**와 **OTA 채널 URL**, 화면의 **KR/JP 배지**뿐입니다.
+**단일 패키지(`co.kr.waldlust.order.receive.appfit`)·단일 exe(`appfit_order_agent.exe`)·단일 빌드**가 한국/일본을 모두 서빙합니다. 빌드 변형·flavor·`APPFIT_VARIANT` dart-define 은 없습니다.
 
-| 변형 | applicationId / Windows exe | 용도 |
-| --- | --- | --- |
-| `japan` (기본) | `co.kr.waldlust.order.receive.appfit` / `appfit_order_agent.exe` | 일본 매장. release 서버 `japanLive`. |
-| `korea` | `co.kr.waldlust.order.receive.appfit` / `appfit_order_agent.exe` | 한국 신규 900매장 예정(아직 미배포). release 서버 `live`. |
-
-- **빌드 타임 식별**: 스크립트가 변형에 맞춰 `--dart-define=APPFIT_VARIANT=<japan|korea>` 를 주입합니다(dart-define 키 이름은 `APPFIT_VARIANT` 그대로, 값만 변경). Dart 측은 `AppEnv.region` / `AppEnv.isKorea`(`lib/config/app_env.dart`)으로 읽습니다.
-- **release 서버 고정**: release 빌드는 변형에 따라 서버가 고정됩니다. `main.dart` 가 `AppEnv.isKorea` 로 `japan→japanLive`, `korea→live` 를 선택합니다.
-- **OTA URL 분기**: `OtaConfig`(Android, `lib/config/ota_config.dart`)·`UpdateConfig`(Windows, `lib/config/update_config.dart`)가 `AppEnv.isKorea` 로 채널 URL만 컴파일 타임 분기합니다(임시 작업 파일명은 통일 — exe·mutex 단일화로 병존 실행이 불가하므로 분리 불필요).
-- **채널 파일명**:
-  - Android — japan: `appfit_order_agent_japan_version.json` / `_japan.apk`, korea: `appfit_order_agent_korea_version.json` / `_korea.apk`
-    - ⚠️ 레거시 무접미 채널(`appfit_order_agent.apk` / `appfit_order_agent_version.json`)은 **동결(FROZEN)**. 구 패키지(`co.kr.waldlust.order.receive`)로 설치된 일본 매장 1곳 전용이라 `.appfit` APK 를 올리면 패키지 불일치로 설치 실패 — 업로드 금지.
-  - Windows — japan: `appfit_order_agent_windows_version.json` / `_windows.zip`(레거시 **계속 사용**, 동결 아님), korea: `appfit_order_agent_korea_windows_version.json` / `_korea_windows.zip`
-    - Windows 는 패키지 개념이 없고 exe명이 통일되어 기존 japan 설치본이 레거시 채널로 자연 업데이트됩니다(Android 와 정책 반대).
-- **실행**: 모든 빌드/배포 스크립트가 변형 인자를 받습니다 — `./build_main.sh korea`, `./deploy_apk.sh korea`, `.\build_windows.ps1 -Variant korea`, `.\deploy_windows.ps1 -Variant korea`, `.\build_installer.ps1 -Variant korea`. 인자 생략 시 `japan`.
-- Android 는 flavor 없이 `defaultConfig` 의 단일 applicationId 를 쓰고, Windows exe명(CMake BINARY_NAME)·mutex·설치 GUID 도 국가와 무관하게 통일됐습니다. 따라서 한 머신에 두 변형이 **병존 설치되지 않으며**, 재설치 시 in-place 업그레이드됩니다.
+- **서버는 런타임 결정**: 서버(live=한국 / japanLive=일본)는 저장값(`PreferenceService.getEnvironment()`, 기본 `live`)으로 시작하고, 로그인 화면 우상단 배지(KR/JP)를 탭해 변경할 수 있습니다(릴리즈는 live/japanLive 2종, 개발 빌드는 dev/staging 포함 4종).
+- **매장 ID 프리픽스 자동 전환**: 로그인 시 입력한 매장코드의 브랜드(`BrandRegistry.serverEnvironment` — TPCP·PAIK→japanLive, MHST·MATA→live)로 서버가 자동 전환됩니다. 미등록 프리픽스는 명시 선택 이력이 없으면 서버선택 다이얼로그를 1회 띄웁니다. release 에서 dev/staging 잔존 저장값은 시작 시 live 로 클램프됩니다(`main.dart`).
+- **OTA 채널은 플랫폼별 1개** (`lib/config/ota_config.dart` / `lib/config/update_config.dart`):
+  - Android — `appfit_order_agent_appfit_version.json` / `appfit_order_agent_appfit.apk`
+    - ⚠️ 레거시 무접미 채널(`appfit_order_agent.apk` / `appfit_order_agent_version.json`)은 **동결(FROZEN)**. 구 패키지(`co.kr.waldlust.order.receive`)로 설치된 일본 매장 1곳 전용이라 `.appfit` APK 를 올리면 패키지 불일치로 설치 실패 — 업로드 금지. 구 `_japan`/`_korea` 채널은 폐기(미사용).
+  - Windows — `appfit_order_agent_windows_version.json` / `appfit_order_agent_windows.zip` (레거시 무접미 채널 **계속 사용** — 패키지 개념이 없고 exe명이 동일해 기존 설치본이 자연 업데이트. Android 와 정책 반대)
+  - ⚠️ 채널이 하나이므로 업로드 즉시 **한국/일본 동시 롤아웃**됩니다(지역별 시차 배포 불가).
+- **실행**: 모든 빌드/배포 스크립트는 인자가 없습니다 — `./build_main.sh`, `./deploy_apk.sh`, `.\build_windows.ps1`, `.\deploy_windows.ps1`, `.\build_installer.ps1`.
+- Android 는 flavor 없이 `defaultConfig` 의 단일 applicationId 를 쓰고, Windows exe명(CMake BINARY_NAME)·mutex·설치 GUID 도 국가와 무관하게 통일됐습니다. 한 머신에 하나만 설치되며, 재설치 시 in-place 업그레이드됩니다.
 
 ## Windows 빌드 / 배포 / 인스톨러
 

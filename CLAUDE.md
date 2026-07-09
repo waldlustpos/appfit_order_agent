@@ -4,7 +4,7 @@
 
 **AppFit 주문 에이전트** — 카페·음식 업종에서 키오스크/모바일 주문을 접수·관리하는 Flutter 앱. **Android 가로 전용 + Windows 데스크톱**, 메인 모드(주문 접수)와 KDS 모드(주방 디스플레이) 토글. 주력 디바이스: Sunmi D3 MINI, D2s_KDS, Windows POS.
 
-- 패키지: `co.kr.waldlust.order.receive.appfit` (한국/일본 단일 통합, 국가는 `--dart-define=APPFIT_VARIANT=japan|korea` 로만 구분 — flavor 없음)
+- 패키지: `co.kr.waldlust.order.receive.appfit` (한국/일본 단일 빌드 — flavor·변형 인자 없음. 서버 live/japanLive 는 로그인 화면에서 런타임 선택, 매장 ID 프리픽스로 자동 전환)
 - Dart SDK: ^3.5.0, Flutter: >=3.19.0
 - Android: minSdk 24, targetSdk 35
 - Windows: x64 release, Inno Setup 6 인스톨러, 단일 인스턴스 뮤텍스

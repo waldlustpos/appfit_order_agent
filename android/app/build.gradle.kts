@@ -37,8 +37,9 @@ android {
     }
 
     defaultConfig {
-        // 단일 패키지로 통합. 한국/일본은 --dart-define=APPFIT_VARIANT 로만 구분하며
-        // applicationId 는 국가 무관하게 .appfit 하나로 고정한다.
+        // 단일 빌드가 한국/일본을 모두 서빙한다. 서버(live/japanLive)는 앱
+        // 로그인 화면에서 런타임 선택하며, applicationId 는 국가 무관하게
+        // .appfit 하나로 고정한다.
         // namespace(co.kr.waldlust.order.receive)는 R클래스/매니페스트 병합용이라
         // applicationId 와 달라도 무방하므로 그대로 둔다.
         applicationId = "co.kr.waldlust.order.receive.appfit"
