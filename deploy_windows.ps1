@@ -133,6 +133,8 @@ Write-Host "[INFO] Windows 버전: $WinBuildName ($WinBuildNumber)"
 
 flutter build windows --release `
     --dart-define-from-file=.env `
+    --dart-define=WINDOWS_APP_VERSION="$WinBuildName" `
+    --dart-define=WINDOWS_APP_BUILD="$WinBuildNumber" `
     --build-name="$WinBuildName" `
     --build-number="$WinBuildNumber"
 if ($LASTEXITCODE -ne 0) { Write-Error "[오류] Flutter Windows 빌드 실패!"; exit 1 }
