@@ -3,6 +3,8 @@
 빌드 명령어, 환경 변수, 다국어(Slang) 워크플로 등 작업 시점에만 필요한 참조 정보입니다.
 
 > 단일 빌드 모델(런타임 서버선택)·OTA 채널·버전 이원화를 도식으로 본 문서: [docs/BUILD_VARIANTS.md](BUILD_VARIANTS.md).
+>
+> 배포 채널 정책(OTA + Sunmi App Store 이중 채널, 롤아웃 순서·핫픽스 절차)의 정본: [docs/RELEASE.md](RELEASE.md).
 
 ## 빌드 및 실행 명령어
 
