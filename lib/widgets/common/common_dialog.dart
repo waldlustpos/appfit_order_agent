@@ -390,6 +390,7 @@ class CommonDialog {
             VoidCallback onDone,
             Function(String error) onError)
         onStartUpdate,
+    VoidCallback? onCancel,
   }) async {
     return await showDialog<bool>(
       context: context,
@@ -398,6 +399,7 @@ class CommonDialog {
         return _UpdateProgressDialog(
           updateInfo: updateInfo,
           onStartUpdate: onStartUpdate,
+          onCancel: onCancel,
         );
       },
     );
@@ -450,9 +452,14 @@ class _UpdateProgressDialog extends StatefulWidget {
       VoidCallback onDone,
       Function(String error) onError) onStartUpdate;
 
+  /// 다운로드 진행 중 취소(X/취소 버튼) 또는 다이얼로그 dispose 시 호출.
+  /// OTA 다운로드 태스크·폴링 타이머를 실제로 중단시키는 책임을 호출부에 위임한다.
+  final VoidCallback? onCancel;
+
   const _UpdateProgressDialog({
     required this.updateInfo,
     required this.onStartUpdate,
+    this.onCancel,
   });
 
   @override
@@ -467,12 +474,35 @@ class _UpdateProgressDialogState extends State<_UpdateProgressDialog> {
   bool _downloadError = false;
   String _errorMessage = '';
 
+  /// 취소가 이미 처리됐는지(버튼 ↔ dispose 이중 호출 방지).
+  bool _canceled = false;
+
+  /// 다운로드 진행 중 X/취소 버튼 처리: OTA 태스크·폴링을 중단시키고 다이얼로그를 닫는다.
+  void _cancelDownload() {
+    if (_canceled) return;
+    _canceled = true;
+    widget.onCancel?.call();
+    if (mounted) Navigator.of(context).pop(false);
+  }
+
+  @override
+  void dispose() {
+    // 다른 경로(라우트 pop 등)로 다이얼로그가 사라져도 진행 중 다운로드가 남지 않도록 정리.
+    if (_isDownloading && !_canceled) {
+      _canceled = true;
+      widget.onCancel?.call();
+    }
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
       title: _dialogTitleWithClose(
         title: Text(t.dialog.update.title, style: AppTextStyles.title),
-        onClose: _isDownloading ? null : () => Navigator.of(context).pop(false),
+        onClose: _isDownloading
+            ? _cancelDownload
+            : () => Navigator.of(context).pop(false),
       ),
       titlePadding: const EdgeInsets.fromLTRB(
         AppSpacing.s24,
@@ -660,8 +690,7 @@ class _UpdateProgressDialogState extends State<_UpdateProgressDialog> {
               ),
               minimumSize: const Size(100, 45),
             ),
-            onPressed:
-                _isDownloading ? null : () => Navigator.of(context).pop(false),
+            onPressed: _cancelDownload,
             child: Text(
               t.common.cancel,
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -707,6 +736,7 @@ class _UpdateProgressDialogState extends State<_UpdateProgressDialog> {
           }
         },
         () {
+          if (!mounted) return;
           setState(() {
             _downloadComplete = true;
             _isDownloading = false;
@@ -715,6 +745,7 @@ class _UpdateProgressDialogState extends State<_UpdateProgressDialog> {
           });
         },
         (error) {
+          if (!mounted) return;
           setState(() {
             _downloadError = true;
             _errorMessage = error;

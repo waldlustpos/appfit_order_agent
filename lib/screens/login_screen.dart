@@ -345,6 +345,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               onError: onError,
             );
           },
+          onCancel: () {
+            logger.i('[OTA] 사용자 다운로드 취소');
+            otaManager.cancelUpdate();
+          },
         );
 
         if (shouldDownload == true) {

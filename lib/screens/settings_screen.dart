@@ -305,6 +305,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           onError: onError,
         );
       },
+      onCancel: () => otaManager.cancelUpdate(),
     );
   }
 
