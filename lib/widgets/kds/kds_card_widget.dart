@@ -46,7 +46,8 @@ class KdsCardHeaderWidget extends ConsumerWidget {
           AppStyles.orderSourcePalette(source, isCancelled: true),
       };
     }
-    final type = detailedOrder.detectSpecialProductType();
+    // 매장/포장 구분은 카드에 표시하지 않으므로(다이얼로그 배지에서만) 기본 팔레트 사용.
+    const type = SpecialProductType.none;
     return switch (cardType) {
       CardType.progress => AppStyles.orderPalette(type),
       CardType.pickup => AppStyles.orderPalette(type, muted: true),
@@ -78,7 +79,7 @@ class KdsCardHeaderWidget extends ConsumerWidget {
             children: [
               Flexible(
                 child: Text(
-                  '${detailedOrder.getOrderPrefix()}  ${order.displayNum}',
+                  order.displayNum,
                   style: AppTextStyles.titleSm.copyWith(color: palette.fg),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,

@@ -287,7 +287,7 @@ class ApiService {
           userName: data['userNickname'] as String?,
           tel: data['userPhone'] as String?,
           note: data['note'] as String?,
-          orderType: data['orderType'] as String? ?? 'IN_SHOP',
+          orderType: data['orderType'] as String? ?? 'TAKE_OUT',
           kdsOrderType: 0,
           kioskId: '',
           source: data['orderSource'] as String? ?? '',
@@ -420,7 +420,7 @@ class ApiService {
             paymentType: item['paymentMethod'] as String? ?? 'CARD',
             paymentCode: '1',
             menus: [], // 목록에서는 상세 메뉴 없음
-            orderType: item['orderType'] as String? ?? 'IN_SHOP',
+            orderType: item['orderType'] as String? ?? 'TAKE_OUT',
             kdsOrderType: 0,
             kioskId: '',
             source: item['orderSource'] as String? ?? '',

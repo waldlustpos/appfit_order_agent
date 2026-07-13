@@ -436,6 +436,29 @@ class OrderModel {
       return _cachedSpecialProductType!;
     }
 
+    // orderType 기반 우선 판별 — 상세(menus) 없이 목록의 orderType 필드만으로 매장/포장을
+    // 판별한다. 메인 모드 카드는 상세를 프리페치하지 않으므로 이 경로로 프리픽스를 표시한다.
+    // AppFit 신규: IN_SHOP/TAKE_OUT, 레거시(키오스크): H/T/C.
+    if (orderType.isNotEmpty) {
+      switch (orderType) {
+        case 'T':
+        case 'TAKE_OUT':
+          _cachedSpecialProductType = SpecialProductType.takeout;
+          break;
+        case 'H':
+        case 'IN_SHOP':
+          _cachedSpecialProductType = SpecialProductType.dineIn;
+          break;
+        case 'C':
+          _cachedSpecialProductType = SpecialProductType.both;
+          break;
+        default:
+          _cachedSpecialProductType = SpecialProductType.none;
+      }
+      return _cachedSpecialProductType!;
+    }
+
+    // orderType 이 빈 값 → 상세(menus)의 메모/상품코드로 판별 (상세 로드 후에만 정확).
     if (orderMenuList.isEmpty) {
       _cachedSpecialProductType = SpecialProductType.none;
       return _cachedSpecialProductType!;
@@ -444,69 +467,52 @@ class OrderModel {
     bool hasDineIn = false;
     bool hasTakeout = false;
 
-    //밀키프레소인경우 끝
-
-    if (orderType.isNotEmpty) {
-      if (orderType == 'T') {
-        _cachedSpecialProductType = SpecialProductType.takeout;
-      } else if (orderType == 'H') {
-        _cachedSpecialProductType = SpecialProductType.dineIn;
-      } else if (orderType == 'C') {
-        _cachedSpecialProductType = SpecialProductType.both;
-      } else {
-        _cachedSpecialProductType = SpecialProductType.none;
+    //메모 문구로 판별
+    List<String> _takeoutMemo = ['테이크아웃', '포장'];
+    List<String> _dineInMemo = ['먹고갈게요', '매장'];
+    String specialMemo = note ?? '';
+    if (specialMemo.isNotEmpty) {
+      if (_dineInMemo.any((element) => specialMemo.contains(element))) {
+        hasDineIn = true;
+      }
+      if (_takeoutMemo.any((element) => specialMemo.contains(element))) {
+        hasTakeout = true;
       }
     } else {
-      //메모 문구로 판별
-      List<String> _takeoutMemo = ['테이크아웃', '포장'];
-      List<String> _dineInMemo = ['먹고갈게요', '매장'];
-      String specialMemo = note ?? '';
-      if (specialMemo.isNotEmpty) {
-        if (_dineInMemo.any((element) => specialMemo.contains(element))) {
-          hasDineIn = true;
-        }
-        if (_takeoutMemo.any((element) => specialMemo.contains(element))) {
-          hasTakeout = true;
-        }
-      } else {
-        _cachedSpecialProductType = SpecialProductType.none;
-      }
-
-      if (storeId.toLowerCase().startsWith('k064')) {
-        // ... (existing k064 logic)
-        //밀키프레소인경우 상품코드로 다시 판별
-        // none: 해당 없음, dineIn: 매장, takeout: 포장, both: 매장+포장
-        // 코드 매핑: '000101' ↔ 매장, '000103' ↔ 포장 (요구사항 기준 가정)
-
-        String dineInCodeForAmericano = '000101';
-        String takeoutCodeForAmericano = '000102';
-        String dineInCode = '000103';
-        String takeoutCode = '000104';
-
-        for (final menu in orderMenuList) {
-          // 메뉴 상품코드는 보지 않고, 옵션 상품코드만 체크
-          for (final option in menu.options) {
-            final opt = option.shopOptionId;
-            if (opt == dineInCode || opt == dineInCodeForAmericano) {
-              hasDineIn = true;
-            } else if (opt == takeoutCode || opt == takeoutCodeForAmericano) {
-              hasTakeout = true;
-            }
-          }
-          if (hasDineIn && hasTakeout) {
-            _cachedSpecialProductType = SpecialProductType.both;
-            return _cachedSpecialProductType!;
-          }
-        }
-
-        _cachedSpecialProductType = hasDineIn
-            ? SpecialProductType.dineIn
-            : (hasTakeout
-                ? SpecialProductType.takeout
-                : SpecialProductType.none);
-      }
+      _cachedSpecialProductType = SpecialProductType.none;
     }
 
+    if (storeId.toLowerCase().startsWith('k064')) {
+      //밀키프레소인경우 상품코드로 다시 판별
+      // none: 해당 없음, dineIn: 매장, takeout: 포장, both: 매장+포장
+      // 코드 매핑: '000101' ↔ 매장, '000103' ↔ 포장 (요구사항 기준 가정)
+      String dineInCodeForAmericano = '000101';
+      String takeoutCodeForAmericano = '000102';
+      String dineInCode = '000103';
+      String takeoutCode = '000104';
+
+      for (final menu in orderMenuList) {
+        // 메뉴 상품코드는 보지 않고, 옵션 상품코드만 체크
+        for (final option in menu.options) {
+          final opt = option.shopOptionId;
+          if (opt == dineInCode || opt == dineInCodeForAmericano) {
+            hasDineIn = true;
+          } else if (opt == takeoutCode || opt == takeoutCodeForAmericano) {
+            hasTakeout = true;
+          }
+        }
+        if (hasDineIn && hasTakeout) {
+          _cachedSpecialProductType = SpecialProductType.both;
+          return _cachedSpecialProductType!;
+        }
+      }
+
+      _cachedSpecialProductType = hasDineIn
+          ? SpecialProductType.dineIn
+          : (hasTakeout ? SpecialProductType.takeout : SpecialProductType.none);
+    }
+
+    _cachedSpecialProductType ??= SpecialProductType.none;
     return _cachedSpecialProductType!;
   }
 

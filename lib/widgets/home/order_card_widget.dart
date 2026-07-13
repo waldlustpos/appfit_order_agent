@@ -4,7 +4,6 @@ import 'package:appfit_order_agent/constants/app_styles.dart';
 import 'package:appfit_order_agent/models/order_model.dart';
 import 'package:appfit_order_agent/widgets/order/order_detail_popup.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
-import 'package:appfit_order_agent/utils/model_parse_utils.dart';
 import 'package:appfit_order_agent/i18n/strings.g.dart';
 
 class OrderCardWidget extends ConsumerStatefulWidget {
@@ -26,36 +25,10 @@ class OrderCardWidget extends ConsumerStatefulWidget {
 }
 
 class _OrderCardWidgetState extends ConsumerState<OrderCardWidget> {
-  @override
-  void initState() {
-    super.initState();
-    _maybeFetchDetail(widget.order);
-  }
-
-  @override
-  void didUpdateWidget(OrderCardWidget oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.order.orderId != oldWidget.order.orderId) {
-      _maybeFetchDetail(widget.order);
-    }
-  }
-
-  /// 상세 정보가 없는 경우 1회 로드 트리거. build 중이 아닌 라이프사이클 훅에서 호출한다.
-  void _maybeFetchDetail(OrderModel order) {
-    if (widget.isKdsMode) return;
-    if (order.orderId.isEmpty) return;
-    if (order.orderMenuList.isNotEmpty) return;
-    final isToday = ref.read(selectedDateProvider) == todayDateString();
-    if (!isToday) return;
-    final notifier = ref.read(orderProvider.notifier);
-    if (notifier.isOrderDetailLoading(order.orderId)) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      if (notifier.isOrderDetailLoading(order.orderId)) return;
-      notifier.fetchOrderDetail(order.orderId);
-    });
-  }
-
+  // 메인 모드 카드는 상세(menus)를 프리페치하지 않는다. 상세는 카드 탭 시 팝업이
+  // 온디맨드로 조회한다(OrderDetailPopup._fetchOrderDetailIfNeeded). 매장/포장 프리픽스는
+  // 목록의 orderType 필드로 판별(OrderModel.detectSpecialProductType)하므로 상세가 필요 없다.
+  // KDS 모드는 KdsOrderCard 쪽에서 상세를 채운다.
   @override
   Widget build(BuildContext context) {
     final order = widget.order;
@@ -70,31 +43,16 @@ class _OrderCardWidgetState extends ConsumerState<OrderCardWidget> {
         ? order
         : (ref.watch(orderByIdProvider(order.orderId)) ?? order);
 
-    // 매장/포장/매장+포장 프리픽스 계산
-    final type = orderToCheck.detectSpecialProductType();
-    String orderPrefix = '';
-    switch (type) {
-      case SpecialProductType.dineIn:
-        orderPrefix = t.order.type_dine_in;
-        break;
-      case SpecialProductType.takeout:
-        orderPrefix = t.order.type_takeout;
-        break;
-      case SpecialProductType.both:
-        orderPrefix = t.order.type_both;
-        break;
-      case SpecialProductType.none:
-        orderPrefix = '';
-        break;
-    }
-
     // 상태별 색상 및 스타일 결정.
-    // '주문 출처별 색상' 설정 ON 이면 매장/포장 색 대신 앱/키오스크 출처 색으로 칠한다.
+    // '주문 출처별 색상' 설정 ON 이면 앱/키오스크 출처 색으로 칠한다.
+    // 매장/포장 구분은 카드에 표시하지 않으므로(다이얼로그 배지에서만 확인), 출처색 OFF
+    // 일 때는 매장/포장 무관 기본 팔레트(SpecialProductType.none)를 사용한다.
     final useSourceColor = ref.watch(orderSourceColorProvider);
     final palette = useSourceColor
         ? AppStyles.orderSourcePalette(orderToCheck.source,
             isCancelled: isCancelled, muted: isDone)
-        : AppStyles.orderPalette(type, isCancelled: isCancelled, muted: isDone);
+        : AppStyles.orderPalette(SpecialProductType.none,
+            isCancelled: isCancelled, muted: isDone);
     final backgroundColor = palette.bg;
     final orderNumberColor =
         isCancelled || isDone ? AppStyles.gray6 : palette.fg;
@@ -135,16 +93,6 @@ class _OrderCardWidgetState extends ConsumerState<OrderCardWidget> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    if (orderPrefix.isNotEmpty)
-                      Text(
-                        orderPrefix,
-                        style: AppTextStyles.body.copyWith(
-                          fontSize: AppStyles.kOrderNumberSize,
-                          fontWeight: FontWeight.bold,
-                          color: orderNumberColor,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
                     Text(
                       order.displayNum,
                       style: AppTextStyles.body.copyWith(

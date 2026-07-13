@@ -27,6 +27,7 @@ OrderModel _build({
   double paymentAmount = 9000,
   DateTime? updateTime,
   List<OrderMenuModel>? menus,
+  String orderType = 'T',
 }) {
   return OrderModel(
     orderNo: orderNo,
@@ -44,7 +45,7 @@ OrderModel _build({
     paymentType: 'CARD',
     paymentCode: 'CARD',
     menus: menus ?? [_menu()],
-    orderType: 'T',
+    orderType: orderType,
     kdsOrderType: 1,
     kioskId: 'kiosk-1',
     updateTime: updateTime ?? DateTime.utc(2026, 1, 1, 9, 0),
@@ -121,6 +122,46 @@ void main() {
       expect(copy.status, OrderStatus.READY);
       expect(copy.updateTime, equals(original.updateTime));
       expect(copy.paymentAmount, equals(original.paymentAmount));
+    });
+  });
+
+  group('OrderModel.detectSpecialProductType (목록 orderType 기반)', () {
+    // 핵심: 메인 모드 카드는 상세(menus)를 프리페치하지 않으므로, 목록의 orderType 만으로
+    // 매장/포장 프리픽스를 판별할 수 있어야 한다(menus 비어있어도).
+    test('TAKE_OUT → takeout (menus 없이도)', () {
+      expect(
+          _build(orderType: 'TAKE_OUT', menus: []).detectSpecialProductType(),
+          SpecialProductType.takeout);
+    });
+
+    test('IN_SHOP → dineIn (menus 없이도)', () {
+      expect(_build(orderType: 'IN_SHOP', menus: []).detectSpecialProductType(),
+          SpecialProductType.dineIn);
+    });
+
+    test('레거시 T → takeout', () {
+      expect(_build(orderType: 'T', menus: []).detectSpecialProductType(),
+          SpecialProductType.takeout);
+    });
+
+    test('레거시 H → dineIn', () {
+      expect(_build(orderType: 'H', menus: []).detectSpecialProductType(),
+          SpecialProductType.dineIn);
+    });
+
+    test('레거시 C → both', () {
+      expect(_build(orderType: 'C', menus: []).detectSpecialProductType(),
+          SpecialProductType.both);
+    });
+
+    test('orderType 빈 값 + menus 없음 → none', () {
+      expect(_build(orderType: '', menus: []).detectSpecialProductType(),
+          SpecialProductType.none);
+    });
+
+    test('알 수 없는 orderType + menus 없음 → none (폴백)', () {
+      expect(_build(orderType: 'XYZ', menus: []).detectSpecialProductType(),
+          SpecialProductType.none);
     });
   });
 }
