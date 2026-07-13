@@ -934,7 +934,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       };
 
   /// 현재 서버 환경 배지(우상단, 릴리즈 포함 항상 표시). 탭하면 서버선택
-  /// 다이얼로그가 열린다 — 릴리즈는 live/japanLive 2종, 개발은 4종.
+  /// 다이얼로그가 열린다 — 릴리즈는 live/japanLive/staging 3종, 개발은 4종.
   Widget _buildEnvBadge() {
     return GestureDetector(
       onTap: _showEnvSelectDialog,
@@ -1044,10 +1044,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
   Future<void> _showEnvSelectDialog() async {
     final t = Translations.of(context);
-    // 릴리즈 출고본은 운영 2종만 노출한다. dev/staging 은 개발 빌드 전용.
+    // 릴리즈 출고본은 dev 를 제외한 운영+staging 3종을 노출한다. dev 는 개발 빌드 전용.
     const envOptions = AppEnv.showInternalUi
         ? ['dev', 'staging', 'live', 'japanLive']
-        : ['live', 'japanLive'];
+        : ['staging', 'live', 'japanLive'];
 
     final selected = await showDialog<String>(
       context: context,

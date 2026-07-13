@@ -80,7 +80,7 @@ void main() async {
   await preferenceServiceForEnv.init();
   final savedEnv = preferenceServiceForEnv.getEnvironment();
   // 단일 빌드: 서버는 런타임 저장값(로그인 화면 서버선택 + 매장 ID 프리픽스
-  // 자동 전환)으로 결정한다. 릴리즈는 live/japanLive 만 허용하며 dev/staging
+  // 자동 전환)으로 결정한다. 릴리즈는 live/japanLive/staging 만 허용하며 dev
   // 잔존값은 live 로 클램프한다(개발 빌드에서 넘어온 기기 방어).
   var environment = switch (savedEnv) {
     'live' => AppFitEnvironment.live,
@@ -89,9 +89,7 @@ void main() async {
     'staging' => AppFitEnvironment.staging,
     _ => AppFitEnvironment.live,
   };
-  if (kReleaseMode &&
-      environment != AppFitEnvironment.live &&
-      environment != AppFitEnvironment.japanLive) {
+  if (kReleaseMode && environment == AppFitEnvironment.dev) {
     environment = AppFitEnvironment.live;
     // 저장값도 함께 정정해 로그인 화면 배지·프리픽스 자동 전환 로직과
     // 어긋나지 않게 한다.
