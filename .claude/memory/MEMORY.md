@@ -1,0 +1,18 @@
+- [매장 프린터 토폴로지](project_store_printer_topology.md) — 외부=COM 시리얼, 라벨=USB, 별개 본체. Winspool 의도적 배제.
+- [큐 enqueue 시점 / fire-and-forget](feedback_queue_enqueue_timing.md) — 큐 분리만으로는 부족, sub-job enqueue 가 다른 await 보다 앞에. UI 트리거는 큐 결과 await 금지.
+- [FFI Isolate boxing](feedback_ffi_isolate_boxing.md) — USB/하드웨어 FFI 동기 호출은 Isolate.run 으로, handle address 만 cross-isolate. unawaited 만으로는 main thread block.
+- [Hot-reload vs cold-restart 사고](feedback_hot_reload_cold_restart.md) — 프린터/FFI/native 영역에 새 import + static 멤버 + 함수 재작성을 한 커밋에 묶으면 hot-reload 가 hang 처럼 보일 수 있음. cold-restart 로 검증.
+- [Windows 도구 함정](reference_windows_toolchain_quirks.md) — python 은 스텁(no-op), PowerShell 거부, dart.exe analyzer 잠금, background Bash 출력 재정렬. 자동화는 Dart 스크립트, 결과는 파일+inline git 으로 확인.
+- [appfit_core 듀얼 레포](project_appfit_core_dual_repo.md) — core 는 별도 git 레포(appifit_agent_core), 앱은 태그 ref 핀. 수정=태그+푸시+ref 범프 끝까지.
+- [접수 흐름 = 본질적 복잡도](project_order_intake_essential_complexity.md) — 과도설계 아님. 통합 3안 모두 복잡도 이동 착시로 반증. 건드리면 안 될 6선 + 진짜 가치는 청소+불변식 테스트.
+- [slang 재생성 명령](reference_slang_regen_command.md) — i18n 변경 후 `dart run slang`. build_runner 로는 strings.g.dart 안 바뀜.
+- [외부 프린터 생존 판정](reference_external_printer_liveness.md) — Windows 외부=DLE EOT 1 핑이 권위. PR800은 DSR/CTS 0x00 미전달(CDC 한정). probe-timeout=wedge, 전원 사이클 회복.
+- [PR800 RS-232 직결](project_pr800_rs232_serial.md) — 시리얼측 baud 115200 고정, NEXT-340PL(PL2303) 검증 OK. StopBits DCB raw값(1=1.5stop) 버그였음. 무응답이면 baud 스윕+DLE EOT.
+- [두 변형 빌드 골격](project_dual_variant_build.md) — update/standalone, .appfit suffix. standalone=신규설치(설정 비승계, 마이그레이션 미구현). Windows격리=Runner.rc ProductName. standalone Inno GUID 영구.
+- [app_env.dart gitignore 함정](project_app_env_gitignored_variant.md) — app_env.dart/.env 는 머신별 gitignored 로컬. 브랜치가 새 AppEnv 멤버 추가 시 stale 사본에서 "Member not found" 빌드 실패(variant/isStandalone 은 제거됨, 현재 showInternalUi/slackBotToken/slackChannelId). const 필수.
+- [launch.json 변형 dart-define](reference_launch_json_variant_dart_define.md) — --flavor 는 Windows 무시. 변형 구분은 --dart-define=APPFIT_VARIANT 필수. cold restart 로만 재평가.
+- [standalone 첫 INSTALL 패스 실패](project_windows_standalone_first_install_pass_fails.md) — fresh configure 직후 첫 빌드 INSTALL(MSB3073) 실패, 2차 증분 성공. build_windows.ps1 은 exit code 미검사라 깨진 산출물(data/ 누락) 아카이브.
+- [EnableImpeller 플래그가 opt-out으로 보고](reference_impeller_flag_reports_optout.md) — 매니페스트 value=true인데 T2mini_s 런타임은 Impeller opt-out(→Skia). "구형 기기 무탈"의 이유이자 Skia 제거 시 절벽. Flutter 업그레이드 전 Impeller-GLES 실검증 필수.
+- [버스트 주문 정렬 = orderedAt 우선](project_order_sort_tiebreak_burst.md) — 정본 compareForDisplay(orderedAt primary + 동일시각 displayNo tiebreak). displayNo 는 채널마다 대역 달라 단독 정렬 불가(멀티채널=시간순). 양 버퍼 디바운스+cap, emit 가드. 2026-07-13 완료.
+- [fakeAsync 순수 Timer 원칙](reference_fakeasync_pure_timer.md) — 타이머 버퍼 로직은 순수 Timer 로. DateTime.now() 는 fakeAsync 가상시계 미추종 → cap 테스트 실패. cap=재무장 안 하는 별도 Timer.
+- [D2s_KDS 는 32비트 전용](project_d2s_kds_32bit_only.md) — zygote32/abilist64 공란. armeabi-v7a 빼면 INSTALL_FAILED_NO_MATCHING_ABIS. SoC 스펙·웹리서치 둘 다 틀렸음 → ABI 축소는 fleet 전수 getprop 실측 후에만.

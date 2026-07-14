@@ -41,3 +41,4 @@
 - As-Is 아키텍처 요약(Outline 게시용·표 중심): [docs/AS-IS.md](docs/AS-IS.md)
 - C4 모델 개념·작성 규약(4개 repo 공통 정본): [docs/C4_GUIDE.md](docs/C4_GUIDE.md)
 - C4 시각 모델(L1~L4+특화 뷰, 진입점 `c4core-context.html` — 아키텍처 변경 시 함께 갱신, 검증은 `agentc4model/verify_c4.py`): [agentc4model/](agentc4model/)
+- Claude 메모리 공유(메모리 정본은 `.claude/memory/`, 머신별 홈 경로에서 심볼릭 링크 — 새 머신 최초 1회 셋업): [.claude/MEMORY_SETUP.md](.claude/MEMORY_SETUP.md)
