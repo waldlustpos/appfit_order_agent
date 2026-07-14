@@ -31,9 +31,18 @@ class TabButtonWidget extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         width: double.infinity,
         padding: EdgeInsets.symmetric(vertical: verticalPadding),
-        color: isSelected
-            ? AppStyles.kMainColor.withAlpha(18)
-            : Colors.transparent,
+        decoration: BoxDecoration(
+          color: isSelected
+              ? AppStyles.kMainColor.withAlpha(18)
+              : Colors.transparent,
+          // 비선택 행도 같은 폭의 투명 보더를 둬 선택 시 컨텐츠가 밀리지 않게 한다.
+          border: Border(
+            left: BorderSide(
+              color: isSelected ? AppStyles.kMainColor : Colors.transparent,
+              width: 3,
+            ),
+          ),
+        ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,

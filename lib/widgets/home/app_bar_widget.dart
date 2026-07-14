@@ -371,19 +371,26 @@ class _HomeAppBarWidgetState extends ConsumerState<HomeAppBarWidget> {
                     margin: const EdgeInsets.only(left: 8),
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    // 0건이면 outlined, 주문이 있으면 solid — 알림 시인성 유지.
+                    // 보더는 세 상태 모두 그려 전환 시 배지 폭이 흔들리지 않게 한다.
                     decoration: BoxDecoration(
                       color: isBlinking
                           ? AppStyles.kMainColor.withValues(alpha: 0.5)
-                          : AppStyles.kMainColor,
-                      borderRadius: BorderRadius.circular(15),
+                          : (activeOrderCount > 0
+                              ? AppStyles.kMainColor
+                              : AppStyles.kMainColorAlpha),
+                      border: Border.all(color: AppStyles.kMainColor),
+                      borderRadius: AppRadius.bSm,
                     ),
                     child: Center(
                       child: Text(
                         t.app_bar.new_order_count(n: activeOrderCount),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: AppStyles.kSectionCountSize,
                           fontWeight: FontWeight.normal,
-                          color: Colors.white,
+                          color: isBlinking || activeOrderCount > 0
+                              ? Colors.white
+                              : AppStyles.kMainColor,
                         ),
                       ),
                     ),
