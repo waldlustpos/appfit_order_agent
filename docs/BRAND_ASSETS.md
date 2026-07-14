@@ -134,13 +134,23 @@ mask_L = alpha.point(lambda x: 255 if x > 128 else 0, mode='L')
 영수증 로고가 필요한 브랜드는 8-bit PNG 를 `assets/images/brand/<slug>/receipt_logo.png` 표준 파일명으로 배치한다.
 
 **⚠️ 앱은 영수증 로고를 리사이즈하지 않는다 — `1픽셀 = 1도트`.** (이전 문서의 "ESC/POS 빌더 다운샘플 로직" 설명은 오류. 그런 로직 없음.)
-- 외부 ESC/POS: [escpos_builder.dart](../lib/services/escpos_builder.dart) `addImageRaster` 가 PNG 를 네이티브 해상도 그대로 `GS v 0` 래스터로 변환한다 (`image.width`/`image.height` 그대로 사용, 스케일 없음). 추가로 `gray < 128 → 검정` **하드 임계값**으로 1비트화하므로, 얇은 획에 안티앨리어싱이 많으면 경계가 거칠어진다 → 로고는 너무 가늘지 않게.
+- 외부 ESC/POS: [receipt_escpos_builder.dart](../lib/services/receipt_escpos_builder.dart) `addImageRaster` 가 PNG 를 네이티브 해상도 그대로 `GS v 0` 래스터로 변환한다 (`image.width`/`image.height` 그대로 사용, 스케일 없음). 추가로 `gray < 128 → 검정` **하드 임계값**으로 1비트화하므로, 얇은 획에 안티앨리어싱이 많으면 경계가 거칠어진다 → 로고는 너무 가늘지 않게.
 - 내장 Sunmi: [NativeMethodHandler.java](../android/app/src/main/java/co/kr/waldlust/order/receive/NativeMethodHandler.java) `BitmapFactory.decodeByteArray`(`inScaled` 없음) → [SunmiPrintHelper.java](../android/app/src/main/java/co/kr/waldlust/order/receive/util/print/SunmiPrintHelper.java) `printBitmap(logo, null)` 도 스케일 없음.
 - 양쪽 모두 [`ExternalReceiptPrinter.loadReceiptLogoBytes`](../lib/services/external_receipt_printer.dart) 를 single source of truth 로 같은 PNG 를 받는다.
 
 → **PNG 픽셀 크기 = 영수증 출력 도트 크기.** 높이 정규화는 PNG 한 번만 하면 두 프린터에 동시 적용된다.
 
-**표준 사양**: 높이 **80px**, 폭 **≤ 384도트**(58mm 용지) 박스에 비율 유지로 맞춤, 투명 배경은 흰색으로 평탄화. (참조: mammoth 341×24 / mahataste 187×80. 80px 는 심볼+다줄 락업도 가독되는 높이.)
+**표준 사양**: 높이 **80px**, 폭 **≤ 384도트**(58mm 용지) 박스에 비율 유지로 맞춤, 투명 배경은 흰색으로 평탄화. (참조: mammoth 384×65 / mahataste 187×80. 80px 는 심볼+다줄 락업도 가독되는 높이. 가로로 긴 워드마크는 폭 384 가 먼저 걸려 높이가 80 미만이 된다.)
+
+**변환은 Dart 스크립트가 정본** — Windows 개발 머신에는 python/PIL 이 없다:
+
+```bash
+dart run tool/gen_receipt_logo.dart --src=/path/to/원본_logo.png --slug=<slug>
+```
+
+[tool/gen_receipt_logo.dart](../tool/gen_receipt_logo.dart) 는 위 표준(흰색 평탄화 → 80×384 박스 fit → 8-bit PNG)을 그대로 수행하고, `gray < 128` 하드 임계값을 시뮬레이션한 **1비트 프리뷰**(`build/receipt_logo_1bit_preview.png` — 실제 인쇄 결과와 동일)와 검정 비율을 함께 출력한다. 축소 후 획이 끊겼는지는 이 프리뷰로 판정한다.
+
+<details><summary>동등한 PIL 스크립트 (macOS 등 python 가용 환경)</summary>
 
 ```bash
 python3 <<'EOF'
@@ -163,6 +173,8 @@ out.save(DST, format='PNG')
 print(f'receipt_logo.png: {flat.size} -> {out.size} (W x H), 폭<=384: {out.size[0] <= MAX_W}')
 EOF
 ```
+
+</details>
 
 영수증에 로고를 출력하지 않는 브랜드는 [BrandAssets](../lib/utils/brand_assets.dart) `_brands` Map 항목에서 `hasReceiptLogo` 를 생략(기본 false) — ESC/POS 빌더의 `if (logoImageBytes != null)` 가드로 자동 skip.
 
@@ -221,7 +233,9 @@ flutter clean && flutter pub get  # 새 asset 인식 위해
   - 1차: 패턴 A 매핑 시도 → 라벨에서 색상 반대로 출력
   - 2차: 패턴 B 역매핑 시도 → 라벨에서 색상 또 반대
   - 3차: 패턴 A로 복귀, 검정 비율 52%(tokyo 65%와 근접) 확인하고 적용 → 성공
-- 영수증: 기존 `assets/images/logo.png`를 `mammoth/receipt_logo.png`로 리네임만 이동
+- 영수증: **384×65 RGB** (원본 워드마크 `header.png` 512×86 RGBA → `tool/gen_receipt_logo.dart` 로 표준 정규화, 검정 비율 24%)
+  - 2026-07-14 이전에는 `assets/images/logo.png`를 리네임만 해서 옮긴 341×24 RGBA 였다. 높이 24px 라 다른 브랜드(80px 기준)보다 훨씬 작게 인쇄됐고, 알파를 남긴 유일한 브랜드였다(`addImageRaster` 는 알파를 무시하고 RGB 만 읽는다).
+  - 가로로 긴 워드마크라 높이 80 이 아니라 **폭 384 가 먼저 상한에 걸린다** → 65px 높이. 정상.
 
 ### mahataste (MATA)
 - 라벨: 50×50 1-bit BMP, 462B, 검정 비율 53% — 원본 `symbol.png` 246×217 RGBA, 패턴 A 정상(경계/의심 아님)
