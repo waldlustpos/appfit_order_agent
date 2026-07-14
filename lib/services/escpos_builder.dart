@@ -1,8 +1,6 @@
 import 'dart:ffi';
 import 'dart:typed_data';
-import 'dart:ui' as ui;
 
-import 'package:flutter/services.dart';
 import 'package:ffi/ffi.dart';
 import 'package:win32/win32.dart';
 
@@ -79,109 +77,9 @@ class EscPos {
   }
 
   /// `text.getBytes("EUC-KR").length` 와 동일한 결과.
+  ///
+  /// 컬럼 패딩의 정본 폭 측정. [ReceiptEscPosBuilder.runeWidth] 가 rune 단위로 호출해
+  /// 캐싱한다. 패딩/정렬 헬퍼를 여기 두지 않는 이유: 폭 계산 로직이 두 벌 공존하면
+  /// 한쪽만 고쳐져 컬럼이 어긋난다 (실제로 그랬다). 정본은 ReceiptEscPosBuilder 하나.
   static int cp949ByteLength(String s) => encodeCp949(s).length;
-
-  /// PrintUtil.java 의 `padRight` 와 동일. 바이트 길이 기준으로 공백 채움.
-  static String padRight(String text, int totalWidth) {
-    final need = totalWidth - cp949ByteLength(text);
-    if (need <= 0) return text;
-    return text + ' ' * need;
-  }
-
-  /// PrintUtil.java 의 `padLeft` 와 동일.
-  static String padLeft(String text, int totalWidth) {
-    final need = totalWidth - cp949ByteLength(text);
-    if (need <= 0) return text;
-    return ' ' * need + text;
-  }
-
-  /// 하이픈 라인. `getSeparatorLine(42)` 등.
-  static String separatorLine(int width) => '-' * width;
-}
-
-/// ESC/POS 명령 스트림을 점진적으로 빌드하는 헬퍼.
-class EscPosStreamBuilder {
-  final BytesBuilder _bb = BytesBuilder();
-
-  void add(List<int> bytes) => _bb.add(bytes);
-
-  /// 한글 포함 문자열을 CP949 로 인코딩해서 append.
-  void text(String s) => _bb.add(EscPos.encodeCp949(s));
-
-  void textLn(String s) {
-    text(s);
-    _bb.add(EscPos.lf);
-  }
-
-  void ln() => _bb.add(EscPos.lf);
-
-  void setSize(int sizeMode) => _bb.add(EscPos.setSize(sizeMode));
-  void setAlign(int align) => _bb.add(EscPos.setAlign(align));
-  void boldOn() => _bb.add(EscPos.boldOn);
-  void boldOff() => _bb.add(EscPos.boldOff);
-  void init() => _bb.add(EscPos.init);
-  void cut() => _bb.add(EscPos.cutPaper);
-
-  Uint8List build() => _bb.toBytes();
-
-  /// PNG/이미지 바이트를 ESC/POS 래스터 비트맵으로 변환하여 추가.
-  /// RGBA → 그레이스케일 → 1비트 → GS v 0 명령
-  Future<void> addImageRaster(Uint8List imageBytes) async {
-    try {
-      final codec = await ui.instantiateImageCodec(imageBytes);
-      final frame = await codec.getNextFrame();
-      final image = frame.image;
-
-      final byteData =
-          await image.toByteData(format: ui.ImageByteFormat.rawRgba);
-      if (byteData == null) return;
-
-      final rgba = byteData.buffer.asUint8List();
-      final width = image.width;
-      final height = image.height;
-      final byteWidth = (width + 7) ~/ 8;
-
-      final bitData = Uint8List(byteWidth * height);
-      int byteIndex = 0;
-      int bitInByte = 0;
-
-      for (int y = 0; y < height; y++) {
-        for (int x = 0; x < width; x++) {
-          final pixelIndex = ((y * width) + x) * 4;
-          final r = rgba[pixelIndex];
-          final g = rgba[pixelIndex + 1];
-          final b = rgba[pixelIndex + 2];
-
-          final gray = ((0.299 * r + 0.587 * g + 0.114 * b).toInt());
-          final bit = (gray < 128) ? 1 : 0;
-
-          if (bit == 1) {
-            bitData[byteIndex] |= (0x80 >> bitInByte);
-          }
-
-          bitInByte++;
-          if (bitInByte == 8) {
-            bitInByte = 0;
-            byteIndex++;
-          }
-        }
-        if (bitInByte != 0) {
-          byteIndex++;
-          bitInByte = 0;
-        }
-      }
-
-      final xL = (byteWidth & 0xFF);
-      final xH = ((byteWidth >> 8) & 0xFF);
-      final yL = (height & 0xFF);
-      final yH = ((height >> 8) & 0xFF);
-
-      _bb.add([0x1D, 0x76, 0x30, 0x00, xL, xH, yL, yH]);
-      _bb.add(bitData);
-
-      image.dispose();
-    } catch (e) {
-      // 비트맵 로딩 실패 시 무시하고 계속 출력
-    }
-  }
 }

@@ -2,6 +2,8 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
+
 import 'package:appfit_order_agent/i18n/strings.g.dart';
 import 'package:appfit_order_agent/services/escpos_builder.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
@@ -158,68 +160,151 @@ class ReceiptEscPosBuilder {
     return bb.toBytes();
   }
 
-  // ---- 패딩 / 라인 폭 헬퍼 (EUC-KR 바이트 휴리스틱 — 한글 2, ASCII 1) ----
-
-  /// EUC-KR 바이트 길이 휴리스틱.
-  /// - 한글 음절(U+AC00..U+D7A3): 2 byte
-  /// - 그 외 BMP non-ASCII(한자/특수 등): 2 byte (보수적)
-  /// - ASCII: 1 byte
-  /// Windows 의 [EscPos.cp949ByteLength] 결과와 한글/ASCII 범위에서 동일.
-  static int eucKrLen(String s) {
-    int n = 0;
-    for (final c in s.codeUnits) {
-      if (c < 0x80) {
-        n += 1;
-      } else {
-        n += 2;
+  /// 누적된 세그먼트를 텍스트 라인으로 렌더링 (인코딩/전송 없음).
+  /// raw 세그먼트 중 LF 만 개행으로 반영하고 나머지 ESC/POS 명령은 무시한다.
+  /// 컬럼 정렬 테스트가 바이트 덤프 대신 라인을 직접 보게 하는 seam.
+  @visibleForTesting
+  List<String> toTextLines() {
+    final buf = StringBuffer();
+    for (final s in _segs) {
+      switch (s) {
+        case _TextSeg(:final text):
+          buf.write(text);
+        case _RawSeg(:final bytes):
+          if (bytes.length == 1 && bytes.first == 0x0A) buf.write('\n');
       }
+    }
+    return buf.toString().split('\n');
+  }
+
+  @visibleForTesting
+  static Future<List<String>> debugReceiptLines({
+    required Map<String, dynamic> jsonOrder,
+    bool isCancel = false,
+    int width = 48,
+  }) async {
+    final b = ReceiptEscPosBuilder();
+    await _appendReceipt(b, jsonOrder, isCancel, width, null);
+    return b.toTextLines();
+  }
+
+  @visibleForTesting
+  static Future<List<String>> debugOrderLines({
+    required Map<String, dynamic> jsonOrder,
+    bool isCancel = false,
+    int width = 48,
+  }) async {
+    final b = ReceiptEscPosBuilder();
+    await _appendOrder(b, jsonOrder, isCancel, width, null);
+    return b.toTextLines();
+  }
+
+  // ---- 패딩 / 라인 폭 헬퍼 ----
+  //
+  // 컬럼 정렬은 "이름을 N 폭으로 우측 패딩 → 수량/금액을 M 폭으로 좌측 패딩" 만으로
+  // 만들어진다. 따라서 폭 계산이 [toBytesCp949] 가 실제로 내보내는 바이트 수와
+  // 정확히 일치해야 컬럼이 맞는다. 과거의 "ASCII 1 / 그 외 2" 휴리스틱은 CP949 에
+  // 없는 문자(이모지 등 non-BMP, ☕ 같은 미수록 기호)에서 어긋났다 — 실제로는 '?'
+  // 1 바이트로 인코딩되는데 2~4 로 셌기 때문에 수량 컬럼이 밀렸다.
+
+  static final Map<int, int> _runeWidthCache = {};
+
+  /// 테스트에서 플랫폼 인코더(win32 FFI)를 우회하기 위한 seam.
+  @visibleForTesting
+  static int Function(int rune)? runeWidthOverride;
+
+  /// rune 하나가 CP949 로 인코딩됐을 때의 바이트 수 = 프린터 컬럼 수.
+  ///
+  /// Windows 는 실제 인코더([EscPos.cp949ByteLength] → `WideCharToMultiByte(949)`)로
+  /// 실측한다. CP949 미수록 문자는 '?' 1 바이트를 돌려주므로 출력 바이트와 항상 일치.
+  /// rune 종류가 한정적이라 캐시로 FFI 호출 비용은 사실상 0.
+  static int runeWidth(int rune) {
+    final override = runeWidthOverride;
+    if (override != null) return override(rune);
+    return _runeWidthCache.putIfAbsent(rune, () {
+      if (rune < 0x80) return 1;
+      if (Platform.isWindows) {
+        final n = EscPos.cp949ByteLength(String.fromCharCode(rune));
+        return n > 0 ? n : 1;
+      }
+      // Android(Java `getBytes("EUC-KR")`) 근사 — non-BMP 는 '?' 1 바이트.
+      return rune > 0xFFFF ? 1 : 2;
+    });
+  }
+
+  /// 문자열의 CP949 인코딩 폭(= 프린터 컬럼 수).
+  static int textWidth(String s) {
+    int n = 0;
+    for (final r in s.runes) {
+      n += runeWidth(r);
     }
     return n;
   }
 
-  /// 바이트 길이 기준 우측 공백 padding.
-  /// [truncate] 가 true 면 [totalWidth] 를 넘는 텍스트는 ellipsis(`…`) 와 함께 잘라
-  /// 컬럼 폭을 정확히 [totalWidth] 로 맞춘다. 컬럼 정렬을 깨뜨리지 않아야 하는
-  /// 메뉴명/옵션명 같은 가변 길이 셀에 사용.
-  static String padRight(String text, int totalWidth, {bool truncate = false}) {
-    if (truncate && eucKrLen(text) > totalWidth) {
-      text = truncateEucKr(text, totalWidth);
-    }
-    final need = totalWidth - eucKrLen(text);
+  /// 인코딩 폭 기준 우측 공백 padding.
+  static String padRight(String text, int totalWidth) {
+    final need = totalWidth - textWidth(text);
     if (need <= 0) return text;
     return text + ' ' * need;
   }
 
-  /// 바이트 길이 기준 좌측 공백 padding.
+  /// 인코딩 폭 기준 좌측 공백 padding.
   static String padLeft(String text, int totalWidth) {
-    final need = totalWidth - eucKrLen(text);
+    final need = totalWidth - textWidth(text);
     if (need <= 0) return text;
     return ' ' * need + text;
   }
 
-  /// EUC-KR 바이트 길이가 [maxBytes] 를 넘으면 끝에 `…`(2 byte) 을 붙여 잘라낸다.
-  /// 한글 음절 경계에서만 자르도록 codeUnit 단위로 누적 — 멀티바이트 중간 절단 방지.
-  static String truncateEucKr(String text, int maxBytes) {
-    if (eucKrLen(text) <= maxBytes) return text;
-    const ellipsis = '…';
-    const ellipsisLen = 2; // EUC-KR
-    if (maxBytes <= ellipsisLen) {
-      return maxBytes <= 0 ? '' : ellipsis;
-    }
-    final reserve = maxBytes - ellipsisLen;
-    int used = 0;
+  /// 인코딩 폭 기준 하드 wrap. 단어 경계는 보지 않는다 (한글 메뉴명 기준).
+  static List<String> wrapByWidth(String s, int width) {
+    if (s.isEmpty) return const [''];
+    if (width <= 0) return [s];
+    final out = <String>[];
     final buf = StringBuffer();
-    for (final c in text.codeUnits) {
-      final w = c < 0x80 ? 1 : 2;
-      if (used + w > reserve) break;
-      buf.writeCharCode(c);
+    int used = 0;
+    for (final r in s.runes) {
+      final w = runeWidth(r);
+      if (used + w > width && used > 0) {
+        out.add(buf.toString());
+        buf.clear();
+        used = 0;
+      }
+      buf.writeCharCode(r);
       used += w;
     }
-    buf.write(ellipsis);
-    return buf.toString();
+    if (buf.isNotEmpty) out.add(buf.toString());
+    return out;
   }
 
   static String separatorLine(int width) => '-' * width;
+
+  /// 상품/옵션 한 행. 이름이 [nameW] 를 넘으면 잘라내지 않고 다음 줄로 접는다.
+  /// 수량/금액([rightCols]: (텍스트, 컬럼폭))은 첫 줄에만 우측 정렬로 붙고,
+  /// 이어지는 줄은 [contIndent] 만큼 들여쓴 뒤 이름만 계속 출력한다.
+  static void _row(
+    ReceiptEscPosBuilder b,
+    String name,
+    int nameW,
+    List<(String, int)> rightCols, {
+    String contIndent = '  ',
+  }) {
+    final lines = wrapByWidth(name, nameW);
+
+    b.text(padRight(lines.first, nameW));
+    for (final (text, width) in rightCols) {
+      b.text(padLeft(text, width));
+    }
+    b.ln();
+
+    if (lines.length == 1) return;
+
+    // 첫 줄에서 넘친 부분을 들여쓰기 폭에 맞춰 다시 접는다.
+    final rest = lines.skip(1).join();
+    final contW = nameW - textWidth(contIndent);
+    for (final line in wrapByWidth(rest, contW)) {
+      b.textLn('$contIndent$line');
+    }
+  }
 
   // ---- 문서 빌더: 영수증 / 주문서 / 테스트 페이지 ----
 
@@ -343,11 +428,10 @@ class ReceiptEscPosBuilder {
         final countStr = isCancel ? '-$menuCount' : '$menuCount';
         final amountStr = isCancel ? '-${_priceFmt(total)}' : _priceFmt(total);
 
-        b
-          ..text(padRight(menuName, menuW, truncate: true))
-          ..text(padLeft(countStr, countW))
-          ..text(padLeft(amountStr, amountW))
-          ..ln();
+        _row(b, menuName, menuW, [
+          (countStr, countW),
+          (amountStr, amountW),
+        ]);
 
         final options = m['optPrdList'];
         if (options is List && options.isNotEmpty) {
@@ -361,11 +445,14 @@ class ReceiptEscPosBuilder {
             final optAmountStr =
                 isCancel ? '-${_priceFmt(optTotal)}' : _priceFmt(optTotal);
 
-            b
-              ..text(padRight(' -$optName', menuW, truncate: true))
-              ..text(padLeft(optCountStr, countW))
-              ..text(padLeft(optAmountStr, amountW))
-              ..ln();
+            // 이어지는 줄은 ' -' 다음 옵션명 시작 위치에 맞춰 3칸 들여쓴다.
+            _row(
+              b,
+              ' -$optName',
+              menuW,
+              [(optCountStr, countW), (optAmountStr, amountW)],
+              contIndent: '   ',
+            );
           }
           b.textLn(separatorLine(width));
         }
@@ -497,11 +584,10 @@ class ReceiptEscPosBuilder {
         final countStr = isCancel ? '-$menuCount' : '$menuCount';
 
         // 주방에서 잘 보이도록 메뉴/옵션 모두 세로 2배로 출력 (kokonut_order_agent_v2 와 동일).
-        b
-          ..setSize(EscPos.fontTall)
-          ..text(padRight(menuName, menuW, truncate: true))
-          ..text(padLeft(countStr, countW))
-          ..ln();
+        // fontTall(0x01)은 가로 배율 1배라 width=48 컬럼 계산이 그대로 유효하다.
+        // fontLarge(0x11)는 가로 2배라 패딩된 라인에 쓰면 컬럼이 깨진다.
+        b.setSize(EscPos.fontTall);
+        _row(b, menuName, menuW, [(countStr, countW)]);
 
         final options = m['optPrdList'];
         if (options is List && options.isNotEmpty) {
@@ -510,10 +596,13 @@ class ReceiptEscPosBuilder {
             final optName = o['optPrdNm'] as String? ?? '';
             final optCount = (o['optPrdCnt'] as num?)?.toInt() ?? 0;
             final optCountStr = isCancel ? '-$optCount' : '$optCount';
-            b
-              ..text(padRight(' -$optName', menuW, truncate: true))
-              ..text(padLeft(optCountStr, countW))
-              ..ln();
+            _row(
+              b,
+              ' -$optName',
+              menuW,
+              [(optCountStr, countW)],
+              contIndent: '   ',
+            );
           }
           b.textLn(separatorLine(width));
         }
