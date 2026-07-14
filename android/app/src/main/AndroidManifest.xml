@@ -6,13 +6,20 @@
     <queries>
         <package android:name="woyou.aidlservice.jiuiv5" />
         <!-- Sunmi 내장 스캐너: Android 11+ 에서 resolveActivity() 가 스캐너 앱을
-             감지할 수 있도록 선언(hasBuiltinScanner capability 용). -->
+             감지할 수 있도록 선언(hasBuiltinScanner capability 용).
+             신형(D3 MINI 등)은 com.sunmi.scanner 4.4.4+ 가 qrscanner 액션을 제공하고,
+             구형(T2mini 등)은 별도 패키지 com.sunmi.sunmiqrcodescanner 가 레거시
+             액션(com.summi.scan / com.sunmi.scan)을 제공한다. 둘 다 선언해야 한다. -->
         <package android:name="com.sunmi.scanner" />
+        <package android:name="com.sunmi.sunmiqrcodescanner" />
         <intent>
             <action android:name="com.sunmi.scanner.qrscanner" />
         </intent>
         <intent>
             <action android:name="com.summi.scan" />
+        </intent>
+        <intent>
+            <action android:name="com.sunmi.scan" />
         </intent>
     </queries>
 

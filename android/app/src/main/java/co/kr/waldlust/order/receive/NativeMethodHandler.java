@@ -452,16 +452,31 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
                     PackageManager pm = ctx.getPackageManager();
                     boolean scannerAppResolves =
                             pm.resolveActivity(new Intent("com.sunmi.scanner.qrscanner"), 0) != null
-                            || pm.resolveActivity(new Intent("com.summi.scan"), 0) != null;
+                            || pm.resolveActivity(new Intent("com.summi.scan"), 0) != null
+                            || pm.resolveActivity(new Intent("com.sunmi.scan"), 0) != null;
 
-                    boolean hasCamera = false;
+                    // 카메라 존재는 두 신호의 OR 로 판정한다. T2mini 의 카메라는 HAL1(legacy)
+                    // 기반 SunmiUsbCamera 라 camera2 의 getCameraIdList() 에 잡히지 않는데,
+                    // 카메라 자체는 멀쩡히 있고 Sunmi 스캐너도 정상 동작한다. 시스템 feature
+                    // 선언은 HAL 세대와 무관하므로 이쪽을 우선 신호로 쓰고, camera2 로만
+                    // 잡히는 단말을 위해 getCameraIdList() 를 fallback 으로 남긴다.
+                    // 카메라가 진짜 없는 D2s 는 두 신호 모두 false 라 계속 숨겨진다.
+                    boolean hasCameraFeature = pm.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY);
+
+                    boolean hasCamera2 = false;
                     CameraManager cm = (CameraManager) ctx.getSystemService(Context.CAMERA_SERVICE);
                     if (cm != null) {
-                        hasCamera = cm.getCameraIdList().length > 0;
+                        hasCamera2 = cm.getCameraIdList().length > 0;
                     }
 
-                    available = scannerAppResolves && hasCamera;
+                    available = scannerAppResolves && (hasCameraFeature || hasCamera2);
+                    Log.i(TAG, "hasBuiltinScanner: scannerAppResolves=" + scannerAppResolves
+                            + ", cameraFeature=" + hasCameraFeature
+                            + ", camera2=" + hasCamera2
+                            + " -> " + available);
                 } catch (Exception e) {
+                    // 조용히 false 를 반환하면 다음 단말에서 원인 추적이 불가능해진다.
+                    Log.w(TAG, "hasBuiltinScanner 판정 실패 - 미지원으로 간주", e);
                     available = false;
                 }
                 result.success(available);
