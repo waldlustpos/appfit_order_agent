@@ -70,6 +70,61 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro")
+
+            // Drop x86_64 (emulator-only; no fleet device is x86). The Flutter Gradle
+            // plugin pins abiFilters to [armeabi-v7a, arm64-v8a, x86_64] for every
+            // build type regardless of --target-platform, so third-party AAR natives
+            // (autoreplyprint, sentry, jna) would otherwise still smuggle in their
+            // x86_64 copies. Clear and re-declare: measured -25 MiB.
+            //
+            // DO NOT drop armeabi-v7a. D2s_KDS is 32-bit ONLY - verified on device:
+            //   D2s_KDS_STGL  Android 11  rk356x  ro.zygote=zygote32
+            //                 ro.product.cpu.abilist=armeabi-v7a,armeabi
+            //                 ro.product.cpu.abilist64=<empty>
+            // RK3566 is a 64-bit Cortex-A55 part, but SUNMI ships a 32-bit Android
+            // userspace on it, so the SoC datasheet does not tell you this - only
+            // `adb shell getprop ro.product.cpu.abilist64` does. An arm64-only APK
+            // fails on it with INSTALL_FAILED_NO_MATCHING_ABIS (empirically confirmed).
+            // The other fleet devices are 64-bit (D3 MINI, T2mini_s: zygote64_32).
+            //
+            // Debug is intentionally left alone so x86_64 emulators keep working.
+            ndk {
+                abiFilters.clear()
+                abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a"))
+            }
+        }
+    }
+
+    packaging {
+        jniLibs {
+            // Compress the .so files. AGP 8 defaults this to false, which stores them
+            // uncompressed so they can be mmap'd straight out of the APK - a good
+            // trade for Play Store delta updates, but we ship a whole APK over store
+            // wifi via our own OTA channel, so download size is what actually hurts.
+            //
+            // Measured on D3 MINI: APK 31.87 -> 18.75 MiB (native 23.30 -> 10.22).
+            // Cost is ~10 MiB more on-device storage (libs get extracted at install).
+            // Cold start did NOT regress - 825ms uncompressed vs 690ms compressed,
+            // 3-run average.
+            useLegacyPackaging = true
+        }
+        resources {
+            excludes += setOf(
+                // JNA bundles jnidispatch for every host OS it supports. Android loads
+                // it from lib/<abi>/libjnidispatch.so via System.loadLibrary, so the
+                // AIX/Windows/macOS copies are dead weight (1.7 MiB).
+                "com/sun/jna/aix-*/**",
+                "com/sun/jna/darwin*/**",
+                "com/sun/jna/win32-*/**",
+                "com/sun/jna/linux-*/**",
+                "com/sun/jna/freebsd-*/**",
+                "com/sun/jna/openbsd-*/**",
+                "com/sun/jna/sunos-*/**",
+                // autoreplyprint.aar ships its .java sources; protobuf/firestore ship
+                // .proto descriptors. Neither is read at runtime.
+                "**/*.java",
+                "**/*.proto",
+            )
         }
     }
 }

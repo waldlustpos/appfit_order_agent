@@ -53,6 +53,73 @@ flutter test test/<파일_경로>
 - **실행**: 모든 빌드/배포 스크립트는 인자가 없습니다 — `./build_main.sh`, `./deploy_apk.sh`, `.\build_windows.ps1`, `.\deploy_windows.ps1`, `.\build_installer.ps1`.
 - Android 는 flavor 없이 `defaultConfig` 의 단일 applicationId 를 쓰고, Windows exe명(CMake BINARY_NAME)·mutex·설치 GUID 도 국가와 무관하게 통일됐습니다. 한 머신에 하나만 설치되며, 재설치 시 in-place 업그레이드됩니다.
 
+## Android APK 크기 정책 (ABI 2종 · .so 압축)
+
+릴리즈 APK 는 **`armeabi-v7a` + `arm64-v8a` 2종**이며 네이티브 라이브러리를 **압축**해 넣습니다. 정본은 `android/app/build.gradle.kts` 의 `release` buildType 입니다. OTA 가 매장 Wi-Fi 로 APK 를 통째로 내려받는 구조라 다운로드 크기가 곧 업데이트 실패율입니다.
+
+**79.1 MiB → 28.55 MiB (-64%)**. 내역:
+
+| 조치 | 위치 | 효과 |
+|---|---|---|
+| `ndk.abiFilters = ["armeabi-v7a", "arm64-v8a"]` | `buildTypes.release` | -24.8 MiB (x86_64 제거 — 에뮬레이터 전용) |
+| `packaging.jniLibs.useLegacyPackaging = true` | `android` | -22.3 MiB (.so 압축) |
+| Pretendard-Light 미선언 | `pubspec.yaml` | -1.1 MiB (`FontWeight.w300` 사용처 0) |
+| `packaging.resources.excludes` | `android` | -0.6 MiB (JNA 의 AIX/Win/macOS 네이티브, autoreplyprint `.java` 소스) |
+| `.proto` 서술자 · `cupertino_icons` | `android` / `pubspec.yaml` | -0.3 MiB (사용처 0) |
+
+`.so` 압축은 설치 시 추출되므로 기기 저장공간을 ~10 MiB 더 쓰지만, **콜드 스타트는 오히려 빨라집니다**(D3 MINI 825→690ms, T2mini_s 1702→1335ms, 3회 평균).
+
+### ⚠️ armeabi-v7a 를 절대 빼지 말 것 — **D2s_KDS 는 32비트 전용이다**
+
+fleet 전수 실측 결과입니다. **SoC 스펙시트로는 알 수 없고 `getprop` 으로만 드러납니다.**
+
+| 기기 | Android | SoC | `ro.zygote` | `abilist64` | 판정 |
+|---|---|---|---|---|---|
+| D3 MINI | 13 | bengal (Snapdragon) | `zygote64_32` | `arm64-v8a` | 64비트 |
+| T2mini_s | 7.1 | msm8937 (SD430) | `zygote64_32` | `arm64-v8a` | 64비트 |
+| **D2s_KDS_STGL** | **11** | **rk356x (RK3566)** | **`zygote32`** | **(비어 있음)** | **32비트 전용** |
+
+arm64 전용 APK 를 D2s_KDS 에 넣으면 **`INSTALL_FAILED_NO_MATCHING_ABIS` 로 설치가 거부됩니다**(실측 확인). 자동 OTA 가 꺼진 Sunmi 기기 특성상 복구는 매장 방문이 됩니다.
+
+**새 기기를 fleet 에 들일 때는 반드시** `adb shell getprop ro.product.cpu.abilist64` **를 먼저 확인하세요.** 값이 비어 있으면 32비트 전용입니다. 연식·OS 버전·SoC 로 추정하지 마세요 — D2s_KDS 는 Android 11, 2025년 6월 빌드, 64비트 SoC 인데도 32비트입니다.
+
+### D2s_KDS 는 왜 32비트인가 (조사 결과)
+
+**RAM 절약이 아닙니다.** RAM 이 **3.79 GB** 이고 `ro.config.low_ram` 도 꺼져 있습니다. Android Go 도 아닙니다.
+
+**하드웨어는 64비트가 맞습니다.** `CPU part 0xd05` = Cortex-A55, `CPU architecture: 8` — RK3566 은 정직한 ARMv8-A 쿼드코어입니다.
+
+**그런데 64비트 실행 인프라가 이미지에 아예 없습니다.** "껐다"가 아니라 "넣지 않았다"입니다:
+
+| 항목 | D2s_KDS |
+|---|---|
+| `uname -m` | **`armv8l`** — ARMv8 코어를 AArch32 로 실행 = **커널조차 32비트** |
+| `/system/bin/linker64` | **없음** (64비트 ELF 를 로드할 동적 링커가 부재) |
+| `/system/bin/app_process64` | **없음** |
+| `/vendor/lib64` | **0개** (`/vendor/lib` 은 111개) |
+| `/system/lib64` | 2개 — linker64 가 없어 로드조차 불가능한 잔재 |
+
+**원인은 BSP 계보입니다.** 모든 fingerprint prop(`ro.build`/`ro.vendor`/`ro.odm`/`ro.system`/`ro.bootimage`)이 하나같이:
+
+```
+alps/full_rlk6580_we_c_m/rlk6580_we_c_m:11/1241/1241:user/release-keys
+```
+
+`alps` 는 **MediaTek 의 Android BSP 빌드 시스템 코드명**이고 `rlk6580` 은 **MT6580 프로젝트명**입니다. MT6580 은 Cortex-A7 = ARMv7 = **64비트가 물리적으로 불가능한 칩**입니다. 반면 실제 보드는 `ro.build.tracker = sunmi_rk3566_base_v1.3.8_20221108`, `ro.hardware = rk30board` 로 Rockchip 입니다.
+
+즉 **SUNMI 의 RK3566 이미지는 MT6580(ALPS) 제품의 device makefile 을 물려받아 만들어졌고, 그 32비트 빌드 구성(`TARGET_ARCH := arm`)이 실리콘을 갈아탄 뒤에도 그대로 따라온 것**으로 보입니다. fingerprint 조차 갱신하지 않은 걸 보면 의도된 설계가 아니라 관성입니다. (지문에서 끌어낸 추론이며 SUNMI 가 문서화한 내용은 아닙니다. 다만 Rockchip 네이티브 빌드에 `alps/rlk6580` 문자열이 우연히 박힐 수는 없습니다.)
+
+**앞으로도 32비트로 남을 가능성이 높습니다.** BSP 베이스가 2022-11 이고 보안 패치는 2024-03 에 멈췄는데 빌드는 2025-06 입니다 — 동결된 BSP 위에 재빌드만 하고 있다는 뜻이라, "언젠가 64비트가 되겠지"를 기대하고 `armeabi-v7a` 를 빼면 안 됩니다.
+
+**부수 제약 — KDS 는 32비트 프로세스로 돕니다.** 프로세스당 주소공간이 실질 2~3GB 로 제한됩니다. KDS 모드에서 주문 이미지·캐시를 크게 쥐는 변경을 하면 **다른 기기는 멀쩡한데 D2s_KDS 에서만 OOM** 이 날 수 있습니다.
+
+### 꼭 알아야 할 함정
+
+- **`--target-platform` 플래그만으로는 ABI 가 안 걸러진다.** Flutter Gradle 플러그인이 서드파티 AAR 용 `abiFilters` 를 `[arm32, arm64, x86_64]` 로 **항상 고정**하기 때문에(`FlutterPlugin.kt`), 플래그만 쓰면 `libautoreplyprint.so`·`libsentry.so` 의 x86_64 판이 그대로 남습니다. 패키징 차단의 정본은 `build.gradle.kts` 의 `abiFilters` 이고, 스크립트의 `--target-platform android-arm,android-arm64` 는 x86_64 AOT 컴파일을 건너뛰어 빌드 시간을 줄이는 보조 수단입니다.
+- **`--split-per-abi` 를 쓰지 말 것.** versionCode 에 ABI 오프셋을 더해 [RELEASE.md](RELEASE.md) 의 "아티팩트 1개 · 채널 2개 · 같은 versionCode" 불변식을 깹니다.
+- **debug 는 건드리지 않았습니다** — x86_64 에뮬레이터 개발이 그대로 됩니다.
+- **`--obfuscate` 를 켜지 말 것.** `captureError` 가 `exception.runtimeType` 을 Sentry 중복억제 키로 쓰고 `api_error_mapper.dart` 가 `runtime_type` 을 태그로 전송하는데, 난독화하면 이 값이 `a`/`b` 로 바뀝니다(앱이 만든 문자열이라 심볼리케이션 대상이 아님). `--split-debug-info` 도 현재는 보류 — `sentry_dart_plugin` 이 pubspec 에 있지만 **어떤 스크립트도 호출하지 않고 `SENTRY_AUTH_TOKEN` 도 없어 심볼 업로드가 실제로 실행되지 않습니다**. 심볼 업로드 파이프라인을 먼저 구축한 뒤에 재고하세요(-1.3 MiB).
+
 ## Windows 빌드 / 배포 / 인스톨러
 
 ### 버전 정본

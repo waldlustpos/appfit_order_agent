@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 3.0.0+162
+version: 3.0.0+164
 environment:
   sdk: ^3.5.0
   flutter: ">=3.19.0"
@@ -32,7 +32,6 @@ dependencies:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
-  cupertino_icons: ^1.0.2
   flutter_riverpod: ^2.5.1
   freezed_annotation: ^3.0.0
   json_annotation: ^4.8.1
@@ -158,10 +157,12 @@ flutter:
     - assets/icons/
     # - .env
   fonts:
+    # Pretendard-Light(300) 은 선언하지 않는다 — FontWeight.w300 사용처가 0 이라
+    # 1.6MB 를 번들에 얹기만 했다. Bold(700) 도 마찬가지로 선언하지 않는다:
+    # FontWeight.bold 는 현재 SemiBold(600) 로 폴백해 렌더되고 있고, 여기에
+    # Bold.otf 를 추가하면 APK 가 1.6MB 늘어난다.
     - family: Pretendard
       fonts:
-        - asset: assets/fonts/Pretendard-Light.otf
-          weight: 300
         - asset: assets/fonts/Pretendard-Medium.otf
           weight: 500
         - asset: assets/fonts/Pretendard-Regular.otf

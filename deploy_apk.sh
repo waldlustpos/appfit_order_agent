@@ -48,7 +48,12 @@ if [ -z "$APPFIT_AES_KEY" ]; then
 fi
 
 echo ".env 주입하여 빌드..."
-flutter build apk --release --dart-define-from-file=.env
+# --target-platform: x86_64 AOT 컴파일을 건너뛴다(빌드 시간 단축). 실제 패키징
+# 차단의 정본은 android/app/build.gradle.kts 의 release ndk.abiFilters 다 —
+# Flutter Gradle 플러그인이 서드파티 AAR 용 abiFilters 를 3종 ABI 로 고정해서
+# 이 플래그만으로는 x86_64 네이티브가 안 빠지기 때문.
+# armeabi-v7a 는 필수 — D2s_KDS 가 32비트 전용(zygote32)이다. docs/BUILD.md 참조.
+flutter build apk --release --target-platform android-arm,android-arm64 --dart-define-from-file=.env
 if [ $? -ne 0 ]; then
   echo "[오류] Flutter 빌드 실패!"
   exit 1

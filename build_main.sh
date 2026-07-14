@@ -27,8 +27,13 @@ echo "2. Flutter pub get 실행 중..."
 flutter pub get
 
 # Android 빌드 (단일 빌드 — 변형 주입 없음)
+# --target-platform: x86_64 AOT 컴파일을 건너뛴다(빌드 시간 단축). 실제 패키징
+# 차단의 정본은 android/app/build.gradle.kts 의 release ndk.abiFilters 다 —
+# Flutter Gradle 플러그인이 서드파티 AAR 용 abiFilters 를 3종 ABI 로 고정해서
+# 이 플래그만으로는 x86_64 네이티브가 안 빠지기 때문.
+# armeabi-v7a 는 필수 — D2s_KDS 가 32비트 전용(zygote32)이다. docs/BUILD.md 참조.
 echo "3. Android APK 빌드 중..."
-flutter build apk --release --dart-define-from-file=.env
+flutter build apk --release --target-platform android-arm,android-arm64 --dart-define-from-file=.env
 
 # 빌드 결과 파일명 변경 (flavor 미사용 → 단일 app-release.apk)
 ORIGINAL_APK="build/app/outputs/flutter-apk/app-release.apk"
