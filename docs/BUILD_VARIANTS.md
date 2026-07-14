@@ -47,18 +47,18 @@ flowchart TD
 
 ---
 
-## 3. 버전 정본 이원화
+## 3. 버전 정본 단일화
 
 ```mermaid
 flowchart LR
     PUB["pubspec.yaml<br/>version: x.y.z+n"]
-    VWT["version_windows.txt<br/>x.y.z+n"]
     PUB -->|Android 빌드| AND["build_main.sh / OTA apk"]
-    VWT -->|--build-name/--build-number 주입| WIN["build_windows.ps1 / installer"]
+    PUB -->|--build-name/--build-number 주입| WIN["build_windows.ps1 / deploy_windows.ps1 / installer"]
 ```
 
-- **Android 버전 정본 = `pubspec.yaml`**, **Windows 버전 정본 = `version_windows.txt`**. 둘은 분리(Windows 빌드 스크립트는 pubspec을 읽지 않음).
-- `build_windows.ps1`/`deploy_windows.ps1`/`build_installer.ps1`이 `version_windows.txt`에서 build-name/number를 읽어 주입(CLAUDE.md 절대 규칙). 빌드 명령은 [docs/BUILD.md](BUILD.md).
+- **Android·Windows 버전 정본 = `pubspec.yaml`의 `version`** 하나다. 과거의 `version_windows.txt`는 폐지됐다.
+- Windows 스크립트(`build_windows.ps1`/`deploy_windows.ps1`/`build_installer.ps1`/`archive_windows.ps1`)가 `pubspec.yaml`에서 build-name/number를 읽어 주입(CLAUDE.md 절대 규칙). 빌드 명령은 [docs/BUILD.md](BUILD.md).
+- 버전 번호가 두 플랫폼 공유이므로, 한쪽만 배포해도 다음 배포의 빌드번호는 함께 증가한다(OTA는 플랫폼별 채널 JSON 기준이라 문제 없음).
 
 ---
 
@@ -72,5 +72,4 @@ flowchart LR
 | [ota_config.dart](../lib/config/ota_config.dart) | Android OTA 채널(`_release`) + 레거시 동결 경고 |
 | [update_config.dart](../lib/config/update_config.dart) | Windows OTA 채널(레거시 무접미) |
 | [windows/runner/main.cpp](../windows/runner/main.cpp) | 단일 mutex/제목 |
-| [version_windows.txt](../version_windows.txt) | Windows 버전 정본 |
-| [pubspec.yaml](../pubspec.yaml) | Android 버전 정본 |
+| [pubspec.yaml](../pubspec.yaml) | Android·Windows 공통 버전 정본 |

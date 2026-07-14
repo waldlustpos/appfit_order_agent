@@ -17,7 +17,7 @@ OTA 서버 배포는 별도(`/deploy-windows`, `deploy_windows.ps1`)다.
 단일 exe(`appfit_order_agent.exe`) 단일 빌드가 한국/일본을 모두 서빙한다. 변형
 인자·`--dart-define=APPFIT_VARIANT` 는 없다(서버는 앱 로그인 화면에서 런타임 선택).
 
-> Windows 버전 정본은 `version_windows.txt`(`x.y.z+n`)다. pubspec.yaml 아님.
+> 버전 정본은 `pubspec.yaml` 의 `version`(`x.y.z+n`)이다 (Android/Windows 공통). 구 `version_windows.txt` 는 폐지.
 
 ## 2단계 — 빌드 전 상태 확인
 
@@ -25,7 +25,7 @@ Bash 툴로 현재 브랜치 + 최신 커밋 3개를 보여준다:
 ```
 git log --oneline -3
 ```
-`version_windows.txt` 값(빌드될 버전)을 함께 보여주고, "이 상태로 `<산출물>` 빌드하시겠습니까? (yes 입력 시 진행)"라고 묻는다.
+`pubspec.yaml` 의 `version` 값(빌드될 버전)을 함께 보여주고, "이 상태로 `<산출물>` 빌드하시겠습니까? (yes 입력 시 진행)"라고 묻는다.
 
 ## 3단계 — 사용자가 yes 입력 시에만 실행
 
@@ -40,4 +40,4 @@ git log --oneline -3
 - 생성된 산출물 경로(설치본 `.exe` 또는 Release 폴더)와 핵심 파일(`appfit_order_agent.exe`, VC++ 런타임 DLL `vcruntime140.dll`/`vcruntime140_1.dll`/`msvcp140.dll`) 포함 여부를 보고
 - **자동 아카이브** 결과를 요약: `!Project Files/appfit_order_agent/windows/<버전>/` 에 산출물 + `release_notes.txt` 가 보관되고 폴더가 열린다
 - 빌드 실패 시 오류 메시지를 분석하고 원인·수정 방법을 제안
-  - `.env` 누락(APPFIT_AES_KEY, SENTRY_DSN), `version_windows.txt` 형식 오류(`x.y.z+n` 아님), ISCC.exe 미설치(installer) 안내
+  - `.env` 누락(APPFIT_AES_KEY, SENTRY_DSN), `pubspec.yaml` 의 `version` 형식 오류(`x.y.z+n` 아님), ISCC.exe 미설치(installer) 안내

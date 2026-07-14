@@ -1,4 +1,4 @@
-###############################################################################
+﻿###############################################################################
 # Windows 빌드 산출물을 로컬 공용 보관소에 아카이브하고 빌드 노트를 기록한 뒤
 # 해당 버전 폴더를 탐색기로 연다. (PowerShell)
 #
@@ -13,7 +13,7 @@
 # 보관 구조: <ArchiveBase>\<프로젝트명>\windows\<버전>\<산출물> + release_notes.txt
 #   예) C:\Users\<user>\Documents\!Project Files\appfit_order_agent\windows\3.3.6+152\
 #
-# 버전 정본: appfit Windows 는 version_windows.txt 가 정본 (pubspec.yaml 과 분리).
+# 버전 정본: pubspec.yaml 의 version (Android/Windows 공통 단일 정본).
 #
 # 주의: deploy/build 가 이미 끝난 뒤 호출되므로, 아카이브 실패가 전체 흐름을
 #       중단시키지 않도록 항상 경고만 출력하고 exit 0 으로 끝낸다.
@@ -37,13 +37,9 @@ Write-Host "==== Archive Windows artifact to local Project Files ===="
 # pubspec.yaml 에서 프로젝트명 추출
 $projectName = ((Select-String -Path 'pubspec.yaml' -Pattern '^name:').Line -replace '^name:\s*', '').Trim().Trim('"').Trim("'")
 
-# 버전 정본: version_windows.txt (없으면 pubspec.yaml 폴백)
-if (Test-Path 'version_windows.txt') {
-    $version = (Get-Content 'version_windows.txt' | Where-Object { $_ -match '^[0-9]' } | Select-Object -First 1).Trim()
-} else {
-    Write-Host "[경고] version_windows.txt 없음 - pubspec.yaml 버전으로 폴백"
-    $version = ((Select-String -Path 'pubspec.yaml' -Pattern '^version:').Line -replace '^version:\s*', '').Trim().Trim('"').Trim("'")
-}
+# 버전 정본: pubspec.yaml 의 version (Android/Windows 공통)
+$version = ((Select-String -Path 'pubspec.yaml' -Pattern '^version:' | Select-Object -First 1).Line `
+    -replace '^version:\s*', '' -replace '#.*$', '').Trim().Trim('"').Trim("'")
 $buildNumber = ($version -replace '.*\+', '')
 
 # 단일 패키지 (국가 무관)

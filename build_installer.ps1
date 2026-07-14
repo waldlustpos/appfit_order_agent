@@ -134,14 +134,15 @@ if (-not (Test-Path ".env")) {
     exit 1
 }
 
-# Windows 전용 버전 로드 (pubspec.yaml과 분리 — version_windows.txt가 정본)
-if (-not (Test-Path "version_windows.txt")) {
-    Write-Error "[ERROR] version_windows.txt not found. e.g. 1.0.0+1"
+# 버전 로드 (Android 와 동일하게 pubspec.yaml 의 version 이 정본)
+if (-not (Test-Path "pubspec.yaml")) {
+    Write-Error "[ERROR] pubspec.yaml not found. Run from repo root."
     exit 1
 }
-$WinVersionLine = (Get-Content "version_windows.txt" | Where-Object { $_ -match '^[0-9]' } | Select-Object -First 1).Trim()
+$WinVersionLine = ((Select-String -Path "pubspec.yaml" -Pattern '^version:' | Select-Object -First 1).Line `
+    -replace '^version:\s*', '' -replace '#.*$', '').Trim().Trim('"').Trim("'")
 if ($WinVersionLine -notmatch '^[0-9]+\.[0-9]+\.[0-9]+\+[0-9]+$') {
-    Write-Error "[ERROR] version_windows.txt format invalid: '$WinVersionLine' (expected: x.y.z+n)"
+    Write-Error "[ERROR] pubspec.yaml version format invalid: '$WinVersionLine' (expected: x.y.z+n)"
     exit 1
 }
 $WinBuildName   = $WinVersionLine.Split('+')[0]
@@ -244,8 +245,8 @@ if ($missing.Count -gt 0) {
     Write-Host "[WARN] Missing DLLs: $($missing -join ', ')"
 }
 
-# 4) Use semver from version_windows.txt (정본)
-Write-Host "==== 3) Use semver from version_windows.txt ===="
+# 4) Use semver from pubspec.yaml (정본)
+Write-Host "==== 3) Use semver from pubspec.yaml ===="
 $semver = $WinBuildName
 Write-Host "[INFO] semver: $semver"
 

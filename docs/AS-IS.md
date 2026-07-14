@@ -21,7 +21,7 @@ kokonut_order_agent_v2 의 후속(AppFit 플랫폼 전환) 앱의 현재(As-Is) 
 | 모니터링 | Sentry (`MonitoringService`, appfit_core) — Slack 로그 업로드는 미병합 `feature/remote-log-collection` 브랜치 전용, main에는 로컬 로그 파일 기록만(`WindowsLogFileWriter`) |
 | 배포 채널 | Lightsail OTA 서버 (`waldpay.kokonutstamp2.com`) — Android APK / Windows ZIP + 버전 JSON |
 | 빌드 모델 | **단일 빌드** — flavor·변형 인자 없음. 서버(live/japanLive)는 로그인 화면 런타임 선택 + 매장 ID 프리픽스 자동 전환 (§6.1) |
-| 버전 정본 | **이원화**: Android = `pubspec.yaml`(현재 3.0.0+158), Windows = `version_windows.txt`(현재 3.0.0+157). Windows 빌드 스크립트는 pubspec을 읽지 않음 |
+| 버전 정본 | **단일화**: Android·Windows 모두 `pubspec.yaml`의 `version`(현재 3.0.0+161). `version_windows.txt`는 폐지 |
 | 패키지 ID | `co.kr.waldlust.order.receive.appfit` (단일) |
 
 ## 2. 앱 아키텍처
@@ -82,7 +82,7 @@ lib/
 | API | 직접 `http`/`Dio` 금지 — `appfit_core` Dio 인터셉터 경유 |
 | import | 상대 import 금지 — `package:appfit_order_agent/...`만 (`always_use_package_imports` 린트) |
 | 인증 정리 | `Auth.logout()` 단일 진입점. `disconnect()` 전에 모든 `ref.read()` 캐시 |
-| Windows 버전 | `version_windows.txt`만 수정. PowerShell 스크립트는 UTF-8 BOM |
+| 버전 | Android·Windows 모두 `pubspec.yaml`만 수정. PowerShell 스크립트는 UTF-8 BOM |
 | 네이티브 소스 | `.cpp`/`.h`/`.cmake`/`.gradle`/`.ps1`/`.bat`은 ASCII만 (MSVC CP949 사고 방지) |
 | i18n | slang은 standalone — build_runner로 `strings.g.dart` 갱신 안 됨, `flutter pub run slang` 필수 |
 
@@ -191,8 +191,8 @@ lib/
 
 | 플랫폼 | 정본 | 소비자 | 비고 |
 | --- | --- | --- | --- |
-| Android | `pubspec.yaml`의 `version` | `build_main.sh` / `deploy_apk.sh` / OTA APK | 현재 `3.0.0+157` |
-| Windows | `version_windows.txt` (`x.y.z+n` 한 줄) | `build_windows.ps1` / `deploy_windows.ps1` / `build_installer.ps1` — `--build-name`/`--build-number`로 주입 | 현재 `3.0.0+157`. **Windows 스크립트는 pubspec을 읽지 않음** — 두 플랫폼 버전을 따로 끊어 올리기 위한 의도적 분리 |
+| Android | `pubspec.yaml`의 `version` | `build_main.sh` / `deploy_apk.sh` / OTA APK | 현재 `3.0.0+161` |
+| Windows | `pubspec.yaml`의 `version` (동일 정본) | `build_windows.ps1` / `deploy_windows.ps1` / `build_installer.ps1` / `archive_windows.ps1` — 파싱 후 `--build-name`/`--build-number`로 주입 | 현재 `3.0.0+161`. 구 `version_windows.txt`는 폐지(두 정본이 어긋나 OTA 사고 유발) |
 
 ### 6.3 빌드·배포 절차
 

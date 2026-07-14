@@ -33,7 +33,7 @@ git log --oneline -3
 ```
 
 **(b) 버전 비교** — 배포할 빌드번호와 현재 서버 버전을 조회해 명시한다:
-- 업데이트할 버전: `version_windows.txt` 의 값(예: `3.3.6+152` → 빌드번호 `152`)을 읽는다. (**Windows 버전 정본 = `version_windows.txt`**, pubspec.yaml 아님. 형식 `x.y.z+n`, `+` 뒤가 빌드번호)
+- 업데이트할 버전: `pubspec.yaml` 의 `version` 값(예: `3.0.0+161` → 빌드번호 `161`)을 읽는다. (**버전 정본 = `pubspec.yaml`**, Android/Windows 공통. 형식 `x.y.z+n`, `+` 뒤가 빌드번호. 구 `version_windows.txt` 는 폐지)
 - 현재 서버 버전: `curl -fsS --max-time 10 http://waldpay.kokonutstamp2.com/appfit_order_agent_windows_version.json` (응답 `{"version": <int>}` = 현재 배포된 빌드번호)
 - 조회 실패(네트워크/404 등) 시: 실패 사실만 알리고 차단하지 않는다(서버에 아직 파일이 없는 첫 배포일 수 있음).
 
@@ -63,6 +63,6 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./deploy_windows.ps1
 - 배포 성공분은 `deploy_windows.ps1` 가 **자동 아카이브**(`archive_windows.ps1`)한다 — `!Project Files/appfit_order_agent/windows/<버전>/` 에 ZIP + `release_notes.txt` 보관 후 폴더가 열린다
 - 오류 발생 시 원인 분석 후 수정 방법 제안
   - `.env` 누락(APPFIT_AES_KEY) 시 환경 변수 안내
-  - `version_windows.txt` 형식 오류(`x.y.z+n` 아님) 시 형식 안내
+  - `pubspec.yaml` 의 `version` 형식 오류(`x.y.z+n` 아님) 시 형식 안내
   - scp 실패 시 PEM 키(`~/.ssh/LightsailDefaultKey-ap-northeast-3.pem`) 경로·서버 접속 안내
 - 사용자가 yes 외 다른 입력을 하면 배포를 취소하고 종료한다

@@ -11,7 +11,7 @@ PC 에서 이 저장소를 `git pull` 한 뒤 아래 절차대로 실행하세�
 ## 전제
 - 빌드/배포 스크립트가 산출물을 만든 상태.
 - appfit 은 **단일 빌드**입니다: 단일 패키지(`co.kr.waldlust.order.receive.appfit`)·단일 exe(`appfit_order_agent.exe`)가 한국/일본을 모두 서빙하고, 서버(live/japanLive)는 앱 로그인 화면에서 런타임 선택됩니다. ZIP 채널도 하나입니다: `appfit_order_agent_windows.zip`.
-- 버전 정본은 `version_windows.txt` 입니다 (pubspec.yaml 과 분리).
+- 버전 정본은 `pubspec.yaml` 의 `version` 입니다 (Android/Windows 공통).
 
 ## 입력(`-SrcArtifact`) — 3가지 산출물 지원
 | 산출물 | 생성 스크립트 | 보관 방식 |

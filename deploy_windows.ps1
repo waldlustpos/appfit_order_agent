@@ -117,14 +117,15 @@ if (-not (Test-Path ".env")) {
     Write-Error "[오류] .env 파일이 없습니다. APPFIT_AES_KEY가 빌드에 주입되지 않으면 로그인 API가 실패합니다."
     exit 1
 }
-# Windows 전용 버전 로드 (pubspec.yaml과 분리 — version_windows.txt가 정본)
-if (-not (Test-Path "version_windows.txt")) {
-    Write-Error "[오류] version_windows.txt 파일이 없습니다. 예: 1.0.0+1"
+# 버전 로드 (Android 와 동일하게 pubspec.yaml 의 version 이 정본)
+if (-not (Test-Path "pubspec.yaml")) {
+    Write-Error "[오류] pubspec.yaml 파일이 없습니다. 레포 루트에서 실행하세요."
     exit 1
 }
-$WinVersionLine = (Get-Content "version_windows.txt" | Where-Object { $_ -match '^[0-9]' } | Select-Object -First 1).Trim()
+$WinVersionLine = ((Select-String -Path "pubspec.yaml" -Pattern '^version:' | Select-Object -First 1).Line `
+    -replace '^version:\s*', '' -replace '#.*$', '').Trim().Trim('"').Trim("'")
 if ($WinVersionLine -notmatch '^[0-9]+\.[0-9]+\.[0-9]+\+[0-9]+$') {
-    Write-Error "[오류] version_windows.txt 형식이 잘못됨: '$WinVersionLine' (기대: x.y.z+n)"
+    Write-Error "[오류] pubspec.yaml 의 version 형식이 잘못됨: '$WinVersionLine' (기대: x.y.z+n)"
     exit 1
 }
 $WinBuildName   = $WinVersionLine.Split('+')[0]
@@ -233,8 +234,8 @@ $scpDest = "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/"
 if ($LASTEXITCODE -ne 0) { Write-Error "[오류] scp ZIP 업로드 실패!"; exit 1 }
 Write-Host "[INFO] ZIP 업로드 완료"
 
-# 4) Windows 빌드 번호 (version_windows.txt 정본 사용)
-Write-Host "==== 4) Use build number from version_windows.txt ===="
+# 4) Windows 빌드 번호 (pubspec.yaml 정본 사용)
+Write-Host "==== 4) Use build number from pubspec.yaml ===="
 $buildNumber = $WinBuildNumber
 Write-Host "빌드 번호: $buildNumber"
 

@@ -20,14 +20,14 @@ if [ ! -f ".env" ]; then
     echo "❌ .env 파일이 없습니다. APPFIT_AES_KEY가 빌드에 주입되지 않으면 로그인 API가 실패합니다."
     exit 1
 fi
-# Windows 전용 버전 로드 (pubspec.yaml과 분리 관리)
-if [ ! -f "version_windows.txt" ]; then
-    echo "❌ version_windows.txt 파일이 없습니다. 예: 1.0.0+1"
+# 버전 로드 (Android 와 동일하게 pubspec.yaml 의 version 이 정본)
+if [ ! -f "pubspec.yaml" ]; then
+    echo "❌ pubspec.yaml 파일이 없습니다. 레포 루트에서 실행하세요."
     exit 1
 fi
-WIN_VERSION_LINE=$(grep -E '^[0-9]' version_windows.txt | head -n1)
+WIN_VERSION_LINE=$(grep -E '^version:' pubspec.yaml | head -n1 | sed -E 's/^version:[[:space:]]*//; s/#.*$//' | tr -d '\r"'"'"' \t')
 if [[ ! "$WIN_VERSION_LINE" =~ ^[0-9]+\.[0-9]+\.[0-9]+\+[0-9]+$ ]]; then
-    echo "❌ version_windows.txt 형식이 잘못됨: '$WIN_VERSION_LINE' (기대: x.y.z+n)"
+    echo "❌ pubspec.yaml 의 version 형식이 잘못됨: '$WIN_VERSION_LINE' (기대: x.y.z+n)"
     exit 1
 fi
 WIN_BUILD_NAME="${WIN_VERSION_LINE%+*}"
@@ -36,6 +36,8 @@ echo "🏷  Windows 버전: $WIN_BUILD_NAME ($WIN_BUILD_NUMBER)"
 
 flutter build windows --release \
     --dart-define-from-file=.env \
+    --dart-define=WINDOWS_APP_VERSION="$WIN_BUILD_NAME" \
+    --dart-define=WINDOWS_APP_BUILD="$WIN_BUILD_NUMBER" \
     --build-name="$WIN_BUILD_NAME" \
     --build-number="$WIN_BUILD_NUMBER"
 

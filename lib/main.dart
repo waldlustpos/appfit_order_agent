@@ -152,8 +152,8 @@ void main() async {
 
   // Windows: 앱 시작 시 OTA 자가 업데이트 체크 (로그인 이전).
   // 업데이트 설치 시 exit(0) 되므로 아래 runApp 이 실행되지 않는다.
-  // 디버그 모드에서는 pubspec.yaml 의 version 이 사용되어 의도치 않게
-  // 정본(version_windows.txt) 과 어긋나 OTA 가 트리거되므로 skip.
+  // 디버그 모드에서는 --build-number 주입 없이 실행되어 서버 버전과
+  // 어긋난 채 OTA 가 트리거될 수 있으므로 skip.
   if (Platform.isWindows && kReleaseMode) {
     await runStartupUpdateFlow();
   } else if (Platform.isWindows) {

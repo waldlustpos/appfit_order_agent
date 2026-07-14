@@ -42,7 +42,7 @@ class _UpdateProgressDialogState extends State<UpdateProgressDialog> {
     }
 
     // 직전에 업데이트를 적용했는데도 current < latest 라면 빌드 파이프라인
-    // (version_windows.txt vs pubspec.yaml vs 서버 JSON) 어딘가가 어긋난 상태.
+    // (pubspec.yaml vs 서버 버전 JSON) 어딘가가 어긋난 상태.
     // 재발 진단을 위해 즉시 로그로 남긴다.
     logToFile(
       tag: LogTag.SYSTEM,

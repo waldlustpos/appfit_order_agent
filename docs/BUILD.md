@@ -57,7 +57,8 @@ flutter test test/<파일_경로>
 
 ### 버전 정본
 
-- `version_windows.txt`(루트)가 Windows 빌드의 **단일 정본** (`x.y.z+n` 한 줄). `pubspec.yaml`과 분리되어 있으며 Windows 빌드 스크립트는 pubspec을 읽지 않습니다. Android와 Windows 버전을 따로 끊어 올릴 수 있도록 의도적으로 분리됐습니다.
+- `pubspec.yaml`의 `version`(`x.y.z+n`)이 **Android·Windows 공통 단일 정본**입니다. Windows 스크립트(`build_windows.ps1` / `deploy_windows.ps1` / `build_installer.ps1` / `archive_windows.ps1`)가 이 값을 파싱해 `--build-name` / `--build-number`로 주입합니다.
+- 과거 Windows 전용이던 `version_windows.txt`는 **폐지**됐습니다(두 플랫폼 버전이 어긋나 OTA 사고를 유발). 버전 상향은 `pubspec.yaml` 한 곳만 고칩니다.
 - 모든 PowerShell 스크립트는 **UTF-8 BOM**으로 저장돼 있어야 합니다 (한국어 Windows의 CP949 콘솔에서 한글이 깨지는 것을 방지).
 
 ### 필요 환경
@@ -65,13 +66,12 @@ flutter test test/<파일_경로>
 - Visual Studio 2022 (MSVC + `cmake.exe`)
 - Inno Setup 6 (`ISCC.exe`) — `winget install JRSoftware.InnoSetup` 또는 https://jrsoftware.org/isdl.php
 - 루트의 `.env` 파일 (`APPFIT_AES_KEY`, `SENTRY_DSN`)
-- 루트의 `version_windows.txt`
 
 ### 스크립트 3종
 
 | 스크립트 | 역할 |
 | --- | --- |
-| `build_windows.ps1` / `build_windows.sh` | 로컬 release 빌드 (zip 산출 X). `version_windows.txt` → `--build-name` / `--build-number` 주입. |
+| `build_windows.ps1` / `build_windows.sh` | 로컬 release 빌드 (zip 산출 X). `pubspec.yaml`의 `version` → `--build-name` / `--build-number` 주입. |
 | `deploy_windows.ps1` | release 빌드 + VC++ 런타임 DLL 번들링 + zip 패키징 + Lightsail SCP 업로드 + `version.json` 갱신 (OTA 채널). CMake install prefix 점검 후 필요 시 `cmake -A x64`로 재구성. |
 | `build_installer.ps1` | release 빌드 + VC++ 런타임 DLL 번들링 + Inno Setup으로 `dist\AppfitOrderAgent-Setup-<semver>.exe` 생성. **신규 설치용** — OTA에는 사용하지 않음. |
 
@@ -97,8 +97,6 @@ flutter test test/<파일_경로>
 - `IS_ROTATED_180` — 선택적 180도 화면 회전
 - `SLACK_BOT_TOKEN` — 로그 업로드용 Slack 봇 토큰(`xoxb-`, `files:write` 스코프). 대상 채널에 봇 초대 필수. 없으면 설정화면 "로그 전송" 카드가 비활성(`SlackDirectSink`). 클라이언트 바이너리에 박히므로 최소 스코프·단일 채널로 제한
 - `SLACK_CHANNEL_ID` — 로그를 게시할 단일 채널 ID(예: `C0XXXXXXX`)
-
-Windows 빌드는 추가로 루트의 `version_windows.txt`(`x.y.z+n` 형식)가 필수입니다.
 
 런타임 환경(서버 대상)은 로그인 시 선택되며 `PreferenceService`를 통해 저장됩니다. `main.dart`에서 `AppFitConfig.configure()` 호출 전에 결정됩니다.
 

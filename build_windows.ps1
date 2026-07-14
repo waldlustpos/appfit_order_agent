@@ -30,14 +30,15 @@ if (-not (Test-Path ".env")) {
     Write-Host "❌ .env 파일이 없습니다. APPFIT_AES_KEY가 빌드에 주입되지 않으면 로그인 API가 실패합니다." -ForegroundColor Red
     exit 1
 }
-# Windows 전용 버전 로드 (pubspec.yaml과 분리 관리 — version_windows.txt가 정본)
-if (-not (Test-Path "version_windows.txt")) {
-    Write-Host "❌ version_windows.txt 파일이 없습니다. 예: 1.0.0+1" -ForegroundColor Red
+# 버전 로드 (Android 와 동일하게 pubspec.yaml 의 version 이 정본)
+if (-not (Test-Path "pubspec.yaml")) {
+    Write-Host "❌ pubspec.yaml 파일이 없습니다. 레포 루트에서 실행하세요." -ForegroundColor Red
     exit 1
 }
-$WinVersionLine = (Get-Content "version_windows.txt" | Where-Object { $_ -match '^[0-9]' } | Select-Object -First 1).Trim()
+$WinVersionLine = ((Select-String -Path "pubspec.yaml" -Pattern '^version:' | Select-Object -First 1).Line `
+    -replace '^version:\s*', '' -replace '#.*$', '').Trim().Trim('"').Trim("'")
 if ($WinVersionLine -notmatch '^[0-9]+\.[0-9]+\.[0-9]+\+[0-9]+$') {
-    Write-Host "❌ version_windows.txt 형식이 잘못됨: '$WinVersionLine' (기대: x.y.z+n)" -ForegroundColor Red
+    Write-Host "❌ pubspec.yaml 의 version 형식이 잘못됨: '$WinVersionLine' (기대: x.y.z+n)" -ForegroundColor Red
     exit 1
 }
 $WinBuildName   = $WinVersionLine.Split('+')[0]
