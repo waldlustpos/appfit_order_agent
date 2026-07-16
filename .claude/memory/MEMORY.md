@@ -32,3 +32,4 @@
 - [주문흐름·출력 누락/몰림 점검 완료](project_order_output_audit_2026_07.md) — P1 3건(최종실패 무통지·재시작 유실·emit 이중기동) 검증, 보고서 plans/output-joyful-noodle.md 승인. 수정은 별도 세션 항목별, 실패통지=앱내 배너/배지 확정. 문서·인스펙터 카탈로그 구식 발견 (2026-07-07)
 - [Plane(waldsupport.com) 이슈 벌크 생성 도구](project_plane_issue_sync.md) — plane_sync/plane_sync.py(서브커맨드 check/create/states/labels) + /plane 슬래시 명령. 토큰 PLANE_API_TOKEN(.env), 프로젝트 SX(KIOSK/AGENT). 멱등 external_id, 미커밋(main) (2026-07-09)
 - [변형 폐기 → 단일 빌드 + 런타임 서버선택](project_variant_rename_japan_korea.md) — **+2026-07-09(2차) APPFIT_VARIANT 완전 제거**: 하나의 APK/exe가 한/일 서빙. 서버=저장값(기본 live)+로그인 배지(릴리즈 2종)+매장ID 프리픽스 자동전환(BrandRegistry), 미등록 프리픽스 1회 다이얼로그(override 키). OTA는 Android `_appfit` 단일 신설(무접미 동결 유지)·Windows 레거시 단일. 스크립트 인자 전부 제거. 통합작업은 c3f226d 보존 커밋. app_env.dart(gitignore 로컬) 타 머신 반영 필요 (2026-07-09)
+- [Sentry 알림 라우팅](project_sentry_alert_routing.md) — 매장/브랜드별 store_id→Slack 채널 분기, sentry_alerts/ 스크립트 코드화. MCP는 규칙 생성 불가·읽기만. 라이브 적용은 SENTRY_AUTH_TOKEN 대기.

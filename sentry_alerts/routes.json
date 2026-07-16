@@ -1,0 +1,27 @@
+{
+  "org": "waldlust",
+  "project": "appfit-order-agent",
+  "region": "https://us.sentry.io",
+  "slack_workspace": "344607",
+  "when": "every",
+  "frequency": 5,
+  "slack_tags": "store_id, store_name, environment, level",
+  "branded": [
+    {
+      "label": "TPCP00001",
+      "match": "eq",
+      "value": "TPCP00001",
+      "channel": "appfit-alert-tpc",
+      "channel_id": "C0B02RCJSJ0"
+    }
+  ],
+  "catchall": {
+    "label": "catch-all",
+    "channel": "appfit-alert-test",
+    "channel_id": "C0AV9RDTTT7"
+  },
+  "legacy": {
+    "issue": ["16968728", "10003713739"],
+    "metric": ["10007820672"]
+  }
+}

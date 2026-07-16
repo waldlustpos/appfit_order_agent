@@ -1,5 +1,5 @@
 ---
-description: 새 브랜드를 대화형으로 추가 (brand_registry/brand_theme/settings/i18n 3로캘/pubspec/qr_payload_strategy 6개 지점 편집 + 라벨 BMP/영수증 PNG 로고 자산 변환 + slang 재생성 + analyze + l10n 감사)
+description: 새 브랜드를 대화형으로 추가 (brand_registry/brand_theme/settings/i18n 3로캘/pubspec/qr_payload_strategy 6개 지점 편집 + 라벨 BMP/영수증 PNG 로고 자산 변환 + slang 재생성 + analyze + l10n 감사 + 선택: 브랜드 전용 Sentry 에러 알림 채널 라우팅)
 ---
 
 새 브랜드를 매장 ID prefix 기반으로 앱 전반에 통합한다. 아래 STEP 순서대로 진행한다.
@@ -18,10 +18,11 @@ description: 새 브랜드를 대화형으로 추가 (brand_registry/brand_theme
 5. **브랜드 색상** (선택) — "지금 hex 지정" / **"placeholder(appfit 핑크)+TODO 로 두고 나중 확정"**(기본).
 6. **영수증 로고 사용** (선택) — 기본 "아니오". → `hasReceiptLogo`. "예" 면 STEP 3-2 에서 `receipt_logo.png` 자동 생성.
 7. **라벨 로고 PNG 경로** (선택) — 절대경로. 입력 시 STEP 3-1 에서 `label_logo.bmp` 로 변환. 없으면 코드만(tokyoplatz 폴백).
-7-2. **영수증 로고 PNG 경로** (선택) — 절대경로. 입력 6 이 "예" 일 때만 의미. 입력 시 STEP 3-2 에서 `receipt_logo.png`(높이 80px 정규화) 생성. 미입력이고 입력 6 이 "예" 면 입력 7(라벨 PNG)을 재사용해 생성, 그것도 없으면 STEP 5 수동 안내. (라벨=정사각 심볼 / 영수증=가로 락업으로 원본이 다른 경우가 많으니 가능하면 별도 지정.)
-8. **특수 분기**(일본/JPY 등) (선택) — 기본 "아니오(한국 live/KRW)". **"예" 면 이 커맨드 범위 밖** → 코드 통합 후 STEP 5 에서 사람에게 안내만.
+7-2. **영수증 로고 PNG 경로** (선택) — 절대경로. 입력 6 이 "예" 일 때만 의미. 입력 시 STEP 3-2 에서 `receipt_logo.png`(높이 80px 정규화) 생성. 미입력이고 입력 6 이 "예" 면 입력 7(라벨 PNG)을 재사용해 생성, 그것도 없으면 STEP 6 수동 안내. (라벨=정사각 심볼 / 영수증=가로 락업으로 원본이 다른 경우가 많으니 가능하면 별도 지정.)
+8. **특수 분기**(일본/JPY 등) (선택) — 기본 "아니오(한국 live/KRW)". **"예" 면 이 커맨드 범위 밖** → 코드 통합 후 STEP 6 에서 사람에게 안내만.
 9. **듀얼모니터 영상** (선택) — D3 MINI 전면(고객용) 보조 디스플레이에 재생할 `.mp4` 절대경로. 입력 시 STEP 3-3 에서 `android/app/src/main/res/raw/dm_<slug>.mp4` 로 배치.
 10. **듀얼모니터 이미지** (선택) — 같은 디스플레이에 표시할 `.png`(또는 `.jpg`→png 변환) 절대경로. 입력 시 STEP 3-3 에서 `android/app/src/main/res/drawable/dm_<slug>.png` 로 배치. (영상·이미지 둘 다 입력 가능 — 설정 화면에서 운영자가 택1, 미설정 시 영상 우선 자동 표시. 둘 다 없으면 전면 모니터는 검은 화면.)
+11. **브랜드 전용 Sentry 알림 채널 ID** (선택) — 이 브랜드의 에러를 별도 Slack 채널로 받고 싶을 때 채널 ID(`C0...`). 입력 시 STEP 5 에서 `sentry_alerts/routes.json` 에 라우팅을 추가한다. **미입력이면 catch-all(appfit-alert-test)로 흡수** — STEP 5 스킵. (채널은 사전에 Slack 에서 생성돼 있어야 함.)
 
 치환 토큰을 확정한다: `<PREFIX>`(대문자4), `<slug>`, `<KEY>`(enum 키), `<EnumCase>`(BrandTheme 항목명, camelCase, 예: `mahaTaste`), `<KeyPascal>`(인스턴스 헬퍼명, 예: `Maha`→`isMahaStore`), `<NAME_ko/en/ja>`.
 
@@ -50,7 +51,7 @@ ls android/app/src/main/res/drawable/dm_<slug>.png 2>/dev/null   # 듀얼모니�
 
 ## STEP 2 — 6개 코드 지점 Edit
 
-각 파일을 **Edit 전에 Read** 한다. anchor 매칭이 실패하면(이미 적용/구조 변경 신호) 그 지점만 건너뛰고 STEP 5 에 보고한다.
+각 파일을 **Edit 전에 Read** 한다. anchor 매칭이 실패하면(이미 적용/구조 변경 신호) 그 지점만 건너뛰고 STEP 6 에 보고한다.
 
 > 브랜드 식별·자산·통화·환경·기능이 모두 `BrandRegistry` 한곳으로 모였다. `PreferenceService.isXXXStoreId` 같은 prefix 헬퍼는 더 이상 새로 추가하지 않는다(레지스트리가 prefix 매칭 전담).
 
@@ -124,7 +125,7 @@ assets 의 마지막 brand 폴더 줄 뒤에 `    - assets/images/brand/<slug>/`
 ### 3-2. 영수증 로고 (`receipt_logo.png`) — 입력 6 이 "예" 일 때만
 외부 ESC/POS 프린터와 내장 Sunmi 프린터 모두 **같은 `receipt_logo.png` 를 앱 측 스케일 없이 1픽셀=1도트로 출력**한다 (escpos_builder.dart `addImageRaster` / NativeMethodHandler `decodeByteArray` 둘 다 리사이즈 없음 — 상세는 docs/BRAND_ASSETS.md §4.2). 따라서 **PNG 픽셀 크기 = 영수증 출력 도트 크기**이고, 높이 정규화는 자산 단계에서 한 번만 하면 두 프린터에 동시 적용된다.
 
-- **소스 결정**: 입력 7-2(영수증 PNG) → 없으면 입력 7(라벨 PNG) 재사용 → 둘 다 없으면 생성 생략하고 STEP 5 수동 안내.
+- **소스 결정**: 입력 7-2(영수증 PNG) → 없으면 입력 7(라벨 PNG) 재사용 → 둘 다 없으면 생성 생략하고 STEP 6 수동 안내.
 - **생성**: 아래 스크립트(= docs/BRAND_ASSETS.md §4.2)로 `receipt_logo.png` 를 만든다. RGBA → 흰 배경 평탄화 → **높이 80px 기준 비율 유지 LANCZOS 리사이즈**, 단 폭이 용지(384도트, 58mm)를 넘으면 폭 384 기준으로 축소(높이<80) → 저장. 결과 `W×H` 와 "폭 ≤ 384(안 잘림)" 여부를 보고한다. (mammoth 참조 341×24 / mahataste 187×80. 80px 는 심볼+다줄 락업도 가독되는 높이.)
 
 ```bash
@@ -173,7 +174,35 @@ D3 MINI 전면(고객용) 보조 디스플레이는 **`dm_<slug>` 이름의 네�
 
 ---
 
-## STEP 5 — 요약 + 사람 체크리스트
+## STEP 5 — Sentry 알림 라우팅 (선택)
+
+입력 11(브랜드 전용 Sentry 알림 채널 ID)이 주어졌을 때만. 없으면 이 브랜드 에러는
+catch-all(appfit-alert-test)로 흡수되므로 **스킵**한다. 전용 채널로 보내려면
+`sentry_alerts/routes.json`(라우팅 정본)에 항목을 추가하고 스크립트를 적용한다.
+상세: [sentry_alerts/README.md](../../sentry_alerts/README.md).
+
+> 앱 코드(Dart)는 변경 없음 — `store_id` 태그는 이미 appfit_core `MonitoringService`
+> 가 심는다. 브랜드 전용 채널은 순수 Sentry 운영 설정이다.
+
+1. `sentry_alerts/routes.json` 의 `branded[]` 에 항목 append (동일 `value` 이미 있으면 스킵):
+```json
+{ "label": "<PREFIX>", "match": "sw", "value": "<PREFIX>",
+  "channel": "<Slack 채널명>", "channel_id": "<입력 11>" }
+```
+   - 브랜드 전체를 한 채널로(권장): `match: "sw"` + 4자 prefix.
+   - 특정 매장만: `match: "eq"` + 정확한 store_id.
+2. 적용(멱등):
+```bash
+python3 sentry_alerts/sentry_alerts.py apply --dry-run   # payload 확인(토큰 불필요)
+python3 sentry_alerts/sentry_alerts.py apply             # 규칙 생성 + catch-all 제외필터 자동 갱신
+python3 sentry_alerts/sentry_alerts.py list              # 결과 확인
+```
+3. `.env` 에 `SENTRY_AUTH_TOKEN`(스코프 `alerts:write`)이 없으면 스크립트가 안내하며
+   멈춘다 → 이 STEP 은 "토큰 발급 후 위 명령 실행" 으로 STEP 6 체크리스트에 넘기고 계속.
+
+---
+
+## STEP 6 — 요약 + 사람 체크리스트
 
 변경 파일 표로 요약 후, 자동화 못 한 작업을 체크리스트로 출력:
 - [ ] `assets/images/brand/<slug>/` 폴더 (자산을 1개라도 생성했으면 폴더는 이미 존재. 자산을 아예 안 만들었으면 `.gitkeep` 으로 폴더 추적)
@@ -190,3 +219,4 @@ D3 MINI 전면(고객용) 보조 디스플레이는 **`dm_<slug>` 이름의 네�
 - [ ] **테마 노출** — 해당 prefix 매장 로그인 → 설정 오른쪽 패널 상단에 테마 카드(`기본 / <NAME>`) 2종 노출 확인. 색상 placeholder 면 핑크로 보이지만 노출은 정상(STEP 2-2 항목만 있으면 동작). `theme: BrandTheme.appfitDefault` 로 둔 브랜드는 일반 설정 picker 미노출이 정상.
 - [ ] **QR 페이로드** — STEP 2-6 에서 `BrandKey.<KEY>` case 추가됨(기본 `DefaultQrPayloadStrategy`). 이 브랜드가 다른 QR 포맷이면 커스텀 `<KeyPascal>QrPayloadStrategy` 로 교체했는지 확인. (QR 출력 ON/OFF 는 일반설정 토글이라 코드 변경 없음.)
 - [ ] (입력 8 이 "예" 였다면) 일본/JPY 등은 `BrandMeta.currency`/`serverEnvironment` 로 처리됨. 추가로 다른 동작이 필요하면 `BrandFeature` + Strategy/Hook(라벨필터=`label_filter_strategy.dart`, 외부전송=`soundgraph_hook.dart`, QR페이로드=`qr_payload_strategy.dart`) 패턴 참고
+- [ ] (입력 11 이 있었다면) **Sentry 알림 라우팅** — `SENTRY_AUTH_TOKEN` 발급 후 `sentry_alerts.py apply` 실행 → `list` 로 `[auto] <PREFIX> -> #채널` 규칙 생성 확인. **소급 발화 없음** → 해당 브랜드에서 새 에러 1건 유발해 전용 채널 도착 + test 채널 미도착 확인
