@@ -1,6 +1,8 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'dart:async';
 import 'package:appfit_order_agent/models/product_model.dart';
+import 'package:appfit_order_agent/models/shop_category_model.dart';
 import 'package:appfit_order_agent/services/platform_service.dart'; // apiServiceProvider를 위해 필요
 import 'package:appfit_order_agent/services/local_server_service.dart'; // LocalServerService를 위해 필요
 import 'package:appfit_order_agent/providers/providers.dart'; // storeProvider를 위해 필요
@@ -8,93 +10,110 @@ import 'package:appfit_order_agent/utils/logger.dart'; // logger import 추가
 
 part 'product_provider.g.dart';
 
+/// 매장 카탈로그(카테고리 + 상품) 로드 — 서버 응답의 정본.
+///
+/// 상품이 0개인 카테고리는 상품 목록에 흔적이 남지 않으므로(서버 `categories[]`
+/// 의 `items` 가 빈 배열), 카테고리를 상품과 분리해 함께 보존한다.
+/// [productProvider] 와 [shopCategoryListProvider] 가 이 값에서 파생된다.
+@Riverpod(keepAlive: true)
+Future<({List<ProductModel> products, List<ShopCategoryModel> categories})>
+    shopCatalog(Ref ref) async {
+  logger.i('ShopCatalog build() 시작');
+
+  // 매장 ID가 준비될 때까지 기다림
+  final storeAsyncValue = ref.watch(storeProvider);
+  final storeId = storeAsyncValue.value?.storeId;
+
+  logger.d('ShopCatalog build: StoreId $storeId');
+
+  String? finalStoreId = storeId;
+  if (finalStoreId == null || finalStoreId.isEmpty) {
+    logger.d('ShopCatalog build: StoreId not ready, waiting...');
+    await ref.read(storeProvider.future);
+    final updatedStoreId = ref.read(storeProvider).value?.storeId;
+    if (updatedStoreId == null || updatedStoreId.isEmpty) {
+      logger.e('ShopCatalog build: StoreId still not available after wait.');
+      return (products: <ProductModel>[], categories: <ShopCategoryModel>[]);
+    }
+    finalStoreId = updatedStoreId;
+  }
+
+  logger.i(
+      'ShopCatalog build: StoreId ready ($finalStoreId). Loading products...');
+  final apiService = ref.read(apiServiceProvider);
+  try {
+    // 1. 상품 카테고리/상품 목록과 옵션 마이그레이션 데이터를 병렬로 로드
+    final catalogFuture = apiService.getShopCatalog(finalStoreId);
+    final migrationFuture =
+        apiService.getMigrationOptions(type: 'SHOP', shopCode: finalStoreId);
+
+    final catalog = await catalogFuture;
+    final migrationOptions = await migrationFuture;
+
+    final baseProducts = catalog.products;
+
+    logger.i('ShopCatalog build: Loaded ${baseProducts.length} base products, '
+        '${catalog.categories.length} categories and ${migrationOptions.length} migration options.');
+
+    // 2. 마이그레이션 데이터를 맵으로 변환 (ID -> posCategoryId)
+    final migrationMap = {
+      for (var item in migrationOptions)
+        item['id'].toString(): item['posCategoryId']?.toString() ?? ''
+    };
+
+    // 3. 기존 상품 목록과 병합 (옵션 상품의 카테고리 코드 보완)
+    int mergedCount = 0;
+    final products = baseProducts.map((product) {
+      if (product.type == ProductType.option) {
+        final migrationCategoryCode = migrationMap[product.productId.trim()];
+        if (migrationCategoryCode != null && migrationCategoryCode.isNotEmpty) {
+          mergedCount++;
+          return product.copyWith(categoryCode: migrationCategoryCode);
+        }
+      }
+      return product;
+    }).toList();
+
+    logger.i(
+        'ShopCatalog build: Merged $mergedCount options with migration data. Total products: ${products.length}');
+
+    // LocalServerService 캐시 업데이트
+    try {
+      final localServer = LocalServerService.instance;
+      if (localServer != null) {
+        localServer.updateProductCache(products);
+      }
+    } catch (e, s) {
+      logger.w('LocalServerService 캐시 업데이트 실패', error: e);
+    }
+
+    return (products: products, categories: catalog.categories);
+  } catch (e, stackTrace) {
+    logger.e('ShopCatalog build: Error loading products',
+        error: e, stackTrace: stackTrace);
+    return (products: <ProductModel>[], categories: <ShopCategoryModel>[]);
+  }
+}
+
+/// 상품관리 좌측 목록의 카테고리 정본 — **상품 0개 카테고리를 포함**한다.
+///
+/// 상품에서 역산하면 빈 카테고리가 표현되지 않으므로 서버 목록을 그대로 쓴다.
+/// 단 옵션 버킷('옵션')은 서버 카테고리가 아닌 앱의 인공 그룹이라 여기에 없다 —
+/// 화면에서 상품으로부터 보충한다.
+@Riverpod(keepAlive: true)
+Future<List<ShopCategoryModel>> shopCategoryList(Ref ref) async =>
+    (await ref.watch(shopCatalogProvider.future)).categories;
+
 @Riverpod(keepAlive: true)
 class Product extends _$Product {
   @override
-  Future<List<ProductModel>> build() async {
-    logger.i('Product build() 시작');
+  Future<List<ProductModel>> build() async =>
+      (await ref.watch(shopCatalogProvider.future)).products;
 
-    // 매장 ID가 준비될 때까지 기다림
-    final storeAsyncValue = ref.watch(storeProvider);
-    final storeId = storeAsyncValue.value?.storeId;
-
-    logger.d('Product build: StoreId $storeId');
-
-    String? finalStoreId = storeId;
-    if (finalStoreId == null || finalStoreId.isEmpty) {
-      logger.d('Product build: StoreId not ready, waiting...');
-      await ref.read(storeProvider.future);
-      final updatedStoreId = ref.read(storeProvider).value?.storeId;
-      if (updatedStoreId == null || updatedStoreId.isEmpty) {
-        logger.e('Product build: StoreId still not available after wait.');
-        return [];
-      }
-      finalStoreId = updatedStoreId;
-    }
-
-    logger
-        .i('Product build: StoreId ready ($finalStoreId). Loading products...');
-    final apiService = ref.read(apiServiceProvider);
-    try {
-      // 1. 상품 카테고리/상품 목록과 옵션 마이그레이션 데이터를 병렬로 로드
-      final results = await Future.wait([
-        apiService.getShopCategories(finalStoreId),
-        apiService.getMigrationOptions(type: 'SHOP', shopCode: finalStoreId),
-      ]);
-
-      final List<ProductModel> baseProducts = results[0] as List<ProductModel>;
-      final List<Map<String, dynamic>> migrationOptions =
-          results[1] as List<Map<String, dynamic>>;
-
-      logger.i(
-          'Product build: Loaded ${baseProducts.length} base products and ${migrationOptions.length} migration options.');
-
-      // 2. 마이그레이션 데이터를 맵으로 변환 (ID -> posCategoryId)
-      final migrationMap = {
-        for (var item in migrationOptions)
-          item['id'].toString(): item['posCategoryId']?.toString() ?? ''
-      };
-
-      // 3. 기존 상품 목록과 병합 (옵션 상품의 카테고리 코드 보완)
-      int mergedCount = 0;
-      final products = baseProducts.map((product) {
-        if (product.type == ProductType.option) {
-          final migrationCategoryCode = migrationMap[product.productId.trim()];
-          if (migrationCategoryCode != null &&
-              migrationCategoryCode.isNotEmpty) {
-            mergedCount++;
-            return product.copyWith(categoryCode: migrationCategoryCode);
-          }
-        }
-        return product;
-      }).toList();
-
-      logger.i(
-          'Product build: Merged $mergedCount options with migration data. Total products: ${products.length}');
-
-      // LocalServerService 캐시 업데이트
-      try {
-        final localServer = LocalServerService.instance;
-        if (localServer != null) {
-          localServer.updateProductCache(products);
-        }
-      } catch (e, s) {
-        logger.w('LocalServerService 캐시 업데이트 실패', error: e);
-      }
-
-      return products;
-    } catch (e, stackTrace) {
-      logger.e('Product build: Error loading products',
-          error: e, stackTrace: stackTrace);
-      return [];
-    }
-  }
-
-  // 상품 목록 새로고침 (invalidate 사용으로 변경)
+  // 상품 목록 새로고침 (카탈로그 원본을 무효화 → 파생 프로바이더가 함께 재빌드)
   Future<void> refresh() async {
     logger.i('Product refresh: 새로고침 시작');
-    // ref.invalidateSelf()를 사용하여 Provider를 무효화하고 재빌드
-    ref.invalidateSelf();
+    ref.invalidate(shopCatalogProvider);
   }
 
   // 상품 상태 업데이트 (기존 로직과 거의 동일, storeId 가져오는 부분만 확인)

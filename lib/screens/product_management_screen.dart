@@ -6,6 +6,7 @@ import 'package:appfit_order_agent/providers/product_provider.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/widgets/product/product_card_widget.dart';
 import 'package:appfit_order_agent/models/product_model.dart';
+import 'package:appfit_order_agent/models/shop_category_model.dart';
 import 'package:appfit_order_agent/i18n/strings.g.dart';
 
 class ProductManagementScreen extends ConsumerStatefulWidget {
@@ -33,42 +34,72 @@ class _ProductManagementScreenState
     super.dispose();
   }
 
+  /// 카테고리별 카운트 — 해당 카테고리를 선택했을 때 그리드에 실제로 표시되는 수.
+  ///
+  /// [_visibleBase] 를 통과시키므로 hidden 제외·검색어 반영이 그리드와 동일하다
+  /// ("N개라고 써 있는데 눌러보면 비어 있음" 방지).
   Map<String, int> _getCategoryCounts(List<ProductModel> products) {
     final Map<String, int> counts = {};
-    for (var product in products) {
+    for (var product in _visibleBase(products)) {
       counts[product.categoryName] = (counts[product.categoryName] ?? 0) + 1;
     }
     return counts;
   }
 
-  int _getAllUniqueCount(List<ProductModel> products) {
-    final seen = <String>{};
-    return products
-        .where((p) => p.status != ProductStatus.hidden)
-        .where((p) => seen.add(p.internalId))
-        .length;
+  /// 좌측 목록에 표시할 카테고리명 정본.
+  ///
+  /// 서버 카테고리를 기준으로 삼아 **소속 상품이 0개인 카테고리도 노출**한다
+  /// (상품에서 역산하면 빈 카테고리는 표현 자체가 불가능).
+  /// 옵션 버킷('옵션')은 서버 카테고리가 아닌 앱의 인공 그룹이라 상품에서 보충하며,
+  /// 서버 목록을 아직 못 받았으면 전량 상품에서 역산해 기존 동작으로 폴백한다.
+  List<String> _getCategoryNames(
+    List<ProductModel> products,
+    List<ShopCategoryModel>? serverCategories,
+  ) {
+    final names = <String>{
+      if (serverCategories != null)
+        ...serverCategories.map((c) => c.categoryName),
+      ...products.map((p) => p.categoryName),
+    };
+    return names.toList()..sort();
   }
 
-  List<ProductModel> _getFilteredProducts(List<ProductModel> products) {
-    final base = products.where((product) {
+  /// 화면에 노출될 수 있는 상품의 공통 base — hidden 제외 + 검색어 적용.
+  ///
+  /// 좌측 카운트와 우측 그리드가 **반드시 같은 base** 를 쓰도록 한 곳에 모았다.
+  Iterable<ProductModel> _visibleBase(List<ProductModel> products) {
+    final query = _searchQuery.toLowerCase();
+    return products.where((product) {
       if (product.status == ProductStatus.hidden) return false;
-      return product.productName
-          .toLowerCase()
-          .contains(_searchQuery.toLowerCase());
+      return product.productName.toLowerCase().contains(query);
     });
-
-    Iterable<ProductModel> filtered;
-    if (_selectedCategory == t.product_mgmt.sold_out) {
-      filtered = base.where((p) => p.status == ProductStatus.soldOut);
-    } else if (_selectedCategory == null) {
-      final seen = <String>{};
-      filtered = base.where((p) => seen.add(p.internalId));
-    } else {
-      filtered = base.where((p) => p.categoryName == _selectedCategory);
-    }
-
-    return filtered.toList();
   }
+
+  /// [category] 를 선택했을 때 그리드에 표시되는 상품 목록.
+  ///
+  /// `null` = 전체, [t.product_mgmt.sold_out] = 품절, 그 외 = 카테고리명.
+  /// 좌측 타일 카운트도 이 결과의 길이와 일치해야 한다(그리드 = 카운트 단일 정본).
+  ///
+  /// 전체만 `internalId` 로 중복을 제거한다 — 같은 상품이 여러 카테고리에 속할 수
+  /// 있어 카테고리별 합계는 전체보다 클 수 있고, 그게 정상이다.
+  List<ProductModel> _productsFor(
+    List<ProductModel> products,
+    String? category,
+  ) {
+    final base = _visibleBase(products);
+
+    if (category == t.product_mgmt.sold_out) {
+      return base.where((p) => p.status == ProductStatus.soldOut).toList();
+    }
+    if (category == null) {
+      final seen = <String>{};
+      return base.where((p) => seen.add(p.internalId)).toList();
+    }
+    return base.where((p) => p.categoryName == category).toList();
+  }
+
+  List<ProductModel> _getFilteredProducts(List<ProductModel> products) =>
+      _productsFor(products, _selectedCategory);
 
   Widget _buildCategoryTile(
     String title,
@@ -203,10 +234,20 @@ class _ProductManagementScreenState
             child: Consumer(
               builder: (context, ref, child) {
                 final productsAsync = ref.watch(productProvider);
+                // 카테고리명은 서버 목록이 정본(상품 0개 카테고리 포함). 카운트는
+                // updateProductStatus 의 낙관적 갱신에 반응해야 하므로 계속
+                // productProvider 에서 파생한다.
+                final serverCategories =
+                    ref.watch(shopCategoryListProvider).valueOrNull;
                 return productsAsync.when(
                   data: (products) {
                     final categoryCounts = _getCategoryCounts(products);
-                    final categories = categoryCounts.keys.toList()..sort();
+                    final categories =
+                        _getCategoryNames(products, serverCategories);
+                    // 타일마다 재계산하지 않도록 build 당 1회만 집계한다.
+                    final allCount = _productsFor(products, null).length;
+                    final soldOutCount =
+                        _productsFor(products, t.product_mgmt.sold_out).length;
 
                     return RawScrollbar(
                       radius: const Radius.circular(AppRadius.sm),
@@ -218,7 +259,6 @@ class _ProductManagementScreenState
                         itemCount: categories.length + 2,
                         itemBuilder: (context, index) {
                           if (index == 0) {
-                            final allCount = _getAllUniqueCount(products);
                             final isSelected = _selectedCategory == null;
                             return _buildCategoryTile(
                               t.product_mgmt.all,
@@ -228,16 +268,15 @@ class _ProductManagementScreenState
                             );
                           }
                           if (index == 1) {
-                            final soldOutCount = products
-                                .where((p) => p.status == ProductStatus.soldOut)
-                                .length;
                             final isSelected =
                                 _selectedCategory == t.product_mgmt.sold_out;
                             return _buildCategoryTile(t.product_mgmt.sold_out,
                                 soldOutCount, isSelected);
                           }
                           final category = categories[index - 2];
-                          final count = categoryCounts[category]!;
+                          // 서버에만 있고 상품이 0개인 카테고리는 counts 에 항목이
+                          // 없다 — 널 단언 대신 0 으로 표시한다.
+                          final count = categoryCounts[category] ?? 0;
                           final isSelected = category == _selectedCategory;
                           return _buildCategoryTile(
                               category, count, isSelected);

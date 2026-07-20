@@ -11,6 +11,7 @@ import 'package:appfit_order_agent/models/order_menu_model.dart';
 import 'package:appfit_order_agent/models/menu_option_model.dart';
 import 'package:appfit_order_agent/models/store_model.dart';
 import 'package:appfit_order_agent/models/product_model.dart';
+import 'package:appfit_order_agent/models/shop_category_model.dart';
 import 'package:appfit_order_agent/models/membership_model.dart';
 // import 'api_service_interface.dart'; // Removed
 import 'package:appfit_order_agent/services/appfit/appfit_providers.dart';
@@ -500,7 +501,19 @@ class ApiService {
     }
   }
 
-  Future<List<ProductModel>> getShopCategories(String storeId) async {
+  /// 상품 목록만 필요한 호출부용 축약 (상태 변경 등).
+  ///
+  /// 카테고리 목록까지 필요하면 [getShopCatalog] 를 쓴다.
+  Future<List<ProductModel>> getShopCategories(String storeId) async =>
+      (await getShopCatalog(storeId)).products;
+
+  /// 매장 카테고리 + 상품 조회.
+  ///
+  /// 서버 `categories[]` 는 소속 상품(`items`)이 0개인 카테고리도 내려준다. 상품
+  /// 목록으로 평탄화하면 빈 카테고리는 흔적이 남지 않아 사라지므로, 카테고리를
+  /// 상품과 분리해 함께 반환한다(상품관리 좌측 목록 정본).
+  Future<({List<ProductModel> products, List<ShopCategoryModel> categories})>
+      getShopCatalog(String storeId) async {
     try {
       final dio = _ref.read(appFitDioProvider);
       // AppFit: /v0/shops/{shopCode}/categories
@@ -509,14 +522,26 @@ class ApiService {
       if (response.statusCode == 200) {
         final data = response.data['data'] as Map<String, dynamic>;
         final List<ProductModel> allProducts = [];
+        final List<ShopCategoryModel> shopCategories = [];
 
         // 1. 카테고리별 상품(items) 처리
         if (data.containsKey('categories')) {
           final categories = data['categories'] as List<dynamic>;
           for (var category in categories) {
-            final categoryName = category['categoryName'] as String;
-            final categoryCode = category['categoryPosId'] as String;
-            final items = category['items'] as List<dynamic>;
+            // 항목별 격리 — 1건 손상 시 해당 카테고리만 스킵하고 나머지는 유지.
+            final ShopCategoryModel shopCategory;
+            try {
+              shopCategory =
+                  ShopCategoryModel.fromJson(category as Map<String, dynamic>);
+            } catch (e) {
+              logger.e('[AppFit API] 카테고리 파싱 실패 — 해당 항목 스킵', error: e);
+              continue;
+            }
+            shopCategories.add(shopCategory);
+
+            final categoryName = shopCategory.categoryName;
+            final categoryCode = shopCategory.categoryCode;
+            final items = (category['items'] as List<dynamic>?) ?? const [];
 
             for (var item in items) {
               allProducts.add(ProductModel(
@@ -554,7 +579,7 @@ class ApiService {
           }
         }
 
-        return allProducts;
+        return (products: allProducts, categories: shopCategories);
       } else {
         throw Exception('상품 목록 조회 실패: ${response.statusCode}');
       }
