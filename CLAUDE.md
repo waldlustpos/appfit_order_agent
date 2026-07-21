@@ -31,6 +31,7 @@
 ## 상세 문서
 
 - 아키텍처(데이터 흐름·Riverpod·서비스·UI·네이티브·브랜드 테마·주요 패턴): [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- 사운드그래프(MHST) 연동 흐름 도식(As-Is kokonut 왕복 ↔ To-Be 구서버 중계안·Firestore 제거 권고): [docs/SOUNDGRAPH.md](docs/SOUNDGRAPH.md)
 - 빌드/배포/환경설정/다국어(Slang): [docs/BUILD.md](docs/BUILD.md)
 - 릴리즈/배포 정책(단일 코드·단일 아티팩트·이중 채널: OTA `_release` + Sunmi App Store gray, 롤아웃 순서·핫픽스·브랜드 온보딩 규칙): [docs/RELEASE.md](docs/RELEASE.md)
 - Flutter/Dart 코드 스타일·Riverpod·라우팅·로깅·테마·테스트·접근성 규약: [docs/FLUTTER_GUIDELINES.md](docs/FLUTTER_GUIDELINES.md)
