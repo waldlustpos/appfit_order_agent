@@ -951,9 +951,12 @@ public class MainActivity extends FlutterActivity {
         }
 
         private void setImage(int imageResource) {
-            // Image content shows on a WHITE background (logos/graphics are designed
-            // for light backgrounds). Only the no-content state stays black.
-            imageView.setBackgroundColor(android.graphics.Color.WHITE);
+            // Image content shows on a light background so logos read clearly.
+            // Paik uses its brand yellow (#FECE00); other brands stay white.
+            int bgColor = "paik".equals(slug)
+                    ? android.graphics.Color.parseColor("#FECE00")
+                    : android.graphics.Color.WHITE;
+            imageView.setBackgroundColor(bgColor);
             imageView.setImageResource(imageResource);
             imageView.setVisibility(View.VISIBLE);
             imageView.setOnTouchListener(new View.OnTouchListener() {
