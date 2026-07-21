@@ -7,6 +7,7 @@ import 'package:appfit_order_agent/services/label_printer/windows/windows_label_
 import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/services/printer_job_queue.dart';
 import 'package:appfit_order_agent/services/printer_transport.dart';
+import 'package:appfit_order_agent/services/startup_probe_scheduler.dart';
 import 'package:appfit_order_agent/utils/label_painter.dart';
 import 'package:appfit_order_agent/models/order_model.dart';
 import 'dart:convert';
@@ -67,6 +68,28 @@ class PrintService {
   bool? _cachedBuiltinPrintCall;
   bool? _cachedExternalPrintCall;
 
+  /// 앱 시작 시 외부 COM 프린터 연결 확인이 실패했을 때 재확인하는 간격.
+  ///
+  /// 매장 PC 는 부팅 직후 다른 POS / 배달 프로그램이 COM 포트를 먼저 배타 점유
+  /// (serial_port_win32 open 은 share-mode 0)하거나 USB-Serial 드라이버가 아직
+  /// enumerate 되지 않아 첫 확인이 실패하는 경우가 있다. 사용자가 설정 화면에서
+  /// 재연결을 누르지 않아도 점유가 풀리면 스스로 "연결됨" 으로 복구되도록 한다.
+  ///
+  /// 초기 1회 + 이 목록만큼 재시도 = 총 6회 / 누적 약 170초. 출력 잡 자체는
+  /// [PrinterJobQueue] 의 backoff(누적 137초)가 따로 흡수하므로 같은 자릿수로 맞췄다.
+  /// 주기 폴링으로 승격하지 말 것 — COM probe 는 포트를 실제로 여닫아 출력과
+  /// 간섭할 수 있어 **시작 창 한정 · 유한 횟수** 여야 한다.
+  static const List<Duration> defaultStartupProbeBackoffs = [
+    Duration(seconds: 5),
+    Duration(seconds: 15),
+    Duration(seconds: 30),
+    Duration(seconds: 60),
+    Duration(seconds: 60),
+  ];
+
+  /// 시작 재확인 스케줄러. 첫 확인이 실패한 경우에만 생성된다 (성공 시 null 유지).
+  StartupProbeScheduler? _startupProbe;
+
   var tag = '프린트';
 
   PrintService(this.ref)
@@ -83,9 +106,79 @@ class PrintService {
     // 라 항상 microtask 로 yield 되어 안전했지만, Windows 분기는 _cachedLabelPrinter
     // 가 false 거나 backend.isOpen=true 면 첫 await 없이 state 가 갱신될 수 있다.
     // 다음 microtask 으로 deferred 해서 provider build 종료 후 실행되게 한다.
-    Future.microtask(checkConnection);
+    Future.microtask(_runStartupConnectionCheck);
     Future.microtask(_probeBuiltinPrinter);
+    // keepAlive provider 라 실제로는 세션당 1회 생성되지만, 컨테이너가 정리될 때
+    // 예약된 재시도 타이머가 남지 않도록 방어.
+    ref.onDispose(() => _startupProbe?.stop());
   }
+
+  /// 앱 시작 시 연결 확인 1회 + (Windows 외부 프린터 한정) 실패 시 백오프 재시도.
+  ///
+  /// Android / 라벨 프린터 경로는 기존과 동일하게 [checkConnection] 1회로 끝난다.
+  Future<void> _runStartupConnectionCheck() async {
+    final comPort = _preferenceService.getComPortName();
+    final isWindowsExternal =
+        Platform.isWindows && _cachedExternalPrinter == true;
+
+    if (isWindowsExternal) {
+      // 이 PC 에서 어떤 COM 이 보이는지는 지금까지 파일 로그 어디에도 없었다.
+      // "설정 포트가 아예 존재하지 않는 매장" 을 원격 로그 한 줄로 판정하기 위함.
+      String availablePorts = '(조회 실패)';
+      try {
+        await win_transport.loadLibrary();
+        availablePorts = win_transport.getAvailableComPorts().toString();
+      } catch (e) {
+        logger.w('[PrintService] COM 포트 목록 조회 실패: $e');
+      }
+      logToFile(
+          tag: LogTag.PLATFORM,
+          message: '[PrintService] Windows 외부 프린터 초기 연결 확인: '
+              'COM=${comPort ?? "(미설정)"} '
+              'baud=${_preferenceService.getComPortBaudRate()} '
+              '가용포트=$availablePorts');
+    }
+
+    await checkConnection();
+
+    if (!isWindowsExternal) return;
+    // 첫 시도 성공은 파일에 남기지 않는다 (정상 흐름 flood 방지).
+    if (_isExternalConnected) return;
+    // 포트 미설정은 시간이 지나도 저절로 풀리지 않는다 (사용자가 설정에서 골라야
+    // 하고, 그때 설정 화면이 checkConnection 을 다시 돌린다). 재시도 무의미.
+    if (comPort == null || comPort.isEmpty) {
+      logToFile(
+          tag: LogTag.PLATFORM,
+          message: '[PrintService] COM 포트 미설정 — 재시도 생략 '
+              '(설정에서 프린터 포트를 선택하세요)');
+      return;
+    }
+
+    _startupProbe = StartupProbeScheduler(
+      backoffs: defaultStartupProbeBackoffs,
+      // 재시도는 외부 scope 만 갱신 — 라벨 status 가 같이 토글되는 sync 이슈 회피.
+      probe: () async {
+        await checkConnection(external: true, label: false);
+        return _isExternalConnected;
+      },
+      // 재시도 대기 중 사용자가 외부 프린터 토글을 껐다면 더 확인할 이유가 없다.
+      shouldContinue: () => _cachedExternalPrinter == true,
+      onRetryScheduled: (attempt, total, delay) => logToFile(
+          tag: LogTag.PLATFORM,
+          message: '[PrintService] 외부 프린터 미연결 — 재시도 예약 '
+              '($attempt/$total, ${delay.inSeconds}초 후)'),
+      onRecovered: (attempt, total) => logToFile(
+          tag: LogTag.PLATFORM,
+          message: '[PrintService] 외부 프린터 연결 확인 (재시도 $attempt/$total 에서 복구)'),
+      onExhausted: (total) => logToFile(
+          tag: LogTag.ERROR,
+          message: '[PrintService] 외부 프린터 초기 연결 최종 실패 ($total회) — '
+              '출력은 잡별 큐 재시도로 계속 시도됨'),
+    )..startAfterInitialFailure();
+  }
+
+  bool get _isExternalConnected =>
+      ref.read(printerStatusProvider).isExternalConnected;
 
   Future<void> _initPrinterQueue() async {
     final queue = PrinterJobQueue.instance;
@@ -167,7 +260,8 @@ class PrintService {
         message:
             '프린터 설정 업데이트: 내장=${_cachedBuiltinPrinter}(주문서=$_cachedBuiltinPrintOrder/영수증=$_cachedBuiltinPrintReceipt/기기호출=$_cachedBuiltinPrintCall), '
             '외부=${_cachedExternalPrinter}(주문서=$_cachedExternalPrintOrder/영수증=$_cachedExternalPrintReceipt/기기호출=$_cachedExternalPrintCall), '
-            '라벨=${_cachedLabelPrinter}');
+            '라벨=${_cachedLabelPrinter}'
+            '${Platform.isWindows ? ", COM=${_preferenceService.getComPortName() ?? "(미설정)"} baud=${_preferenceService.getComPortBaudRate()}" : ""}');
   }
 
   /// 프린터 연결 상태 관리.
