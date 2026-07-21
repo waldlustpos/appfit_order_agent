@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -23,6 +24,14 @@ class OutputService {
   final Order _orderNotifier;
 
   OutputService(this.ref, this._orderNotifier);
+
+  /// 동일 주문 내 연속 라벨 사이 최소 간격. 일부 Sunmi 프린터의 firmware 설정
+  /// 'unprintable when paper not taked out'(종이 안 뗐을 때 멈춤+비프)이 걸릴
+  /// idle 윈도우를 확보하기 위한 값(현장 튜닝 대상). 라벨을 촘촘히 연달아 보내면
+  /// 상태 비콘이 갱신되기 전에 다음 PagePrint 가 도착해 firmware 가 연속 인쇄로
+  /// 처리(비프 없이 이어져 나옴)하는 개체가 있어, 라벨 사이에 이 텀을 둔다.
+  /// 주문 첫 라벨은 상위 방출 throttle(500ms)로 이미 텀이 있어 제외한다.
+  static const Duration _kInterLabelDelay = Duration(milliseconds: 300);
 
   Future<void> notifyNewOrder(
     OrderModel order, {
@@ -183,7 +192,15 @@ class OutputService {
       int failedLabels = 0;
       final List<int> failedIndices = [];
 
-      for (final data in labels) {
+      for (final (index, data) in labels.indexed) {
+        // 동일 주문 내 연속 라벨 사이에 firmware 의 paper-not-fetched 감지가
+        // 걸릴 idle 윈도우를 확보한다. index 0(주문 첫 라벨)은 상위 방출
+        // throttle(500ms)로 이미 텀이 있어 제외 → 단일메뉴(1장) 주문은 추가
+        // 지연 0. Windows 는 자체 PAPERNOFETCH 무한 대기가 있고 본 현상이 아직
+        // 미확인이라 현재 Android 로 한정(확인되면 게이트 확대).
+        if (index > 0 && Platform.isAndroid) {
+          await Future.delayed(_kInterLabelDelay);
+        }
         final genStart = DateTime.now();
         // 토글 ON 시 주문번호에 누적 순번(orderIndex, 1..orderTotal)을 접미사로 붙인다.
         final shopOrderNo = (useQr && data.shopOrderNo != null)
