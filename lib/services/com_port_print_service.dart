@@ -72,7 +72,7 @@ class ComPortPrintService {
   /// - 'not-enumerated'                : 진입 시 포트 enumerate 결과에 없음
   /// - 'enumerate-timeout-after-close' : close 후 300ms 안에 재 enumerate 못함
   /// - 'open-throws-file-not-found'    : openWithSettings 가 "is not available"
-  /// - 'open-throws-access-denied'     : openWithSettings 가 win32 error 5
+  /// - 'open-throws-access-denied'     : CreateFile 이 배타 점유로 거부 (win32 0/5/32)
   /// - 'open-throws-other'             : openWithSettings 가 그 외 예외
   /// - 'open-failed-silent'            : isOpened 가 false (예외 없이 실패)
   /// - 'probe-write-failed'            : DLE EOT 1 write 가 throw
@@ -151,6 +151,33 @@ class ComPortPrintService {
       return [];
     }
   }
+
+  /// serial_port_win32 의 open 예외 메시지에서 win32 오류 코드를 뽑는다.
+  ///
+  /// 패키지(1.4.2)는 `'Open port failed, win32 error code is N'` 을 **CreateFile
+  /// 실패 경로에서만** 던진다(`lib/src/serial_port.dart` open()). SetCommState /
+  /// SetCommTimeouts / SetCommMask 실패는 코드 없는 별도 문구라, 이 패턴이 잡히면
+  /// 곧 "CreateFile(dwShareMode=0) 이 거부됐다" 는 뜻이다.
+  static int? _win32CodeOf(String msg) {
+    final m = RegExp(r'win32 error code is (\d+)').firstMatch(msg);
+    if (m == null) return null;
+    return int.tryParse(m.group(1) ?? '');
+  }
+
+  /// CreateFile 실패 코드가 "다른 프로세스의 배타 점유" 로 볼 수 있는지.
+  ///
+  /// - 5  ERROR_ACCESS_DENIED    : 시리얼 드라이버가 두 번째 배타 open 을 거부하는 정규 코드
+  /// - 32 ERROR_SHARING_VIOLATION: 공유 위반 (COM 에서는 드물지만 의미상 동일)
+  /// - 0  코드 미보존            : 패키지가 CreateFile 직후 GetLastError 를 신뢰성 있게
+  ///   보존하지 못한 경우. 2026-07-21 실기(COM3, 외부 프로세스가 포트 점유)에서 **첫
+  ///   시도만 0, 이후 재시도는 5** 로 관측됐다. 같은 사고가 두 이름으로 집계되면
+  ///   현장 로그에서 점유 사고를 놓치므로 함께 점유로 분류한다.
+  ///
+  /// 그 외 코드(21 NOT_READY, 1167 DEVICE_NOT_CONNECTED 등)는 점유가 아니므로
+  /// 'open-throws-other' 로 남겨 원인을 흐리지 않는다. (코드 2 는 호출부에서
+  /// "is not available" 문구로 먼저 걸러진다.)
+  static bool _isPortLockedCode(int? code) =>
+      code == 5 || code == 32 || code == 0;
 
   /// 포트가 OS USB stack 에서 다시 enumerate 될 때까지 폴링.
   /// 정상 환경에서는 첫 폴링(25ms) 에 통과. 300ms 안에도 못 보면 lag 판정.
@@ -448,16 +475,25 @@ class ComPortPrintService {
             tag: LogTag.PLATFORM,
             message:
                 '[ComPortPrint] $comPort enumerate lag — 다음 attempt backoff 안에서 자연 복구 예상');
-      } else if (msg.contains('win32 error code is 5') ||
+      } else if (_isPortLockedCode(_win32CodeOf(msg)) ||
           (lower.contains('access') && lower.contains('denied'))) {
-        // ERROR_ACCESS_DENIED (= 5). 다른 프로세스가 점유 중.
+        // CreateFile(dwShareMode=0) 거부 = 다른 프로세스가 점유 중.
+        // win32 코드를 문구에 실어 0(코드 미보존)과 5(ACCESS_DENIED)가 같은
+        // 사고임을 로그에서 대조할 수 있게 한다.
         _lastFailureReason = 'open-throws-access-denied';
         logToFile(
             tag: LogTag.WARNING,
-            message:
-                '[ComPortPrint] $comPort access denied — 외부 프로세스(POS/유틸) 점유 의심');
+            message: '[ComPortPrint] $comPort access denied '
+                '(win32=${_win32CodeOf(msg) ?? "?"}) — 외부 프로세스(POS/유틸) 점유 의심');
       } else {
         _lastFailureReason = 'open-throws-other';
+        // 점유가 아닌 open 실패(21 NOT_READY / 1167 DEVICE_NOT_CONNECTED 등)도
+        // 코드만 짧게 남긴다. logger.e 스택은 뒤에 이어지지만 사유 한 줄이 없으면
+        // 큐 로그의 PrinterTransportError 만 보고는 원인을 좁힐 수 없다.
+        logToFile(
+            tag: LogTag.WARNING,
+            message: '[ComPortPrint] $comPort open 실패 '
+                '(win32=${_win32CodeOf(msg) ?? "없음"}) — 점유 외 원인');
       }
       logger.e('[ComPortPrint] Error sending data', error: e, stackTrace: s);
       return false;
@@ -609,7 +645,14 @@ class ComPortPrintService {
         ports = SerialPort.getAvailablePorts();
       } catch (_) {}
       if (!ports.contains(comPort)) {
-        logger.d('[ComPortPrint] probeConnection: $comPort 미enumerate → false');
+        // 파일 로그로 기록: 부팅 직후엔 주문이 없어 sendRaw/큐 로그가 아예 없으므로
+        // 여기 남기지 않으면 원격 진단에서 "미enumerate(드라이버/케이블)" 와
+        // "무응답(프린터 전원 off)" 을 구분할 수 없다. 분기마다 곧 return 이라
+        // 호출 1회당 파일 1줄 상한이 구조적으로 지켜진다.
+        logToFile(
+            tag: LogTag.PLATFORM,
+            message: '[ComPortPrint] probeConnection $comPort → false '
+                '(reason=not-enumerated, 가용=$ports)');
         return false;
       }
 
@@ -635,7 +678,10 @@ class ComPortPrintService {
         rethrow;
       }
       if (!port.isOpened) {
-        logger.d('[ComPortPrint] probeConnection: $comPort open 실패 → false');
+        logToFile(
+            tag: LogTag.WARNING,
+            message: '[ComPortPrint] probeConnection $comPort open 반환했으나 '
+                'isOpened=false → false');
         return false;
       }
 
@@ -656,11 +702,19 @@ class ComPortPrintService {
           await Future.delayed(_probeRetryInterval);
         }
       }
-      logger.i('[ComPortPrint] probeConnection: $comPort 무응답 '
-          '($_probeMaxAttempts회 시도, reason=$_lastFailureReason) → disconnected');
+      // logger.i → logToFile 로 치환(추가 아님 — 콘솔 2줄 방지). reason 은
+      // _probePrinter 가 매 시도마다 갱신하므로 최신 값이다.
+      logToFile(
+          tag: LogTag.PLATFORM,
+          message: '[ComPortPrint] probeConnection $comPort 무응답 '
+              '($_probeMaxAttempts회, reason=$_lastFailureReason, baud=$baudRate)'
+              ' → disconnected');
       return false;
     } catch (e) {
-      logger.w('[ComPortPrint] probeConnection 예외: $e');
+      // logger.w 는 화이트리스트상 이미 파일에 기록되므로 logToFile 을 겹치지
+      // 않는다. 다만 타 프로그램의 COM 배타 점유(ACCESS_DENIED)가 정확히 이
+      // 경로로 오므로 포트/보레이트 컨텍스트만 덧붙인다.
+      logger.w('[ComPortPrint] probeConnection 예외: $comPort @ $baudRate — $e');
       return false;
     } finally {
       if (port != null) _safeClose(port);
