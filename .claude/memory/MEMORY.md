@@ -34,3 +34,4 @@
 - [변형 폐기 → 단일 빌드 + 런타임 서버선택](project_variant_rename_japan_korea.md) — **+2026-07-09(2차) APPFIT_VARIANT 완전 제거**: 하나의 APK/exe가 한/일 서빙. 서버=저장값(기본 live)+로그인 배지(릴리즈 2종)+매장ID 프리픽스 자동전환(BrandRegistry), 미등록 프리픽스 1회 다이얼로그(override 키). OTA는 Android `_appfit` 단일 신설(무접미 동결 유지)·Windows 레거시 단일. 스크립트 인자 전부 제거. 통합작업은 c3f226d 보존 커밋. app_env.dart(gitignore 로컬) 타 머신 반영 필요 (2026-07-09)
 - [Sentry 알림 라우팅](project_sentry_alert_routing.md) — 매장/브랜드별 store_id→Slack 채널 분기, sentry_alerts/ 스크립트 코드화. MCP는 규칙 생성 불가·읽기만. 라이브 적용은 SENTRY_AUTH_TOKEN 대기.
 - [intra-order 라벨 300ms 딜레이](project_label_inter_label_delay.md) — 동일 주문 라벨 사이 firmware '종이 안 뗌' 감지 미동작(장비편차) 대응. output_service 루프에 Android 한정 고정 딜레이. 실기 Sunmi 300ms 검증완료 (2026-07-21)
+- [brand 로고 solid 배경 = 색상 마스크](reference_brand_logo_solid_bg_color_mask.md) — 원본이 알파 없는 solid 배경이면 docs alpha 매핑 대신 ImageChops.subtract(b,r) 파랑 마스크. PAIK 새 BI 교체 이력(라벨=Paik's 크롭, 세컨 dm_paik+#FECE00 setImage slug 스코핑) (2026-07-21)
