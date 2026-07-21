@@ -35,3 +35,5 @@
 - [Sentry 알림 라우팅](project_sentry_alert_routing.md) — 매장/브랜드별 store_id→Slack 채널 분기, sentry_alerts/ 스크립트 코드화. MCP는 규칙 생성 불가·읽기만. 라이브 적용은 SENTRY_AUTH_TOKEN 대기.
 - [intra-order 라벨 300ms 딜레이](project_label_inter_label_delay.md) — 동일 주문 라벨 사이 firmware '종이 안 뗌' 감지 미동작(장비편차) 대응. output_service 루프에 Android 한정 고정 딜레이. 실기 Sunmi 300ms 검증완료 (2026-07-21)
 - [brand 로고 solid 배경 = 색상 마스크](reference_brand_logo_solid_bg_color_mask.md) — 원본이 알파 없는 solid 배경이면 docs alpha 매핑 대신 ImageChops.subtract(b,r) 파랑 마스크. PAIK 새 BI 교체 이력(라벨=Paik's 크롭, 세컨 dm_paik+#FECE00 setImage slug 스코핑) (2026-07-21)
+- [COM 재시도 계층 경계](feedback_com_startup_retry_scope.md) — sendRaw 는 큐 backoff 가 kokonut K2 상위 호환이라 내부 재시도 금지(면제는 sendRaw 한정). 시작 연결확인만 StartupProbeScheduler 5/15/30/60/60s. probe 결과는 출력을 게이트 안 함 (2026-07-21)
+- [logToFile ≠ 파일 보장](reference_appfit_log_file_whitelist.md) — logger.dart 화이트리스트(level>=warning 또는 태그 문자열)가 결정. logger.w/e 는 이미 파일행 → 승격은 추가 아닌 치환. onFinalFailure 의 "Sentry 자동 캡처" 주석은 거짓
