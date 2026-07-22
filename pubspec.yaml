@@ -56,7 +56,7 @@ dependencies:
   app_installer: ^1.3.1
 
   dio: ^5.8.0+1
-  flutter_launcher_icons: ^0.14.3
+  flutter_launcher_icons: ^0.14.4
 
   device_info_plus: ^12.3.0
   
@@ -103,10 +103,14 @@ dev_dependencies:
   sentry_dart_plugin: ^3.2.1
   flutter_test:
     sdk: flutter
-  flutter_lints: ^2.0.0
+  flutter_lints: ^6.0.0
   build_runner: ^2.4.13
   riverpod_generator: ^2.6.3
   dotted_line: ^3.2.3
+  # 직접 import 하지만 미선언이던 dev 전용 의존(전이 의존에 기대던 것):
+  # image=tool/ 아이콘·로고 생성 스크립트, fake_async=test/ 가상시계 타이머 테스트
+  fake_async: ^1.3.1
+  image: ^4.5.4
 
 
 # For information on the generic Dart part of this file, see the

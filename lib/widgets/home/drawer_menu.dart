@@ -12,10 +12,10 @@ class DrawerMenu extends ConsumerWidget {
   final Future<void> Function(int) onItemSelected;
 
   const DrawerMenu({
-    Key? key,
+    super.key,
     required this.currentIndex,
     required this.onItemSelected,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

@@ -19,9 +19,8 @@ class ApiException implements Exception {
 
 /// 네트워크 연결 또는 타임아웃 관련 예외
 class NetworkException extends ApiException {
-  NetworkException(String message,
-      [Object? originalException, StackTrace? originalStackTrace])
-      : super(message, originalException, originalStackTrace);
+  NetworkException(super.message,
+      [super.originalException, super.originalStackTrace]);
 }
 
 /// 서버가 오류 응답을 반환했을 때의 예외
@@ -36,9 +35,8 @@ class ServerException extends ApiException {
 
 /// 데이터 파싱 또는 예상치 못한 데이터 형식 관련 예외
 class DataParsingException extends ApiException {
-  DataParsingException(String message,
-      [Object? originalException, StackTrace? originalStackTrace])
-      : super(message, originalException, originalStackTrace);
+  DataParsingException(super.message,
+      [super.originalException, super.originalStackTrace]);
 }
 
 /// 플랫폼 채널 호출 관련 예외
@@ -51,14 +49,12 @@ class PlatformApiException extends ApiException {
 
 /// API 로직 내에서 예상치 못한 오류 발생 시 예외
 class UnknownApiException extends ApiException {
-  UnknownApiException(String message,
-      [Object? originalException, StackTrace? originalStackTrace])
-      : super(message, originalException, originalStackTrace);
+  UnknownApiException(super.message,
+      [super.originalException, super.originalStackTrace]);
 }
 
 /// API 응답 자체는 성공했으나, 비즈니스 로직 상 실패했을 경우 (예: success: false)
 class BusinessLogicException extends ApiException {
-  BusinessLogicException(String message,
-      [Object? originalException, StackTrace? originalStackTrace])
-      : super(message, originalException, originalStackTrace);
+  BusinessLogicException(super.message,
+      [super.originalException, super.originalStackTrace]);
 }

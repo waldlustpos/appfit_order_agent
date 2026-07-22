@@ -321,6 +321,7 @@ class OrderModel {
     return menus.fold(0, (sum, menu) => sum + menu.totalPrice);
   }
 
+  @override
   String toString() {
     return 'orderNo: $orderNo\nshopOrderNo: $shopOrderNo\ndisplayOrderNo: $displayOrderNo\ndisplayNum: $displayNum\norderStatus: $orderStatus\norderedAt: $orderedAt\ntotalAmount: $totalAmount\nstatus: $status\norderStatus: $orderStatus\nstoreId: $storeId\nuserName: $userName\nnote: $note\nuserId: $userId\norderCount: $orderCount\npaymentAmount: $paymentAmount\ndiscountAmount: $discountAmount\npaymentType: $paymentType\nkioskId: $kioskId\nisDetailLoaded: $isDetailLoaded\nmenus: $menus';
   }

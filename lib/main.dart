@@ -425,7 +425,7 @@ ThemeData _buildTheme() {
 }
 
 class MyApp extends ConsumerWidget {
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -531,9 +531,9 @@ class EdgeSwipeDetector extends StatelessWidget {
   final Widget child;
 
   const EdgeSwipeDetector({
-    Key? key,
+    super.key,
     required this.child,
-  }) : super(key: key);
+  });
 
   // Show system UI via method channel
   Future<void> _showSystemUI(String a) async {

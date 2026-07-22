@@ -11,11 +11,11 @@ class KdsScrollUpButtonWidget extends ConsumerWidget {
   final Function(String) updateScrollButtonVisibility;
 
   const KdsScrollUpButtonWidget({
-    Key? key,
+    super.key,
     required this.orderId,
     required this.scrollControllers,
     required this.updateScrollButtonVisibility,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -95,11 +95,11 @@ class KdsScrollDownButtonWidget extends ConsumerWidget {
   final Function(String) updateScrollButtonVisibility;
 
   const KdsScrollDownButtonWidget({
-    Key? key,
+    super.key,
     required this.orderId,
     required this.scrollControllers,
     required this.updateScrollButtonVisibility,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

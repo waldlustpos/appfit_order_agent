@@ -11,7 +11,7 @@ class CustomSwitch extends StatefulWidget {
   final Duration debounceTime;
 
   const CustomSwitch({
-    Key? key,
+    super.key,
     required this.value,
     required this.onChanged,
     this.activeColor,
@@ -19,7 +19,7 @@ class CustomSwitch extends StatefulWidget {
     this.activeText = 'ON',
     this.inactiveText = 'OFF',
     this.debounceTime = const Duration(milliseconds: 1000),
-  }) : super(key: key);
+  });
 
   @override
   State<CustomSwitch> createState() => _CustomSwitchState();

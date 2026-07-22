@@ -5,7 +5,6 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:appfit_order_agent/widgets/kds/kds_card_grid_layout_widget.dart';
 import 'package:table_calendar/table_calendar.dart';
-import 'package:appfit_order_agent/providers/kds/kds_unified_providers.dart';
 import 'package:appfit_order_agent/providers/kds/kds_order_tracking_provider.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
 import 'package:appfit_order_agent/constants/app_styles.dart';
@@ -27,7 +26,7 @@ final kioskOrderVisibilityProvider = StateProvider<bool>((ref) {
 });
 
 class KdsScreen extends ConsumerStatefulWidget {
-  const KdsScreen({Key? key}) : super(key: key);
+  const KdsScreen({super.key});
 
   @override
   ConsumerState<KdsScreen> createState() => _KdsScreenState();

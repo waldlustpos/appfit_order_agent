@@ -4,8 +4,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:appfit_order_agent/config/app_env.dart'; // AppEnv 추가
 import 'package:appfit_order_agent/providers/providers.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
-import 'package:appfit_order_agent/services/appfit/appfit_providers.dart'; // appFitTokenManagerProvider
-import 'package:appfit_order_agent/services/api_service.dart';
+// appFitTokenManagerProvider
 import 'package:appfit_order_agent/exceptions/api_error_mapper.dart'; // DioException → 친화 ApiException 변환
 import 'package:appfit_order_agent/i18n/strings.g.dart'; // t (네트워크/타임아웃 i18n 폴백)
 import 'package:appfit_order_agent/services/platform_service.dart'; // logToFile, LogTag 사용 위해 추가

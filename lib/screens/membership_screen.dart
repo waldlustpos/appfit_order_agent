@@ -20,7 +20,7 @@ import 'package:appfit_order_agent/widgets/membership/coupon_history_card.dart';
 import 'package:appfit_order_agent/widgets/membership/available_coupon_card.dart';
 
 class MembershipScreen extends ConsumerStatefulWidget {
-  const MembershipScreen({Key? key}) : super(key: key);
+  const MembershipScreen({super.key});
 
   @override
   ConsumerState<MembershipScreen> createState() => _MembershipScreenState();

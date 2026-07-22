@@ -267,7 +267,7 @@ class _ExternalPrinterSubSettingsState
         Switch(
           value: value,
           onChanged: enabled ? onChanged : null,
-          activeColor: AppStyles.kMainColor,
+          activeThumbColor: AppStyles.kMainColor,
         ),
       ],
     );

@@ -28,13 +28,13 @@ class OrderDetailPopup extends ConsumerStatefulWidget {
   final bool isFromAllTab;
 
   const OrderDetailPopup({
-    Key? key,
+    super.key,
     required this.order,
     this.isFromHistory = false,
     this.isFromKds = false,
     this.isFromCompletedOrCancelled = false,
     this.isFromAllTab = false,
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<OrderDetailPopup> createState() => _OrderDetailPopupState();

@@ -5,7 +5,6 @@ import 'package:appfit_order_agent/services/preference_service.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:appfit_order_agent/i18n/strings.g.dart';
 import 'package:appfit_order_agent/constants/app_styles.dart';
-import 'package:appfit_order_agent/providers/kds/kds_unified_providers.dart';
 import 'package:appfit_order_agent/providers/product_provider.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -25,13 +24,12 @@ import 'package:appfit_order_agent/screens/product_management_screen.dart';
 import 'package:appfit_order_agent/widgets/home/drawer_menu.dart';
 import 'package:appfit_order_agent/screens/settings_screen.dart';
 import 'package:appfit_order_agent/widgets/common/common_dialog.dart';
-import 'package:flutter/widgets.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:appfit_order_agent/services/monitoring/monitoring_sync_provider.dart';
 import 'package:appfit_order_agent/screens/kds_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+  const HomeScreen({super.key});
 
   @override
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
@@ -279,7 +277,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         currentIndex: _currentIndex,
         onItemSelected: _onDrawerItemSelected,
       ),
-      body: Container(
+      body: ColoredBox(
         color: AppStyles.gray1,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.start,
@@ -527,7 +525,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 }
 
 class HomeContent extends ConsumerWidget {
-  const HomeContent({Key? key}) : super(key: key);
+  const HomeContent({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

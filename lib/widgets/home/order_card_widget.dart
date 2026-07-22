@@ -14,11 +14,11 @@ class OrderCardWidget extends ConsumerStatefulWidget {
   final bool isKdsMode;
 
   const OrderCardWidget({
-    Key? key,
+    super.key,
     required this.order,
     this.onTap,
     this.isKdsMode = false,
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<OrderCardWidget> createState() => _OrderCardWidgetState();

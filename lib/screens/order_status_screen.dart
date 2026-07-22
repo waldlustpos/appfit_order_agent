@@ -8,7 +8,7 @@ import 'package:appfit_order_agent/widgets/order/order_detail_popup.dart';
 import 'package:appfit_order_agent/i18n/strings.g.dart';
 
 class OrderStatusScreen extends ConsumerWidget {
-  const OrderStatusScreen({Key? key}) : super(key: key);
+  const OrderStatusScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
