@@ -37,3 +37,5 @@
 - [brand 로고 solid 배경 = 색상 마스크](reference_brand_logo_solid_bg_color_mask.md) — 원본이 알파 없는 solid 배경이면 docs alpha 매핑 대신 ImageChops.subtract(b,r) 파랑 마스크. PAIK 새 BI 교체 이력(라벨=Paik's 크롭, 세컨 dm_paik+#FECE00 setImage slug 스코핑) (2026-07-21)
 - [COM 재시도 계층 경계](feedback_com_startup_retry_scope.md) — sendRaw 는 큐 backoff 가 kokonut K2 상위 호환이라 내부 재시도 금지(면제는 sendRaw 한정). 시작 연결확인만 StartupProbeScheduler 5/15/30/60/60s. probe 결과는 출력을 게이트 안 함 (2026-07-21)
 - [logToFile ≠ 파일 보장](reference_appfit_log_file_whitelist.md) — logger.dart 화이트리스트(level>=warning 또는 태그 문자열)가 결정. logger.w/e 는 이미 파일행 → 승격은 추가 아닌 치환. onFinalFailure 의 "Sentry 자동 캡처" 주석은 거짓
+- [의존성 tier① 업그레이드 실행](project_deps_tier1_upgrade.md) — 감사 후 저위험 5묶음 브랜치 실행(미푸시). tier②(Sentry/serial/Riverpod)·tier③ 로드맵 대기. 보고서 plans/dependencies-dazzling-wilkinson.md
+- [slang4 다파일 + analyze baseline 함정](reference_slang4_multifile_and_analyze_baseline.md) — slang4=다파일 생성(strings_<locale>.g.dart 필수 커밋)+lazy:false 동기API. analyze warning baseline 69(0 아님). unused_catch_stack=analyzer 진단(linter 룰 아님). grep \s POSIX 미지원
