@@ -59,7 +59,8 @@ void main() async {
   }
 
   // 한국어 복수형 resolver 설정 (한국어는 복수형 구분 없음)
-  LocaleSettings.setPluralResolver(
+  // slang 4: 동기 변형(setPluralResolverSync), lazy:false 전제
+  LocaleSettings.setPluralResolverSync(
     locale: AppLocale.ko,
     cardinalResolver: (n, {zero, one, two, few, many, other}) =>
         other ?? zero ?? '',
@@ -425,7 +426,7 @@ ThemeData _buildTheme() {
 }
 
 class MyApp extends ConsumerWidget {
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -531,9 +532,9 @@ class EdgeSwipeDetector extends StatelessWidget {
   final Widget child;
 
   const EdgeSwipeDetector({
-    Key? key,
+    super.key,
     required this.child,
-  }) : super(key: key);
+  });
 
   // Show system UI via method channel
   Future<void> _showSystemUI(String a) async {

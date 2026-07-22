@@ -18,7 +18,7 @@
 - [fakeAsync 순수 Timer 원칙](reference_fakeasync_pure_timer.md) — 타이머 버퍼 로직은 순수 Timer 로. DateTime.now() 는 fakeAsync 가상시계 미추종 → cap 테스트 실패. cap=재무장 안 하는 별도 Timer.
 - [D2s_KDS 는 32비트 전용](project_d2s_kds_32bit_only.md) — zygote32/abilist64 공란. armeabi-v7a 빼면 INSTALL_FAILED_NO_MATCHING_ABIS. SoC 스펙·웹리서치 둘 다 틀렸음 → ABI 축소는 fleet 전수 getprop 실측 후에만.
 - [AppFit UI 리프레시 Phase 1~6 완료](project_ui_refresh.md) — 디자인 토큰·공용 컴포넌트·애니메이션·팝업·로그인 2분할 재설계 (Phase 6: 2026-04-15)
-- [서버 전환 재로그인 크래시](project_server_switch_crash.md) — 로그아웃→환경 변경→재로그인 크래시 (2026-04-23 조사, 수정 보류)
+- [서버 전환 재로그인 크래시](project_server_switch_crash.md) — 로그아웃→환경 변경→재로그인 크래시 (2026-04-23 조사). +2026-07-22 원인#4(keepAlive 잔존) 구체 사례 수정: 매장 전환 후 shopCatalog stale categories 404(Sentry 62c783…) → 로그아웃 시 storeProvider/shopCatalog invalidate + shopCatalog 로딩 가드 + 테스트(미커밋). 동반 토큰 404 2건(NOT_FOUND_OWNER, 토큰 발급 실패)도 같은 뿌리(인터셉터가 요청 shopCode로 sign-in 재발급) → 함께 해결
 - [라벨 ACK 패치 — BITMAP PoC + buzzer 비트 식별](project_label_ack_patch.md) — Caysn 우회 USB Direct 구현 완료. paper-state machine + BITMAP 인쇄 + buzzer flag(byte1 0x01) USB 비트 발견. race 시 펌웨어 안전 처리 확인 → 청산점 #958 가설 약화 (2026-05-04). 다음: 설정 토글 통합 + 출력 로직 정비.
 - [USB Busy Holder helper APK 검증 중](project_usb_busy_holder_test.md) — 외부 영수증 프린터 BUSY backoff 재현용 helper APK 작성/빌드 완료. helper HOLDING 까지 됐으나 본 앱 fd 보유로 claim 무효 상태에서 멈춤. 다음: force-stop/케이블 분리/외부 토글로 본 앱 측 `claimInterface failed` 로그 검증 (2026-05-19).
 - [appfit_core 배포는 release.sh 단일 진입점](feedback_appfit_core_release.md) — pubspec.yaml만 수정 후 tool/release.sh. 직접 git tag/push 금지 (v1.0.10 packageVersion 동기화 누락 사고).
@@ -39,3 +39,5 @@
 - [logToFile ≠ 파일 보장](reference_appfit_log_file_whitelist.md) — logger.dart 화이트리스트(level>=warning 또는 태그 문자열)가 결정. logger.w/e 는 이미 파일행 → 승격은 추가 아닌 치환. onFinalFailure 의 "Sentry 자동 캡처" 주석은 거짓
 - [업데이트 채널 정책 반전](project_update_channel_policy_mhst_sunmi.md) — MHST+Sunmi만 앱스토어(OTA OFF), 그 외 전부 OTA(ON). 옛 "sunmi 전부 OFF+TPCP만 ON" 뒤집음. 분기축=제조사 sunmi + BrandFeature.sunmiAppStoreUpdate(MHST단독). 마커 KEY_UPDATE_POLICY_MHST_SUNMI_V1 로 기존 fleet 1회 재조정. 미커밋·미배포 (2026-07-22)
 - [Sentry Crons 앱 실행중 판정 검증](project_sentry_crons_liveness.md) — heartbeat 끊기면 missed 자동감지→이슈. HTTP envelope 체크인으로 토큰·대시보드 없이 모니터 upsert(tool/cron_heartbeat_test.dart). 8.14.2엔 captureCheckIn 없음(SDK는 9.x 업그레이드 전제). 모니터당 과금. 테스트만·미도입 (2026-07-22)
+- [의존성 tier① 업그레이드 실행](project_deps_tier1_upgrade.md) — 감사 후 저위험 5묶음 브랜치 실행(미푸시). tier②(Sentry/serial/Riverpod)·tier③ 로드맵 대기. 보고서 plans/dependencies-dazzling-wilkinson.md
+- [slang4 다파일 + analyze baseline 함정](reference_slang4_multifile_and_analyze_baseline.md) — slang4=다파일 생성(strings_<locale>.g.dart 필수 커밋)+lazy:false 동기API. analyze warning baseline 69(0 아님). unused_catch_stack=analyzer 진단(linter 룰 아님). grep \s POSIX 미지원

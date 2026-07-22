@@ -3,12 +3,9 @@ import 'dart:async';
 import 'package:riverpod_annotation/riverpod_annotation.dart'; // Generator import
 import 'package:appfit_order_agent/services/preference_service.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
-import 'package:appfit_order_agent/services/api_service.dart';
 import 'package:appfit_order_agent/models/order_model.dart';
 import 'package:appfit_order_agent/exceptions/api_exceptions.dart';
-import 'package:appfit_order_agent/exceptions/order_detail_fetch_failed_exception.dart';
 
-import 'package:appfit_order_agent/providers/kds/kds_unified_providers.dart';
 import 'package:appfit_order_agent/providers/order/order_cache_manager.dart';
 import 'package:appfit_order_agent/providers/order/order_settings_manager.dart';
 import 'package:appfit_order_agent/providers/order/order_state_manager.dart';
@@ -27,7 +24,6 @@ import 'package:appfit_order_agent/services/soundgraph_hook.dart';
 
 import 'package:appfit_order_agent/core/orders/cache/order_detail_cache.dart';
 import 'package:appfit_order_agent/core/orders/cache/processed_order_cache.dart';
-import 'package:appfit_order_agent/services/appfit/appfit_providers.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:appfit_order_agent/utils/model_parse_utils.dart';
 import 'package:appfit_order_agent/models/order_state.dart';
@@ -639,7 +635,7 @@ class Order extends _$Order {
             triggerAppBar: true,
           );
       logger.d(
-          '  NEW 주문 알림 발생 완료 (Sound=${shouldNotify}/Overlay/AppBar) [kiosk=${_helper.isKioskOrder(order)}]');
+          '  NEW 주문 알림 발생 완료 (Sound=$shouldNotify/Overlay/AppBar) [kiosk=${_helper.isKioskOrder(order)}]');
     }
 
     if (shouldAutoAccept) {

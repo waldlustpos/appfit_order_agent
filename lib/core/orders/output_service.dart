@@ -17,7 +17,6 @@ import 'package:appfit_order_agent/exceptions/order_detail_fetch_failed_exceptio
 import 'package:appfit_order_agent/utils/label_painter.dart';
 
 import 'package:appfit_core/appfit_core.dart' show MonitoringService;
-import 'package:appfit_order_agent/providers/kds/kds_unified_providers.dart';
 
 class OutputService {
   final Ref ref;

@@ -11,7 +11,6 @@ import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/utils/model_parse_utils.dart';
 import 'package:appfit_order_agent/models/order_model.dart';
-import 'package:appfit_order_agent/providers/order/order_history_provider.dart';
 import 'package:appfit_order_agent/i18n/strings.g.dart';
 
 class OrderHistoryScreen extends ConsumerStatefulWidget {
@@ -133,7 +132,7 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen> {
     _detectSortChangeAndResetScroll(sortDirection);
 
     return Scaffold(
-      body: Container(
+      body: ColoredBox(
         color: AppStyles.gray1,
         child: Column(
           children: [

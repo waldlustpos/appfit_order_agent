@@ -258,9 +258,9 @@ class PrintService {
     logToFile(
         tag: LogTag.PLATFORM,
         message:
-            '프린터 설정 업데이트: 내장=${_cachedBuiltinPrinter}(주문서=$_cachedBuiltinPrintOrder/영수증=$_cachedBuiltinPrintReceipt/기기호출=$_cachedBuiltinPrintCall), '
-            '외부=${_cachedExternalPrinter}(주문서=$_cachedExternalPrintOrder/영수증=$_cachedExternalPrintReceipt/기기호출=$_cachedExternalPrintCall), '
-            '라벨=${_cachedLabelPrinter}'
+            '프린터 설정 업데이트: 내장=$_cachedBuiltinPrinter(주문서=$_cachedBuiltinPrintOrder/영수증=$_cachedBuiltinPrintReceipt/기기호출=$_cachedBuiltinPrintCall), '
+            '외부=$_cachedExternalPrinter(주문서=$_cachedExternalPrintOrder/영수증=$_cachedExternalPrintReceipt/기기호출=$_cachedExternalPrintCall), '
+            '라벨=$_cachedLabelPrinter'
             '${Platform.isWindows ? ", COM=${_preferenceService.getComPortName() ?? "(미설정)"} baud=${_preferenceService.getComPortBaudRate()}" : ""}');
   }
 
@@ -441,8 +441,9 @@ class PrintService {
     if (builtinPrintReceipt != null) {
       _cachedBuiltinPrintReceipt = builtinPrintReceipt;
     }
-    if (externalPrintOrder != null)
+    if (externalPrintOrder != null) {
       _cachedExternalPrintOrder = externalPrintOrder;
+    }
     if (externalPrintReceipt != null) {
       _cachedExternalPrintReceipt = externalPrintReceipt;
     }

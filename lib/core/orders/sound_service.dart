@@ -78,7 +78,7 @@ class SoundService {
       // _defaultDelay(2s)로 급증하는 문제를 막기 위해, 파일이 바뀐 경우에만
       // 소스/캐시를 재생성한다.
       if (soundChanged || _soundSource == null) {
-        _soundSource = AssetSource('sounds/' + _soundFileName);
+        _soundSource = AssetSource('sounds/$_soundFileName');
         _cachedDuration = null;
       }
 
@@ -104,7 +104,7 @@ class SoundService {
         return;
       }
 
-      _soundSource ??= AssetSource('sounds/' + _soundFileName);
+      _soundSource ??= AssetSource('sounds/$_soundFileName');
       if (_soundSource == null) {
         logger.w('[SoundService] 사운드 소스 없음');
         return;

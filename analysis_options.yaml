@@ -9,6 +9,13 @@
 # packages, and plugins designed to encourage good coding practices.
 include: package:flutter_lints/flutter.yaml
 
+analyzer:
+  errors:
+    # catch (e, s) 에서 스택 s 미사용 61곳. 이 코드베이스는 로깅 시 스택을
+    # 선택적으로만 쓰는 관행이라 analyzer 진단(linter 룰 아님)을 무시로 낮춘다.
+    # 실제 정리(스택 로깅 보강 또는 파라미터 제거)는 전용 과제로 분리.
+    unused_catch_stack: ignore
+
 linter:
   # The lint rules applied to this project can be customized in the
   # section below to disable rules from the `package:flutter_lints/flutter.yaml`
@@ -31,6 +38,13 @@ linter:
     # NOTE: directives_ordering 은 의도적으로 비활성. flutter_lints 기본 세트에 없으며,
     #       자동 fix 가 없어 수백 줄 수동 정렬이 필요하고, deferred import 등 주석이 붙은
     #       지시문을 알파벳 정렬하면 주석-import 연결이 끊긴다.
+    # flutter_lints 6 으로 올리며 새로 켜진 고차원 스타일 룰은 이 코드베이스의
+    # 기존 관행과 정면 충돌(대량 상수 개명·지역변수 개명 유발)하여 비활성한다.
+    # 실제 정리는 전용 스타일 과제로 분리(tier 별도). 각 근거:
+    #   - constant_identifier_names: KEY_PWD 등 SCREAMING_CASE 상수 97곳(관행)
+    #   - no_leading_underscores_for_local_identifiers: _local 지역변수 18곳
+    constant_identifier_names: false
+    no_leading_underscores_for_local_identifiers: false
 
 # Additional information about this file can be found at
 # https://dart.dev/guides/language/analysis-options

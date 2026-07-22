@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:appfit_order_agent/constants/app_styles.dart';
 import 'package:appfit_order_agent/constants/card_types.dart';
 import 'package:appfit_order_agent/models/order_model.dart';
-import 'package:appfit_order_agent/providers/kds/kds_unified_providers.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/widgets/common/common_dialog.dart';
@@ -23,10 +22,10 @@ class KdsProgressBottomButtonsWidget extends ConsumerWidget {
   final VoidCallback? onOrderDetailTap;
 
   const KdsProgressBottomButtonsWidget({
-    Key? key,
+    super.key,
     required this.order,
     this.onOrderDetailTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -141,10 +140,10 @@ class KdsPickupBottomButtonsWidget extends ConsumerWidget {
   final VoidCallback? onOrderDetailTap;
 
   const KdsPickupBottomButtonsWidget({
-    Key? key,
+    super.key,
     required this.order,
     this.onOrderDetailTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -263,10 +262,10 @@ class KdsCompletedBottomButtonsWidget extends ConsumerWidget {
   final VoidCallback? onOrderDetailTap;
 
   const KdsCompletedBottomButtonsWidget({
-    Key? key,
+    super.key,
     required this.order,
     this.onOrderDetailTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -299,10 +298,10 @@ class KdsCancelledBottomButtonsWidget extends ConsumerWidget {
   final VoidCallback? onOrderDetailTap;
 
   const KdsCancelledBottomButtonsWidget({
-    Key? key,
+    super.key,
     required this.order,
     this.onOrderDetailTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -336,11 +335,11 @@ class KdsType3BottomButtonsWidget extends ConsumerWidget {
   final VoidCallback? onOrderDetailTap;
 
   const KdsType3BottomButtonsWidget({
-    Key? key,
+    super.key,
     required this.order,
     required this.cardType,
     this.onOrderDetailTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

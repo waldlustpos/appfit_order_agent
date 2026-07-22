@@ -10,14 +10,13 @@ enum _AppToolbarVariant { primary, secondary, ghost }
 
 class AppToolbarButton extends StatelessWidget {
   const AppToolbarButton._({
-    Key? key,
+    super.key,
     required _AppToolbarVariant variant,
     required this.label,
     this.icon,
     this.onPressed,
     this.isLoading = false,
-  })  : _variant = variant,
-        super(key: key);
+  })  : _variant = variant;
 
   /// 주 액션 — kMainColor 배경, 흰 텍스트 (예: 일괄 완료)
   const AppToolbarButton.primary({

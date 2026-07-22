@@ -7,7 +7,6 @@ import 'package:appfit_order_agent/exceptions/order_detail_fetch_failed_exceptio
 import 'package:appfit_order_agent/models/order_model.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
-import 'package:appfit_order_agent/services/appfit/appfit_providers.dart';
 import 'package:appfit_core/appfit_core.dart' as appfit_core;
 import 'package:appfit_order_agent/utils/socket_event_suppressor.dart';
 
@@ -336,8 +335,9 @@ class OrderSocketManager {
   /// 상세 조회 필요 여부: 일반모드=ORDER_CREATED, KDS=ORDER_ACCEPTED
   bool _shouldFetchDetail(String eventType, bool isKdsMode, bool hasDetail) {
     if (!hasDetail) return true;
-    if (!isKdsMode)
+    if (!isKdsMode) {
       return eventType == appfit_core.OrderEventType.orderCreated.value;
+    }
     // KDS: ORDER_ACCEPTED는 항상 최신 API 조회, 나머지는 캐시 기반 업데이트
     return eventType == appfit_core.OrderEventType.orderAccepted.value;
   }

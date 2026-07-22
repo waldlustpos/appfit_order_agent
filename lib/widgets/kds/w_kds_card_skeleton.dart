@@ -8,10 +8,10 @@ class KdsCardSkeleton extends StatelessWidget {
   final double height;
 
   const KdsCardSkeleton({
-    Key? key,
+    super.key,
     this.width = 250,
     this.height = 300,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -36,7 +36,7 @@ class KdsCardSkeleton extends StatelessWidget {
 
 // 메뉴 리스트 부분만 Shimmer 처리하는 위젯
 class KdsMenuSkeleton extends StatelessWidget {
-  const KdsMenuSkeleton({Key? key}) : super(key: key);
+  const KdsMenuSkeleton({super.key});
 
   @override
   Widget build(BuildContext context) {

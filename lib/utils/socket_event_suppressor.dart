@@ -64,7 +64,7 @@ class SocketEventSuppressor {
   }
 
   String _makeKey(String orderId, String eventType) {
-    return "${orderId}_${eventType}";
+    return "${orderId}_$eventType";
   }
 
   void _cleanup() {

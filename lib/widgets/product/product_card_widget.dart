@@ -13,9 +13,9 @@ class ProductCardWidget extends ConsumerStatefulWidget {
   final ProductModel product;
 
   const ProductCardWidget({
-    Key? key,
+    super.key,
     required this.product,
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<ProductCardWidget> createState() => _ProductCardWidgetState();

@@ -24,7 +24,7 @@ import 'package:appfit_core/appfit_core.dart' as appfit_core;
 
 // === New StatefulWidget for Time Display ===
 class _CurrentTimeWidget extends ConsumerStatefulWidget {
-  const _CurrentTimeWidget({Key? key}) : super(key: key);
+  const _CurrentTimeWidget();
 
   @override
   _CurrentTimeWidgetState createState() => _CurrentTimeWidgetState();
@@ -123,7 +123,7 @@ class HomeAppBarWidget extends ConsumerStatefulWidget {
   final VoidCallback? onReconnect;
 
   const HomeAppBarWidget({
-    Key? key,
+    super.key,
     required this.isOnline,
     required this.onLogout,
     required this.onMinimize,
@@ -131,7 +131,7 @@ class HomeAppBarWidget extends ConsumerStatefulWidget {
     this.isSettingsScreen = false,
     this.onBackPressed,
     this.onReconnect,
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<HomeAppBarWidget> createState() => _HomeAppBarWidgetState();

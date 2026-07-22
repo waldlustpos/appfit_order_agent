@@ -12,3 +12,7 @@ param_case: camel
 flat_map: false
 timestamp: true
 string_interpolation: braces
+# slang 4 는 기본 lazy 로딩(웹 deferred 용). 네이티브(Android/Windows) 전용인
+# 이 앱은 3.x 의 동기 로딩 동작을 유지하기 위해 lazy 를 끈다. 이로써
+# setLocaleSync / setPluralResolverSync 동기 API 를 계속 쓸 수 있다.
+lazy: false

@@ -10,7 +10,7 @@ import 'package:appfit_order_agent/models/shop_category_model.dart';
 import 'package:appfit_order_agent/i18n/strings.g.dart';
 
 class ProductManagementScreen extends ConsumerStatefulWidget {
-  const ProductManagementScreen({Key? key}) : super(key: key);
+  const ProductManagementScreen({super.key});
 
   @override
   ConsumerState<ProductManagementScreen> createState() =>

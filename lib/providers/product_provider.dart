@@ -20,22 +20,30 @@ Future<({List<ProductModel> products, List<ShopCategoryModel> categories})>
     shopCatalog(Ref ref) async {
   logger.i('ShopCatalog build() 시작');
 
-  // 매장 ID가 준비될 때까지 기다림
-  final storeAsyncValue = ref.watch(storeProvider);
-  final storeId = storeAsyncValue.value?.storeId;
-
-  logger.d('ShopCatalog build: StoreId $storeId');
-
-  String? finalStoreId = storeId;
-  if (finalStoreId == null || finalStoreId.isEmpty) {
-    logger.d('ShopCatalog build: StoreId not ready, waiting...');
+  // 매장 ID가 준비될 때까지 대기.
+  // 로딩 중 AsyncValue.value 는 이전(다른) 매장 값을 유지할 수 있으므로 settle 되지
+  // 않은 상태에서는 조회하지 않는다(매장 전환 시 이전 매장으로의 stale 카탈로그 조회
+  // = 404 NOT_FOUND_SHOP 방지). storeProvider 가 settle 되면 watch 로 자동 재빌드되어
+  // 올바른 매장으로 조회한다.
+  //  - 최초 로딩(이전 값 없음): future 가 첫 settled 값까지 대기 → 정상 조회.
+  //  - 전환 로딩(이전 매장 잔존): future 가 이전 값으로 즉시 완료될 수 있어, 재확인 후
+  //    아직 로딩이면 조회를 보류한다.
+  var storeAsync = ref.watch(storeProvider);
+  if (storeAsync.isLoading) {
     await ref.read(storeProvider.future);
-    final updatedStoreId = ref.read(storeProvider).value?.storeId;
-    if (updatedStoreId == null || updatedStoreId.isEmpty) {
-      logger.e('ShopCatalog build: StoreId still not available after wait.');
+    storeAsync = ref.read(storeProvider);
+    if (storeAsync.isLoading) {
+      logger.d('ShopCatalog build: store 미settle — 조회 보류');
       return (products: <ProductModel>[], categories: <ShopCategoryModel>[]);
     }
-    finalStoreId = updatedStoreId;
+  }
+  final finalStoreId = storeAsync.value?.storeId;
+
+  logger.d('ShopCatalog build: StoreId $finalStoreId');
+
+  if (finalStoreId == null || finalStoreId.isEmpty) {
+    logger.d('ShopCatalog build: StoreId not ready.');
+    return (products: <ProductModel>[], categories: <ShopCategoryModel>[]);
   }
 
   logger.i(

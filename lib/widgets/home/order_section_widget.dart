@@ -20,12 +20,12 @@ class OrderSectionWidget extends ConsumerStatefulWidget {
   final Function(OrderModel) onOrderTap;
 
   const OrderSectionWidget({
-    Key? key,
+    super.key,
     required this.title,
     required this.orders,
     required this.status,
     required this.onOrderTap,
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<OrderSectionWidget> createState() => _OrderSectionWidgetState();

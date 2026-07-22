@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:appfit_order_agent/i18n/strings.g.dart';
 import 'package:appfit_order_agent/providers/preference_provider.dart';
@@ -20,8 +19,8 @@ class LocaleNotifier extends _$LocaleNotifier {
         );
         logger.i('[LocaleNotifier] 저장된 언어 로드: ${locale.languageCode}');
 
-        // Slang 전역 설정 동기화 추가
-        LocaleSettings.setLocale(locale);
+        // Slang 전역 설정 동기화 추가 (slang 4: 동기 변형, lazy:false)
+        LocaleSettings.setLocaleSync(locale);
 
         return locale;
       } catch (e, s) {
@@ -38,7 +37,7 @@ class LocaleNotifier extends _$LocaleNotifier {
 
   Future<void> changeLocale(AppLocale newLocale) async {
     state = newLocale;
-    LocaleSettings.setLocale(newLocale);
+    LocaleSettings.setLocaleSync(newLocale);
     await ref.read(preferenceServiceProvider).setLocale(newLocale.languageCode);
     logger.i('[LocaleNotifier] 언어 변경 및 저장: ${newLocale.languageCode}');
   }

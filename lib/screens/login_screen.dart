@@ -19,8 +19,6 @@ import 'package:appfit_order_agent/services/migration/v2_migration_service.dart'
 import 'package:appfit_order_agent/services/appfit/appfit_providers.dart'
     as appfit_providers;
 import 'package:appfit_order_agent/services/secure_storage_service.dart';
-import 'package:appfit_order_agent/providers/auth_provider.dart';
-import 'package:appfit_order_agent/providers/store_provider.dart';
 
 import 'package:appfit_order_agent/widgets/common/app_icon_action.dart';
 import 'package:appfit_order_agent/widgets/common/common_dialog.dart';
@@ -28,9 +26,7 @@ import 'package:appfit_order_agent/widgets/common/brand_logo.dart';
 import 'package:appfit_order_agent/constants/app_styles.dart';
 import 'package:appfit_order_agent/services/local_server_service.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
-import 'package:appfit_order_agent/providers/kds/kds_unified_providers.dart';
-import 'package:appfit_order_agent/providers/order/order_provider.dart';
-import 'package:flutter/foundation.dart'; // For kDebugMode if needed
+// For kDebugMode if needed
 import 'package:appfit_order_agent/i18n/strings.g.dart';
 import 'package:appfit_order_agent/exceptions/api_error_mapper.dart'; // 예외 → 친화 메시지
 import 'package:appfit_order_agent/providers/locale_provider.dart';
@@ -38,7 +34,7 @@ import 'package:appfit_order_agent/config/ota_config.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
-  const LoginScreen({Key? key}) : super(key: key);
+  const LoginScreen({super.key});
 
   @override
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
