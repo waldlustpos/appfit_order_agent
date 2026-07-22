@@ -95,15 +95,15 @@ lib/
 | 계층 | 구성요소 | 역할 |
 | --- | --- | --- |
 | Layer 1 — SSOT 레지스트리 | `BrandRegistry` → `BrandMeta` | prefix → 자산 폴더·영수증 로고·테마·통화·서버환경·features 해석. `resolveOrNull()`(미매칭=null, capability·통화·환경용) vs `resolve()`(미매칭=fallback tpcp, 자산 경로 전용) 2단 해석 |
-| Layer 2 — Capability 게이팅 | `enum BrandFeature` | `labelCategoryFilter`·`soundGraphSend`·`japanEnvironment`·`autoUpdateForce` — `brand.has(feature)`로 UI show/hide·로직 on/off |
+| Layer 2 — Capability 게이팅 | `enum BrandFeature` | `labelCategoryFilter`·`soundGraphSend`·`japanEnvironment`·`sunmiAppStoreUpdate` — `brand.has(feature)`로 UI show/hide·로직 on/off |
 | Layer 3 — 동작 seam | Strategy/Hook 인터페이스 | 동작이 갈리는 소수 지점만 분리: `LabelFilterStrategy`(TPCP 라벨 메뉴 필터), `SoundGraphHook`(MHST 자동접수 후 전송), `qrPayloadStrategyProvider`(라벨 QR 페이로드) — 비대상 브랜드는 NoOp |
 
 ### 3.2 등록 브랜드 (prefix 표)
 
 | BrandKey | prefix | 자산 폴더 | 테마 | 통화 | 서버 환경 | features |
 | --- | --- | --- | --- | --- | --- | --- |
-| `tpcp` (fallback) | `TPCP` | tokyoplatz | appfitDefault | JPY | japanLive | labelCategoryFilter, japanEnvironment, autoUpdateForce |
-| `mhst` | `MHST` | mammoth | mammothCoffee | KRW | live | soundGraphSend |
+| `tpcp` (fallback) | `TPCP` | tokyoplatz | appfitDefault | JPY | japanLive | labelCategoryFilter, japanEnvironment |
+| `mhst` | `MHST` | mammoth | mammothCoffee | KRW | live | soundGraphSend, sunmiAppStoreUpdate |
 | `mata` | `MATA` | mahataste | mata | KRW | live | (없음) |
 | `paik` | `PAIK` | paik | paik | JPY | japanLive | japanEnvironment |
 

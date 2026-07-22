@@ -470,20 +470,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             .read(brandThemeNotifierProvider.notifier)
             .reconcileForStore(storeId);
 
-        // 자동 업데이트 강제 브랜드(현재 TPCP) + SUNMI 는 자동 업데이트 체크 ON 유지
+        // 업데이트 채널 정책 재조정 (설치 후 최초 로그인 1회, 멱등 플래그로 게이팅).
+        // 정책: `sunmiAppStoreUpdate` 브랜드(현재 MHST) + Sunmi 기기 = Sunmi App
+        //   Store 채널 → 앱내 자동 OTA 체크 OFF. 그 외 모든 조합(비-MHST·비-Sunmi·
+        //   Windows) = OTA 채널 → 자동 체크 ON.
+        // 정책당 1회만 실행해 이후 사용자의 수동 토글을 덮어쓰지 않는다. 정책이 바뀌면
+        // 기존 마커(KEY_UPDATE_TPCP_OVERRIDE_DONE)와 다른 새 플래그로 기존 기기를
+        // 한 번 재조정한다.
         final prefService = ref.read(preferenceServiceProvider);
-        if (!prefService.getUpdateTpcpOverrideDone()) {
-          final forceAutoUpdate = BrandRegistry.resolveOrNull(storeId)
-                  ?.has(BrandFeature.autoUpdateForce) ??
-              false;
-          if (forceAutoUpdate && Platform.isAndroid) {
+        if (!prefService.getUpdatePolicyReconciled()) {
+          var useAppStore = false;
+          if (Platform.isAndroid) {
             final deviceInfo = await DeviceInfoPlugin().androidInfo;
-            if (deviceInfo.manufacturer.toLowerCase() == 'sunmi') {
-              await prefService.setAutoCheckUpdate(true);
-              logger.i('[LoginScreen] TPCP+SUNMI 감지: 자동 업데이트 체크 ON으로 오버라이드');
-            }
+            final isSunmi = deviceInfo.manufacturer.toLowerCase() == 'sunmi';
+            final brand = BrandRegistry.resolveOrNull(storeId);
+            useAppStore = isSunmi &&
+                (brand?.has(BrandFeature.sunmiAppStoreUpdate) ?? false);
+            logger.i(
+                '[LoginScreen] 업데이트 정책 재조정: sunmi=$isSunmi brand=${brand?.storeIdPrefix ?? '-'} → 자동체크=${!useAppStore}');
           }
-          await prefService.setUpdateTpcpOverrideDone(true);
+          await prefService.setAutoCheckUpdate(!useAppStore);
+          await prefService.setUpdatePolicyReconciled(true);
         }
 
         await _setWindowSoftInputMode('pan');

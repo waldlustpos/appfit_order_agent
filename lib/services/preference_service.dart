@@ -118,8 +118,10 @@ class PreferenceService {
   // 업데이트 설정 키
   static const String KEY_AUTO_CHECK_UPDATE = "KEY_AUTO_CHECK_UPDATE";
   static const String KEY_UPDATE_DEFAULT_SET = "KEY_UPDATE_DEFAULT_SET";
-  static const String KEY_UPDATE_TPCP_OVERRIDE_DONE =
-      "KEY_UPDATE_TPCP_OVERRIDE_DONE";
+  // 업데이트 채널 정책 재조정 마커. 정책이 바뀌면 이 문자열을 새 값으로 올려
+  // 기존 설치 기기를 다음 로그인 때 한 번 재조정한다. (구 마커: KEY_UPDATE_TPCP_OVERRIDE_DONE)
+  static const String KEY_UPDATE_POLICY_RECONCILED =
+      "KEY_UPDATE_POLICY_MHST_SUNMI_V1";
 
   // 브랜드 테마 키 (BrandTheme.id 를 문자열로 저장)
   static const String KEY_BRAND_THEME = "KEY_BRAND_THEME";
@@ -937,13 +939,13 @@ class PreferenceService {
   Future<void> setAutoCheckUpdate(bool value) async =>
       await _prefs.setBool(KEY_AUTO_CHECK_UPDATE, value);
 
-  // TPCP 오버라이드 완료 여부 조회
-  bool getUpdateTpcpOverrideDone() =>
-      _prefs.getBool(KEY_UPDATE_TPCP_OVERRIDE_DONE) ?? false;
+  // 업데이트 채널 정책 재조정 완료 여부 조회 (정책당 1회 실행 게이트)
+  bool getUpdatePolicyReconciled() =>
+      _prefs.getBool(KEY_UPDATE_POLICY_RECONCILED) ?? false;
 
-  // TPCP 오버라이드 완료 여부 저장
-  Future<void> setUpdateTpcpOverrideDone(bool value) async =>
-      await _prefs.setBool(KEY_UPDATE_TPCP_OVERRIDE_DONE, value);
+  // 업데이트 채널 정책 재조정 완료 여부 저장
+  Future<void> setUpdatePolicyReconciled(bool value) async =>
+      await _prefs.setBool(KEY_UPDATE_POLICY_RECONCILED, value);
 
   // ── 브랜드 판별 레거시 헬퍼 ──────────────────────────────────────────────
   // prefix 매칭 로직의 단일 출처는 [BrandRegistry]. 아래 헬퍼들은 그 위의 얇은

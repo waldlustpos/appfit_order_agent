@@ -10,14 +10,16 @@
 
 | 채널 | 대상 함대 | 롤아웃 제어 |
 | --- | --- | --- |
-| OTA `_release` (`deploy_apk.sh` → Lightsail) | 비 Sunmi 안드로이드 기기 전체 + `autoUpdateForce` 브랜드의 Sunmi 기기(현재 TPCP) + 수동 체크 | 없음 — 업로드 후 각 기기의 **다음 앱 시작(로그인 화면 진입) 시** 자동체크 ON 기기 전량에 반영, 비율 제어 불가 |
-| Sunmi App Store (수동 업로드, gray 기기 타깃) | 스토어 관리 함대의 Sunmi 기기 (현재 MHST 900매장이 주 대상) | gray 타깃으로 매장/기기 단위 단계 배포 가능 |
+| OTA `_release` (`deploy_apk.sh` → Lightsail) | **MHST+Sunmi 를 제외한 모든 기기** — 비 Sunmi 안드로이드 전체 + `sunmiAppStoreUpdate` 가 **없는** 브랜드의 Sunmi 기기(TPCP/MATA/기타) + 수동 체크 | 없음 — 업로드 후 각 기기의 **다음 앱 시작(로그인 화면 진입) 시** 자동체크 ON 기기 전량에 반영, 비율 제어 불가 |
+| Sunmi App Store (수동 업로드, gray 기기 타깃) | `sunmiAppStoreUpdate` 브랜드의 Sunmi 기기 (현재 **MHST** 900매장이 유일 대상) | gray 타깃으로 매장/기기 단위 단계 배포 가능 |
 
 ## 기기별 업데이트 정책 (코드에 이미 구현됨)
 
-- 최초 실행 시 자동 OTA 체크 기본값: **Sunmi 기기 OFF, 그 외 ON** (`lib/services/preference_service.dart` `_initializeUpdateDefaults`). Sunmi 함대는 스토어가 업데이트를 주도하고, OTA 는 설정 화면의 수동 체크로만 예외적으로 사용한다.
-- Sunmi 기기인데 스토어 관리 함대가 **아닌** 브랜드는 `BrandFeature.autoUpdateForce` 로 **설치 후 최초 로그인 시 1회** 자동 체크를 ON 으로 오버라이드한다. 이후에는 사용자 변경을 존중한다(`getUpdateTpcpOverrideDone` 마커 — TPCP 선례, `login_screen.dart`).
-- **신규 브랜드 온보딩 결정 규칙**: "이 브랜드의 Sunmi 기기가 Sunmi App Store 관리 함대에 들어가는가?" — NO 면 `autoUpdateForce` 부여, YES 면 기본 OFF 유지.
+- **정책(2026-07-22 반전)**: `MHST + Sunmi = Sunmi App Store 채널(자동 OTA 체크 OFF)`, **그 외 모든 조합 = OTA 채널(자동 체크 ON)**. 이전엔 "Sunmi 전부 OFF + TPCP 만 ON 예외" 였으나, "전부 ON + MHST 만 OFF 예외" 로 뒤집혔다.
+- 로그인 전 기본값: 자동 OTA 체크는 **Sunmi 기기 OFF, 그 외 ON** (`lib/services/preference_service.dart` `_initializeUpdateDefaults`). 이는 브랜드 미상 상태의 보수적 기본값(MHST 첫 실행 스푸리어스 OTA 방지)일 뿐이며, 최종 판정은 아래 로그인 재조정이 한다.
+- **로그인 재조정**(`login_screen.dart`, `_login` 성공 분기): 설치 후 최초 로그인 1회, `sunmiAppStoreUpdate` 브랜드 + Sunmi 면 자동 체크 OFF, 그 외엔 ON 으로 세팅. 이후 사용자 수동 토글을 존중한다(`getUpdatePolicyReconciled` / `KEY_UPDATE_POLICY_MHST_SUNMI_V1` 마커). 자동·수동 로그인 공용 경로라 auto-login 기기도 다음 로그인 때 재조정된다.
+  - **기존 fleet 마이그레이션**: 마커 문자열이 새 값이라, 기존 설치 기기 전부 다음 로그인 때 1회 재조정된다 — non-MHST Sunmi(기존 OFF)는 **ON(OTA)로 전환**, MHST+Sunmi 는 OFF 유지.
+- **신규 브랜드 온보딩 결정 규칙**: "이 브랜드의 Sunmi 기기가 Sunmi App Store 관리 함대에 들어가는가?" — YES 면 `BrandFeature.sunmiAppStoreUpdate` 부여(→ OFF/앱스토어), NO 면 기능 없이 기본(→ ON/OTA).
 
 ## 릴리즈 절차
 

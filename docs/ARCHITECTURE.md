@@ -279,7 +279,7 @@ WebSocket 푸시 / 폴링 / 자정 새로고침으로 주문 상태가 빈번히
 - `BrandRegistry.resolve(id)` → 미매칭이면 **fallback=tokyoplatz** (라벨/영수증 로고는 항상 필요하므로 자산 경로 전용).
 - `currentBrandProvider`(`lib/providers/brand_provider.dart`)는 무상태로 매번 prefs를 읽어 `BrandMeta?`를 반환 → 로그아웃/서버전환 시 outdated 문제 없음.
 
-**Layer 2 — Capability 게이팅**: `enum BrandFeature`(`labelCategoryFilter`, `soundGraphSend`, `japanEnvironment`, `autoUpdateForce`)로 UI show/hide·로직 enable/disable을 `brand.has(feature)`로 일관 처리. 산재된 `isTpcpStore`/`isMammothStore` 분기를 대체합니다.
+**Layer 2 — Capability 게이팅**: `enum BrandFeature`(`labelCategoryFilter`, `soundGraphSend`, `japanEnvironment`, `sunmiAppStoreUpdate`)로 UI show/hide·로직 enable/disable을 `brand.has(feature)`로 일관 처리. 산재된 `isTpcpStore`/`isMammothStore` 분기를 대체합니다. `sunmiAppStoreUpdate`(현재 MHST)는 Sunmi 기기에서 앱내 자동 OTA 체크를 끄고 Sunmi App Store 채널로 업데이트를 유도합니다.
 
 **Layer 3 — 동작 seam**: 게이팅이 아니라 **동작이 갈리는** 소수 지점만 얇은 인터페이스로 분리(비대상 브랜드는 NoOp).
 - 파이프라인 **변환** → `LabelFilterStrategy`(`lib/services/label_printer/label_filter_strategy.dart`). `labelFilterStrategyProvider`가 capability로 `TpcpLabelFilterStrategy`/`NoOpLabelFilterStrategy` 선택. `LabelPrintData.fromOrder(strategy: ...)`가 메뉴 필터/옵션 분류를 위임.

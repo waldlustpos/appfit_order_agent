@@ -17,8 +17,10 @@ enum BrandFeature {
   /// 일본(JPY/japanLive) 환경 브랜드.
   japanEnvironment,
 
-  /// 로그인 시 자동 업데이트 체크 강제 ON(TPCP+Android).
-  autoUpdateForce,
+  /// Sunmi 기기에서 Sunmi App Store 채널로 업데이트 → 앱내 자동 OTA 체크 OFF.
+  /// 이 기능이 **없는** 브랜드는 Sunmi 여부와 무관하게 OTA(자동 체크 ON)를 쓴다.
+  /// (Sunmi 가 아닌 기기·Windows 는 이 기능이 있어도 항상 OTA/ON.)
+  sunmiAppStoreUpdate,
 }
 
 /// 브랜드 식별 키. 매장 ID prefix 로 결정된다.
@@ -116,7 +118,6 @@ class BrandRegistry {
       features: {
         BrandFeature.labelCategoryFilter,
         BrandFeature.japanEnvironment,
-        BrandFeature.autoUpdateForce,
       },
     ),
     BrandKey.mhst: BrandMeta(
@@ -127,7 +128,10 @@ class BrandRegistry {
       theme: BrandTheme.mammothCoffee,
       currency: CurrencyUnit.krw,
       serverEnvironment: 'live',
-      features: {BrandFeature.soundGraphSend},
+      features: {
+        BrandFeature.soundGraphSend,
+        BrandFeature.sunmiAppStoreUpdate,
+      },
     ),
     BrandKey.mata: BrandMeta(
       key: BrandKey.mata,

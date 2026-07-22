@@ -71,12 +71,18 @@ void main() {
           isFalse);
     });
 
-    test('자동 업데이트 강제는 TPCP 만', () {
+    test('Sunmi App Store 채널(OTA OFF)은 MHST 만 (TPCP/MATA 는 false → OTA)', () {
       expect(
-          BrandRegistry.byKey(BrandKey.tpcp).has(BrandFeature.autoUpdateForce),
+          BrandRegistry.byKey(BrandKey.mhst)
+              .has(BrandFeature.sunmiAppStoreUpdate),
           isTrue);
       expect(
-          BrandRegistry.byKey(BrandKey.mhst).has(BrandFeature.autoUpdateForce),
+          BrandRegistry.byKey(BrandKey.tpcp)
+              .has(BrandFeature.sunmiAppStoreUpdate),
+          isFalse);
+      expect(
+          BrandRegistry.byKey(BrandKey.mata)
+              .has(BrandFeature.sunmiAppStoreUpdate),
           isFalse);
     });
   });
