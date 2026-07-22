@@ -421,6 +421,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       logger.i('[HomeScreen] 로그아웃 시 OrderProvider 정리 시작');
       ref.read(orderProvider.notifier).cleanupOnLogout();
       logger.i('[HomeScreen] 로그아웃 시 OrderProvider 정리 완료 - 모든 주문 데이터 초기화됨');
+
+      // 매장 스코프 keepAlive 프로바이더 초기화 — 이전 매장 식별자/카탈로그가 다음
+      // 로그인까지 잔존해 stale 매장으로 categories 를 조회(404 NOT_FOUND_SHOP)하는
+      // 것을 방지. shopCatalog 무효화는 productProvider/shopCategoryList 로 전파된다.
+      ref.invalidate(shopCatalogProvider);
+      ref.invalidate(storeProvider);
       // ServerConfig usages removed
 
       logger.i('로그아웃 시 모든 연결 정리 완료');
