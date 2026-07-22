@@ -59,7 +59,8 @@ void main() async {
   }
 
   // 한국어 복수형 resolver 설정 (한국어는 복수형 구분 없음)
-  LocaleSettings.setPluralResolver(
+  // slang 4: 동기 변형(setPluralResolverSync), lazy:false 전제
+  LocaleSettings.setPluralResolverSync(
     locale: AppLocale.ko,
     cardinalResolver: (n, {zero, one, two, few, many, other}) =>
         other ?? zero ?? '',

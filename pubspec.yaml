@@ -86,8 +86,8 @@ dependencies:
   flutter_svg: ^2.0.10+1
 
   # i18n
-  slang: ^3.31.0
-  slang_flutter: ^3.31.0
+  slang: ^4.0.0
+  slang_flutter: ^4.0.0
 
   # Native Feature Migration
   # flutter_overlay_window: ^0.5.0 # Removed for Revert
