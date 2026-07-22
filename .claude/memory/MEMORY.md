@@ -38,3 +38,4 @@
 - [COM 재시도 계층 경계](feedback_com_startup_retry_scope.md) — sendRaw 는 큐 backoff 가 kokonut K2 상위 호환이라 내부 재시도 금지(면제는 sendRaw 한정). 시작 연결확인만 StartupProbeScheduler 5/15/30/60/60s. probe 결과는 출력을 게이트 안 함 (2026-07-21)
 - [logToFile ≠ 파일 보장](reference_appfit_log_file_whitelist.md) — logger.dart 화이트리스트(level>=warning 또는 태그 문자열)가 결정. logger.w/e 는 이미 파일행 → 승격은 추가 아닌 치환. onFinalFailure 의 "Sentry 자동 캡처" 주석은 거짓
 - [업데이트 채널 정책 반전](project_update_channel_policy_mhst_sunmi.md) — MHST+Sunmi만 앱스토어(OTA OFF), 그 외 전부 OTA(ON). 옛 "sunmi 전부 OFF+TPCP만 ON" 뒤집음. 분기축=제조사 sunmi + BrandFeature.sunmiAppStoreUpdate(MHST단독). 마커 KEY_UPDATE_POLICY_MHST_SUNMI_V1 로 기존 fleet 1회 재조정. 미커밋·미배포 (2026-07-22)
+- [Sentry Crons 앱 실행중 판정 검증](project_sentry_crons_liveness.md) — heartbeat 끊기면 missed 자동감지→이슈. HTTP envelope 체크인으로 토큰·대시보드 없이 모니터 upsert(tool/cron_heartbeat_test.dart). 8.14.2엔 captureCheckIn 없음(SDK는 9.x 업그레이드 전제). 모니터당 과금. 테스트만·미도입 (2026-07-22)
