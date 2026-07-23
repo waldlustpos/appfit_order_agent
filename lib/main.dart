@@ -10,7 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 // import 'package:flutter_dotenv/flutter_dotenv.dart'; // Removed
 
-import 'package:appfit_order_agent/services/label_printer/windows/windows_label_printer_backend.dart';
+import 'package:appfit_order_agent/services/label_printer/windows/windows_label_router.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/services/preference_service.dart';
 import 'package:appfit_order_agent/services/windows_bubble_service.dart';
@@ -182,8 +182,7 @@ void main() async {
     // 실패해도 polling/lazy fallback 이 살아있어 앱 시작을 차단하지 않는다.
     if (Platform.isWindows && preferenceService.getUseLabelPrinter()) {
       final mode = preferenceService.getLabelAutoReplyMode();
-      unawaited(
-          WindowsLabelPrinterBackend.instance.warmupOpen(autoReplyMode: mode));
+      unawaited(WindowsLabelRouter.instance.warmupOpen(autoReplyMode: mode));
     }
 
     // 브랜드 테마 적용 — runApp 이전에 AppStyles 의 활성 브랜드를 확정
@@ -577,11 +576,10 @@ class _LabelPrinterLifecycleObserver with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.detached && Platform.isWindows) {
       try {
-        WindowsLabelPrinterBackend.instance.dispose();
-        logger.i('WindowsLabelPrinterBackend dispose (lifecycle detached)');
+        WindowsLabelRouter.instance.dispose();
+        logger.i('WindowsLabelRouter dispose (lifecycle detached)');
       } catch (e, s) {
-        logger.w('WindowsLabelPrinterBackend dispose 예외',
-            error: e, stackTrace: s);
+        logger.w('WindowsLabelRouter dispose 예외', error: e, stackTrace: s);
       }
     }
   }

@@ -565,7 +565,7 @@ class _Translations$settings$label_printer$ja extends Translations$settings$labe
 
 	// Translations
 	@override String get title => 'ラベルプリンター使用';
-	@override String get desc => 'USB接続されたラベルプリンターを使用します。(50mm x 70mm)\nREXOD RXLA-561モデルのみ対応しています。';
+	@override String get desc => 'USB接続されたラベルプリンターを使用します。(50mm x 70mm)\n対応モデル: REXOD RXLA-561、BIXOLON XD5-40d';
 }
 
 // Path: settings.label_qr

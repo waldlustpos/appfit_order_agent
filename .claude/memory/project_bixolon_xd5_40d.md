@@ -31,6 +31,12 @@ BIXOLON XD5-40d 라벨 프린터 Android 지원 구현 (2026-07-23, 계획 plans
 
 - **커버열림 복구 = 프린터 재개버튼 필요** (실기기 검증): 커버 열림 중 수신된 잡은 커버를 닫아도 자동 인쇄되지 않고, **본체 재개(resume) 버튼을 눌러야** 인쇄된다(잡 유실 아님 — 버튼 후 정상 출력). 드라이버는 status 해제를 보고 출력끝 처리하므로 로그와 실물 시점이 어긋날 수 있으나 운영상 정상. 매장 안내 사항: 커버 연 뒤엔 닫고 재개버튼까지.
 
-**실기기 검증 대기 (P3 잔여)**: 인쇄중 용지소진 자동재인쇄 가정, RXLA-561 회귀(Caysn 라우팅), 동시연결 라우팅. 완료: 다중 라벨 8장 직렬화·떼기대기·품질·pdflib 스텁 소음 제거·커버열림 복구(재개버튼). Windows(P5) 미착수 — BIXOLON Windows SDK V310 FFI + 백엔드 인터페이스 분리는 후속.
+**Windows 지원 구현 완료 (2026-07-23, 실기기 검증 대기)**: BXLLAPI_x64.dll(V3.10) FFI — 완전 동기·콜백 없음·연결 상태는 DLL 프로세스 전역(핸들 없음). `WindowsLabelRouter`가 SetupAPI VID_1504 스캔(win32 deferred import — 프로젝트 관례, Android native lookup 방지)으로 매 인쇄 벤더 재평가, BIXOLON 우선. Caysn 3파일 무수정. 핵심 파일: `lib/services/label_printer/windows/{windows_label_router, bixolon_windows_label_backend, bxllapi_bindings, bxllapi_constants, label_bmp_converter, bixolon_usb_presence_windows}.dart`.
+- **이미지 인쇄는 파일 경로 전용**(PrintImageLibW) → PNG를 dart:ui 디코드→사전 이진화(210, Android 동일)→순수 Dart 24bit BMP 인코더→systemTemp 임시 파일→DITHER_NONE. Android 교훈(SDK 이진화 신뢰 불가) 선제 적용.
+- **CheckStatus 코드**: 0=OK, 1=용지없음, 2=커버열림, 9/10/13/15=인쇄중·회수대기류(무한 대기 클래스), 7/71/72/73=연결사망. Prints() BOOL 모호 실패는 상태조회 2차 판별(submit-wins) — Android endTransactionPrint=-1 처리 이식.
+- **SetShowMsgBox(0) 필수 최우선 호출** — DLL이 에러 시 블로킹 MessageBox를 띄워 워커가 보이지 않게 wedge될 수 있음.
+- DLL 배포: `external/bixolon/win64/` + CMake POST_BUILD(autoreplyprint 미러). analyze 클린·228 테스트 통과·release 빌드 1차 통과(양 DLL 동재). **주의: `external/` 은 통째로 gitignore** (autoreplyprint 도 동일) — 다른 빌드 머신은 SDK `01_BIN/x64/BXLLAPI_x64.dll` 수동 배치 필요, 부재 시 CMake WARNING + 런타임 tryGet 실패로 Caysn 폴백.
+
+**실기기 검증 대기**: [Windows] XD5-40d 전체 시나리오(출력 품질·kBxlDensity=14 튜닝·다중 라벨·상태코드 실측(9 vs 13)·커버/용지·RXLA-561 회귀) / [Android 잔여] 인쇄중 용지소진 자동재인쇄 가정, RXLA-561 회귀, 동시연결. 완료: Android 전체(다중 8장·품질·커버 재개버튼·pdflib 스텁).
 
 관련: [[project-store-printer-topology]], [[project-label-ack-patch]]

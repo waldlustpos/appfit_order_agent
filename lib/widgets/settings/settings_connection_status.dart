@@ -11,10 +11,15 @@ class SettingsConnectionStatus extends StatelessWidget {
     super.key,
     required this.isConnected,
     required this.onReconnect,
+    this.detail,
   });
 
   final bool isConnected;
   final VoidCallback onReconnect;
+
+  /// 연결 상태 옆에 덧붙이는 부가 정보 (예: 식별된 프린터 기종명).
+  /// 연결됨 상태에서만 표시한다.
+  final String? detail;
 
   @override
   Widget build(BuildContext context) {
@@ -55,6 +60,13 @@ class SettingsConnectionStatus extends StatelessWidget {
               color: fg,
             ),
           ),
+          if (isConnected && detail != null) ...[
+            const SizedBox(width: AppSpacing.s8),
+            Text(
+              '· $detail',
+              style: AppTextStyles.bodySm.copyWith(color: AppStyles.gray6),
+            ),
+          ],
           const SizedBox(width: AppSpacing.s12),
           SizedBox(
             height: 28,

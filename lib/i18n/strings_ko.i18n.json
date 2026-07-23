@@ -102,7 +102,7 @@
         },
         "label_printer": {
             "title": "라벨 프린터 사용",
-            "desc": "USB 연결된 라벨 프린터를 사용합니다. (50mm x 70mm)\nREXOD RXLA-561 모델만 지원합니다."
+            "desc": "USB 연결된 라벨 프린터를 사용합니다. (50mm x 70mm)\n지원 모델: REXOD RXLA-561, BIXOLON XD5-40d"
         },
         "label_qr": {
             "title": "QR 코드 출력",
