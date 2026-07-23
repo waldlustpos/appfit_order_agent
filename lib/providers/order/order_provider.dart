@@ -591,8 +591,12 @@ class Order extends _$Order {
         message:
             '[Order] 신규 주문 감지: ${order.orderId} (번호: ${order.shopOrderNo}, 상태: ${order.orderStatus})');
 
-    // 1) 자동접수 우선 처리: 알림 설정(_shouldNotifyForOrder)과 무관하게 동작해야 함
-    final bool shouldAutoAccept = state.isAutoReceipt;
+    // 1) 자동접수 우선 처리: 알림 설정(_shouldNotifyForOrder)과 무관하게 동작해야 함.
+    // 키오스크 주문은 '픽업 오더 자동 접수'(isAutoReceipt) 와 무관하게, 전용 설정
+    // (getKioskAlwaysAutoAccept, 기본 ON)이 켜져 있으면 항상 즉시 접수한다.
+    final bool shouldAutoAccept = state.isAutoReceipt ||
+        (_helper.isKioskOrder(order) &&
+            _preferenceService.getKioskAlwaysAutoAccept());
     final isKdsMode = ref.read(kdsModeProvider);
     final modeText = isKdsMode ? 'KDS 모드' : '일반 모드';
 
@@ -770,7 +774,11 @@ class Order extends _$Order {
     // KDS 자동접수(isKdsAcceptOrders) 토글이 ON 이면 KDS 모드에서도 통과시킨다.
     if (newOrders.isNotEmpty && (!isKdsMode || state.isKdsAcceptOrders)) {
       for (final order in newOrders) {
-        if (!state.isAutoReceipt) {
+        // 키오스크 주문은 '픽업 오더 자동 접수' OFF 여도 전용 설정(기본 ON)이 켜져
+        // 있으면 항상 자동접수한다 (소켓 경로 L595 와 동일 정신).
+        final bool kioskForceAccept = _helper.isKioskOrder(order) &&
+            _preferenceService.getKioskAlwaysAutoAccept();
+        if (!state.isAutoReceipt && !kioskForceAccept) {
           logger.d(
               '[Order Processing] NEW 주문 수동접수 모드: ${order.orderId} (알람소리는 _processNewOrder에서 처리)');
           continue;

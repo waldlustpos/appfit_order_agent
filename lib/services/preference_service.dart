@@ -40,6 +40,8 @@ class PreferenceService {
   static const String KEY_IS_NEW_ORDER = "IS_NEW_ORDER";
   static const String KEY_SHOW_KIOSK_ORDER = "IS_SHOW_KIOSK_ORDER";
   static const String KEY_KIOSK_PRINT_AND_SOUND = "IS_KIOSK_PRINT_AND_SOUND";
+  static const String KEY_KIOSK_ALWAYS_AUTO_ACCEPT =
+      "KEY_KIOSK_ALWAYS_AUTO_ACCEPT"; // bool (기본 true): 키오스크 주문은 픽업 자동접수 설정과 무관하게 항상 즉시 접수
   static const String KEY_USE_PRINT = "KEY_USE_PRINT";
   static const String KEY_PRINTED_ORDERS = "KEY_PRINTED_ORDERS";
   static const String KEY_SOUNDGRAPH_ON = "KEY_SOUNDGRAPH_ON";
@@ -94,8 +96,6 @@ class PreferenceService {
       "KOKONUT_LABEL_FILTER_MODE"; // int (0: 전체, 1: 와플만, 2: 와플제외)
   static const String KEY_LABEL_USE_QR_PRINT =
       "KOKONUT_LABEL_USE_QR_PRINT"; // bool (기본 false)
-  static const String KEY_LABEL_LAYOUT_VERSION =
-      "KOKONUT_LABEL_LAYOUT_VERSION"; // int (0: V1 기존, 1: V2 QR 우측상단)
   static const String KEY_LABEL_QR_PAYLOAD_FORMAT =
       "KOKONUT_LABEL_QR_PAYLOAD_FORMAT"; // int (0: 기존 {orderNo}-{shopItemId}-{cupIdx}, 1: 신규 {displayNum}-{cupIdx})
 
@@ -567,6 +567,11 @@ class PreferenceService {
   bool getIsNewOrder() => _prefs.getBool(KEY_IS_NEW_ORDER) ?? false; //
   bool getShowKioskOrder() =>
       _prefs.getBool(KEY_SHOW_KIOSK_ORDER) ?? true; //키오스크주문 노출여부
+
+  /// 키오스크 주문 항상 자동접수 (기본 ON): 픽업 오더 자동 접수(getAutoReceipt) 와
+  /// 무관하게 키오스크 주문은 항상 NEW→PREPARING 즉시 전이시킨다.
+  bool getKioskAlwaysAutoAccept() =>
+      _prefs.getBool(KEY_KIOSK_ALWAYS_AUTO_ACCEPT) ?? true;
   bool getKioskPrintAndSound() =>
       _prefs.getBool(KEY_KIOSK_PRINT_AND_SOUND) ??
       true; //키오스크주문 출력 및 알람소리 재생 여부
@@ -615,9 +620,6 @@ class PreferenceService {
   /// 라벨 필터 모드 (0: 전체, 1: 와플만, 2: 와플제외)
   int getLabelFilterMode() => _prefs.getInt(KEY_LABEL_FILTER_MODE) ?? 0;
 
-  /// 라벨 레이아웃 버전 (0: V1 기존, 1: V2 QR 우측상단)
-  int getLabelLayoutVersion() => _prefs.getInt(KEY_LABEL_LAYOUT_VERSION) ?? 0;
-
   /// 라벨 QR 페이로드 포맷 (0: 기존, 1: 신규 displayNum-cupIdx 테스트 포맷)
   int getLabelQrPayloadFormat() =>
       _prefs.getInt(KEY_LABEL_QR_PAYLOAD_FORMAT) ?? 0;
@@ -643,16 +645,29 @@ class PreferenceService {
   }
 
   // 자동 실행 설정
+  //
+  // 설정 저장(_saveSettings)은 모든 항목을 매번 재저장하므로, 가드가 없으면
+  // 무관한 설정 변경마다 네이티브 부팅 자동실행(setAutoStartup)이 재적용되어
+  // '[SYSTEM] 부팅 시 자동 실행 ... 요청 결과' 로그가 매번 찍히고 불필요한
+  // 레지스트리/MethodChannel 부수효과가 발생한다. 값이 실제로 바뀐 경우에만 재적용.
   Future<void> setAutoLaunch(bool value) async {
+    final previous = _prefs.getBool(KEY_AUTO_LAUNCH);
     await _prefs.setBool(KEY_AUTO_LAUNCH, value);
+    if (previous == value) return; // 변경 없음 — 네이티브 재적용 스킵
     await PlatformService.setAutoStartup(value);
   }
 
-  // 자동 접수 설정
+  // 픽업 오더 자동 접수 설정 (키오스크 항상 자동접수와 별개 축)
+  //
+  // 설정 저장(_saveSettings)은 모든 항목을 매번 재저장하므로, 값이 실제로 바뀐
+  // 경우에만 로그를 남긴다. (가드 없으면 키오스크 등 무관한 설정을 바꿔도
+  // '픽업 오더 자동접수 저장' 로그가 찍혀 오해를 부름)
   Future<void> setAutoReceipt(bool value) async {
-    logger.i('[PreferenceService] 자동접수 설정 저장: $value');
+    final previous = _prefs.getBool(KEY_AUTO_RECEIPT);
     await _prefs.setBool(KEY_AUTO_RECEIPT, value);
-    logger.i('[PreferenceService] 자동접수 설정 저장 완료');
+    if (previous != value) {
+      logger.i('[PreferenceService] 픽업 오더 자동접수 설정 저장: $value');
+    }
   }
 
   // 인쇄 사용 설정
@@ -730,10 +745,6 @@ class PreferenceService {
     await _prefs.setInt(KEY_LABEL_FILTER_MODE, value);
   }
 
-  Future<void> setLabelLayoutVersion(int value) async {
-    await _prefs.setInt(KEY_LABEL_LAYOUT_VERSION, value);
-  }
-
   Future<void> setLabelQrPayloadFormat(int value) async {
     await _prefs.setInt(KEY_LABEL_QR_PAYLOAD_FORMAT, value);
   }
@@ -746,6 +757,16 @@ class PreferenceService {
   // 키오스크 주문 출력 및 소리 설정
   Future<void> setKioskPrintAndSound(bool value) async {
     await _prefs.setBool(KEY_KIOSK_PRINT_AND_SOUND, value);
+  }
+
+  // 키오스크 주문 항상 자동접수 설정 (픽업 오더 자동접수와 별개 축)
+  // 값이 실제로 바뀐 경우에만 로그(위 setAutoReceipt 와 동일 이유).
+  Future<void> setKioskAlwaysAutoAccept(bool value) async {
+    final previous = _prefs.getBool(KEY_KIOSK_ALWAYS_AUTO_ACCEPT);
+    await _prefs.setBool(KEY_KIOSK_ALWAYS_AUTO_ACCEPT, value);
+    if (previous != value) {
+      logger.i('[PreferenceService] 키오스크 항상 자동접수 설정 저장: $value');
+    }
   }
 
   // KDS 모드 설정 저장 (기존 sub-display 플래그와 동일 키 사용)

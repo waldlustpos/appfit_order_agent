@@ -10,11 +10,15 @@ class SettingsSectionCard extends StatelessWidget {
     super.key,
     this.title,
     this.icon,
+    this.titleBadge,
     required this.children,
   });
 
   final String? title;
   final IconData? icon;
+
+  /// 제목 우측에 붙는 뱃지(예: [BetaBadge]). null 이면 표시하지 않는다.
+  final Widget? titleBadge;
   final List<Widget> children;
 
   @override
@@ -43,6 +47,10 @@ class SettingsSectionCard extends StatelessWidget {
                     color: AppStyles.gray9,
                   ),
                 ),
+                if (titleBadge != null) ...[
+                  const SizedBox(width: AppSpacing.s8),
+                  titleBadge!,
+                ],
               ],
             ),
             const SizedBox(height: AppSpacing.s12),

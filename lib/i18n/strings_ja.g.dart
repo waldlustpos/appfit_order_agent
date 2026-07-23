@@ -152,7 +152,6 @@ class _Translations$settings$ja extends Translations$settings$ko {
 	@override late final _Translations$settings$kds_ignore_status$ja kds_ignore_status = _Translations$settings$kds_ignore_status$ja._(_root);
 	@override late final _Translations$settings$kds_accept_orders$ja kds_accept_orders = _Translations$settings$kds_accept_orders$ja._(_root);
 	@override late final _Translations$settings$label_filter$ja label_filter = _Translations$settings$label_filter$ja._(_root);
-	@override late final _Translations$settings$label_layout$ja label_layout = _Translations$settings$label_layout$ja._(_root);
 	@override late final _Translations$settings$label_qr_payload$ja label_qr_payload = _Translations$settings$label_qr_payload$ja._(_root);
 	@override late final _Translations$settings$developer_options$ja developer_options = _Translations$settings$developer_options$ja._(_root);
 	@override late final _Translations$settings$kiosk$ja kiosk = _Translations$settings$kiosk$ja._(_root);
@@ -491,7 +490,7 @@ class _Translations$settings$mode_switch$ja extends Translations$settings$mode_s
 	@override String get to_main => 'メインに切替';
 	@override String get to_kds => 'キッチンモニター(KDS)に切替';
 	@override String get confirm_to_main => 'メイン（注文受付）に切り替えますか？';
-	@override String get confirm_to_kds => '状態別カードで表示するキッチン専用画面です。\n「注文受付」がOFFのため処理されません。\n受け付けるには「注文受付」をONにします。';
+	@override String get confirm_to_kds => '注文受付がOFFのため、新規注文を直接受信しません。\nキッチンモニター(KDS)モードで注文を直接受けるには、切り替え後に「注文受付」をONにしてください。';
 	@override String get btn_switch => '切替';
 	@override String get desc_to_main => '注文受付画面に変更します。';
 	@override String get desc_to_kds => 'キッチンモニター(KDS)画面に変更します。';
@@ -530,7 +529,7 @@ class _Translations$settings$print_order$ja extends Translations$settings$print_
 
 	// Translations
 	@override String get title => '注文書出力';
-	@override String get desc => '注文書を出力します。';
+	@override String get desc => '注文書を出力します。OFFの場合は注文書を出力しません。';
 }
 
 // Path: settings.builtin_printer
@@ -755,20 +754,6 @@ class _Translations$settings$label_filter$ja extends Translations$settings$label
 	@override String get btn_waffle_exclude => 'ワッフル除外';
 }
 
-// Path: settings.label_layout
-class _Translations$settings$label_layout$ja extends Translations$settings$label_layout$ko {
-	_Translations$settings$label_layout$ja._(TranslationsJa root) : this._root = root, super.internal(root);
-
-	final TranslationsJa _root; // ignore: unused_field
-
-	// Translations
-	@override String get title => 'ラベルレイアウト';
-	@override String get desc_v1 => '従来のレイアウトでラベルを印刷します。';
-	@override String get desc_v2 => '新しいレイアウト(QR右上・商品名下部)でラベルを印刷します。';
-	@override String get btn_v1 => '標準 (V1)';
-	@override String get btn_v2 => '新規 (V2)';
-}
-
 // Path: settings.label_qr_payload
 class _Translations$settings$label_qr_payload$ja extends Translations$settings$label_qr_payload$ko {
 	_Translations$settings$label_qr_payload$ja._(TranslationsJa root) : this._root = root, super.internal(root);
@@ -805,6 +790,8 @@ class _Translations$settings$kiosk$ja extends Translations$settings$kiosk$ko {
 	@override String get visible_desc => 'キオスク注文を画面に表示します。';
 	@override String get sound_title => 'キオスク注文の注文票と通知音';
 	@override String get sound_desc => 'キオスク注文受信時に注文票を出力し、通知音を再生します。';
+	@override String get auto_accept_title => 'キオスク注文の自動受付';
+	@override String get auto_accept_desc => 'キオスク注文は「ピックアップ注文の自動受付」設定に関わらず、常に即時受付します。';
 }
 
 // Path: settings.local_server

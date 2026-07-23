@@ -176,6 +176,7 @@ OrderModel _order({
   OrderStatus status = OrderStatus.NEW,
   DateTime? orderedAt,
   DateTime? updateTime,
+  String source = '',
 }) {
   final at = orderedAt ?? _todayAt(12);
   return OrderModel(
@@ -197,6 +198,7 @@ OrderModel _order({
     orderType: 'T',
     kdsOrderType: 1,
     kioskId: 'kiosk-1',
+    source: source,
     updateTime: updateTime ?? at,
   );
 }
@@ -517,6 +519,57 @@ void main() {
     test('자동접수 OFF 면 신규 NEW 주문에 updateOrderStatus 를 호출하지 않음', () async {
       // setUpAll 기본값(false) — 명시적으로 대비군 고정.
       final h = await _buildProvider();
+      h.notifier.queueOrderExternal(_order(orderNo: 'A'));
+      await _wait(1600);
+
+      expect(h.api.statusUpdates, isEmpty);
+      expect(
+        h.container.read(orderProvider).orders.single.status,
+        OrderStatus.NEW,
+      );
+    });
+
+    test('자동접수 OFF 여도 키오스크 주문 + KioskAlwaysAutoAccept ON 이면 PREPARING 으로 PUT',
+        () async {
+      // 자동접수(픽업)는 OFF(setUpAll 기본값)지만 키오스크 전용 설정은 ON.
+      await PreferenceService().setKioskAlwaysAutoAccept(true);
+      addTearDown(() => PreferenceService().setKioskAlwaysAutoAccept(true));
+
+      final h = await _buildProvider();
+      h.notifier.queueOrderExternal(_order(orderNo: 'A', source: 'WALD_KIOSK'));
+      await _wait(1600);
+
+      // 키오스크 오버라이드로 자동접수 → updateOrderStatus(A, PREPARING).
+      expect(h.api.statusUpdates, contains(('A', OrderStatus.PREPARING)));
+      expect(
+        h.container.read(orderProvider).orders.single.status,
+        OrderStatus.PREPARING,
+      );
+    });
+
+    test('자동접수 OFF + 키오스크 주문 + KioskAlwaysAutoAccept OFF 면 PUT 하지 않음',
+        () async {
+      await PreferenceService().setKioskAlwaysAutoAccept(false);
+      addTearDown(() => PreferenceService().setKioskAlwaysAutoAccept(true));
+
+      final h = await _buildProvider();
+      h.notifier.queueOrderExternal(_order(orderNo: 'A', source: 'WALD_KIOSK'));
+      await _wait(1600);
+
+      expect(h.api.statusUpdates, isEmpty);
+      expect(
+        h.container.read(orderProvider).orders.single.status,
+        OrderStatus.NEW,
+      );
+    });
+
+    test('KioskAlwaysAutoAccept ON 이라도 비키오스크 주문은 자동접수 OFF 를 따름(오버라이드 스코프 검증)',
+        () async {
+      await PreferenceService().setKioskAlwaysAutoAccept(true);
+      addTearDown(() => PreferenceService().setKioskAlwaysAutoAccept(true));
+
+      final h = await _buildProvider();
+      // source 미지정 = 비키오스크. 키오스크 오버라이드가 걸리면 안 됨.
       h.notifier.queueOrderExternal(_order(orderNo: 'A'));
       await _wait(1600);
 

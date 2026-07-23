@@ -21,6 +21,10 @@ enum BrandFeature {
   /// 이 기능이 **없는** 브랜드는 Sunmi 여부와 무관하게 OTA(자동 체크 ON)를 쓴다.
   /// (Sunmi 가 아닌 기기·Windows 는 이 기능이 있어도 항상 OTA/ON.)
   sunmiAppStoreUpdate,
+
+  /// 설정의 '화면 상하 반전'(180도 회전) 항목 노출. OS 회전 설정이 없는 특정
+  /// 기기 구성을 쓰는 브랜드에만 필요하므로 해당 브랜드에서만 노출한다.
+  displayRotate,
 }
 
 /// 브랜드 식별 키. 매장 ID prefix 로 결정된다.
@@ -118,6 +122,7 @@ class BrandRegistry {
       features: {
         BrandFeature.labelCategoryFilter,
         BrandFeature.japanEnvironment,
+        BrandFeature.displayRotate,
       },
     ),
     BrandKey.mhst: BrandMeta(

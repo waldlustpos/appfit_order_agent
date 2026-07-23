@@ -70,7 +70,7 @@
             "to_main": "Switch to Main",
             "to_kds": "Switch to Kitchen Display (KDS)",
             "confirm_to_main": "Switch to main (order reception) mode?",
-            "confirm_to_kds": "A kitchen-only screen showing orders as cards.\n'Order Reception' is OFF, so orders are not processed.\nTurn 'Order Reception' ON to receive them.",
+            "confirm_to_kds": "Order Reception is OFF, so new orders are not received directly.\nTo receive orders directly in Kitchen Monitor (KDS) mode, switch over and turn 'Order Reception' ON.",
             "btn_switch": "Switch",
             "desc_to_main": "Changes to order reception screen.",
             "desc_to_kds": "Changes to the Kitchen Display (KDS) screen."
@@ -88,7 +88,7 @@
         },
         "print_order": {
             "title": "Print Tickets",
-            "desc": "Print order tickets."
+            "desc": "Print order tickets. When OFF, no order ticket is printed."
         },
         "builtin_printer": {
             "title": "Use Built-in Printer",
@@ -191,13 +191,6 @@
             "btn_waffle_only": "Waffle Only",
             "btn_waffle_exclude": "Exclude Waffle"
         },
-        "label_layout": {
-            "title": "Label Layout",
-            "desc_v1": "Print labels with the original layout.",
-            "desc_v2": "Print labels with the new layout (QR top-right, menu at bottom).",
-            "btn_v1": "Default (V1)",
-            "btn_v2": "New (V2)"
-        },
         "label_qr_payload": {
             "title": "Label QR Format",
             "desc_legacy": "Generate the QR with the original format. (orderNo-itemId-cupIndex)",
@@ -217,7 +210,9 @@
             "visible_title": "Show Kiosk Orders",
             "visible_desc": "Display kiosk orders on screen.",
             "sound_title": "Kiosk Order Ticket & Sound",
-            "sound_desc": "Print ticket and play notification sound when a kiosk order is received."
+            "sound_desc": "Print ticket and play notification sound when a kiosk order is received.",
+            "auto_accept_title": "Auto-Accept Kiosk Orders",
+            "auto_accept_desc": "Kiosk orders are always accepted immediately, regardless of the 'Auto-Accept Pickup Orders' setting."
         },
         "local_server": {
             "title": "Enable Local Server",

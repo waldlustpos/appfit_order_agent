@@ -241,7 +241,6 @@ class Translations$settings$ko {
 	late final Translations$settings$kds_ignore_status$ko kds_ignore_status = Translations$settings$kds_ignore_status$ko.internal(_root);
 	late final Translations$settings$kds_accept_orders$ko kds_accept_orders = Translations$settings$kds_accept_orders$ko.internal(_root);
 	late final Translations$settings$label_filter$ko label_filter = Translations$settings$label_filter$ko.internal(_root);
-	late final Translations$settings$label_layout$ko label_layout = Translations$settings$label_layout$ko.internal(_root);
 	late final Translations$settings$label_qr_payload$ko label_qr_payload = Translations$settings$label_qr_payload$ko.internal(_root);
 	late final Translations$settings$developer_options$ko developer_options = Translations$settings$developer_options$ko.internal(_root);
 	late final Translations$settings$kiosk$ko kiosk = Translations$settings$kiosk$ko.internal(_root);
@@ -896,8 +895,8 @@ class Translations$settings$mode_switch$ko {
 	/// ko: '메인 시스템(일반 접수)으로 전환하시겠습니까?'
 	String get confirm_to_main => '메인 시스템(일반 접수)으로 전환하시겠습니까?';
 
-	/// ko: '상태별 카드로 보는 주방 전용 화면입니다. '주문 접수'가 OFF라 처리되지 않습니다. 받으려면 '주문 접수'를 ON 하세요.'
-	String get confirm_to_kds => '상태별 카드로 보는 주방 전용 화면입니다.\n\'주문 접수\'가 OFF라 처리되지 않습니다.\n받으려면 \'주문 접수\'를 ON 하세요.';
+	/// ko: '주문 접수가 OFF되어 신규 주문을 직접 수신하지 않습니다. 주방모니터(KDS)모드에서 주문을 직접 받으려면 전환 후 '주문 접수'를 ON 하세요.'
+	String get confirm_to_kds => '주문 접수가 OFF되어 신규 주문을 직접 수신하지 않습니다.\n주방모니터(KDS)모드에서 주문을 직접 받으려면 전환 후 \'주문 접수\'를 ON 하세요.';
 
 	/// ko: '전환하기'
 	String get btn_switch => '전환하기';
@@ -959,8 +958,8 @@ class Translations$settings$print_order$ko {
 	/// ko: '주문서 출력'
 	String get title => '주문서 출력';
 
-	/// ko: '주문서를 출력합니다.'
-	String get desc => '주문서를 출력합니다.';
+	/// ko: '주문서를 출력합니다. OFF시 주문서를 출력하지 않습니다.'
+	String get desc => '주문서를 출력합니다. OFF시 주문서를 출력하지 않습니다.';
 }
 
 // Path: settings.builtin_printer
@@ -1304,30 +1303,6 @@ class Translations$settings$label_filter$ko {
 	String get btn_waffle_exclude => '와플상품 제외';
 }
 
-// Path: settings.label_layout
-class Translations$settings$label_layout$ko {
-	Translations$settings$label_layout$ko.internal(this._root);
-
-	final Translations _root; // ignore: unused_field
-
-	// Translations
-
-	/// ko: '라벨 레이아웃'
-	String get title => '라벨 레이아웃';
-
-	/// ko: '기존 레이아웃으로 라벨을 출력합니다.'
-	String get desc_v1 => '기존 레이아웃으로 라벨을 출력합니다.';
-
-	/// ko: '새 레이아웃(QR 우측 상단·상품명 하단)으로 라벨을 출력합니다.'
-	String get desc_v2 => '새 레이아웃(QR 우측 상단·상품명 하단)으로 라벨을 출력합니다.';
-
-	/// ko: '기본 (V1)'
-	String get btn_v1 => '기본 (V1)';
-
-	/// ko: '신규 (V2)'
-	String get btn_v2 => '신규 (V2)';
-}
-
 // Path: settings.label_qr_payload
 class Translations$settings$label_qr_payload$ko {
 	Translations$settings$label_qr_payload$ko.internal(this._root);
@@ -1385,6 +1360,12 @@ class Translations$settings$kiosk$ko {
 
 	/// ko: '키오스크 주문 수신 시 주문서 출력과 알림음을 재생합니다.'
 	String get sound_desc => '키오스크 주문 수신 시 주문서 출력과 알림음을 재생합니다.';
+
+	/// ko: '키오스크 주문 자동 접수'
+	String get auto_accept_title => '키오스크 주문 자동 접수';
+
+	/// ko: '키오스크 주문은 '픽업 오더 자동 접수' 설정과 무관하게 항상 즉시 접수합니다.'
+	String get auto_accept_desc => '키오스크 주문은 \'픽업 오더 자동 접수\' 설정과 무관하게 항상 즉시 접수합니다.';
 }
 
 // Path: settings.local_server

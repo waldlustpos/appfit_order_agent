@@ -44,7 +44,6 @@ class SettingsLeftPanel extends ConsumerStatefulWidget {
     required this.builtinPrintCall,
     required this.externalPrintCall,
     required this.labelFilterMode,
-    required this.labelLayoutVersion,
     required this.labelQrPayloadFormat,
     required this.isShowOrderTypeBadge,
     required this.isOrderSourceColor,
@@ -66,7 +65,6 @@ class SettingsLeftPanel extends ConsumerStatefulWidget {
     required this.onBuiltinPrintCallChanged,
     required this.onExternalPrintCallChanged,
     required this.onLabelFilterModeChanged,
-    required this.onLabelLayoutVersionChanged,
     required this.onLabelQrPayloadFormatChanged,
     required this.onShowOrderTypeBadgeChanged,
     required this.onOrderSourceColorChanged,
@@ -94,7 +92,6 @@ class SettingsLeftPanel extends ConsumerStatefulWidget {
   final bool builtinPrintCall;
   final bool externalPrintCall;
   final int labelFilterMode;
-  final int labelLayoutVersion;
   final int labelQrPayloadFormat;
   final bool isShowOrderTypeBadge;
   final bool isOrderSourceColor;
@@ -117,7 +114,6 @@ class SettingsLeftPanel extends ConsumerStatefulWidget {
   final void Function(bool) onBuiltinPrintCallChanged;
   final void Function(bool) onExternalPrintCallChanged;
   final void Function(int) onLabelFilterModeChanged;
-  final void Function(int) onLabelLayoutVersionChanged;
   final void Function(int) onLabelQrPayloadFormatChanged;
   final void Function(bool) onShowOrderTypeBadgeChanged;
   final void Function(bool) onOrderSourceColorChanged;
@@ -209,37 +205,7 @@ class _SettingsLeftPanelState extends ConsumerState<SettingsLeftPanel> {
 
   // ── 라벨 필터 버튼 ────────────────────────────────────────────────────────
 
-  // 라벨 레이아웃 버전 선택 버튼 (filterMode 버튼과 동일 스타일)
-  Widget _buildLayoutVersionButton(String label, int version) {
-    final isSelected = widget.labelLayoutVersion == version;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () {
-          widget.onLabelLayoutVersionChanged(version);
-          logToFile(
-              tag: LogTag.UI_ACTION, message: '라벨 레이아웃 버전 변경 -> $version');
-        },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.s12),
-          decoration: BoxDecoration(
-            color: isSelected ? AppStyles.kMainColor : AppStyles.gray2,
-            borderRadius: AppRadius.bSm,
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            label,
-            style: AppTextStyles.bodySm.copyWith(
-              color: isSelected ? Colors.white : AppStyles.gray9,
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // 라벨 QR 페이로드 포맷 선택 버튼 (라벨 레이아웃 버튼과 동일 스타일)
+  // 라벨 QR 페이로드 포맷 선택 버튼 (filterMode 버튼과 동일 스타일)
   Widget _buildQrPayloadButton(String label, int format) {
     final isSelected = widget.labelQrPayloadFormat == format;
     return Expanded(
@@ -338,12 +304,13 @@ class _SettingsLeftPanelState extends ConsumerState<SettingsLeftPanel> {
     final canLabelFilter =
         brand?.has(BrandFeature.labelCategoryFilter) ?? false;
     final canSoundGraph = brand?.has(BrandFeature.soundGraphSend) ?? false;
+    // 화면 상하 반전은 OS 회전 설정이 없는 특정 기기 구성을 쓰는 브랜드(TPCP)에만 노출.
+    final canRotate = brand?.has(BrandFeature.displayRotate) ?? false;
     // 라벨프린터 하위 아이템(필터/QR) 가시성. 라벨프린터 + 하위 아이템은
     // divider 없이 한 그룹으로 묶이므로(기존 디자인), 하위가 하나라도 있으면
     // 라벨프린터 아이템의 하단 divider 를 끈다.
     final showFilterItem = widget.isUseLabelPrinter && canLabelFilter;
     final showQrItem = widget.isUseLabelPrinter;
-    final showLayoutItem = widget.isUseLabelPrinter;
     final showQrPayloadItem = widget.isUseLabelPrinter;
 
     return Scrollbar(
@@ -489,17 +456,18 @@ class _SettingsLeftPanelState extends ConsumerState<SettingsLeftPanel> {
                       },
                     ),
                   ),
-                // 5. 화면 상하 반전
-                SettingsItemWidget(
-                  title: t.settings.display_rotate.title,
-                  description: t.settings.display_rotate.desc,
-                  trailing: CustomSwitch(
-                    value: widget.isRotated180,
-                    activeColor: AppStyles.kMainColor,
-                    inactiveColor: AppStyles.gray4,
-                    onChanged: _handleRotationChange,
+                // 5. 화면 상하 반전 (TPCP 등 displayRotate 기능 브랜드에만 노출)
+                if (canRotate)
+                  SettingsItemWidget(
+                    title: t.settings.display_rotate.title,
+                    description: t.settings.display_rotate.desc,
+                    trailing: CustomSwitch(
+                      value: widget.isRotated180,
+                      activeColor: AppStyles.kMainColor,
+                      inactiveColor: AppStyles.gray4,
+                      onChanged: _handleRotationChange,
+                    ),
                   ),
-                ),
                 // 6. 언어 설정
                 SettingsItemWidget(
                   title: t.settings.language.title,
@@ -657,10 +625,8 @@ class _SettingsLeftPanelState extends ConsumerState<SettingsLeftPanel> {
                   additionalContent: LabelPrinterSubSettings(
                     isUseLabelPrinter: widget.isUseLabelPrinter,
                   ),
-                  showDivider: !(showFilterItem ||
-                      showQrItem ||
-                      showLayoutItem ||
-                      showQrPayloadItem),
+                  showDivider:
+                      !(showFilterItem || showQrItem || showQrPayloadItem),
                 ),
                 if (showFilterItem)
                   SettingsItemWidget(
@@ -702,25 +668,6 @@ class _SettingsLeftPanelState extends ConsumerState<SettingsLeftPanel> {
                             message: 'QR 코드 출력 변경 -> $v');
                         widget.onUseQrPrintChanged(v);
                       },
-                    ),
-                  ),
-                if (showLayoutItem)
-                  SettingsItemWidget(
-                    title: t.settings.label_layout.title,
-                    description: switch (widget.labelLayoutVersion) {
-                      1 => t.settings.label_layout.desc_v2,
-                      _ => t.settings.label_layout.desc_v1,
-                    },
-                    isVertical: true,
-                    showDivider: false,
-                    trailing: Row(
-                      children: [
-                        _buildLayoutVersionButton(
-                            t.settings.label_layout.btn_v1, 0),
-                        const SizedBox(width: AppSpacing.s8),
-                        _buildLayoutVersionButton(
-                            t.settings.label_layout.btn_v2, 1),
-                      ],
                     ),
                   ),
                 if (showQrPayloadItem)
