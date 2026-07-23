@@ -22,7 +22,8 @@ class LabelPainter extends CustomPainter {
   final int? orderIndex; // 현재 라벨 번호 (예: 1)
   final int? orderTotal; // 전체 라벨 수 (예: 10)
 
-  /// 라벨 레이아웃 버전 (0: V1 기존, 1: V2 QR 우측상단). 설정 KEY_LABEL_LAYOUT_VERSION 연동.
+  /// 라벨 레이아웃 버전 (0: V1 기존, 1: V2 QR 우측상단). 선택 설정은 폐지되어
+  /// 호출부에서 항상 V2(1)를 전달한다(V1 분기 코드는 하위호환용으로 잔존).
   final int layoutVersion;
 
   /// QR 오류 정정 레벨 (qr 패키지 `QrErrorCorrectLevel` 상수: L/M/Q/H).

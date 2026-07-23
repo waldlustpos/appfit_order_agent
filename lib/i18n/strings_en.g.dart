@@ -152,7 +152,6 @@ class _Translations$settings$en extends Translations$settings$ko {
 	@override late final _Translations$settings$kds_ignore_status$en kds_ignore_status = _Translations$settings$kds_ignore_status$en._(_root);
 	@override late final _Translations$settings$kds_accept_orders$en kds_accept_orders = _Translations$settings$kds_accept_orders$en._(_root);
 	@override late final _Translations$settings$label_filter$en label_filter = _Translations$settings$label_filter$en._(_root);
-	@override late final _Translations$settings$label_layout$en label_layout = _Translations$settings$label_layout$en._(_root);
 	@override late final _Translations$settings$label_qr_payload$en label_qr_payload = _Translations$settings$label_qr_payload$en._(_root);
 	@override late final _Translations$settings$developer_options$en developer_options = _Translations$settings$developer_options$en._(_root);
 	@override late final _Translations$settings$kiosk$en kiosk = _Translations$settings$kiosk$en._(_root);
@@ -499,7 +498,7 @@ class _Translations$settings$mode_switch$en extends Translations$settings$mode_s
 	@override String get to_main => 'Switch to Main';
 	@override String get to_kds => 'Switch to Kitchen Display (KDS)';
 	@override String get confirm_to_main => 'Switch to main (order reception) mode?';
-	@override String get confirm_to_kds => 'A kitchen-only screen showing orders as cards.\n\'Order Reception\' is OFF, so orders are not processed.\nTurn \'Order Reception\' ON to receive them.';
+	@override String get confirm_to_kds => 'Order Reception is OFF, so new orders are not received directly.\nTo receive orders directly in Kitchen Monitor (KDS) mode, switch over and turn \'Order Reception\' ON.';
 	@override String get btn_switch => 'Switch';
 	@override String get desc_to_main => 'Changes to order reception screen.';
 	@override String get desc_to_kds => 'Changes to the Kitchen Display (KDS) screen.';
@@ -538,7 +537,7 @@ class _Translations$settings$print_order$en extends Translations$settings$print_
 
 	// Translations
 	@override String get title => 'Print Tickets';
-	@override String get desc => 'Print order tickets.';
+	@override String get desc => 'Print order tickets. When OFF, no order ticket is printed.';
 }
 
 // Path: settings.builtin_printer
@@ -763,20 +762,6 @@ class _Translations$settings$label_filter$en extends Translations$settings$label
 	@override String get btn_waffle_exclude => 'Exclude Waffle';
 }
 
-// Path: settings.label_layout
-class _Translations$settings$label_layout$en extends Translations$settings$label_layout$ko {
-	_Translations$settings$label_layout$en._(TranslationsEn root) : this._root = root, super.internal(root);
-
-	final TranslationsEn _root; // ignore: unused_field
-
-	// Translations
-	@override String get title => 'Label Layout';
-	@override String get desc_v1 => 'Print labels with the original layout.';
-	@override String get desc_v2 => 'Print labels with the new layout (QR top-right, menu at bottom).';
-	@override String get btn_v1 => 'Default (V1)';
-	@override String get btn_v2 => 'New (V2)';
-}
-
 // Path: settings.label_qr_payload
 class _Translations$settings$label_qr_payload$en extends Translations$settings$label_qr_payload$ko {
 	_Translations$settings$label_qr_payload$en._(TranslationsEn root) : this._root = root, super.internal(root);
@@ -813,6 +798,8 @@ class _Translations$settings$kiosk$en extends Translations$settings$kiosk$ko {
 	@override String get visible_desc => 'Display kiosk orders on screen.';
 	@override String get sound_title => 'Kiosk Order Ticket & Sound';
 	@override String get sound_desc => 'Print ticket and play notification sound when a kiosk order is received.';
+	@override String get auto_accept_title => 'Auto-Accept Kiosk Orders';
+	@override String get auto_accept_desc => 'Kiosk orders are always accepted immediately, regardless of the \'Auto-Accept Pickup Orders\' setting.';
 }
 
 // Path: settings.local_server

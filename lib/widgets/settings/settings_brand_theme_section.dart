@@ -5,6 +5,7 @@ import 'package:appfit_order_agent/constants/app_styles.dart';
 import 'package:appfit_order_agent/constants/brand_theme.dart';
 import 'package:appfit_order_agent/providers/brand_theme_provider.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
+import 'package:appfit_order_agent/widgets/common/beta_badge.dart';
 import 'package:appfit_order_agent/widgets/settings/settings_section_card.dart';
 import 'package:appfit_order_agent/widgets/settings/settings_item_widget.dart';
 
@@ -28,6 +29,7 @@ class SettingsBrandThemeSection extends ConsumerWidget {
     return SettingsSectionCard(
       title: t.settings.theme.title,
       icon: Icons.palette_outlined,
+      titleBadge: const BetaBadge(),
       children: [
         SettingsItemWidget(
           title: t.settings.theme.title,

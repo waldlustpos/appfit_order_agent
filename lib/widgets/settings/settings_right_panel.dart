@@ -29,6 +29,7 @@ class SettingsRightPanel extends ConsumerStatefulWidget {
     required this.alertCount,
     required this.isKioskOrderVisible,
     required this.isKioskOrderSoundEnabled,
+    required this.isKioskAlwaysAutoAccept,
     required this.isLocalServerEnabled,
     required this.isLocalServerRunning,
     required this.printCount,
@@ -51,6 +52,7 @@ class SettingsRightPanel extends ConsumerStatefulWidget {
     required this.onAlertCountChanged,
     required this.onKioskOrderVisibleChanged,
     required this.onKioskOrderSoundChanged,
+    required this.onKioskAlwaysAutoAcceptChanged,
     required this.onLocalServerChanged,
     required this.onPrintCountChanged,
     required this.onAutoCheckUpdateChanged,
@@ -73,6 +75,7 @@ class SettingsRightPanel extends ConsumerStatefulWidget {
   final int alertCount;
   final bool isKioskOrderVisible;
   final bool isKioskOrderSoundEnabled;
+  final bool isKioskAlwaysAutoAccept;
   final bool isLocalServerEnabled;
   final bool isLocalServerRunning;
   final int printCount;
@@ -94,6 +97,7 @@ class SettingsRightPanel extends ConsumerStatefulWidget {
   final void Function(int) onAlertCountChanged;
   final void Function(bool) onKioskOrderVisibleChanged;
   final void Function(bool) onKioskOrderSoundChanged;
+  final void Function(bool) onKioskAlwaysAutoAcceptChanged;
   final void Function(bool) onLocalServerChanged;
   final void Function(int) onPrintCountChanged;
   final void Function(bool) onAutoCheckUpdateChanged;
@@ -279,11 +283,6 @@ class _SettingsRightPanelState extends ConsumerState<SettingsRightPanel> {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            // ── 테마 설정 카드 (브랜드별 기본+브랜드테마 2종) ──────────────────
-            if (showBrandThemePicker) ...[
-              SettingsBrandThemeSection(themes: brandThemes),
-              const SizedBox(height: AppSpacing.s16),
-            ],
             // ── 알림 설정 카드 ─────────────────────────────────────────────
             SettingsSectionCard(
               title: t.settings.section_sound,
@@ -451,7 +450,6 @@ class _SettingsRightPanelState extends ConsumerState<SettingsRightPanel> {
                   title: t.settings.kiosk.sound_title,
                   description: t.settings.kiosk.sound_desc,
                   enabled: widget.isKioskOrderVisible,
-                  showDivider: false,
                   trailing: CustomSwitch(
                     value: widget.isKioskOrderSoundEnabled,
                     activeColor: AppStyles.kMainColor,
@@ -464,6 +462,25 @@ class _SettingsRightPanelState extends ConsumerState<SettingsRightPanel> {
                           tag: LogTag.UI_ACTION,
                           message: '키오스크 주문 출력/알람 변경 -> $v');
                       widget.onKioskOrderSoundChanged(v);
+                    },
+                  ),
+                ),
+                // 키오스크 주문 항상 자동접수 (픽업 자동접수 설정과 무관, 기본 ON)
+                SettingsItemWidget(
+                  title: t.settings.kiosk.auto_accept_title,
+                  description: t.settings.kiosk.auto_accept_desc,
+                  showDivider: false,
+                  trailing: CustomSwitch(
+                    value: widget.isKioskAlwaysAutoAccept,
+                    activeColor: AppStyles.kMainColor,
+                    inactiveColor: AppStyles.gray4,
+                    activeText: t.settings.auto_start.on,
+                    inactiveText: t.settings.auto_start.off,
+                    onChanged: (v) {
+                      logToFile(
+                          tag: LogTag.UI_ACTION,
+                          message: '키오스크 항상 자동접수 변경 -> $v');
+                      widget.onKioskAlwaysAutoAcceptChanged(v);
                     },
                   ),
                 ),
@@ -531,6 +548,13 @@ class _SettingsRightPanelState extends ConsumerState<SettingsRightPanel> {
               ],
             ),
             const SizedBox(height: AppSpacing.s16),
+
+            // ── 테마 설정 카드 (브랜드별 기본+브랜드테마 2종) ──────────────────
+            // 출력 설정과 업데이트 카드 사이에 배치한다.
+            if (showBrandThemePicker) ...[
+              SettingsBrandThemeSection(themes: brandThemes),
+              const SizedBox(height: AppSpacing.s16),
+            ],
 
             // ── 업데이트 카드 ─────────────────────────────────────────────
             SettingsSectionCard(

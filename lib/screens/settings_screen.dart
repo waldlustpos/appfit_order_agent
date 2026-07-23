@@ -57,11 +57,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _labelUseCalibrate = false;
   bool _labelUseQrPrint = false;
   int _labelFilterMode = 0;
-  int _labelLayoutVersion = 0;
   int _labelQrPayloadFormat = 0;
 
   bool _isKioskOrderVisible = false;
   bool _isKioskOrderSoundEnabled = false;
+  bool _isKioskAlwaysAutoAccept = true;
   bool _isShowOrderTypeBadge = false;
   bool _isOrderSourceColor = false;
   bool _isOrderHistoryScroll = true;
@@ -127,11 +127,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _labelUseCalibrate = _preferenceService.getLabelUseCalibrate();
       _labelUseQrPrint = _preferenceService.getLabelUseQrPrint();
       _labelFilterMode = _preferenceService.getLabelFilterMode();
-      _labelLayoutVersion = _preferenceService.getLabelLayoutVersion();
       _labelQrPayloadFormat = _preferenceService.getLabelQrPayloadFormat();
 
       _isKioskOrderVisible = _preferenceService.getShowKioskOrder();
       _isKioskOrderSoundEnabled = _preferenceService.getKioskPrintAndSound();
+      _isKioskAlwaysAutoAccept = _preferenceService.getKioskAlwaysAutoAccept();
       _isShowOrderTypeBadge = _preferenceService.getShowOrderTypeBadge();
       _isOrderSourceColor = _preferenceService.getOrderSourceColor();
       _isOrderHistoryScroll = _preferenceService.getOrderHistoryScroll();
@@ -156,7 +156,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     try {
       await _preferenceService.setAutoLaunch(_isAutoStart);
       await _preferenceService.setAutoReceipt(_isAutoReceipt);
-      logger.i('설정 저장 - 자동접수 설정: $_isAutoReceipt');
       await _preferenceService.setUsePrint(_isPrintOrder);
       await _preferenceService.setUseBuiltinPrinter(_isUseBuiltinPrinter);
       await _preferenceService.setUseExternalPrinter(_isUseExternalPrinter);
@@ -173,10 +172,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await _preferenceService.setLabelUseCalibrate(_labelUseCalibrate);
       await _preferenceService.setLabelUseQrPrint(_labelUseQrPrint);
       await _preferenceService.setLabelFilterMode(_labelFilterMode);
-      await _preferenceService.setLabelLayoutVersion(_labelLayoutVersion);
       await _preferenceService.setLabelQrPayloadFormat(_labelQrPayloadFormat);
       await _preferenceService.setShowKioskOrder(_isKioskOrderVisible);
       await _preferenceService.setKioskPrintAndSound(_isKioskOrderSoundEnabled);
+      await _preferenceService
+          .setKioskAlwaysAutoAccept(_isKioskAlwaysAutoAccept);
       await _preferenceService.setShowOrderTypeBadge(_isShowOrderTypeBadge);
       await _preferenceService.setOrderSourceColor(_isOrderSourceColor);
       await _preferenceService.setOrderHistoryScroll(_isOrderHistoryScroll);
@@ -490,7 +490,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           memo: qr,
           orderIndex: i + 1,
           orderTotal: total,
-          layoutVersion: _labelLayoutVersion,
+          layoutVersion: 1, // 라벨 레이아웃 V2 고정 (선택 설정 폐지)
         );
         final result = await printService.printLabel(
           imageBytes,
@@ -550,7 +550,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               builtinPrintCall: _builtinPrintCall,
               externalPrintCall: _externalPrintCall,
               labelFilterMode: _labelFilterMode,
-              labelLayoutVersion: _labelLayoutVersion,
               labelQrPayloadFormat: _labelQrPayloadFormat,
               isShowOrderTypeBadge: _isShowOrderTypeBadge,
               isOrderSourceColor: _isOrderSourceColor,
@@ -595,8 +594,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   _setAndSave(() => _externalPrintCall = v),
               onLabelFilterModeChanged: (v) =>
                   _setAndSave(() => _labelFilterMode = v),
-              onLabelLayoutVersionChanged: (v) =>
-                  _setAndSave(() => _labelLayoutVersion = v),
               onLabelQrPayloadFormatChanged: (v) =>
                   _setAndSave(() => _labelQrPayloadFormat = v),
               onShowOrderTypeBadgeChanged: (v) =>
@@ -620,6 +617,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               alertCount: _alertCount,
               isKioskOrderVisible: _isKioskOrderVisible,
               isKioskOrderSoundEnabled: _isKioskOrderSoundEnabled,
+              isKioskAlwaysAutoAccept: _isKioskAlwaysAutoAccept,
               isLocalServerEnabled: _isLocalServerEnabled,
               isLocalServerRunning: _isLocalServerRunning,
               printCount: _printCount,
@@ -644,6 +642,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               }),
               onKioskOrderSoundChanged: (v) =>
                   _setAndSave(() => _isKioskOrderSoundEnabled = v),
+              onKioskAlwaysAutoAcceptChanged: (v) =>
+                  _setAndSave(() => _isKioskAlwaysAutoAccept = v),
               onLocalServerChanged: _handleLocalServerChanged,
               onPrintCountChanged: (v) => _setAndSave(() => _printCount = v),
               onAutoCheckUpdateChanged: (v) {

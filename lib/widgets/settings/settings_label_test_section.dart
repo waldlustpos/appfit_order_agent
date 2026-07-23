@@ -327,8 +327,7 @@ class _SettingsLabelTestSectionState
     logToFile(tag: LogTag.PLATFORM, message: '[LabelTest] [CONFIG] $config');
 
     try {
-      final layoutVersion =
-          ref.read(preferenceServiceProvider).getLabelLayoutVersion();
+      const int layoutVersion = 1; // 라벨 레이아웃 V2 고정 (선택 설정 폐지)
       final sw = Stopwatch()..start();
       for (int i = 1; i <= 3; i++) {
         final labelSw = Stopwatch()..start();
@@ -387,8 +386,7 @@ class _SettingsLabelTestSectionState
     final status = ref.read(printerStatusProvider);
     // QR 토글 반영 — ON 이면 각 라벨에 운영과 동일 포맷의 QR 페이로드를 넘긴다.
     final useQr = ref.read(preferenceServiceProvider).getLabelUseQrPrint();
-    final layoutVersion =
-        ref.read(preferenceServiceProvider).getLabelLayoutVersion();
+    const int layoutVersion = 1; // 라벨 레이아웃 V2 고정 (선택 설정 폐지)
     final qrStrategy = ref.read(qrPayloadStrategyProvider);
 
     if (!status.isLabelConnected) {
@@ -602,8 +600,7 @@ class _SettingsLabelTestSectionState
   Future<void> _printQrSelectedTest() async {
     final printService = ref.read(printServiceProvider);
     final status = ref.read(printerStatusProvider);
-    final layoutVersion =
-        ref.read(preferenceServiceProvider).getLabelLayoutVersion();
+    const int layoutVersion = 1; // 라벨 레이아웃 V2 고정 (선택 설정 폐지)
 
     if (!status.isLabelConnected) {
       if (mounted) {

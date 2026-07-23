@@ -184,8 +184,8 @@ class OutputService {
       // QR 코드 출력 토글. ON 이면 ① QR 동반 인쇄 + ② 주문번호 뒤 순번 접미사(-1, -2 ...)
       // 를 함께 적용한다. (예: 0029 → 0029-1, 0029-2). OFF 면 둘 다 미적용.
       final useQr = prefService.getLabelUseQrPrint();
-      // 라벨 레이아웃 버전 (0: V1 기존, 1: V2 QR 우측상단). 한 주문 내 모든 라벨에 동일 적용.
-      final layoutVersion = prefService.getLabelLayoutVersion();
+      // 라벨 레이아웃은 V2(QR 우측상단)로 고정한다. (구 V1 선택 설정은 폐지됨)
+      const layoutVersion = 1;
 
       // 누락 카운터 — 한 주문 내에서 자동 재시도(1회) 마저 실패한 라벨 추적
       int failedLabels = 0;
