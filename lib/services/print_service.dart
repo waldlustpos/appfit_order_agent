@@ -340,15 +340,18 @@ class PrintService {
 
           String identification = '';
 
-          // 1. 라벨 프린터 식별 (LabelPrinter.java 의 고정 모델과 동기화)
+          // 1. 라벨 프린터 식별 (LabelPrinter.java / BixolonLabelDriver.java 와 동기화)
           // VID:0x4B43(19267), PID:0x3538(13624)  Caysn D2
           // VID:0x4B43(19267), PID:0x3830(14384)  Caysn D3
           // VID:0x0FE6(4070),  PID:0x811E(33054)  REXOD RXLA-561 (운영 모델)
+          // VID:0x1504(5380)                      BIXOLON XD5-40d (VID-only 매칭.
+          //   실기기 PID:0x0106(262) 확인 — 타 BIXOLON 라벨 기종 호환 위해 안 조임)
           // 주의: 범용 USB-Serial 칩(PL2303 0x067B:0x2303 등) 은 넣지 말 것 —
           // 외부 ESC/POS 영수증 프린터를 라벨로 오인한다. (Windows 후보와 동일.)
           bool isKnownLabelPrinter = (vendorId == 0x4B43 &&
                   (productId == 0x3538 || productId == 0x3830)) ||
-              (vendorId == 0x0FE6 && productId == 0x811E);
+              (vendorId == 0x0FE6 && productId == 0x811E) ||
+              (vendorId == 0x1504);
 
           if (isKnownLabelPrinter) {
             isLabelConnected = true;

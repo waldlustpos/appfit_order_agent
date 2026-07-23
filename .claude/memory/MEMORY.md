@@ -41,3 +41,4 @@
 - [Sentry Crons 앱 실행중 판정 검증](project_sentry_crons_liveness.md) — heartbeat 끊기면 missed 자동감지→이슈. HTTP envelope 체크인으로 토큰·대시보드 없이 모니터 upsert(tool/cron_heartbeat_test.dart). 8.14.2엔 captureCheckIn 없음(SDK는 9.x 업그레이드 전제). 모니터당 과금. 테스트만·미도입 (2026-07-22)
 - [의존성 tier① 업그레이드 실행](project_deps_tier1_upgrade.md) — 감사 후 저위험 5묶음 브랜치 실행(미푸시). tier②(Sentry/serial/Riverpod)·tier③ 로드맵 대기. 보고서 plans/dependencies-dazzling-wilkinson.md
 - [slang4 다파일 + analyze baseline 함정](reference_slang4_multifile_and_analyze_baseline.md) — slang4=다파일 생성(strings_<locale>.g.dart 필수 커밋)+lazy:false 동기API. analyze warning baseline 69(0 아님). unused_catch_stack=analyzer 진단(linter 룰 아님). grep \s POSIX 미지원
+- [BIXOLON XD5-40d 라벨프린터 Android 지원](project_bixolon_xd5_40d.md) — VID 0x1504 자동 라우팅으로 기존 PNG 파이프라인 재사용. connect(UsbDevice) 인자 무시·pdflib aar 불필요·so 필수 함정, submit-wins, APK +15MB. 실기기 검증 대기 (2026-07-23)

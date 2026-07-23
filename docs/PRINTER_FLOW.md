@@ -109,12 +109,15 @@ flowchart TD
     FFI --> CB["NativeCallable 상태 콜백<br/>비콘 캐시 갱신"]
     CB --> QPR["QueryPrintResult<br/>타임아웃 1000ms"]
 
-    LMC --> LJ["LabelPrinter.java<br/>Sunmi/USB 라벨 프린터"]
+    LMC --> RT{"VID 라우팅<br/>(매 인쇄 재평가)"}
+    RT -->|"BIXOLON 0x1504 연결됨 (우선)"| BXD["BixolonLabelDriver.java<br/>BIXOLON XD5-40d"]
+    RT -->|그 외| LJ["LabelPrinter.java<br/>Caysn/REXOD 라벨 프린터"]
     LJ --> LCB["CP_OnPrinterStatusEvent 콜백<br/>volatile 비콘 캐시"]
+    BXD --> BST["getStatus 동기 폴링<br/>(진입 게이트 + 완료 폴링)"]
 ```
 
-- **Windows**: `WindowsLabelPrinterBackend`(싱글턴)가 AutoReplyPrint SDK를 FFI로 직접 호출. Java 패턴 1:1 포팅, `NativeCallable.listener`로 상태/완료 콜백 처리. `QueryPrintResult` 타임아웃 1000ms(구 3000ms→50장 부하에서 누적 지연 개선). 라벨 모드는 포트 닫힐 때까지 유지(매 라벨 재진입 방지).
-- **Android**: MethodChannel `printLabel` → `LabelPrinter.java`. 인자 `autoReplyMode`/`useFeedToTear`/`useBackToPrint`/`useCalibrate`/`orderNo`/`labelIndex`/`totalLabels`.
+- **Windows**: `WindowsLabelPrinterBackend`(싱글턴)가 AutoReplyPrint SDK를 FFI로 직접 호출. Java 패턴 1:1 포팅, `NativeCallable.listener`로 상태/완료 콜백 처리. `QueryPrintResult` 타임아웃 1000ms(구 3000ms→50장 부하에서 누적 지연 개선). 라벨 모드는 포트 닫힐 때까지 유지(매 라벨 재진입 방지). BIXOLON 은 Windows 미지원(후속 예정).
+- **Android**: MethodChannel `printLabel` → `NativeMethodHandler` 가 연결된 USB VID 로 벤더 분기 — BIXOLON(0x1504) 연결 시 `BixolonLabelDriver.java`(BIXOLON Label SDK, 동기 API), 그 외 `LabelPrinter.java`(Caysn autoreplyprint). 인자 `autoReplyMode`/`useFeedToTear`/`useBackToPrint`/`useCalibrate` 는 Caysn 전용(BIXOLON 경로 무시), `orderNo`/`labelIndex`/`totalLabels` 는 공통. 두 드라이버는 동일한 에러 의미론 공유: 용지없음/커버열림=무한 복구대기, 기타 에러=0.5s 게이트 후 false(Dart 재시도), 전송 완료 후는 submit-wins(중복 인쇄 방지).
 - **QR 페이로드**: `qrPayloadStrategyProvider`가 브랜드별 전략 선택(현재 모두 `DefaultQrPayloadStrategy` = `{OrderNo}-{ShopItemId}-{CupIdx}`). 자세한 흐름은 [docs/BRAND_I18N_FLOW.md](BRAND_I18N_FLOW.md).
 - FFI Isolate boxing·hot-reload 주의는 메모리 `ffi_isolate_boxing`, `hot_reload_cold_restart` 참조.
 
@@ -151,4 +154,5 @@ flowchart LR
 | [windows_label_printer_backend.dart](../lib/services/label_printer/windows/windows_label_printer_backend.dart) | 라벨 Windows FFI 백엔드 |
 | [qr_payload_strategy.dart](../lib/services/label_printer/qr_payload_strategy.dart) | 라벨 QR 페이로드 브랜드 전략 |
 | [UsbReceiptPrinter.java](../android/app/src/main/java/co/kr/waldlust/order/receive/util/print/UsbReceiptPrinter.java) | Android USB bulkTransfer·`WriteResult` |
-| [LabelPrinter.java](../android/app/src/main/java/co/kr/waldlust/order/receive/util/print/LabelPrinter.java) | Android 라벨 프린터 |
+| [LabelPrinter.java](../android/app/src/main/java/co/kr/waldlust/order/receive/util/print/LabelPrinter.java) | Android 라벨 프린터 (Caysn/REXOD) |
+| [BixolonLabelDriver.java](../android/app/src/main/java/co/kr/waldlust/order/receive/util/print/BixolonLabelDriver.java) | Android 라벨 프린터 (BIXOLON XD5-40d) |

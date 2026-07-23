@@ -74,6 +74,7 @@
 }
 -keep class co.kr.waldlust.order.receive.overlay.OverlayHelper { *; }
 -keep class co.kr.waldlust.order.receive.util.print.LabelPrinter { *; }
+-keep class co.kr.waldlust.order.receive.util.print.BixolonLabelDriver { *; }
 -keep class co.kr.waldlust.order.receive.util.print.SunmiPrintHelper { *; }
 -keep class co.kr.waldlust.order.receive.OrderAgentService { *; }
 
@@ -99,6 +100,10 @@
 -dontwarn com.caysn.autoreplyprint.**
 -keep class com.lvrenyang.** { *; }
 -dontwarn com.lvrenyang.**
+
+# BIXOLON Label SDK (XD5-40d)
+-keep class com.bixolon.** { *; }
+-dontwarn com.bixolon.**
 
 # JNA (Java Native Access)
 -keep class com.sun.jna.** { *; }

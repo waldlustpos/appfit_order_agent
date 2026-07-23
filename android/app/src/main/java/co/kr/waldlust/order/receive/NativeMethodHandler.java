@@ -100,15 +100,25 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
                     final int finalTotalLabels = totalLabels != null ? totalLabels : 1;
 
                     labelPrintExecutor.submit(() -> {
-                        boolean printResult = co.kr.waldlust.order.receive.util.print.LabelPrinter.printBitmap(
-                                bitmap,
-                                finalAutoReplyMode,
-                                finalUseFeedToTear,
-                                finalUseBackToPrint,
-                                finalUseCalibrate,
-                                finalOrderNo,
-                                finalLabelIndex,
-                                finalTotalLabels);
+                        // 벤더 라우팅: 연결된 USB VID 로 매 인쇄 재평가 (attach/detach stale 방지).
+                        // 두 벤더 동시 연결 시 BIXOLON 우선. Caysn 전용 knob(autoReplyMode 등)은
+                        // BIXOLON 경로에서 무의미하므로 전달하지 않는다.
+                        boolean printResult;
+                        if (co.kr.waldlust.order.receive.util.print.BixolonLabelDriver
+                                .isBixolonAttached(activity)) {
+                            printResult = co.kr.waldlust.order.receive.util.print.BixolonLabelDriver
+                                    .printBitmap(bitmap, finalOrderNo, finalLabelIndex, finalTotalLabels);
+                        } else {
+                            printResult = co.kr.waldlust.order.receive.util.print.LabelPrinter.printBitmap(
+                                    bitmap,
+                                    finalAutoReplyMode,
+                                    finalUseFeedToTear,
+                                    finalUseBackToPrint,
+                                    finalUseCalibrate,
+                                    finalOrderNo,
+                                    finalLabelIndex,
+                                    finalTotalLabels);
+                        }
                         new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> result.success(printResult));
                     });
                 } else {
