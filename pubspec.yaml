@@ -151,6 +151,7 @@ flutter:
     - assets/images/brand/mammoth/
     - assets/images/brand/mahataste/
     - assets/images/brand/paik/
+    - assets/images/brand/theliterjp/
     - assets/icons/
     # - .env
   fonts:

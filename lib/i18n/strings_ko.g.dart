@@ -2002,6 +2002,9 @@ class Translations$settings$theme$options$ko {
 
 	/// ko: '빽다방재팬'
 	String get paik => '빽다방재팬';
+
+	/// ko: '더리터재팬'
+	String get tljp => '더리터재팬';
 }
 
 // Path: settings.developer_options.appfit_test

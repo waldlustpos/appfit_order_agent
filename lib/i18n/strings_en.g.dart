@@ -1132,6 +1132,7 @@ class _Translations$settings$theme$options$en extends Translations$settings$them
 	@override String get mammoth_coffee => '매머드커피';
 	@override String get mata => '마하테이스트';
 	@override String get paik => '빽다방재팬';
+	@override String get tljp => '더리터재팬';
 }
 
 // Path: settings.developer_options.appfit_test

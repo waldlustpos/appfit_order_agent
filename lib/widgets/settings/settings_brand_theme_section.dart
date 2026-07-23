@@ -81,6 +81,8 @@ class SettingsBrandThemeSection extends ConsumerWidget {
         return t.settings.theme.options.mata;
       case BrandTheme.paik:
         return t.settings.theme.options.paik;
+      case BrandTheme.tljp:
+        return t.settings.theme.options.tljp;
     }
   }
 

@@ -98,6 +98,7 @@ final qrPayloadStrategyProvider = Provider<QrPayloadStrategy>((ref) {
     case BrandKey.mhst:
     case BrandKey.mata:
     case BrandKey.paik:
+    case BrandKey.tljp:
     case null:
       return const DefaultQrPayloadStrategy();
   }

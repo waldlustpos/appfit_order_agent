@@ -55,6 +55,21 @@ enum BrandTheme {
       end: Alignment.bottomRight,
       colors: [Color(0xFF081E60), Color(0xFF909AB7)],
     ),
+  ),
+  // TODO(TLJP): 색상 확정 시 교체 (현재 appfit 핑크 placeholder).
+  //   logo.svg 배치 후 logoAsset 지정.
+  tljp(
+    id: 'tljp',
+    primary: Color(0xFFfb3e7e),
+    primaryAlpha: Color(0x14fb3e7e),
+    loginBackground: Color(0xFFfb3e7e),
+    onLoginBackground: Colors.white,
+    logoAsset: null,
+    loginGradient: LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [Color(0xFFfb3e7e), Color(0xFF9843cb)],
+    ),
   );
 
   const BrandTheme({

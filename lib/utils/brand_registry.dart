@@ -28,7 +28,7 @@ enum BrandFeature {
 }
 
 /// 브랜드 식별 키. 매장 ID prefix 로 결정된다.
-enum BrandKey { tpcp, mhst, mata, paik }
+enum BrandKey { tpcp, mhst, mata, paik, tljp }
 
 /// 한 브랜드의 모든 메타데이터를 모은 단일 출처(SSOT) 레코드.
 ///
@@ -153,6 +153,15 @@ class BrandRegistry {
       assetFolder: 'paik',
       hasReceiptLogo: true,
       theme: BrandTheme.paik,
+      currency: CurrencyUnit.jpy,
+      serverEnvironment: 'japanLive',
+      features: {BrandFeature.japanEnvironment},
+    ),
+    BrandKey.tljp: BrandMeta(
+      key: BrandKey.tljp,
+      storeIdPrefix: 'TLJP',
+      assetFolder: 'theliterjp',
+      theme: BrandTheme.tljp,
       currency: CurrencyUnit.jpy,
       serverEnvironment: 'japanLive',
       features: {BrandFeature.japanEnvironment},
