@@ -42,6 +42,8 @@ local.properties
 .pub/
 /build/
 flutter_export_environment.sh
+# 로컬 전용 의존 override(예: appfit_core 로컬 checkout 참조) — 커밋 금지
+pubspec_overrides.yaml
 
 # Symbolication / Obfuscation
 app.*.symbols
