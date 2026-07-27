@@ -399,12 +399,11 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen> {
       final orders = orderState.orders;
 
       // 1. 상태 필터링은 order_history_provider의 filterOrders 함수 사용
-      final filteredOrders = filterOrders(orders, filter);
+      // 2. 정렬은 새 리스트를 반환 — orderState.orders(공유·불변 가능)를 건드리지 않는다
+      final sortedOrders =
+          sortOrders(filterOrders(orders, filter), sortDirection);
 
-      // 2. 정렬 적용
-      sortOrders(filteredOrders, sortDirection);
-
-      if (filteredOrders.isEmpty) {
+      if (sortedOrders.isEmpty) {
         return Center(
           child: Text(
             filter == OrderFilter.ALL
@@ -419,7 +418,7 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen> {
           ),
         );
       }
-      return _buildOrderGrid(filteredOrders);
+      return _buildOrderGrid(sortedOrders);
     } else {
       // 다른 날짜인 경우 filteredOrderHistoryProvider 사용
       final filteredOrdersAsync = ref.watch(filteredOrderHistoryProvider);

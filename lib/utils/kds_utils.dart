@@ -1,7 +1,6 @@
 import 'dart:math';
 import 'package:appfit_order_agent/models/order_model.dart';
 import 'package:appfit_order_agent/models/order_menu_model.dart';
-import 'package:appfit_order_agent/providers/order/order_history_provider.dart';
 
 // 간단한 주문인지 판단하는 헬퍼 함수 (가중치 기반)
 bool _isSimpleOrder(int menuCount, int totalOptions) {
@@ -74,16 +73,8 @@ Map<String, int> calculateMenuAndOptionCount(
   };
 }
 
-// 주문 정렬 함수 — 주문시간(orderedAt) 기준
-void sortOrders(List<OrderModel> orders, OrderSortDirection direction) {
-  if (direction == OrderSortDirection.ASC) {
-    // 오름차순 (오래된 주문순)
-    orders.sort((a, b) => a.orderedAt.compareTo(b.orderedAt));
-  } else {
-    // 내림차순 (최신 주문순)
-    orders.sort((a, b) => b.orderedAt.compareTo(a.orderedAt));
-  }
-}
+// 주문 정렬 함수는 order_history_provider.dart 의 `sortOrders` 로 일원화됨
+// (여기 있던 동일 본문의 복제본 제거 — 제자리 정렬판이라 const/공유 리스트에서 터졌다)
 
 // 타입3 카드용 컬럼 계산
 List<List<int>> calculateColumns(List<OrderMenuModel> menuList) {

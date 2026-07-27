@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:appfit_order_agent/models/order_model.dart';
-import 'package:appfit_order_agent/utils/kds_utils.dart' as kds_utils;
 import 'package:appfit_order_agent/providers/kds/kds_unified_providers.dart';
 import 'package:appfit_order_agent/providers/order/order_history_provider.dart';
 import 'package:appfit_order_agent/providers/order/order_provider.dart';
@@ -75,19 +74,19 @@ final kdsTabOrdersProvider = Provider<
   final cancelledTabSortDirection =
       sortDirections[4] ?? OrderSortDirection.DESC;
 
-  final all = orders.toList();
-  final pending =
-      orders.where((o) => o.status == OrderStatus.PREPARING).toList();
-  final pickup = orders.where((o) => o.status == OrderStatus.READY).toList();
-  final completed = orders.where((o) => o.status == OrderStatus.DONE).toList();
-  final cancelled =
-      orders.where((o) => o.status == OrderStatus.CANCELLED).toList();
-
-  kds_utils.sortOrders(all, allTabSortDirection);
-  kds_utils.sortOrders(pending, progressTabSortDirection);
-  kds_utils.sortOrders(pickup, pickupTabSortDirection);
-  kds_utils.sortOrders(completed, completedTabSortDirection);
-  kds_utils.sortOrders(cancelled, cancelledTabSortDirection);
+  // sortOrders 가 정렬된 새 리스트를 반환하므로 별도 .toList() 복사 불필요
+  final all = sortOrders(orders, allTabSortDirection);
+  final pending = sortOrders(
+      orders.where((o) => o.status == OrderStatus.PREPARING),
+      progressTabSortDirection);
+  final pickup = sortOrders(orders.where((o) => o.status == OrderStatus.READY),
+      pickupTabSortDirection);
+  final completed = sortOrders(
+      orders.where((o) => o.status == OrderStatus.DONE),
+      completedTabSortDirection);
+  final cancelled = sortOrders(
+      orders.where((o) => o.status == OrderStatus.CANCELLED),
+      cancelledTabSortDirection);
 
   return (
     all: all,
@@ -133,11 +132,8 @@ final kdsHistoryAllOrdersProvider = Provider<
       ref.watch(kdsTabSortDirectionsProvider.select((m) => m[0])) ??
           OrderSortDirection.ASC;
   return historyAsync.when(
-    data: (history) {
-      final list = history.toList();
-      kds_utils.sortOrders(list, sortDirection);
-      return (orders: list, isLoading: false);
-    },
+    data: (history) =>
+        (orders: sortOrders(history, sortDirection), isLoading: false),
     loading: () => (orders: const <OrderModel>[], isLoading: true),
     error: (_, __) => (orders: const <OrderModel>[], isLoading: false),
   );

@@ -40,13 +40,9 @@ final filteredOrderHistoryProvider =
 
   return ordersAsync.when(
     data: (orders) {
-      // 필터링
+      // 필터링 → 정렬(새 리스트 반환)
       final filteredOrders = filterOrders(orders, filter);
-
-      // 정렬
-      sortOrders(filteredOrders, sortDirection);
-
-      return AsyncData(filteredOrders);
+      return AsyncData(sortOrders(filteredOrders, sortDirection));
     },
     loading: () => const AsyncLoading(),
     error: (error, stackTrace) => AsyncError(error, stackTrace),
@@ -54,6 +50,9 @@ final filteredOrderHistoryProvider =
 });
 
 // 필터에 따른 주문 필터링 로직
+// 반환값은 읽기 전용으로 취급할 것 — ALL 분기는 입력 리스트를 그대로(별칭) 돌려주므로
+// 호출부에서 제자리 변형하면 원본(= provider 상태 리스트)을 오염시킨다. 정렬이 필요하면
+// 새 리스트를 반환하는 `sortOrders` 를 사용한다.
 List<OrderModel> filterOrders(List<OrderModel> orders, OrderFilter filter) {
   switch (filter) {
     case OrderFilter.ALL:
@@ -71,15 +70,26 @@ List<OrderModel> filterOrders(List<OrderModel> orders, OrderFilter filter) {
   }
 }
 
-// 주문 정렬 함수 — 주문시간(orderedAt) 기준
-void sortOrders(List<OrderModel> orders, OrderSortDirection direction) {
+// 주문 정렬 함수 — 주문시간(orderedAt) 기준. 앱 전역 정본(KDS 포함).
+//
+// 입력을 제자리 정렬하지 않고 **정렬된 새 리스트를 반환**한다. 입력이 const 리스트
+// (`OrderState.initial().orders`)나 `List.unmodifiable`, 혹은 provider 가 보유한 공유
+// 리스트여도 안전하게 만들기 위함이다. 제자리 정렬은 전자에서 UnsupportedError 를,
+// 후자에서 통지 없는 상태 변형을 일으킨다.
+//
+// `Iterable` 을 받으므로 `orders.where(...)` 를 `.toList()` 없이 바로 넘기면 된다
+// (복사는 이 함수 안에서 1회만 일어난다).
+List<OrderModel> sortOrders(
+    Iterable<OrderModel> orders, OrderSortDirection direction) {
+  final sorted = orders.toList();
   if (direction == OrderSortDirection.ASC) {
     // 오름차순 (오래된 주문순)
-    orders.sort((a, b) => a.orderedAt.compareTo(b.orderedAt));
+    sorted.sort((a, b) => a.orderedAt.compareTo(b.orderedAt));
   } else {
     // 내림차순 (최신 주문순)
-    orders.sort((a, b) => b.orderedAt.compareTo(a.orderedAt));
+    sorted.sort((a, b) => b.orderedAt.compareTo(a.orderedAt));
   }
+  return sorted;
 }
 
 // AsyncNotifier는 로딩/에러 상태를 AsyncValue로 관리하므로 별도 State 클래스 불필요
