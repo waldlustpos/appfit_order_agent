@@ -112,6 +112,11 @@ class WindowsLabelPrinterBackend {
   bool get hasInflight => _inflight != null;
   String? get currentTag => _currentTag;
 
+  /// 마지막으로 오픈에 성공한 USB 포트 이름 — 설정 UI 의 기종 표시용
+  /// (WindowsLabelRouter.connectedModelName). isOpen 일 때만 의미 있음.
+  String? get openedPortName => _openedPortName;
+  String? _openedPortName;
+
   /// 라이브러리 버전 문자열 (디버깅용). DLL 로드가 실패하면 null.
   String? get libraryVersion {
     final bindings = AutoReplyPrintBindings.tryGet();
@@ -566,6 +571,7 @@ class WindowsLabelPrinterBackend {
 
     _hPrinter = ffi.Pointer<ffi.Void>.fromAddress(addr);
     _currentAutoReplyMode = autoReplyMode;
+    _openedPortName = name;
     // 콜백은 SDK 글로벌이라 포트 오픈/재오픈과 무관하게 한 번만 등록되면
     // 충분하지만, 안전하게 재등록하도록 플래그를 리셋한다.
     _statusCallbackRegistered = false;

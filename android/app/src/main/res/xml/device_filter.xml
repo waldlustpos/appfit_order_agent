@@ -9,4 +9,7 @@
     <usb-device vendor-id="4070" product-id="33054" />
     <!-- VID:0x067B, PID:0x2303 -->
     <usb-device vendor-id="1659" product-id="8963" />
+    <!-- VID:0x1504 BIXOLON - VID-only 매칭 (XD5-40d 실기기 PID:0x0106(262) 확인,
+         타 BIXOLON 라벨 기종 호환 위해 의도적으로 조이지 않음) -->
+    <usb-device vendor-id="5380" />
 </resources>

@@ -184,6 +184,11 @@ public class MainActivity extends FlutterActivity {
                     if (device != null && receiptPrinter != null) {
                         receiptPrinter.onUsbDetached(device);
                     }
+                    if (device != null) {
+                        // BIXOLON 라벨 프린터 분리 — 논블로킹 (내부에서 VID 확인).
+                        co.kr.waldlust.order.receive.util.print.BixolonLabelDriver
+                                .onUsbDetached(device);
+                    }
                 }
             }
         };
@@ -435,6 +440,7 @@ public class MainActivity extends FlutterActivity {
             SunmiPrintHelper.getInstance().initSunmiPrinterService(this);
         }
         co.kr.waldlust.order.receive.util.print.LabelPrinter.init(this);
+        co.kr.waldlust.order.receive.util.print.BixolonLabelDriver.init(this);
     }
 
     public boolean checkPermissions() {

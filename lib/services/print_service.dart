@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:appfit_order_agent/services/external_receipt_printer.dart';
 import 'package:appfit_order_agent/services/label_printer/label_printer_options.dart';
-import 'package:appfit_order_agent/services/label_printer/windows/windows_label_printer_backend.dart';
+import 'package:appfit_order_agent/services/label_printer/windows/windows_label_router.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/services/printer_job_queue.dart';
 import 'package:appfit_order_agent/services/printer_transport.dart';
@@ -28,20 +28,39 @@ class PrinterStatus {
   final bool isExternalConnected;
   final bool isLabelConnected;
 
+  /// 연결된 라벨 프린터 기종명 (예: 'BIXOLON XD5-40d'). 미연결/미식별이면 null.
+  final String? labelPrinterModel;
+
   PrinterStatus({
     this.isExternalConnected = false,
     this.isLabelConnected = false,
+    this.labelPrinterModel,
   });
 
   PrinterStatus copyWith({
     bool? isExternalConnected,
     bool? isLabelConnected,
+    bool updateLabelModel = false,
+    String? labelPrinterModel,
   }) {
     return PrinterStatus(
       isExternalConnected: isExternalConnected ?? this.isExternalConnected,
       isLabelConnected: isLabelConnected ?? this.isLabelConnected,
+      // null 로 되돌릴 수 있어야 하므로 `?? this` 패턴 대신 명시 플래그 사용.
+      labelPrinterModel:
+          updateLabelModel ? labelPrinterModel : this.labelPrinterModel,
     );
   }
+}
+
+/// 라벨 프린터 VID/PID → 사용자 표시용 기종명.
+/// LabelPrinter.java / BixolonLabelDriver.java 화이트리스트와 동기 유지.
+String? labelPrinterModelName({required int vendorId, required int productId}) {
+  if (vendorId == 0x4B43 && productId == 0x3538) return 'Caysn D2';
+  if (vendorId == 0x4B43 && productId == 0x3830) return 'Caysn D3';
+  if (vendorId == 0x0FE6 && productId == 0x811E) return 'REXOD RXLA-561';
+  if (vendorId == 0x1504) return 'BIXOLON XD5-40d';
+  return null;
 }
 
 final printerStatusProvider =
@@ -281,7 +300,7 @@ class PrintService {
       bool? newExternal;
       try {
         if (label && _cachedLabelPrinter == true) {
-          final backend = WindowsLabelPrinterBackend.instance;
+          final backend = WindowsLabelRouter.instance;
           bool open = false;
           try {
             open = backend.isOpen;
@@ -318,9 +337,14 @@ class PrintService {
             tag: LogTag.ERROR,
             message: '[PrintService] Windows checkConnection 예외: $e');
       }
+      final winLabelModel = (newLabel == true)
+          ? WindowsLabelRouter.instance.connectedModelName
+          : null;
       ref.read(printerStatusProvider.notifier).update((s) => s.copyWith(
             isExternalConnected: newExternal,
             isLabelConnected: newLabel,
+            updateLabelModel: label,
+            labelPrinterModel: winLabelModel,
           ));
       return;
     }
@@ -329,6 +353,7 @@ class PrintService {
 
       bool isExternalConnected = false;
       bool isLabelConnected = false;
+      String? labelModel;
 
       if (devices.isNotEmpty) {
         for (var device in devices) {
@@ -340,19 +365,26 @@ class PrintService {
 
           String identification = '';
 
-          // 1. 라벨 프린터 식별 (LabelPrinter.java 의 고정 모델과 동기화)
+          // 1. 라벨 프린터 식별 (LabelPrinter.java / BixolonLabelDriver.java 와 동기화)
           // VID:0x4B43(19267), PID:0x3538(13624)  Caysn D2
           // VID:0x4B43(19267), PID:0x3830(14384)  Caysn D3
           // VID:0x0FE6(4070),  PID:0x811E(33054)  REXOD RXLA-561 (운영 모델)
+          // VID:0x1504(5380)                      BIXOLON XD5-40d (VID-only 매칭.
+          //   실기기 PID:0x0106(262) 확인 — 타 BIXOLON 라벨 기종 호환 위해 안 조임)
           // 주의: 범용 USB-Serial 칩(PL2303 0x067B:0x2303 등) 은 넣지 말 것 —
           // 외부 ESC/POS 영수증 프린터를 라벨로 오인한다. (Windows 후보와 동일.)
           bool isKnownLabelPrinter = (vendorId == 0x4B43 &&
                   (productId == 0x3538 || productId == 0x3830)) ||
-              (vendorId == 0x0FE6 && productId == 0x811E);
+              (vendorId == 0x0FE6 && productId == 0x811E) ||
+              (vendorId == 0x1504);
 
           if (isKnownLabelPrinter) {
             isLabelConnected = true;
-            identification = ' [라벨 프린터 식별됨] VID:$vendorId / PID:$productId';
+            labelModel = labelPrinterModelName(
+                vendorId: vendorId, productId: productId);
+            identification =
+                ' [라벨 프린터 식별됨${labelModel != null ? ' $labelModel' : ''}]'
+                ' VID:$vendorId / PID:$productId';
           }
           // 2. 외부 영수증 프린터 식별
           // Posbank VID: 0x1552 (5458)
@@ -404,6 +436,8 @@ class PrintService {
       ref.read(printerStatusProvider.notifier).update((s) => s.copyWith(
             isExternalConnected: external ? isExternalConnected : null,
             isLabelConnected: label ? isLabelConnected : null,
+            updateLabelModel: label,
+            labelPrinterModel: label ? labelModel : null,
           ));
     } catch (e, s) {
       logger.e('USB 디바이스 확인 중 오류 발생', error: e, stackTrace: s);
@@ -667,11 +701,12 @@ class PrintService {
         return false;
       }
 
-      // Windows: autoreplyprint.dll FFI 직접 호출 — MethodChannel 'printLabel' 핸들러가
+      // Windows: FFI 직접 호출 — MethodChannel 'printLabel' 핸들러가
       // Windows runner 측에 없어 invokeMethod 가 무반응이라, backend 를 직접 호출한다.
+      // 벤더(Caysn/BIXOLON) 선택은 라우터가 USB VID 로 매 인쇄 재평가.
       // Android 의 기존 MethodChannel 경로는 아래 else 로 보존.
       if (Platform.isWindows) {
-        return await WindowsLabelPrinterBackend.instance.printPng(
+        return await WindowsLabelRouter.instance.printPng(
           pngBytes: imageBytes,
           width: LabelPainter.width.toInt(),
           height: LabelPainter.height.toInt(),

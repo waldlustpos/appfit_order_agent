@@ -63,6 +63,7 @@ class _LabelPrinterSubSettingsState
       children: [
         SettingsConnectionStatus(
           isConnected: status.isLabelConnected,
+          detail: status.labelPrinterModel,
           onReconnect: () => ref
               .read(printServiceProvider)
               .checkConnection(external: false, label: true),
