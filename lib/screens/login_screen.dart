@@ -51,8 +51,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   bool _isAutoLogin = false;
   bool _isKdsMode = false;
   String _selectedEnv = 'live';
-  // API 버전 임시 수동 토글('v0'|'v1'). 서버선택과 동일 UX.
-  String _selectedApiVersion = 'v0';
   int _devTapCount = 0;
   DateTime? _lastDevTap;
 
@@ -102,8 +100,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
     // 저장된 서버 환경 로드
     _selectedEnv = ref.read(preferenceServiceProvider).getEnvironment();
-    // 저장된 API 버전 로드
-    _selectedApiVersion = ref.read(preferenceServiceProvider).getApiVersion();
 
     // 텍스트 필드 리스너는 불필요 — 로그인 버튼에서 ListenableBuilder로 처리
 
@@ -975,191 +971,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     );
   }
 
-  String _apiVersionLabel(String v) => v.toUpperCase(); // 'v0' -> 'V0'
-
-  /// API 버전 배지(서버 배지 아래, 항상 표시). 탭하면 v0/v1 선택 다이얼로그가
-  /// 열린다 — 일부 브랜드를 백엔드 '/v1' 로 태우기 위한 임시 수동 토글.
-  Widget _buildApiVersionBadge() {
-    return GestureDetector(
-      onTap: _showApiVersionSelectDialog,
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.s8,
-          vertical: AppSpacing.s4,
-        ),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.16),
-          borderRadius: AppRadius.bSm,
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.24),
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'API ${_apiVersionLabel(_selectedApiVersion)}',
-              style: AppTextStyles.caption.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(width: AppSpacing.s4),
-            const Icon(Icons.arrow_drop_down, size: 14, color: Colors.white),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _showApiVersionSelectDialog() async {
-    final t = Translations.of(context);
-    const apiVersionOptions = ['v0', 'v1'];
-
-    final selected = await showDialog<String>(
-      context: context,
-      builder: (dialogCtx) {
-        String tempSelected = _selectedApiVersion;
-        return StatefulBuilder(
-          builder: (ctx, setLocal) {
-            return AlertDialog(
-              shape: const RoundedRectangleBorder(borderRadius: AppRadius.bLg),
-              title: Row(
-                children: [
-                  Icon(
-                    Icons.api,
-                    color: AppStyles.kMainColor,
-                    size: 28,
-                  ),
-                  const SizedBox(width: AppSpacing.s12),
-                  const Text('API 버전 선택', style: AppTextStyles.title),
-                ],
-              ),
-              titlePadding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.s24,
-                vertical: AppSpacing.s24,
-              ),
-              contentPadding: const EdgeInsets.fromLTRB(
-                AppSpacing.s24,
-                AppSpacing.s16,
-                AppSpacing.s24,
-                0,
-              ),
-              content: SizedBox(
-                width: 400,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: apiVersionOptions.map((v) {
-                    final isSelected = v == tempSelected;
-                    return InkWell(
-                      onTap: () => setLocal(() => tempSelected = v),
-                      borderRadius: AppRadius.bSm,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.s8,
-                          vertical: AppSpacing.s12,
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              isSelected
-                                  ? Icons.radio_button_checked
-                                  : Icons.radio_button_off,
-                              size: 26,
-                              color: isSelected
-                                  ? AppStyles.kMainColor
-                                  : AppStyles.gray6,
-                            ),
-                            const SizedBox(width: AppSpacing.s12),
-                            Text(
-                              _apiVersionLabel(v),
-                              style: AppTextStyles.body.copyWith(
-                                fontWeight: isSelected
-                                    ? FontWeight.w600
-                                    : FontWeight.normal,
-                                color: isSelected
-                                    ? AppStyles.kMainColor
-                                    : AppStyles.gray9,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-              actionsPadding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.s24,
-                vertical: AppSpacing.s24,
-              ),
-              actions: [
-                ElevatedButton(
-                  style: AppStyles.outlinedButton(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.s20,
-                      vertical: AppSpacing.s12,
-                    ),
-                    minimumSize: const Size(100, 45),
-                  ),
-                  onPressed: () => Navigator.of(dialogCtx).pop(null),
-                  child: Text(
-                    t.common.cancel,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                ElevatedButton(
-                  style: AppStyles.primaryButton(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.s20,
-                      vertical: AppSpacing.s12,
-                    ),
-                    minimumSize: const Size(100, 45),
-                  ),
-                  onPressed: () => Navigator.of(dialogCtx).pop(tempSelected),
-                  child: Text(
-                    t.common.confirm,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-
-    if (selected == null) return;
-    if (selected == _selectedApiVersion) return;
-
-    await _applyApiVersion(selected);
-  }
-
-  /// API 버전 전환을 적용한다. 서버(baseUrl)는 안 바뀌므로 자격증명/소켓 정리는
-  /// 불필요하고, 버전이 반영된 새 Dio/토큰매니저로만 재구성한다(서버 전환과 동일
-  /// 이유). 실사용은 로그인 전 화면에서 전환하므로 토큰이 없다.
-  Future<void> _applyApiVersion(String v) async {
-    final preferenceService = ref.read(preferenceServiceProvider);
-    await preferenceService.setApiVersion(v);
-
-    AppFitConfig.setApiVersion('/$v');
-
-    ref.invalidate(appfit_providers.appFitTokenManagerProvider);
-    ref.invalidate(appfit_providers.appFitDioProvider);
-
-    if (mounted) {
-      setState(() => _selectedApiVersion = v);
-    }
-    logger.i('[LoginScreen] API 버전 전환: → /$v');
-  }
-
   Widget _buildExitButton(BuildContext context) {
     final t = Translations.of(context);
     return AppIconAction(
@@ -1589,8 +1400,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                   ),
                   const SizedBox(height: AppSpacing.s4),
                   _buildEnvBadge(),
-                  const SizedBox(height: AppSpacing.s4),
-                  _buildApiVersionBadge(),
                 ],
               ),
             ),

@@ -103,11 +103,6 @@ void main() async {
     requestSource: 'ORDER_AGENT',
   );
 
-  // API 버전(v0/v1)은 서버와 독립 축이라 configure 와 별도로 주입한다.
-  // 저장값('v0'|'v1', 기본 'v0')을 core 프리픽스('/v0'|'/v1')로 변환.
-  final savedApiVersion = preferenceServiceForEnv.getApiVersion();
-  AppFitConfig.setApiVersion('/$savedApiVersion');
-
   logger.i(AppFitConfig.getConfigSummary());
 
   if (!AppEnv.hasKey) {

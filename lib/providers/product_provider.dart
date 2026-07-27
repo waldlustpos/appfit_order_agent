@@ -50,26 +50,33 @@ Future<({List<ProductModel> products, List<ShopCategoryModel> categories})>
       'ShopCatalog build: StoreId ready ($finalStoreId). Loading products...');
   final apiService = ref.read(apiServiceProvider);
   try {
-    // 1. 상품 카테고리/상품 목록과 옵션 마이그레이션 데이터를 병렬로 로드
-    final catalogFuture = apiService.getShopCatalog(finalStoreId);
-    final migrationFuture =
-        apiService.getMigrationOptions(type: 'SHOP', shopCode: finalStoreId);
+    // 1. 상품 카테고리/상품 목록 로드 (카탈로그 본체 — 실패하면 치명적)
+    final catalog = await apiService.getShopCatalog(finalStoreId);
 
-    final catalog = await catalogFuture;
-    final migrationOptions = await migrationFuture;
+    // 2. 옵션 마이그레이션 데이터는 **보조 정보**라 실패를 삼킨다.
+    //    라벨 sub-info 분류는 주문 응답의 optionGroupPosId 가 정본이 되어
+    //    이 값에 의존하지 않는다. 과거에는 이 호출이 timeout 되면 catch 로
+    //    빠지면서 상품 목록 전체가 빈 배열이 됐다(카탈로그 통째 유실).
+    List<Map<String, dynamic>> migrationOptions = const [];
+    try {
+      migrationOptions = await apiService.getMigrationOptions(
+          type: 'SHOP', shopCode: finalStoreId);
+    } catch (e) {
+      logger.w('ShopCatalog build: 옵션 마이그레이션 조회 실패 — 카탈로그는 유지', error: e);
+    }
 
     final baseProducts = catalog.products;
 
     logger.i('ShopCatalog build: Loaded ${baseProducts.length} base products, '
         '${catalog.categories.length} categories and ${migrationOptions.length} migration options.');
 
-    // 2. 마이그레이션 데이터를 맵으로 변환 (ID -> posCategoryId)
+    // 3. 마이그레이션 데이터를 맵으로 변환 (ID -> posCategoryId)
     final migrationMap = {
       for (var item in migrationOptions)
         item['id'].toString(): item['posCategoryId']?.toString() ?? ''
     };
 
-    // 3. 기존 상품 목록과 병합 (옵션 상품의 카테고리 코드 보완)
+    // 4. 기존 상품 목록과 병합 (옵션 상품의 카테고리 코드 보완)
     int mergedCount = 0;
     final products = baseProducts.map((product) {
       if (product.type == ProductType.option) {

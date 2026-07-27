@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:appfit_order_agent/constants/order_constants.dart';
+import 'package:appfit_order_agent/models/menu_option_model.dart';
 import 'package:appfit_order_agent/models/order_menu_model.dart';
 import 'package:appfit_order_agent/models/order_model.dart';
 import 'package:appfit_order_agent/models/product_model.dart';
@@ -15,11 +16,16 @@ class LabelOptionCategories {
     this.beanType,
     this.temperature,
     this.sizeOption,
+    this.classified = const {},
   });
 
   final String? beanType;
   final String? temperature;
   final String? sizeOption;
+
+  /// sub-info 로 소비된 옵션들. 하단 옵션 목록에서 제외할 때 **이름 문자열이 아니라
+  /// 이 집합으로 걸러야** 동명 옵션이 함께 빠지는 오제외를 피할 수 있다.
+  final Set<MenuOptionModel> classified;
 
   static const LabelOptionCategories none = LabelOptionCategories();
 }
@@ -109,22 +115,32 @@ class TpcpLabelFilterStrategy extends LabelFilterStrategy {
     String? beanType;
     String? temperature;
     String? sizeOption;
+    final classified = <MenuOptionModel>{};
     for (final opt in menu.options) {
-      final product = _findProduct(products, opt.shopOptionId);
-      final categoryCode = product?.categoryCode;
+      // 정본은 주문 응답에 실려오는 옵션 그룹(v1). 서버가 상품 경로로 옵션
+      // 카테고리를 더 이상 내려주지 않으므로 이 쪽이 우선이다. 값이 없으면
+      // (v0 응답 등) 기존 상품마스터 조인으로 폴백해 종전 동작을 보존한다.
+      final groupCode = opt.optionGroupPosId;
+      final categoryCode = (groupCode != null && groupCode.isNotEmpty)
+          ? groupCode
+          : _findProduct(products, opt.shopOptionId)?.categoryCode;
       if (categoryCode == null) continue;
       if (OrderCategoryCodes.beanTypeCodes.contains(categoryCode)) {
         beanType = opt.optionName;
+        classified.add(opt);
       } else if (OrderCategoryCodes.temperatureCodes.contains(categoryCode)) {
         temperature = opt.optionName;
+        classified.add(opt);
       } else if (OrderCategoryCodes.sizeOptionCodes.contains(categoryCode)) {
         sizeOption = opt.optionName;
+        classified.add(opt);
       }
     }
     return LabelOptionCategories(
       beanType: beanType,
       temperature: temperature,
       sizeOption: sizeOption,
+      classified: classified,
     );
   }
 

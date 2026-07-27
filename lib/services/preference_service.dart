@@ -48,9 +48,6 @@ class PreferenceService {
   static const String KEY_SOUNDGRAPH_MARKETID = "KEY_SOUNDGRAPH_MARKETID";
   static const String KEY_IS_DEV = "IS_DEV";
   static const String KEY_ENVIRONMENT = 'appfit_environment';
-  // API 버전 프리픽스 선택('v0'|'v1'). 일부 브랜드는 백엔드 '/v1' 로 태워야
-  // 하므로 로그인 화면에서 임시 수동 선택한다. core 로 넘길 땐 '/$value' 로 변환.
-  static const String KEY_API_VERSION = 'appfit_api_version';
 
   // 관재(원격관리) 기기 식별 키
   static const String KEY_INSTALL_ID = "KOKONUT_INSTALL_ID";
@@ -468,12 +465,6 @@ class PreferenceService {
   // 서버 환경 저장
   Future<void> setEnvironment(String env) =>
       _prefs.setString(KEY_ENVIRONMENT, env);
-
-  // API 버전 조회 ('v0' | 'v1'). 기본값 'v0' — 기존 매장 동작 보존.
-  String getApiVersion() => _prefs.getString(KEY_API_VERSION) ?? 'v0';
-
-  // API 버전 저장 ('v0' | 'v1')
-  Future<void> setApiVersion(String v) => _prefs.setString(KEY_API_VERSION, v);
 
   // 개발자 수동 서버 환경 오버라이드 플래그 조회
   bool getEnvironmentManualOverride() =>

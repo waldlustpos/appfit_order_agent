@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:qr/qr.dart';
 import 'package:appfit_order_agent/constants/app_styles.dart';
-import 'package:appfit_order_agent/constants/order_constants.dart';
 import 'package:appfit_order_agent/models/menu_option_model.dart';
 import 'package:appfit_order_agent/models/order_menu_model.dart';
 import 'package:appfit_order_agent/models/order_model.dart';
@@ -84,6 +83,15 @@ class _SettingsLabelTestSectionState
     'Caffe Latte',
     'Cappuccino',
   ];
+
+  /// 라벨 sub-info(원두/온도/사이즈) 미리보기용 고정 샘플.
+  ///
+  /// 실제 라벨은 주문 응답의 `optionGroupPosId` 로 분류하지만(v1), 이 테스트는
+  /// 주문이 아닌 상품 카탈로그 기반이라 같은 소스를 쓸 수 없다. 레이아웃·정렬
+  /// 검증이 목적이므로 서버 응답과 무관하게 항상 채워지는 고정값을 쓴다.
+  static const List<String> _orderNoTestSampleBeans = ['다크', '산미'];
+  static const List<String> _orderNoTestSampleTemps = ['HOT', 'ICED'];
+  static const List<String> _orderNoTestSampleSizes = ['R', 'L'];
 
   // 부하 테스트 진행 상태
   bool _isStressRunning = false;
@@ -398,15 +406,19 @@ class _SettingsLabelTestSectionState
       return;
     }
 
-    // 실제 보유 상품에서 메뉴명 + subinfo(원두/온도/사이즈) 추출.
-    // 메뉴명은 type==item 상품명을 그대로 사용(번역 안 함). subinfo 는 옵션(type==option)을
-    // TpcpLabelFilterStrategy 와 동일하게 categoryCode 로 분류해서 채운다.
+    // 실제 보유 상품에서 메뉴명 + option 섹션을 채운다.
+    // 메뉴명은 type==item 상품명을 그대로 사용(번역 안 함).
+    //
+    // subinfo(원두/온도/사이즈)는 **고정 샘플**을 쓴다. 실제 라벨에서는 주문 응답의
+    // optionGroupPosId 로 분류하는데(TpcpLabelFilterStrategy), 이 테스트는 주문이
+    // 아닌 상품 카탈로그 기반이라 대체 소스가 없다. 이 화면의 목적은 라벨 레이아웃·
+    // 정렬 검증이므로 서버 응답과 무관하게 항상 채워지는 편이 낫다.
     List<String> menuNames = const [];
     List<String> menuIds =
         const []; // 메뉴별 shopItemId(internalId) — QR 페이로드용 (menuNames 와 동일 순서)
-    List<String> beanNames = const [];
-    List<String> tempNames = const [];
-    List<String> sizeNames = const [];
+    const beanNames = _orderNoTestSampleBeans;
+    const tempNames = _orderNoTestSampleTemps;
+    const sizeNames = _orderNoTestSampleSizes;
     List<String> etcOptionNames = const [];
     try {
       final products = await ref.read(productProvider.future);
@@ -416,27 +428,9 @@ class _SettingsLabelTestSectionState
       menuNames = itemProducts.map((p) => p.productName).toList();
       menuIds = itemProducts.map((p) => p.internalId).toList();
 
-      final optionProducts =
-          products.where((p) => p.type == ProductType.option).toList();
-      List<String> byCodes(Set<String> codes) => optionProducts
-          .where((p) => codes.contains(p.categoryCode))
-          .map((p) => p.productName)
-          .where((n) => n.isNotEmpty)
-          .toList();
-      // subinfo: 원두/온도/사이즈 카테고리 옵션 (TpcpLabelFilterStrategy 동일 기준).
-      beanNames = byCodes(OrderCategoryCodes.beanTypeCodes);
-      tempNames = byCodes(OrderCategoryCodes.temperatureCodes);
-      sizeNames = byCodes(OrderCategoryCodes.sizeOptionCodes);
-
-      // option 섹션: subinfo 로 분류되지 않은 나머지 옵션
-      // (실제 라벨의 remainingOptions 와 동일하게 원두/온도/사이즈는 제외).
-      final subinfoCodes = <String>{
-        ...OrderCategoryCodes.beanTypeCodes,
-        ...OrderCategoryCodes.temperatureCodes,
-        ...OrderCategoryCodes.sizeOptionCodes,
-      };
-      etcOptionNames = optionProducts
-          .where((p) => !subinfoCodes.contains(p.categoryCode))
+      // option 섹션: 실제 보유 옵션 상품명 (subinfo 는 위 고정 샘플이라 제외 불필요).
+      etcOptionNames = products
+          .where((p) => p.type == ProductType.option)
           .map((p) => p.productName)
           .where((n) => n.isNotEmpty)
           .toList();

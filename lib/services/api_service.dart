@@ -217,13 +217,16 @@ class ApiService {
     if (kDebugMode) OrderDetailFaultInjector.maybeThrow(orderId);
     try {
       final dio = _ref.read(appFitDioProvider);
-      // AppFit: /v0/orders/{orderNo}
+      // AppFit: /v1/orders/{orderNo}
       final response = await dio.get(ApiRoutes.orderDetail(orderId));
 
       if (response.statusCode == 200) {
         final data = response.data['data'] as Map<String, dynamic>;
 
         // 1. 주문 기본 정보 매핑
+        // 사용자 정보는 v0 가 평면(userNickname/userPhone/userId), v1 이 중첩
+        // (user.nickname/user.phone/user.userId) 이라 양쪽을 모두 본다.
+        final userMap = data['user'] as Map<String, dynamic>?;
         final totalAmount = (data['totalAmount'] as num).toDouble();
         final totalDiscount = (data['totalDiscount'] as num).toDouble();
 
@@ -237,17 +240,20 @@ class ApiService {
         if (data.containsKey('orderLines') && data['orderLines'] != null) {
           final lines = data['orderLines'] as List;
           menuList = lines.map((line) {
-            // 옵션 목록 (orderOptions) 매핑
+            // 옵션 목록 매핑 — 배열 키가 버전마다 다르다(v0: orderOptions, v1: options).
             List<MenuOptionModel> optionList = [];
-            if (line.containsKey('orderOptions') &&
-                line['orderOptions'] != null) {
-              final options = line['orderOptions'] as List;
-              optionList = options.map((opt) {
+            final rawOptions = line['orderOptions'] ?? line['options'];
+            if (rawOptions is List) {
+              optionList = rawOptions.map((opt) {
                 return MenuOptionModel(
                   shopOptionId: opt['shopOptionId']?.toString() ?? '',
                   optionName: opt['optionName']?.toString() ?? '',
                   optionPrice: (opt['optionPrice'] as num?)?.toDouble() ?? 0.0,
                   qty: (opt['qty'] as num?)?.toInt() ?? 0,
+                  // v1 전용 — 라벨 sub-info 분류(원두/온도/사이즈)의 정본.
+                  optionGroupId: opt['optionGroupId']?.toString(),
+                  optionGroupPosId: opt['optionGroupPosId']?.toString(),
+                  optionGroupName: opt['optionGroupName']?.toString(),
                 );
               }).toList();
             }
@@ -277,7 +283,7 @@ class ApiService {
           totalAmount: totalAmount,
           status: _mapAppFitOrderStatus(data['orderStatus'] as String),
           storeId: data['shopCode'] as String? ?? storeId ?? '',
-          userId: data['userId']?.toString() ?? '',
+          userId: (data['userId'] ?? userMap?['userId'])?.toString() ?? '',
           ordererName: data['orderName'] as String? ?? '주문',
           orderCount: (data['totalQty'] as num).toString(),
           paymentAmount: totalAmount - totalDiscount,
@@ -285,14 +291,17 @@ class ApiService {
           paymentType: data['paymentMethod'] as String? ?? 'CARD',
           paymentCode: '1',
           menus: menuList,
-          userName: data['userNickname'] as String?,
-          tel: data['userPhone'] as String?,
+          userName: (data['userNickname'] ?? userMap?['nickname']) as String?,
+          tel: (data['userPhone'] ?? userMap?['phone']) as String?,
           note: data['note'] as String?,
           orderType: data['orderType'] as String? ?? 'TAKE_OUT',
           kdsOrderType: 0,
           kioskId: '',
           source: data['orderSource'] as String? ?? '',
-          discountTypes: ((data['orderDiscounts'] as List?) ?? const [])
+          // 할인 배열 키도 버전마다 다르다(v0: orderDiscounts, v1: discounts).
+          discountTypes: ((data['orderDiscounts'] ?? data['discounts'])
+                      as List? ??
+                  const [])
               .map((e) =>
                   (e as Map<String, dynamic>)['discountType']?.toString() ?? '')
               .where((t) => t.isNotEmpty)
@@ -358,6 +367,11 @@ class ApiService {
     return allOrders;
   }
 
+  /// 날짜(`yyyy-MM-dd`)를 v1 목록 API 가 요구하는 일시로 확장한다.
+  /// 이미 일시(`T` 포함)면 그대로 둔다.
+  static String _asDayStart(String v) => v.contains('T') ? v : '${v}T00:00:00';
+  static String _asDayEnd(String v) => v.contains('T') ? v : '${v}T23:59:59';
+
   /// 내부 전용: 단일 페이지 조회 + slice.last 반환
   Future<(List<OrderModel>, bool)> _getOrdersPage(
     String storeId, {
@@ -376,16 +390,19 @@ class ApiService {
         'sortBy': 'CreatedAtDesc',
       };
 
-      if (startDate != null) queryParams['from'] = startDate;
+      // v1 은 from/to 가 날짜(yyyy-MM-dd)가 아니라 일시(yyyy-MM-dd'T'HH:mm:ss)다.
+      // 호출부는 날짜만 넘기므로 하루 전체(00:00:00~23:59:59)로 확장해 v0 의
+      // "해당 날짜 전체" 의미를 보존한다. 날짜만 보내면 400 INVALID_REQUEST.
+      if (startDate != null) queryParams['from'] = _asDayStart(startDate);
 
       // endDate가 날짜 형식(yyyy-MM-dd)인지 확인 (폴링 시 시퀀스 번호가 올 수 있음)
       if (endDate != null && endDate.contains('-')) {
-        queryParams['to'] = endDate;
+        queryParams['to'] = _asDayEnd(endDate);
       }
 
       if (orderStatus != null) queryParams['status'] = [orderStatus.name];
 
-      // AppFit: /v0/orders
+      // AppFit: /v1/orders — 응답 스키마는 v0 과 동일(SliceResponse<ReadAllOrderResponse>).
       final response =
           await dio.get(ApiRoutes.orders, queryParameters: queryParams);
 
@@ -480,6 +497,10 @@ class ApiService {
       case 'FAILED':
         return OrderStatus.CANCELLED;
       default:
+        // 미지의 상태값은 CANCELLED 로 떨어진다 — 주문이 조용히 취소로 표시되는
+        // 무증상 실패라 경고를 남겨 즉시 드러나게 한다(warning 이상은 파일 기록).
+        // 서버 스키마에 실재하는 'UNKNOWN' 이 대표적인 미매핑 케이스다.
+        logger.w('[AppFit API] 알 수 없는 주문 상태 "$status" → CANCELLED 로 처리됨');
         return OrderStatus.CANCELLED;
     }
   }

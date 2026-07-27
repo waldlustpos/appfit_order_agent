@@ -216,11 +216,11 @@ class LabelPrintData {
       final String? temperature = cats.temperature;
       final String? sizeOption = cats.sizeOption;
 
-      // 서브정보로 표시되는 옵션은 하단 옵션 리스트에서 제외
-      final remainingOptions = menu.options.where((opt) =>
-          opt.optionName != beanType &&
-          opt.optionName != temperature &&
-          opt.optionName != sizeOption);
+      // 서브정보로 표시되는 옵션은 하단 옵션 리스트에서 제외.
+      // 이름 비교가 아니라 분류에 실제 소비된 옵션 집합으로 걸러야 동명 옵션이
+      // 함께 빠지는 오제외가 생기지 않는다.
+      final remainingOptions =
+          menu.options.where((opt) => !cats.classified.contains(opt));
 
       final flatOptions = remainingOptions
           .map((opt) =>
