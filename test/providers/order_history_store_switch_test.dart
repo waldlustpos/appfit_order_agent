@@ -51,6 +51,11 @@ class _FakeStore extends Store {
   Future<StoreModel?> build() async => _initial;
 
   void settle(StoreModel? model) => state = AsyncData(model);
+
+  /// 실서비스의 setStoreModel 이 로딩 진입 시 만드는 상태를 흉내낸다:
+  /// AsyncLoading 이지만 .value 는 직전(다른) 매장을 유지한다.
+  void loadingWithPrevious() =>
+      state = const AsyncLoading<StoreModel?>().copyWithPrevious(state);
 }
 
 OrderModel _order({required String orderNo, required String storeId}) {
@@ -134,6 +139,42 @@ void main() {
 
     expect(after.length, 2, reason: '이전 매장(PAIK) 캐시를 반환하면 안 됨');
     expect(b.api.orderRequests, ['PAIK00001/$pastDate', 'TPCP00001/$pastDate']);
+  });
+
+  test('매장 미설정(로그아웃/로그인 전)이면 조회하지 않고 빈 목록', () async {
+    final b = _build(null, {'PAIK00001': 5});
+    await b.container.read(storeProvider.future);
+
+    expect(await b.container.read(orderHistoryProvider.future), isEmpty);
+    expect(b.api.orderRequests, isEmpty, reason: '세션이 없으면 API 를 부르면 안 됨');
+  });
+
+  test('로그아웃 정리 중 storeProvider 무효화가 이전 매장 조회를 유발하지 않는다', () async {
+    final b = _build(_store('PAIK00001'), {'PAIK00001': 5});
+    await b.container.read(storeProvider.future);
+
+    b.container.read(selectedDateProvider.notifier).updateDate(pastDate);
+    await b.container.read(orderHistoryProvider.future);
+    expect(b.api.orderRequests, ['PAIK00001/$pastDate']);
+
+    // KDS/주문내역이 아직 구독 중인 상태로 로그아웃 정리가 도는 상황.
+    b.container.listen(orderHistoryProvider, (_, __) {});
+
+    // 매장 재로딩 진입: .value 는 여전히 PAIK 를 가리킨다(실전 재현).
+    b.store.loadingWithPrevious();
+    expect(b.container.read(storeProvider).value?.storeId, 'PAIK00001',
+        reason: '전제 조건: 로딩 중 .value 가 이전 매장을 유지');
+
+    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero);
+
+    // 로그아웃이므로 매장은 null 로 settle 된다.
+    b.store.settle(null);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(b.api.orderRequests, ['PAIK00001/$pastDate'],
+        reason: '자격증명이 사라진 뒤 이전 매장으로 헛 요청을 보내면 안 됨');
+    expect(b.container.read(orderHistoryProvider).value, isEmpty);
   });
 
   test('같은 매장·같은 날짜는 캐시 재사용(불필요한 재조회 없음)', () async {

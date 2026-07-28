@@ -106,20 +106,31 @@ class OrderHistory extends _$OrderHistory {
     // selectedDate는 변경될 수 있으므로 watch 유지
     final selectedDate = ref.watch(selectedDateProvider);
 
-    // storeId는 변경되지 않으므로 read 사용 (Provider 빌드 시점 기준)
-    // OrderHistoryScreen 접근 시점에 storeProvider는 이미 로드 완료되었다고 가정
-    final storeId = ref.read(storeProvider).value?.storeId;
+    // 매장 ID 는 **settle 된 값만** 사용한다(shopCatalog 와 동일 규약).
+    // 로딩 중 AsyncValue.value 는 이전 매장을 유지하므로 그대로 읽으면, 로그아웃
+    // 정리로 storeProvider 가 invalidate 되는 순간 이전 매장 ID 로 조회를 쏴버린다
+    // (자격증명은 이미 지워진 뒤라 "토큰 발급 실패" 로 끝나는 헛 요청).
+    var storeAsync = ref.watch(storeProvider);
+    if (storeAsync.isLoading) {
+      await ref.read(storeProvider.future);
+      storeAsync = ref.read(storeProvider);
+      if (storeAsync.isLoading) {
+        logger.d('OrderHistory build: store 미settle — 조회 보류');
+        return const <OrderModel>[];
+      }
+    }
+    final storeId = storeAsync.value?.storeId;
 
     logger.d(
         'OrderHistory build triggered: Date=$selectedDate, StoreId=$storeId, HasValue=${state.hasValue}, LastFetched=$_lastFetchedStoreId/$_lastFetchedDate');
 
-    // 매장 ID 유효성 검사 (필수)
+    // 매장 없음 = 세션 없음(로그아웃 직후 / 로그인 전). settle 된 값이므로 "아직
+    // 로딩 중" 과 구분된다 → 예외가 아니라 빈 목록으로 조용히 처리한다.
     if (storeId == null || storeId.isEmpty) {
-      logger.e(
-          'OrderHistory build: StoreId is null or empty. Cannot fetch orders.');
-      // storeProvider가 로드되지 않은 상태일 수 있음.
-      // 이 Provider가 사용되는 시점에는 storeId가 반드시 있어야 함.
-      throw Exception('매장 ID를 사용할 수 없습니다. 로그인이 필요하거나 앱 초기화 오류일 수 있습니다.');
+      logger.i('OrderHistory build: 매장 미설정 — 빈 목록 반환(세션 없음)');
+      _lastFetchedDate = null;
+      _lastFetchedStoreId = null;
+      return const <OrderModel>[];
     }
 
     // 이미 데이터가 있고, 날짜·매장이 모두 그대로면 API 호출 없이 기존 데이터 반환
