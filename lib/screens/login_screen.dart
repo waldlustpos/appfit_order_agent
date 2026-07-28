@@ -1228,6 +1228,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     // LateInitializationError 발생. disconnect() 만으로 이전 연결 정리 충분하며
     // 재로그인 시 같은 인스턴스에 새 shopCode/projectId/apiKey 로 connect() 호출.
 
+    // 매장 스코프 상태 초기화(로그아웃 경로와 동일 정본). 이 메서드는 sign-in 전에만
+    // 호출되므로(수동 선택 / 프리픽스 자동 전환) 진행 중인 로그인 상태를 건드리지 않는다.
+    //
+    // OrderProvider.cleanupOnLogout() 은 여기서 호출하지 않는다. 로그인 화면 시점의
+    // OrderProvider 는 (a) 아직 생성 전이거나 (b) 로그아웃 때 이미 정리된 상태다.
+    // read(orderProvider.notifier) 하면 정리하려다 오히려 소켓/타이머를 세우며
+    // 생성시켜 버린다. 로그인 후 정리는 settings 의 환경 변경 경로가 담당한다.
+    resetStoreScopedProviders(ref);
+
     if (mounted) {
       setState(() => _selectedEnv = env);
     }

@@ -1,7 +1,9 @@
 import 'package:dio/dio.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart'; // WidgetRef (세션 정리 헬퍼)
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 // import 'package:flutter_dotenv/flutter_dotenv.dart'; // Removed
 import 'package:appfit_order_agent/config/app_env.dart'; // AppEnv 추가
+import 'package:appfit_order_agent/providers/product_provider.dart'; // shopCatalogProvider
 import 'package:appfit_order_agent/providers/providers.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 // appFitTokenManagerProvider
@@ -14,6 +16,27 @@ import 'package:appfit_core/appfit_core.dart'
     as appfit_core; // AppFitConfig (패키지)
 
 part 'auth_provider.g.dart';
+
+/// 매장 스코프 keepAlive 프로바이더 일괄 초기화 — 세션이 끊기는 모든 경로의 공통 정본.
+///
+/// 대상은 "이전 매장/서버의 값을 다음 세션까지 들고 가면 안 되는" 것들이다.
+/// - `shopCatalog`/`store`: stale 매장으로 categories 조회 → 404 NOT_FOUND_SHOP.
+/// - `orderHistory`: keepAlive 라 로그아웃해도 이전 매장 조회 결과를 보유.
+/// - `selectedDate`: autoDispose 지만 `orderHistory` 가 watch 하는 탓에 함께 살아남아,
+///   재로그인 시 KDS/주문내역이 과거 날짜 상태로 시작하며 건수가 stale 하게 보인다.
+///
+/// `Auth.logout()` 안이 아니라 UI 계층 헬퍼인 이유: `disconnect()` 이후 `Auth` 의 ref 는
+/// outdated 라 provider 접근이 막힌다(주석 참조). 호출부는 세션 종료 직전/직후에 부른다.
+///
+/// 주의: `orderHistory` 는 `ref.invalidate` 해도 notifier 인스턴스와 직전 `state.value`
+/// 가 살아남는다(실측). 그래서 `OrderHistory` 쪽 캐시 키에 매장을 포함하는 방어가
+/// 함께 필요하며, 이 헬퍼만으로 충분하다고 가정하면 안 된다.
+void resetStoreScopedProviders(WidgetRef ref) {
+  ref.invalidate(shopCatalogProvider);
+  ref.invalidate(storeProvider);
+  ref.invalidate(selectedDateProvider);
+  ref.invalidate(orderHistoryProvider);
+}
 
 // AuthState에서 isConnected, isConnecting 제거 (SocketState에서 가져옴)
 class AuthState {

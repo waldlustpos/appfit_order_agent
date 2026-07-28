@@ -96,7 +96,10 @@ List<OrderModel> sortOrders(
 
 @Riverpod(keepAlive: true)
 class OrderHistory extends _$OrderHistory {
+  // 캐시 키는 (날짜, 매장) 쌍이다. 매장을 빼면 로그아웃 → 다른 매장 로그인 후
+  // 같은 날짜를 조회할 때 이전 매장의 목록을 그대로 돌려준다(건수·목록 stale).
   String? _lastFetchedDate;
+  String? _lastFetchedStoreId;
 
   @override
   Future<List<OrderModel>> build() async {
@@ -108,7 +111,7 @@ class OrderHistory extends _$OrderHistory {
     final storeId = ref.read(storeProvider).value?.storeId;
 
     logger.d(
-        'OrderHistory build triggered: Date=$selectedDate, StoreId=$storeId, HasValue=${state.hasValue}, LastFetchedDate=$_lastFetchedDate');
+        'OrderHistory build triggered: Date=$selectedDate, StoreId=$storeId, HasValue=${state.hasValue}, LastFetched=$_lastFetchedStoreId/$_lastFetchedDate');
 
     // 매장 ID 유효성 검사 (필수)
     if (storeId == null || storeId.isEmpty) {
@@ -119,10 +122,12 @@ class OrderHistory extends _$OrderHistory {
       throw Exception('매장 ID를 사용할 수 없습니다. 로그인이 필요하거나 앱 초기화 오류일 수 있습니다.');
     }
 
-    // 이미 데이터가 있고, 날짜가 변경되지 않았다면 API 호출 없이 기존 데이터 반환
-    if (state.hasValue && selectedDate == _lastFetchedDate) {
+    // 이미 데이터가 있고, 날짜·매장이 모두 그대로면 API 호출 없이 기존 데이터 반환
+    if (state.hasValue &&
+        selectedDate == _lastFetchedDate &&
+        storeId == _lastFetchedStoreId) {
       logger.d(
-          'OrderHistory build: Date unchanged and data exists. Returning cached state.');
+          'OrderHistory build: Date/Store unchanged and data exists. Returning cached state.');
       return state.value!; // API 호출 없이 즉시 반환
     }
 
@@ -136,8 +141,9 @@ class OrderHistory extends _$OrderHistory {
           endDate: selectedDate); // read로 가져온 storeId 사용
       logger.i('OrderHistory build: Loaded ${orders.length} orders.');
 
-      // API 호출 성공 시 마지막 조회 날짜 업데이트
+      // API 호출 성공 시 마지막 조회 조건(날짜+매장) 업데이트
       _lastFetchedDate = selectedDate;
+      _lastFetchedStoreId = storeId;
 
       return orders;
     } catch (e, stackTrace) {
@@ -145,6 +151,7 @@ class OrderHistory extends _$OrderHistory {
           error: e, stackTrace: stackTrace);
       // 실패 시 마지막 조회 조건 초기화
       _lastFetchedDate = null;
+      _lastFetchedStoreId = null;
       rethrow;
     }
   }
@@ -208,8 +215,9 @@ class OrderHistory extends _$OrderHistory {
   // 날짜 변경 등으로 화면 강제 갱신 메서드
   Future<void> refreshOrders() async {
     logger.i('OrderHistory refreshOrders: 주문 목록 강제 갱신');
-    // 마지막 조회 날짜 초기화하여 다음 build()에서 API 호출 강제
+    // 마지막 조회 조건 초기화하여 다음 build()에서 API 호출 강제
     _lastFetchedDate = null;
+    _lastFetchedStoreId = null;
     ref.invalidateSelf();
   }
 }

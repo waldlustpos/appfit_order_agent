@@ -339,6 +339,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     // AppFitNotifierNotifier._coreService 가 `late final` 이라 build() 재실행 시
     // LateInitializationError 발생. disconnect() 만으로 이전 연결 정리 충분.
 
+    // 서버가 바뀌면 매장도 바뀐다. 로그아웃 경로와 동일하게 세션 상태를 정리해,
+    // 재로그인 후 이전 서버의 주문/타이머/카탈로그/조회 날짜가 남지 않게 한다.
+    // OrderProvider 정리는 소켓·폴링 타이머·출력 큐·사운드까지 멈춘다. 다음 로그인의
+    // reloadSettings() 가 전부 되살리므로(AudioPlayer 재초기화 포함) 편도가 아니다.
+    ref.read(orderProvider.notifier).cleanupOnLogout();
+    resetStoreScopedProviders(ref);
+
     await _preferenceService.clearLoginInfo();
     setState(() => _selectedEnv = env);
 
