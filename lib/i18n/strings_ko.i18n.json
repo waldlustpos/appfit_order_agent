@@ -140,6 +140,7 @@
             "restart_message": "테마 변경을 적용하려면 앱을 다시 시작해야 합니다. 지금 재시작할까요?",
             "restart_now": "지금 재시작",
             "restart_later": "나중에",
+            "restart_failed": "앱을 자동으로 재시작하지 못했습니다. 앱을 종료한 뒤 다시 실행해 주세요.",
             "options": {
                 "appfit_default": "기본",
                 "mammoth_coffee": "매머드커피",

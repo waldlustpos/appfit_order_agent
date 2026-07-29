@@ -659,6 +659,7 @@ class _Translations$settings$theme$en extends Translations$settings$theme$ko {
 	@override String get restart_message => 'The theme change will apply after restarting the app. Restart now?';
 	@override String get restart_now => 'Restart now';
 	@override String get restart_later => 'Later';
+	@override String get restart_failed => 'Couldn\'t restart the app automatically. Please close and reopen it manually.';
 	@override late final _Translations$settings$theme$options$en options = _Translations$settings$theme$options$en._(_root);
 }
 

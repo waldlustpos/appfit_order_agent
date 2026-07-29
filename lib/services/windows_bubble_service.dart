@@ -609,6 +609,15 @@ class WindowsBubbleService with WindowListener, TrayListener {
     } catch (_) {}
   }
 
+  /// 프로세스 재시작 직전 트레이 아이콘만 정리한다(창은 건드리지 않음 —
+  /// exit(0)이 담당). trayManager.destroy() 를 호출하지 않고 exit(0) 하면
+  /// 셸(Shell_NotifyIcon)에 좀비 아이콘이 남을 수 있어 필요하다.
+  Future<void> releaseTrayForRestart() async {
+    try {
+      await trayManager.destroy();
+    } catch (_) {}
+  }
+
   void dispose() {
     _blinkTimer?.cancel();
     _blinkController.close();

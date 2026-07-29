@@ -651,6 +651,7 @@ class _Translations$settings$theme$ja extends Translations$settings$theme$ko {
 	@override String get restart_message => 'テーマ変更を適用するにはアプリを再起動する必要があります。今すぐ再起動しますか？';
 	@override String get restart_now => '今すぐ再起動';
 	@override String get restart_later => '後で';
+	@override String get restart_failed => 'アプリを自動的に再起動できませんでした。アプリを終了して手動で再起動してください。';
 	@override late final _Translations$settings$theme$options$ja options = _Translations$settings$theme$options$ja._(_root);
 }
 
