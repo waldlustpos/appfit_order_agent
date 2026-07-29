@@ -1144,6 +1144,9 @@ class Translations$settings$theme$ko {
 	/// ko: '나중에'
 	String get restart_later => '나중에';
 
+	/// ko: '앱을 자동으로 재시작하지 못했습니다. 앱을 종료한 뒤 다시 실행해 주세요.'
+	String get restart_failed => '앱을 자동으로 재시작하지 못했습니다. 앱을 종료한 뒤 다시 실행해 주세요.';
+
 	late final Translations$settings$theme$options$ko options = Translations$settings$theme$options$ko.internal(_root);
 }
 

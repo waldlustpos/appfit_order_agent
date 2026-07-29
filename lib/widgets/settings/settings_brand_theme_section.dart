@@ -1,10 +1,16 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:appfit_order_agent/i18n/strings.g.dart';
 import 'package:appfit_order_agent/constants/app_styles.dart';
 import 'package:appfit_order_agent/constants/brand_theme.dart';
 import 'package:appfit_order_agent/providers/brand_theme_provider.dart';
+import 'package:appfit_order_agent/services/label_printer/windows/windows_label_router.dart';
+import 'package:appfit_order_agent/services/local_server_service.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
+import 'package:appfit_order_agent/services/windows_bubble_service.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:appfit_order_agent/widgets/common/beta_badge.dart';
 import 'package:appfit_order_agent/widgets/settings/settings_section_card.dart';
 import 'package:appfit_order_agent/widgets/settings/settings_item_widget.dart';
@@ -122,7 +128,38 @@ class SettingsBrandThemeSection extends ConsumerWidget {
 
     if (shouldQuit == true) {
       logToFile(tag: LogTag.UI_ACTION, message: '브랜드 테마 변경 — 앱 재시작 호출');
-      await PlatformService.restartApp();
+      final restarted = await PlatformService.restartApp(
+        onBeforeExit: Platform.isWindows ? _cleanupBeforeWindowsRestart : null,
+      );
+      // Windows 에서 재시작 스크립트 준비/실행에 실패한 경우에만 여기 도달한다
+      // (Android 는 killProcess 로 반환하지 않는 것이 정상이라 도달하지 않음).
+      if (!restarted && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(t.settings.theme.restart_failed)),
+        );
+      }
+    }
+  }
+
+  /// Windows 재시작 직전에만 필요한 최소 정리. 매장 CLOSED 전환/소켓
+  /// disconnect 는 하지 않는다 — 테마 변경은 영업 종료가 아니다.
+  /// 신 프로세스가 곧바로 잡을 수 있도록 프로세스 경계를 넘는 OS 리소스
+  /// (로컬 서버 포트, USB 라벨 프린터 핸들, 트레이 아이콘)만 정리한다.
+  Future<void> _cleanupBeforeWindowsRestart() async {
+    try {
+      await LocalServerService.instance?.stopServer();
+    } catch (e, s) {
+      logger.w('재시작 전 로컬 서버 중지 실패', error: e, stackTrace: s);
+    }
+    try {
+      WindowsLabelRouter.instance.dispose();
+    } catch (e, s) {
+      logger.w('재시작 전 라벨 프린터 정리 실패', error: e, stackTrace: s);
+    }
+    try {
+      await WindowsBubbleService.instance.releaseTrayForRestart();
+    } catch (e, s) {
+      logger.w('재시작 전 트레이 정리 실패', error: e, stackTrace: s);
     }
   }
 }

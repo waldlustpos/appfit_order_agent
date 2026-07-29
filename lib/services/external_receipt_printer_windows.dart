@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:appfit_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/services/com_port_descriptor.dart';
 import 'package:appfit_order_agent/services/com_port_print_service.dart';
 import 'package:appfit_order_agent/services/preference_service.dart';
 import 'package:appfit_order_agent/services/printer_transport.dart';
@@ -92,3 +93,29 @@ Future<bool> isConnected() async {
 /// Windows 설정 UI 에서 COM 포트 드롭다운 채우는 용도.
 List<String> getAvailableComPorts() =>
     ComPortPrintService.getAvailableComPorts();
+
+/// COM 포트 목록 + 각 포트에 물린 장치 식별 정보 (설정 화면 드롭다운 / 진단 로그).
+///
+/// 반환 타입 [ComPortDescriptor] 는 native 의존이 없는 별도 파일에 있다 —
+/// 이 라이브러리는 UI 에서 `deferred as` 로만 로드되므로 여기 정의된 타입은
+/// 위젯의 필드 타입으로 쓸 수 없다.
+List<ComPortDescriptor> listComPorts() =>
+    ComPortPrintService.getComPortDescriptors();
+
+/// 재연결 버튼의 포트 스캔 전용 probe.
+///
+/// [isConnected] 와 달리 (1) 저장된 포트가 아니라 임의 포트를 지정하고,
+/// (2) "최근 출력 성공" fast-path 를 우회한다. 사용자가 명시적으로 재확인을
+/// 요청한 경로라 캐시된 판정을 그대로 돌려주면 안 되고, 스캔 중 모든 후보가
+/// true 로 오탐하는 것도 막아야 하기 때문.
+Future<bool> probeComPort(
+  String comPort, {
+  required int baudRate,
+  required int maxAttempts,
+}) =>
+    ComPortPrintService.probeConnection(
+      comPort: comPort,
+      baudRate: baudRate,
+      maxAttempts: maxAttempts,
+      useRecentSendFastPath: false,
+    );

@@ -5,6 +5,7 @@ import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:appfit_order_agent/services/platform_bridge_service.dart';
 import 'package:appfit_order_agent/services/overlay_service.dart';
 import 'package:appfit_order_agent/services/windows_log_file_writer.dart';
+import 'package:appfit_order_agent/services/windows_restart_service.dart';
 import 'package:launch_at_startup/launch_at_startup.dart';
 
 const _kAppfitChannelName = 'co.kr.waldlust.order.receive.appfit_order_agent';
@@ -433,12 +434,29 @@ class PlatformService {
     }
   }
 
-  /// 앱 재시작 (네이티브에서 새 Activity로 재부팅)
-  static Future<void> restartApp() async {
+  /// 앱 재시작.
+  /// - Android: 네이티브에서 새 Activity로 재부팅(AlarmManager + killProcess).
+  ///   기존 동작 그대로이며 별도 정리(cleanup) 없이 즉시 종료된다.
+  /// - Windows: 단일 인스턴스 뮤텍스 때문에 자기 자신을 직접 재실행할 수 없어
+  ///   외부 VBS 런처(WindowsRestartService)에 위임한다. [onBeforeExit] 는
+  ///   재시작 스크립트 준비가 끝난 뒤, 실제 종료 직전에 한 번 호출된다.
+  ///
+  /// 반환값 false = 재시작이 이뤄지지 않았고 앱은 계속 살아있다(호출 측에서
+  /// 사용자에게 안내할 것).
+  static Future<bool> restartApp({
+    Future<void> Function()? onBeforeExit,
+  }) async {
+    if (Platform.isWindows) {
+      return WindowsRestartService.instance.restart(
+        onBeforeExit: onBeforeExit ?? () async {},
+      );
+    }
     try {
       await platform.invokeMethod('restartApp');
+      return true;
     } on PlatformException catch (e) {
       logger.w('[PlatformService] restartApp 호출 실패: ${e.message}');
+      return false;
     }
   }
 

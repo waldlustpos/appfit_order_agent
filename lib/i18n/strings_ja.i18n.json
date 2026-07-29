@@ -140,6 +140,7 @@
             "restart_message": "テーマ変更を適用するにはアプリを再起動する必要があります。今すぐ再起動しますか？",
             "restart_now": "今すぐ再起動",
             "restart_later": "後で",
+            "restart_failed": "アプリを自動的に再起動できませんでした。アプリを終了して手動で再起動してください。",
             "options": {
                 "appfit_default": "デフォルト",
                 "mammoth_coffee": "매머드커피",

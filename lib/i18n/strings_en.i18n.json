@@ -140,6 +140,7 @@
             "restart_message": "The theme change will apply after restarting the app. Restart now?",
             "restart_now": "Restart now",
             "restart_later": "Later",
+            "restart_failed": "Couldn't restart the app automatically. Please close and reopen it manually.",
             "options": {
                 "appfit_default": "Default",
                 "mammoth_coffee": "매머드커피",
