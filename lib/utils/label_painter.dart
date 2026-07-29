@@ -140,7 +140,8 @@ class LabelPainter extends CustomPainter {
   double _drawHeader(Canvas canvas, Size size, double startY) {
     final paint = Paint()..color = Colors.black;
     // 헤더는 V1·V2 동일 (로고 + 우측 순번 + 구분선).
-    const double logoW = logoWidthDefault;
+    // 로고 표시 폭은 브랜드별 지정 가능(BrandMeta.labelLogoWidth, 기본 50).
+    final double logoW = BrandAssets.labelLogoWidth;
 
     // Order Time
     if (orderTime != null) {

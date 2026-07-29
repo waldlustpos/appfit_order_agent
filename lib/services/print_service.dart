@@ -380,8 +380,8 @@ class PrintService {
 
           if (isKnownLabelPrinter) {
             isLabelConnected = true;
-            labelModel = labelPrinterModelName(
-                vendorId: vendorId, productId: productId);
+            labelModel =
+                labelPrinterModelName(vendorId: vendorId, productId: productId);
             identification =
                 ' [라벨 프린터 식별됨${labelModel != null ? ' $labelModel' : ''}]'
                 ' VID:$vendorId / PID:$productId';

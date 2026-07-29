@@ -45,6 +45,7 @@ class BrandMeta {
     required this.currency,
     required this.serverEnvironment,
     this.hasReceiptLogo = false,
+    this.labelLogoWidth = 50,
     this.features = const <BrandFeature>{},
   });
 
@@ -57,6 +58,11 @@ class BrandMeta {
   final String assetFolder;
 
   final bool hasReceiptLogo;
+
+  /// 라벨 헤더 로고의 정사각형 표시 폭(px, label_painter 캔버스 기준). 기본 50.
+  /// BMP 자체는 이 값과 무관하게 50x50 고정이므로, 확대 시 계단현상이 생길 수
+  /// 있다(FilterQuality.none). 큰 로고가 필요한 브랜드만 개별 지정.
+  final double labelLogoWidth;
 
   /// 브랜드 테마 색상.
   final BrandTheme theme;
@@ -152,6 +158,7 @@ class BrandRegistry {
       storeIdPrefix: 'PAIK',
       assetFolder: 'paik',
       hasReceiptLogo: true,
+      labelLogoWidth: 70,
       theme: BrandTheme.paik,
       currency: CurrencyUnit.jpy,
       serverEnvironment: 'japanLive',

@@ -16,7 +16,7 @@ class AppToolbarButton extends StatelessWidget {
     this.icon,
     this.onPressed,
     this.isLoading = false,
-  })  : _variant = variant;
+  }) : _variant = variant;
 
   /// 주 액션 — kMainColor 배경, 흰 텍스트 (예: 일괄 완료)
   const AppToolbarButton.primary({

@@ -228,7 +228,7 @@ class _ExternalPrinterSubSettingsState
       if (!mounted) return;
       setState(() => _reconnectResult =
           '프린터를 찾지 못했습니다 (${candidates.length}개 포트 확인: ${candidates.join(", ")}). '
-          '전원·케이블을 확인하거나 BAUD RATE 를 바꿔 다시 시도하세요.');
+              '전원·케이블을 확인하거나 BAUD RATE 를 바꿔 다시 시도하세요.');
       return;
     }
 

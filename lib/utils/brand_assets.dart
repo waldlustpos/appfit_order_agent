@@ -19,5 +19,7 @@ class BrandAssets {
   static String get labelLogoFallbackPath =>
       BrandRegistry.fallback.labelLogoPath;
 
+  static double get labelLogoWidth => _current().labelLogoWidth;
+
   static String? get receiptLogoPath => _current().receiptLogoPath;
 }
