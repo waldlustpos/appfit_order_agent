@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:appfit_order_agent/constants/app_styles.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
+import 'package:appfit_order_agent/services/com_port_descriptor.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/services/preference_service.dart';
 import 'package:appfit_order_agent/services/print_service.dart';
@@ -21,9 +22,14 @@ import 'package:appfit_order_agent/services/external_receipt_printer_windows.dar
 
 /// "외부 프린터 사용" 토글의 additionalContent.
 ///
-/// - 모든 플랫폼: 연결상태 (기존 [SettingsConnectionStatus]).
+/// - 모든 플랫폼: 연결상태 + 재연결 ([SettingsConnectionStatus]).
 /// - Windows + 외부 프린터 ON: COM 포트 / Baud rate 선택 (PR800 직결).
 /// - 외부 프린터 ON: "테스트 출력" 버튼 + 결과 텍스트.
+///
+/// 재연결은 **버튼 하나로 열거 → 연결까지** 끝낸다 (별도 "포트 다시 검색"
+/// 아이콘은 역할이 겹쳐 제거됨). Windows 흐름은 [_reconnectWindows] 참조:
+/// COM 포트를 다시 열거하고, 저장된 포트를 우선으로 순차 probe 해서 응답한
+/// 포트를 채택한다. USB 재삽입으로 포트 번호가 바뀌어도 복구된다.
 class ExternalPrinterSubSettings extends ConsumerStatefulWidget {
   const ExternalPrinterSubSettings({
     super.key,
@@ -65,12 +71,29 @@ class _ExternalPrinterSubSettingsState
   static const String _defaultComPort = 'COM3';
   static const int _defaultBaudRate = 115200; // PR800 시리얼 고정값, CDC 는 무시
 
+  /// 재연결 스캔의 포트별 DLE EOT 핑 재시도 상한.
+  ///
+  /// 저장된 포트는 "이게 맞는 포트인데 프린터가 회복 중"일 수 있으므로 기본값
+  /// 그대로 넉넉히 재시도한다. 나머지 후보는 "응답하나?" 만 보면 되므로 1회 —
+  /// 무응답 포트당 ~1.9초가 ~0.6초로 줄어 포트가 여러 개인 PC 에서도 스캔이
+  /// 몇 초 안에 끝난다.
+  ///
+  /// 5 는 `ComPortPrintService._probeMaxAttempts` 와 같은 값이다. private 이라
+  /// 참조할 수 없고, 참조하면 안드로이드에서 win32 static init 이 트리거되므로
+  /// (아래 `_defaultComPort` 주석과 같은 이유) 여기 복제한다 — 함께 유지할 것.
+  static const int _probeAttemptsSavedPort = 5;
+  static const int _probeAttemptsScan = 1;
+
   late final PreferenceService _pref;
 
-  List<String> _comPorts = const [];
+  List<ComPortDescriptor> _comPorts = const [];
   String _selectedComPort = _defaultComPort;
   int _baudRate = _defaultBaudRate;
-  bool _isRefreshing = false;
+  bool _isReconnecting = false;
+
+  /// 재연결 결과 문구. 테스트 출력 결과([_testResult])와 분리해 서로 덮어쓰지
+  /// 않게 한다 (두 버튼이 같은 카드 안에 있어 섞이면 오해를 부른다).
+  String? _reconnectResult;
   String? _testResult;
   bool _isTesting = false;
 
@@ -81,51 +104,151 @@ class _ExternalPrinterSubSettingsState
     _baudRate = _pref.getComPortBaudRate();
     _selectedComPort = _pref.getComPortName() ?? _defaultComPort;
     if (Platform.isWindows) {
-      // _refreshComPorts 끝에서 printerStatusProvider 를 변경하는 checkConnection()
-      // 을 호출한다. 외부 프린터 OFF 등으로 도중 await 가 한 번도 yield 되지
-      // 않으면 build phase 에서 provider mutation 이 일어나 Riverpod 가 throw.
-      // PrintService 생성자([print_service.dart:48]) 와 동일한 패턴으로 microtask
-      // 으로 defer 한다.
-      Future.microtask(_refreshComPorts);
+      // _initialEnumerate 끝에서 printerStatusProvider 를 변경하는
+      // checkConnection() 을 호출한다. 외부 프린터 OFF 등으로 도중 await 가 한 번도
+      // yield 되지 않으면 build phase 에서 provider mutation 이 일어나 Riverpod 가
+      // throw. PrintService 생성자([print_service.dart:48]) 와 동일한 패턴으로
+      // microtask 으로 defer 한다.
+      Future.microtask(_initialEnumerate);
     }
   }
 
-  Future<void> _refreshComPorts() async {
+  /// 화면 진입 시: 포트 목록/장치명만 채우고 연결상태를 한 번 갱신한다.
+  ///
+  /// 포트를 실제로 열어보는 probe 스캔은 하지 않는다 — 설정 화면을 열 때마다
+  /// 캐시드로어·저울 같은 다른 COM 장비까지 핑하게 되고, 수 초씩 걸린다.
+  /// 스캔은 사용자가 재연결을 명시적으로 눌렀을 때만.
+  Future<void> _initialEnumerate() async {
     if (!Platform.isWindows) return;
-    setState(() => _isRefreshing = true);
     try {
-      await win_transport.loadLibrary();
-      final ports = win_transport.getAvailableComPorts();
-      final saved = _pref.getComPortName();
-      final selected = (saved != null && ports.contains(saved))
-          ? saved
-          : (ports.isNotEmpty ? ports.first : _defaultComPort);
+      await _enumeratePorts();
       if (!mounted) return;
-      setState(() {
-        _comPorts = ports;
-        _selectedComPort = selected;
-        _isRefreshing = false;
-      });
-      if (selected != saved && ports.isNotEmpty) {
-        await _pref.setComPortName(selected);
+      await ref
+          .read(printServiceProvider)
+          .checkConnection(external: true, label: false);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _reconnectResult = 'COM 포트 조회 실패: $e');
+    }
+  }
+
+  /// COM 포트 열거 + 장치 식별 정보 조회. 포트를 열지 않는다.
+  ///
+  /// 저장된 포트가 목록에 없어도 선택값을 바꾸지 않는다 — 잠깐 사라진 것뿐일 수
+  /// 있는데 조용히 다른 포트로 갈아타면 엉뚱한 장비로 출력될 수 있다.
+  /// 포트 전환은 probe 응답을 받은 [_reconnect] 에서만 일어난다.
+  Future<List<ComPortDescriptor>> _enumeratePorts() async {
+    await win_transport.loadLibrary();
+    final ports = win_transport.listComPorts();
+    if (mounted) setState(() => _comPorts = ports);
+    logToFile(
+      tag: LogTag.PLATFORM,
+      message: 'COM 포트 열거: ${ports.length}개 '
+          '[${ports.map((p) => p.displayLabel).join(' | ')}], '
+          '저장=${_pref.getComPortName() ?? "(미설정)"}',
+    );
+    return ports;
+  }
+
+  /// 재연결 버튼의 유일한 핸들러: 포트 재열거 → 순차 probe → 연결까지.
+  Future<void> _reconnect() async {
+    if (_isReconnecting) return;
+    final ps = ref.read(printServiceProvider);
+    setState(() {
+      _isReconnecting = true;
+      _reconnectResult = null;
+    });
+    logToFile(tag: LogTag.UI_ACTION, message: '외부 프린터 재연결 요청');
+    try {
+      if (Platform.isWindows) {
+        await _reconnectWindows();
+      } else if (Platform.isAndroid) {
+        // UsbReceiptPrinter.discover() 재탐색 — 권한 거부 / 늦은 핫플러그로 한 번
+        // 비어있던 상태를 회복시킨다.
+        await ps.reconnectExternalPrinter();
+      }
+      // label: false 로 호출해 라벨 status 가 외부 재연결로 같이 토글되는 sync
+      // 이슈 회피. (라벨은 별도 재연결 버튼이 갱신.)
+      // printerStatusProvider 갱신 경로는 PrintService 하나로 유지한다.
+      await ps.checkConnection(external: true, label: false);
+    } catch (e) {
+      if (mounted) setState(() => _reconnectResult = '재연결 실패: $e');
+    } finally {
+      if (mounted) setState(() => _isReconnecting = false);
+    }
+  }
+
+  /// Windows 재연결: 열거 → 저장 포트 우선 순차 probe → 응답한 포트 채택.
+  Future<void> _reconnectWindows() async {
+    final ports = await _enumeratePorts();
+    final saved = _pref.getComPortName();
+    final candidates =
+        orderProbeCandidates(ports.map((p) => p.portName).toList(), saved);
+
+    if (candidates.isEmpty) {
+      if (!mounted) return;
+      setState(() =>
+          _reconnectResult = 'COM 포트가 하나도 없습니다. 케이블·USB-Serial 드라이버를 확인하세요.');
+      return;
+    }
+
+    String? hit;
+    for (final port in candidates) {
+      final attempts =
+          (port == saved) ? _probeAttemptsSavedPort : _probeAttemptsScan;
+      bool ok = false;
+      try {
+        ok = await win_transport.probeComPort(
+          port,
+          baudRate: _baudRate,
+          maxAttempts: attempts,
+        );
+      } catch (e) {
+        logToFile(
+          tag: LogTag.WARNING,
+          message: '재연결 probe 예외: $port — $e',
+        );
       }
       logToFile(
         tag: LogTag.PLATFORM,
-        message: 'COM 포트 스캔: ${ports.length}개, 선택=$selected',
+        message: '재연결 probe $port ($attempts회, baud=$_baudRate) '
+            '→ ${ok ? "응답" : "무응답"}',
       );
-      // 연결상태 표시 갱신 (포트 enumerate 결과 기반). 외부만 갱신.
-      if (mounted) {
-        await ref
-            .read(printServiceProvider)
-            .checkConnection(external: true, label: false);
+      if (ok) {
+        hit = port;
+        break;
       }
-    } catch (e) {
+      // 설정 화면이 닫혔으면 남은 포트까지 열어볼 이유가 없다.
       if (!mounted) return;
-      setState(() {
-        _isRefreshing = false;
-        _testResult = 'COM 포트 조회 실패: $e';
-      });
     }
+
+    if (hit == null) {
+      // 저장값은 그대로 둔다 — 프린터 전원이 잠깐 꺼진 것뿐일 수 있고,
+      // 사용자가 고른 포트를 말없이 바꾸면 나중에 더 혼란스럽다.
+      if (!mounted) return;
+      setState(() => _reconnectResult =
+          '프린터를 찾지 못했습니다 (${candidates.length}개 포트 확인: ${candidates.join(", ")}). '
+          '전원·케이블을 확인하거나 BAUD RATE 를 바꿔 다시 시도하세요.');
+      return;
+    }
+
+    if (hit != saved) {
+      await _pref.setComPortName(hit);
+      logToFile(
+        tag: LogTag.PLATFORM,
+        message: '외부 프린터 COM 포트 자동 전환: ${saved ?? "(미설정)"} → $hit',
+      );
+    }
+    final desc = ports.firstWhere(
+      (p) => p.portName == hit,
+      orElse: () => ComPortDescriptor(portName: hit!),
+    );
+    if (!mounted) return;
+    setState(() {
+      _selectedComPort = hit!;
+      _testResult = null;
+      _reconnectResult = '연결됨 — ${desc.displayLabel}';
+    });
   }
 
   Future<void> _handleTestPrint() async {
@@ -182,20 +305,20 @@ class _ExternalPrinterSubSettingsState
       children: [
         SettingsConnectionStatus(
           isConnected: status.isExternalConnected,
-          onReconnect: () async {
-            // Android: UsbReceiptPrinter.discover() 가 한 번 비어있던 상태(권한 거부 /
-            // 늦은 핫플러그)를 회복할 수 있도록 재탐색을 먼저 트리거. Windows 는 COM
-            // 포트 enumerate 만으로 충분.
-            //
-            // label: false 로 호출해 라벨 status 가 외부 재연결로 같이 토글되는
-            // sync 이슈 회피. (라벨은 별도 재연결 버튼이 갱신.)
-            final ps = ref.read(printServiceProvider);
-            if (Platform.isAndroid) {
-              await ps.reconnectExternalPrinter();
-            }
-            await ps.checkConnection(external: true, label: false);
-          },
+          isBusy: _isReconnecting,
+          onReconnect: _reconnect,
         ),
+        if (_reconnectResult != null) ...[
+          const SizedBox(height: AppSpacing.s4),
+          Text(
+            _reconnectResult!,
+            style: AppTextStyles.bodySm.copyWith(
+              color: _reconnectResult!.startsWith('연결됨')
+                  ? AppStyles.green100
+                  : AppStyles.kRed,
+            ),
+          ),
+        ],
         if (widget.isUseExternalPrinter) ...[
           const SizedBox(height: AppSpacing.s12),
           _buildMatrixRow(
@@ -295,16 +418,9 @@ class _ExternalPrinterSubSettingsState
                 ),
               ),
               const Spacer(),
-              IconButton(
-                tooltip: 'COM 포트 다시 검색',
-                onPressed: _isRefreshing ? null : _refreshComPorts,
-                icon: _isRefreshing
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.refresh, size: 20),
+              Text(
+                _isReconnecting ? '검색 중…' : '포트 ${_comPorts.length}개',
+                style: AppTextStyles.bodySm.copyWith(color: AppStyles.gray6),
               ),
             ],
           ),
@@ -313,7 +429,9 @@ class _ExternalPrinterSubSettingsState
             Padding(
               padding: const EdgeInsets.symmetric(vertical: AppSpacing.s8),
               child: Text(
-                _isRefreshing ? '검색 중…' : 'COM 포트를 찾을 수 없습니다. (프린터가 연결되어 있나요?)',
+                _isReconnecting
+                    ? '검색 중…'
+                    : 'COM 포트를 찾을 수 없습니다. 케이블·USB-Serial 드라이버를 확인한 뒤 재연결을 누르세요.',
                 style: AppTextStyles.bodySm.copyWith(color: AppStyles.gray6),
               ),
             )
@@ -333,65 +451,75 @@ class _ExternalPrinterSubSettingsState
               child: DropdownButtonHideUnderline(
                 child: DropdownButton<String>(
                   isExpanded: true,
-                  value: _comPorts.contains(_selectedComPort)
+                  value: _comPorts.any((p) => p.portName == _selectedComPort)
                       ? _selectedComPort
-                      : _comPorts.first,
+                      : _comPorts.first.portName,
                   items: _comPorts
                       .map((port) => DropdownMenuItem<String>(
-                            value: port,
-                            child: Text(port),
+                            value: port.portName,
+                            child: Text(
+                              port.displayLabel,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ))
                       .toList(),
-                  onChanged: (value) {
-                    if (value == null) return;
-                    setState(() {
-                      _selectedComPort = value;
-                      _testResult = null;
-                    });
-                    _pref.setComPortName(value);
-                    logToFile(
-                      tag: LogTag.UI_ACTION,
-                      message: 'COM 포트 선택 -> $value',
-                    );
-                    // 선택 직후 연결상태 즉시 반영 (외부만).
-                    ref
-                        .read(printServiceProvider)
-                        .checkConnection(external: true, label: false);
-                  },
+                  onChanged: _isReconnecting
+                      ? null
+                      : (value) {
+                          if (value == null) return;
+                          setState(() {
+                            _selectedComPort = value;
+                            _testResult = null;
+                            _reconnectResult = null;
+                          });
+                          _pref.setComPortName(value);
+                          logToFile(
+                            tag: LogTag.UI_ACTION,
+                            message: 'COM 포트 선택 -> $value',
+                          );
+                          // 선택 직후 연결상태 즉시 반영 (외부만).
+                          ref
+                              .read(printServiceProvider)
+                              .checkConnection(external: true, label: false);
+                        },
                 ),
               ),
             ),
-            const SizedBox(height: AppSpacing.s12),
-            Text(
-              'BAUD RATE',
-              style: AppTextStyles.bodySm.copyWith(color: AppStyles.gray6),
-            ),
-            const SizedBox(height: AppSpacing.s4),
-            Wrap(
-              spacing: AppSpacing.s8,
-              children: _baudRateOptions
-                  .map((rate) => ChoiceChip(
-                        label: Text('$rate'),
-                        selected: _baudRate == rate,
-                        onSelected: (selected) {
-                          if (!selected) return;
-                          setState(() {
-                            _baudRate = rate;
-                            _testResult = null;
-                          });
-                          _pref.setComPortBaudRate(rate);
-                          logToFile(
-                            tag: LogTag.UI_ACTION,
-                            message: 'BAUD RATE 선택 -> $rate',
-                          );
-                        },
-                      ))
-                  .toList(),
-            ),
           ],
+          // BAUD RATE 는 포트 목록 유무와 무관한 설정이다. 포트가 안 잡혔다고
+          // 함께 사라지면 "무응답이니 baud 를 바꿔보라" 는 복구 경로가 막힌다.
+          const SizedBox(height: AppSpacing.s12),
+          Text(
+            'BAUD RATE',
+            style: AppTextStyles.bodySm.copyWith(color: AppStyles.gray6),
+          ),
+          const SizedBox(height: AppSpacing.s4),
+          Wrap(
+            spacing: AppSpacing.s8,
+            children: _baudRateOptions
+                .map((rate) => ChoiceChip(
+                      label: Text('$rate'),
+                      selected: _baudRate == rate,
+                      onSelected: (selected) {
+                        if (!selected) return;
+                        setState(() {
+                          _baudRate = rate;
+                          _testResult = null;
+                          _reconnectResult = null;
+                        });
+                        _pref.setComPortBaudRate(rate);
+                        logToFile(
+                          tag: LogTag.UI_ACTION,
+                          message: 'BAUD RATE 선택 -> $rate',
+                        );
+                      },
+                    ))
+                .toList(),
+          ),
           const SizedBox(height: AppSpacing.s8),
           Text(
-            '※ COM 포트로 직접 ESC/POS 명령을 전송합니다. 프린터가 로컬 COM 포트에 연결되어야 합니다.',
+            '※ 재연결을 누르면 COM 포트를 다시 검색하고, 프린터가 응답하는 포트로 자동 연결합니다.\n'
+            '※ 포트 이름 옆은 Windows 가 인식한 장치명(USB-Serial 어댑터 기준)이며 프린터 모델명과 다를 수 있습니다.',
             style: AppTextStyles.bodySm.copyWith(color: AppStyles.gray6),
           ),
         ],
@@ -413,13 +541,14 @@ class _ExternalPrinterSubSettingsState
       }
     }
     final isWindowsWithoutPort =
-        Platform.isWindows && _comPorts.isEmpty && !_isRefreshing;
+        Platform.isWindows && _comPorts.isEmpty && !_isReconnecting;
 
     return Row(
       children: [
         ElevatedButton.icon(
-          onPressed:
-              (_isTesting || isWindowsWithoutPort) ? null : _handleTestPrint,
+          onPressed: (_isTesting || _isReconnecting || isWindowsWithoutPort)
+              ? null
+              : _handleTestPrint,
           icon: const Icon(Icons.print, size: 18),
           label: const Text('테스트 출력'),
         ),

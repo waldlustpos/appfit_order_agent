@@ -7,6 +7,7 @@ import 'package:serial_port_win32/serial_port_win32.dart';
 import 'package:win32/win32.dart';
 
 import 'package:appfit_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/services/com_port_descriptor.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/services/receipt_escpos_builder.dart';
 
@@ -150,6 +151,40 @@ class ComPortPrintService {
           error: e, stackTrace: s);
       return [];
     }
+  }
+
+  /// COM 포트 목록 + 각 포트에 물린 장치의 식별 정보 (제조사 / 장치명 / hwid).
+  ///
+  /// 두 소스를 portName 으로 조인한다:
+  /// - [getAvailableComPorts] : 레지스트리 `HARDWARE\DEVICEMAP\SERIALCOMM`.
+  ///   **목록의 정본** — [probeConnection] / [sendRaw] 의 진입 가드가 같은
+  ///   소스를 쓰므로 여기서 벗어나면 "목록엔 있는데 못 연다" 가 생긴다.
+  /// - [SerialPort.getPortsWithFullMessages] : SetupAPI
+  ///   `GUID_DEVINTERFACE_COMPORT`. 블루투스 SPP 등 일부 포트는 여기 안 잡히므로
+  ///   **장식으로만** 쓴다. 조회가 통째로 실패해도 목록은 그대로 살린다.
+  ///
+  /// 얻어지는 이름은 USB-Serial 어댑터/드라이버 기준이지 프린터 본체 모델명이
+  /// 아니다 ([ComPortDescriptor] 주석 참조).
+  static List<ComPortDescriptor> getComPortDescriptors() {
+    final names = getAvailableComPorts();
+    final info = <String, PortInfo>{};
+    try {
+      for (final p in SerialPort.getPortsWithFullMessages()) {
+        if (p.portName.isNotEmpty) info[p.portName] = p;
+      }
+    } catch (e, s) {
+      // 식별 정보는 부가 기능이라 실패해도 포트 목록/연결에는 영향이 없다.
+      logger.w('[ComPortPrint] SetupAPI 포트 정보 조회 실패', error: e, stackTrace: s);
+    }
+    return names.map((name) {
+      final p = info[name];
+      return ComPortDescriptor(
+        portName: name,
+        friendlyName: p?.friendlyName,
+        manufacturer: p?.manufactureName,
+        hardwareId: p?.hardwareID,
+      );
+    }).toList();
   }
 
   /// serial_port_win32 의 open 예외 메시지에서 win32 오류 코드를 뽑는다.
@@ -616,22 +651,42 @@ class ComPortPrintService {
   /// 살아있다고 판정한다.
   ///
   /// [sendRaw] 와 [_portLock] 을 공유하므로 실제 출력 중에는 검증이 대기한다.
+  /// [maxAttempts] : DLE EOT 핑 재시도 상한. 기본값은 살아있는 프린터의 회복
+  /// 타이밍 편차까지 흡수하는 [_probeMaxAttempts](5회 ≈ 무응답 포트당 1.9초).
+  /// 재연결 버튼의 **포트 스캔**처럼 여러 포트를 순차로 훑을 때는 1 로 낮춰
+  /// 전체 소요를 몇 초 안에 끝낸다 (스캔은 "어느 포트가 응답하나" 만 보면 된다).
+  ///
+  /// [useRecentSendFastPath] : 아래 fast-path 사용 여부. 사용자가 설정 화면에서
+  /// 명시적으로 재확인을 요청한 경로는 **false** 여야 한다. 두 가지 이유:
+  /// (1) fast-path 는 포트 이름을 보지 않으므로 스캔 중 모든 후보 포트가
+  ///     연달아 true 로 오탐한다.
+  /// (2) fast-path 가 enumerate 진입 가드보다 먼저 실행돼, 출력 직후 프린터
+  ///     전원이 꺼지거나 포트가 사라져도 20초 동안 "연결됨" 이 유지된다.
   static Future<bool> probeConnection({
     String comPort = defaultComPort,
     int baudRate = defaultBaudRate,
+    int maxAttempts = _probeMaxAttempts,
+    bool useRecentSendFastPath = true,
   }) {
-    return _synchronized(
-        () => _probeConnectionLocked(comPort: comPort, baudRate: baudRate));
+    return _synchronized(() => _probeConnectionLocked(
+          comPort: comPort,
+          baudRate: baudRate,
+          maxAttempts: maxAttempts < 1 ? 1 : maxAttempts,
+          useRecentSendFastPath: useRecentSendFastPath,
+        ));
   }
 
   static Future<bool> _probeConnectionLocked({
     required String comPort,
     required int baudRate,
+    required int maxAttempts,
+    required bool useRecentSendFastPath,
   }) async {
     // Fast-path: 최근에 실제 출력이 성공했다면 프린터 생존이 이미 입증된 상태.
     // 포트를 다시 열어 핑하면 USB-Serial 토글로 오히려 간섭만 주므로 생략.
     final lastOk = _lastSuccessfulSendAt;
-    if (lastOk != null &&
+    if (useRecentSendFastPath &&
+        lastOk != null &&
         DateTime.now().difference(lastOk) < _recentSendConnectedWindow) {
       logger.d('[ComPortPrint] probeConnection: $comPort 최근 출력 성공 → connected');
       return true;
@@ -691,14 +746,14 @@ class ComPortPrintService {
       // (PR800 처럼 멈춤 상태였다가 회복되는 케이스의 타이밍 편차를 재시도로 흡수.)
       // 모뎀 DSR/CTS 는 판정에 쓰지 않고 raw 비트만 진단 로깅한다.
       await Future.delayed(_settleProbe);
-      for (int attempt = 1; attempt <= _probeMaxAttempts; attempt++) {
+      for (int attempt = 1; attempt <= maxAttempts; attempt++) {
         _readModemAlive(port); // 진단 로깅(DSR/CTS) 용
         if (await _probePrinter(port)) {
           logger.d(
-              '[ComPortPrint] probeConnection: $comPort alive[probe] (attempt $attempt/$_probeMaxAttempts)');
+              '[ComPortPrint] probeConnection: $comPort alive[probe] (attempt $attempt/$maxAttempts)');
           return true;
         }
-        if (attempt < _probeMaxAttempts) {
+        if (attempt < maxAttempts) {
           await Future.delayed(_probeRetryInterval);
         }
       }
@@ -707,7 +762,7 @@ class ComPortPrintService {
       logToFile(
           tag: LogTag.PLATFORM,
           message: '[ComPortPrint] probeConnection $comPort 무응답 '
-              '($_probeMaxAttempts회, reason=$_lastFailureReason, baud=$baudRate)'
+              '($maxAttempts회, reason=$_lastFailureReason, baud=$baudRate)'
               ' → disconnected');
       return false;
     } catch (e) {
