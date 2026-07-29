@@ -26,6 +26,7 @@ import android.os.Environment;
 import android.os.PowerManager;
 import android.provider.Settings;
 import android.text.format.DateFormat;
+import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
@@ -118,6 +119,10 @@ public class MainActivity extends FlutterActivity {
     // res/raw/keep.xml keep them (tools:keep="@raw/dm_*,@drawable/dm_*") against R8
     // resource shrinking, since getIdentifier() lookups are invisible to the shrinker.
     private static final String DUAL_MONITOR_RES_PREFIX = "dm_";
+    // Hardware allowed to drive a front (dual) monitor, matched by normalized model
+    // prefix in isDualMonitorSupportedDevice(). See that method for why a whitelist
+    // is required on top of the DISPLAY_CATEGORY_PRESENTATION filter.
+    private static final String[] DUAL_MONITOR_MODEL_PREFIXES = { "D3MINI" };
     // MHST(매머드커피) 브랜드 고객용 LCD(T2mini 등) 대기화면 식별자. KEY_BRAND_SLUG 는
     // Dart BrandRegistry 의 assetFolder 를 그대로 받으므로 MHST 매장은 "mammoth".
     // 로그아웃 시 clearDualMonitor 가 이 slug 를 비워 LCD 도 함께 꺼진다.
@@ -144,8 +149,9 @@ public class MainActivity extends FlutterActivity {
     }
 
     private DualMonitorPresentation dualMonitorPresentation;
-    private int DISPLAY_LENGTH = 0;
-    private final boolean isD3MINI = Build.MODEL.equals("D3 MINI");
+    // 마지막으로 로그 파일에 남긴 듀얼모니터 진단 블록. showDualMonitor() 가
+    // onCreate/onResume/로그인/로그아웃/모드변경마다 호출되므로 동일 내용은 건너뛴다.
+    private String lastDualMonitorDiag;
 
     private BroadcastReceiver usbPermissionReceiver;
 
@@ -831,26 +837,92 @@ public class MainActivity extends FlutterActivity {
         return deviceList;
     }
 
+    // Whether this hardware may drive a front (dual) monitor. The DISPLAY_CATEGORY_
+    // PRESENTATION filter alone is NOT enough: generic Android boards report their
+    // only HDMI monitor as a presentation display, so brand content landed on the
+    // operator's screen. The model whitelist below is the authoritative gate.
+    // Matching normalizes the model (uppercase, strip non-alphanumerics) and compares
+    // by prefix so "D3 MINI" / "D3-MINI" / "D3MINI II" all match. Add new hardware here.
+    private boolean isDualMonitorSupportedDevice() {
+        if (!isSunmiDevice()) return false;
+        String model = Build.MODEL == null
+                ? "" : Build.MODEL.toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9]", "");
+        for (String prefix : DUAL_MONITOR_MODEL_PREFIXES) {
+            if (model.startsWith(prefix)) return true;
+        }
+        return false;
+    }
+
+    // Resolves the display to use as the front monitor, or null when this device is
+    // not supported or has no eligible display. Single source of truth for both the
+    // presentation itself and the capability probe that gates the settings section.
+    // Writes a diagnostic block to the app log file so display enumeration can be
+    // inspected on real hardware (release builds included).
+    private Display resolveFrontDisplay() {
+        StringBuilder diag = new StringBuilder();
+        boolean supported = isDualMonitorSupportedDevice();
+        diag.append("[DualMonitor] device=").append(Build.MANUFACTURER).append('/')
+                .append(Build.MODEL).append(" supported=").append(supported);
+
+        Display selected = null;
+        if (supported) {
+            DisplayManager dm = (DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
+            if (dm == null) {
+                diag.append("\n[DualMonitor] DisplayManager unavailable");
+            } else {
+                int activityDisplayId = getWindowManager().getDefaultDisplay().getDisplayId();
+                diag.append("\n[DualMonitor] activityDisplay=").append(activityDisplayId);
+                for (Display d : dm.getDisplays()) {
+                    diag.append("\n[DualMonitor] display ").append(describeDisplay(d));
+                }
+                // The activity's own display must never be presented on: on boards that
+                // mark the operator screen as presentation-capable that would cover the UI.
+                for (Display d : dm.getDisplays(DisplayManager.DISPLAY_CATEGORY_PRESENTATION)) {
+                    if (d.getDisplayId() == activityDisplayId) {
+                        diag.append("\n[DualMonitor] skip id=").append(d.getDisplayId())
+                                .append(" (activity display)");
+                        continue;
+                    }
+                    selected = d;
+                    break;
+                }
+            }
+        }
+        diag.append("\n[DualMonitor] selected=")
+                .append(selected == null ? "none" : describeDisplay(selected));
+
+        String block = diag.toString();
+        Log.d("DualMonitor", block);
+        if (!block.equals(lastDualMonitorDiag)) {
+            lastDualMonitorDiag = block;
+            appendLogToFile(block);
+        }
+        return selected;
+    }
+
+    private String describeDisplay(Display d) {
+        DisplayMetrics metrics = new DisplayMetrics();
+        d.getMetrics(metrics);
+        return "id=" + d.getDisplayId()
+                + " name=" + d.getName()
+                + " flags=0x" + Integer.toHexString(d.getFlags())
+                + " state=" + d.getState()
+                + " " + metrics.widthPixels + "x" + metrics.heightPixels;
+    }
+
     private void showDualMonitor() {
+        Display frontDisplay = resolveFrontDisplay();
+        if (frontDisplay == null) {
+            Log.d("MainActivity", "no DualMonitor");
+            return;
+        }
         SharedPreferences prefs = getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE);
         String storeId = prefs.getString(KEY_STORE_ID, "");
         String slug = prefs.getString(KEY_BRAND_SLUG, "");
         String mode = prefs.getString(KEY_DUAL_MONITOR_MODE, "");
-        DisplayManager cDisplayManager = (DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
-        // Use the PRESENTATION category so only real external/secondary displays are
-        // returned (the default display and virtual/overlay displays are excluded).
-        // Plain getDisplays() counts virtual displays too, which made non-D3 devices
-        // falsely report a front monitor.
-        Display[] cDisplays = cDisplayManager.getDisplays(DisplayManager.DISPLAY_CATEGORY_PRESENTATION);
-        DISPLAY_LENGTH = cDisplays.length;
-        Log.e("cDisplays.length", String.valueOf(cDisplays.length));
-        if (cDisplays.length > 0) {
-            dualMonitorPresentation = new DualMonitorPresentation(this, cDisplays[0], storeId, slug, mode);
-            Log.d("MainActivity", "showDualMonitor()");
-            dualMonitorPresentation.show();
-        } else {
-            Log.d("MainActivity", "no DualMonitor");
-        }
+        dualMonitorPresentation = new DualMonitorPresentation(this, frontDisplay, storeId, slug, mode);
+        Log.d("MainActivity", "showDualMonitor()");
+        dualMonitorPresentation.show();
     }
 
     private class DualMonitorPresentation extends Presentation {
@@ -1138,12 +1210,9 @@ public class MainActivity extends FlutterActivity {
     // display is attached and whether video/image content resources exist.
     public Map<String, Object> getDualMonitorCapability(String slug) {
         Map<String, Object> result = new HashMap<>();
-        DisplayManager dm = (DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
-        // Only count presentation-capable secondary displays; plain getDisplays()
-        // includes virtual/overlay displays and falsely reported a front monitor on
-        // non-D3 devices.
-        boolean hasSecondaryDisplay = dm != null
-                && dm.getDisplays(DisplayManager.DISPLAY_CATEGORY_PRESENTATION).length > 0;
+        // Same resolution the presentation itself uses (supported model + eligible
+        // display), so the settings section never offers content the device won't show.
+        boolean hasSecondaryDisplay = resolveFrontDisplay() != null;
         String pkg = getPackageName();
         int rawId = (slug == null || slug.isEmpty())
                 ? 0 : getResources().getIdentifier(DUAL_MONITOR_RES_PREFIX + slug, "raw", pkg);
