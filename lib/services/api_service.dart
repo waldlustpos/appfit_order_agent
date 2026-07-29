@@ -19,6 +19,7 @@ import 'package:appfit_order_agent/services/secure_storage_service.dart';
 import 'package:appfit_core/appfit_core.dart'; // import 추가
 // import 'appfit/api_routes.dart'; // Removed
 import 'package:appfit_order_agent/models/enums/order_action.dart';
+import 'package:appfit_order_agent/models/enums/order_cancel_reason.dart';
 import 'package:appfit_order_agent/exceptions/api_exceptions.dart'; // Added for precise error catching
 import 'package:appfit_order_agent/exceptions/api_error_mapper.dart'; // DioException → 친화 ApiException 변환
 import 'package:appfit_order_agent/services/platform_service.dart'; // logToFile, LogTag 사용 위해 추가
@@ -147,18 +148,18 @@ class ApiService {
     String storeId,
     OrderStatus status,
     String orderId, {
-    String? cancelReason,
+    String? readyTime,
   }) async {
     try {
       final dio = _ref.read(appFitDioProvider);
 
       String action = '';
-      int readyTime = 0;
+      // 미지정(자동접수) 시 0으로 폴백
+      int parsedReadyTime = int.tryParse(readyTime ?? '0') ?? 0;
 
       switch (status) {
         case OrderStatus.PREPARING:
           action = OrderAction.ACCEPT.name;
-          readyTime = int.tryParse(cancelReason ?? '0') ?? 0;
           break;
         case OrderStatus.READY:
           action = OrderAction.PICKUP_REQUEST.name;
@@ -174,7 +175,7 @@ class ApiService {
 
       final response = await dio.put(ApiRoutes.orderUpdate(orderId), data: {
         'action': action,
-        'readyTime': readyTime,
+        'readyTime': parsedReadyTime,
       });
 
       return response.statusCode == 200;
@@ -319,20 +320,41 @@ class ApiService {
     }
   }
 
-  Future<bool> cancelOrder(String orderId) async {
+  Future<bool> cancelOrder(String orderId,
+      {required OrderCancelReason reason}) async {
     try {
       final dio = _ref.read(appFitDioProvider);
 
       final response = await dio.post(ApiRoutes.orderCancel(orderId), data: {
         'action': OrderAction.REJECT.name,
-        'reason': 'SHOP_REQUEST',
-        'message': '상점 요청으로 취소되었습니다.',
+        'reason': reason.name,
+        //'message': _cancelReasonMessage(reason),
       });
+      logger.i('[AppFit API] cancelOrder message 안보내기 ${reason.name}');
 
       return response.statusCode == 200;
     } catch (e, s) {
       logger.i('[AppFit API] cancelOrder 실패: $e');
       return false;
+    }
+  }
+
+  String _cancelReasonMessage(OrderCancelReason reason) {
+    switch (reason) {
+      case OrderCancelReason.SHOP_REQUEST:
+        return '매장 사정으로 취소되었습니다.';
+      case OrderCancelReason.SHOP_CLOSED:
+        return '매장 마감/휴무로 취소되었습니다.';
+      case OrderCancelReason.CUSTOMER_REQUEST:
+        return '고객 요청으로 취소되었습니다.';
+      case OrderCancelReason.SOLD_OUT:
+        return '품절로 취소되었습니다.';
+      case OrderCancelReason.INGREDIENT_SHORTAGE:
+        return '재료 소진으로 취소되었습니다.';
+      case OrderCancelReason.SYSTEM_ERROR:
+        return '시스템 오류로 취소되었습니다.';
+      case OrderCancelReason.OTHER:
+        return '기타 사유로 취소되었습니다.';
     }
   }
 
@@ -539,6 +561,8 @@ class ApiService {
       final dio = _ref.read(appFitDioProvider);
       // AppFit: /v0/shops/{shopCode}/categories
       final response = await dio.get(ApiRoutes.shopCategories(storeId));
+      logger.w(
+          '[PLATFORM] [DEBUG] catalog raw: ${response.data}'); // 임시 진단용 — 제거 예정
 
       if (response.statusCode == 200) {
         final data = response.data['data'] as Map<String, dynamic>;

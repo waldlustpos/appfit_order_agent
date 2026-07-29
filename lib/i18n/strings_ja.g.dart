@@ -321,6 +321,15 @@ class _Translations$order_detail$ja extends Translations$order_detail$ko {
 	@override String get dialog_kiosk_cancel_title => '注文取消';
 	@override String get dialog_kiosk_cancel_content => 'キオスク注文はキオスク端末で取り消してください。';
 	@override String dialog_cancel_confirm_content({required Object n}) => '${n}番の注文を取り消しますか？';
+	@override String get dialog_cancel_reason_title => 'キャンセル理由を選択';
+	@override String dialog_cancel_reason_content({required Object n}) => '${n}番注文のキャンセル理由を選択してください。';
+	@override String get cancel_reason_shop_request => '店舗都合';
+	@override String get cancel_reason_shop_closed => '店舗閉店・休業';
+	@override String get cancel_reason_customer_request => 'お客様のご要望';
+	@override String get cancel_reason_sold_out => '売り切れ';
+	@override String get cancel_reason_ingredient_shortage => '食材切れ';
+	@override String get cancel_reason_system_error => 'システムエラー';
+	@override String get cancel_reason_other => 'その他';
 	@override String get dialog_repickup_confirm_title => 'ピックアップ再要請';
 	@override String dialog_repickup_confirm_content({required Object n}) => '${n}番の注文のピックアップを再要請しますか？';
 	@override String get dialog_not_picked_up_confirm_title => '未ピックアップ';
