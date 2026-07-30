@@ -1,8 +1,15 @@
 # 기기 로그 원격 수집 → Slack 전송 + 관재(원격관리) 토대
 
-> **상태: 구현 완료(MVP+스캐폴딩), 라이브 테스트/릴리즈 대기.**
-> 작업 브랜치: 앱 `feature/remote-log-collection`, 코어 `feature/remote-log-collection`.
-> 두 레포 main 미변경. 원격 push 안 함. analyze 에러 0 / 앱 테스트 199 pass / 코어 테스트 9 pass.
+> **상태: main 병합 완료.** 설정화면 "로그 전송" 카드(수동 경로)가 동작한다.
+>
+> **원격 요청 경로는 이 문서가 아니라 [DEVICE_MONITORING.md](DEVICE_MONITORING.md) 가 정본이다.**
+> 이 문서가 스캐폴딩으로 적어둔 `remote_command_handler.dart` / `remoteCommandHandlerProvider` /
+> `device_status_reporter.dart` / 소켓 기기명령 가로채기는 **전부 채택되지 않았고 실제 코드에 없다.**
+> 원격 명령은 WebSocket 이 아니라 관제 서버(`appfit-fleet`) heartbeat 응답에 실려 오며,
+> 실행기는 `lib/services/fleet/order_agent_fleet_command_handler.dart` 다.
+>
+> 캡션·기간·파일명 조립도 위젯에서 `lib/services/log_collection/log_collection_request.dart`
+> 로 추출됐다 — 수동 버튼과 원격 명령이 같은 함수를 쓰게 하려는 것이고, 포맷은 테스트로 고정돼 있다.
 
 ## 1. 목적/배경
 
@@ -67,8 +74,9 @@
    - ※ 현재 브랜치는 컴파일을 위해 로컬 path override가 들어가 있음(pubspec 주석 참고). 릴리즈 전까지만 유효.
 3. **Slack 시크릿 + dart-define** (라이브 전제)
    - Slack 봇 토큰(`files:write` 스코프) 발급 + **운영 채널에 봇 초대**(`/invite`).
-   - 빌드 시 주입: `--dart-define=SLACK_BOT_TOKEN=xoxb-... --dart-define=SLACK_CHANNEL_ID=C...`
-   - `build_main.sh` / `build_windows.ps1`에 주입 라인 추가(아직 미반영). 미주입 시 버튼은 "설정 없음"으로 안전 실패.
+   - `.env` 에 `SLACK_BOT_TOKEN` / `SLACK_CHANNEL_ID` 두 줄만 넣으면 된다. 빌드 스크립트 6개가 전부
+     `--dart-define-from-file=.env` 라 **스크립트 수정은 불필요하다**(이전 판의 "주입 라인 추가 필요"는 오기).
+     미주입 시 버튼은 "설정 없음"으로 안전 실패.
 4. **라이브 검증**: Android(Sunmi D3 MINI)·Windows에서 버튼 → Slack에 zip+캡션(매장명/코드/시리얼/기간) 도착 확인.
 5. **네이티브 빌드 확인**: Java 신규 메서드 gradle 빌드(아직 미실행).
 6. (미래) **백엔드 준비 시**: `BackendRelaySink` 구현(appfit Dio `FormData` 멀티파트) + `logUploadSinkProvider`를 그것으로 교체 + 서버가 `LOG_UPLOAD_REQUESTED` 푸시 + (필요시) `notifier_service.dart`에 `sendRaw` emit 추가(ACK/상태보고).

@@ -164,6 +164,10 @@ alps/full_rlk6580_we_c_m/rlk6580_we_c_m:11/1241/1241:user/release-keys
 - `IS_ROTATED_180` — 선택적 180도 화면 회전
 - `SLACK_BOT_TOKEN` — 로그 업로드용 Slack 봇 토큰(`xoxb-`, `files:write` 스코프). 대상 채널에 봇 초대 필수. 없으면 설정화면 "로그 전송" 카드가 비활성(`SlackDirectSink`). 클라이언트 바이너리에 박히므로 최소 스코프·단일 채널로 제한
 - `SLACK_CHANNEL_ID` — 로그를 게시할 단일 채널 ID(예: `C0XXXXXXX`)
+- `FLEET_BASE_URL` — 기기 관제 서버 주소(예: `https://appfit-fleet.<subdomain>.workers.dev`). 없으면 `NoopFleetSink` 로 폴백해 관제만 꺼지고 앱 동작은 동일
+- `FLEET_DEVICE_KEY` — 관제 서버용 Bearer 키. **쓰기 전용**이라 유출돼도 기기 목록 조회나 명령 생성은 불가(대시보드는 별도 비밀번호 세션). 서버의 `DEVICE_KEYS` 가 콤마 목록이라 무중단 로테이션 가능
+
+> `lib/config/app_env.dart` 는 **gitignore 대상**이다. 새 dart-define 을 추가한 브랜치를 다른 머신에서 빌드하면 상수가 없어 컴파일 에러가 난다 — `.env` 뿐 아니라 `app_env.dart` 에도 대응 상수를 직접 추가해야 한다.
 
 런타임 환경(서버 대상)은 로그인 시 선택되며 `PreferenceService`를 통해 저장됩니다. `main.dart`에서 `AppFitConfig.configure()` 호출 전에 결정됩니다.
 
