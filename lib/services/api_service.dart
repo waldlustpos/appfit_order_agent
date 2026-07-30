@@ -328,7 +328,7 @@ class ApiService {
       final response = await dio.post(ApiRoutes.orderCancel(orderId), data: {
         'action': OrderAction.REJECT.name,
         'reason': reason.name,
-        //'message': _cancelReasonMessage(reason),
+        'message': _cancelReasonMessage(reason),
       });
       logger.i('[AppFit API] cancelOrder message 안보내기 ${reason.name}');
 
