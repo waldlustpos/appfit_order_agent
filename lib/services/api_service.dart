@@ -561,8 +561,6 @@ class ApiService {
       final dio = _ref.read(appFitDioProvider);
       // AppFit: /v0/shops/{shopCode}/categories
       final response = await dio.get(ApiRoutes.shopCategories(storeId));
-      logger.w(
-          '[PLATFORM] [DEBUG] catalog raw: ${response.data}'); // 임시 진단용 — 제거 예정
 
       if (response.statusCode == 200) {
         final data = response.data['data'] as Map<String, dynamic>;

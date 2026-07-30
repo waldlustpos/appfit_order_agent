@@ -1,6 +1,6 @@
 ---
 name: external-receipt-printer-inspector
-description: OutputQueueService → ExternalReceiptPrinter → PrinterJobQueue → (Android: AndroidUsbTransport → MethodChannel printReceiptBytes → UsbReceiptPrinter.java → bulkTransfer | Windows: WindowsTransport → ComPortPrintService (COM + DLE EOT 1 probe) → SerialPort writeBytes) 외부 영수증 프린터 파이프라인을 진단합니다. 점유 충돌(BUSY) backoff 7회 (0/2/5/10/20/40/60s 누적 137s), false-success (USB-Serial CDC 가상 COM bus power 살아있음), 좀비 연결(전원 OFF 인데 USB detach broadcast 미발생), USB 인터페이스 분기 오인식 (NXP composite CDC tier 0 / ASIX BLOCKLIST), 재출력 무반응, settle warm/cold, 권한 다이얼로그, COM probe 폴링, 상세조회 실패로 메뉴 없는 주문의 영수증 스킵(enqueue 전 차단)·복구 큐 자동 재발행 진단 시 컨텍스트 수집용. "외부 프린터 영수증 안 나옴", "재출력 무반응", "COM 포트 출력 실패", "USB 좀비 연결", "점유 충돌", "프린터 backoff", "PR800 출력", "D3MINI 출력", "ESC/POS", "DLE EOT", "false-success", "메뉴 없어 영수증 스킵", "영수증 재발행", "markPendingReprint", "복구 큐" 등의 요청에 위임.
+description: 외부 영수증 프린터 파이프라인(OutputQueueService·ExternalReceiptPrinter·PrinterJobQueue / Android AndroidUsbTransport·UsbReceiptPrinter.java·bulkTransfer / Windows WindowsTransport·ComPortPrintService·COM·DLE EOT)을 진단합니다. "외부 프린터 영수증 안 나옴", "재출력 무반응", "COM 포트 출력 실패", "USB 좀비 연결", "점유 충돌", "프린터 backoff", "PR800 출력", "D3MINI 출력", "ESC/POS", "DLE EOT", "false-success", "메뉴 없어 영수증 스킵", "영수증 재발행", "markPendingReprint", "복구 큐" 등의 요청에 위임.
 tools: Read, Glob, Grep, Bash
 ---
 

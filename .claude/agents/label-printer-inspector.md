@@ -1,6 +1,6 @@
 ---
 name: label-printer-inspector
-description: OutputQueueService → OutputService → (Android: MethodChannel printLabel → LabelPrinter.java → Caysn SDK | Windows: LabelPrintOrchestrator → LabelPrinterService → autoreplyprint FFI) 데이터 흐름을 진단합니다. 라벨 누락, 중복 인쇄, paper-out/cover-up 정체, 커버열림 stuck 자동 복구(active clear), ACK timeout, paperFetch 비콘, USB stale handle, 상세조회 실패로 메뉴 없는 주문의 라벨 생략·복구 큐 자동 재발행 디버깅 시 컨텍스트 수집용. "라벨 누락", "라벨 디버깅", "프린터 큐", "ACK 누락", "FFI", "autoreplyprint", "커버열림", "noPaperCanceled stuck", "메뉴 없어 라벨 생략", "라벨 재발행", "markPendingReprint", "복구 큐" 등의 요청에 위임.
+description: 라벨 프린터 파이프라인(OutputQueueService·OutputService / Android MethodChannel printLabel·LabelPrinter.java·Caysn SDK / Windows windows_label_router·windows_label_printer_backend·autoreplyprint·BXL FFI)을 진단합니다. "라벨 누락", "라벨 디버깅", "프린터 큐", "ACK 누락", "FFI", "autoreplyprint", "커버열림", "noPaperCanceled stuck", "메뉴 없어 라벨 생략", "라벨 재발행", "markPendingReprint", "복구 큐" 등의 요청에 위임.
 tools: Read, Glob, Grep, Bash
 ---
 
@@ -103,7 +103,7 @@ tools: Read, Glob, Grep, Bash
 
 1. **`ackBefore = _printedAckCount` snapshot 회귀 의심 1순위** -- PagePrint 직전 snapshot 안 했거나, 폴링 안에서 ACK/비콘 set 감지 후에도 false 반환되는 분기 (Windows invariant 3 위반)
 2. 폴링 timeout(1700ms) 후 fallback `QueryPrintResult` 가 success 로 잘못 판정하는 케이스 -- 1차 폴링과 fallback 사이 race
-3. `LabelPrintOrchestrator` 의 1.5s retry 발화 흔적 -- 발화했다면 진짜 실패 vs invariant 위반 구분
+3. `_printLabelWithRetry`(`output_service.dart:312`) 의 1.5s retry 발화 흔적 -- 발화했다면 진짜 실패 vs invariant 위반 구분
 4. `autoReplyMode` 인자 = 1 인지 확인 -- 0 회귀 시 Android 와 동일하게 ACK 미동작
 
 #### 시나리오 Win-C: native crash on print
