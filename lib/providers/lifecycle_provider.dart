@@ -46,6 +46,11 @@ class AppLifecycleObserver extends _$AppLifecycleObserver
         // 앱이 백그라운드로 전환될 때 필요한 작업 수행
         break;
       case AppLifecycleState.detached:
+        // 종료 흔적을 파일 로그에 남긴다. 이게 없으면 "언제 죽었는지"를 사후에
+        // 알 수 없다. 관제 서버로의 closing 보고는 fleetSyncProvider 가 이
+        // 상태를 listen 해서 담당한다(역방향 의존을 만들지 않으려고 여기서
+        // 직접 호출하지 않는다).
+        logToFile(tag: LogTag.LIFECYCLE, message: 'App detached (terminating)');
         break;
       case AppLifecycleState.hidden:
         // 앱이 숨겨진 상태 (예: 다른 앱 위에 표시될 때)

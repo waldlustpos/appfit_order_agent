@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 
+import 'package:appfit_order_agent/services/log_collection/log_collection_request.dart';
 import 'package:appfit_order_agent/services/log_collection/log_upload_sink.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/services/windows_log_file_writer.dart';
@@ -52,12 +53,19 @@ class LogCollectionService {
   ///
   /// 호출 직전까지의 로그를 포함하기 위해 [flushLogBuffer] 를 먼저 await 한다.
   /// [onStage] 로 진행 단계를 통지한다.
+  ///
+  /// [maxSourceBytes] 를 주면 zip 을 시도하기 전에 원본 합계를 재고 초과 시
+  /// 중단한다. zip 이 인메모리라 피크 메모리가 "원본 합계 + 결과"가 되는데,
+  /// **원격 명령은 아무도 보고 있지 않은 매장 기기에서 실행되므로** OOM 이 나면
+  /// 앱이 조용히 죽는다. 수동 버튼은 사용자가 보고 있으니 기본값(null=무제한)
+  /// 그대로 두고, 원격 경로만 상한을 건다.
   Future<LogCollectionOutcome> collectAndUpload({
     required DateTime from,
     required DateTime to,
     required String caption,
     required String filename,
     void Function(LogCollectionStage stage)? onStage,
+    int? maxSourceBytes,
   }) async {
     try {
       if (!sink.isConfigured) {
@@ -79,6 +87,23 @@ class LogCollectionService {
           success: false,
           error: '선택한 기간에 로그 파일이 없습니다.',
         );
+      }
+
+      if (maxSourceBytes != null) {
+        var total = 0;
+        for (final f in files) {
+          total += await f.length();
+        }
+        if (total > maxSourceBytes) {
+          onStage?.call(LogCollectionStage.failed);
+          logger.w('[LogCollection] 원본 $total bytes > 상한 $maxSourceBytes — 중단');
+          return LogCollectionOutcome(
+            success: false,
+            error: '원본 ${humanSize(total)} (상한 ${humanSize(maxSourceBytes)}) '
+                '— 기간을 줄여 다시 요청하세요',
+            fileCount: files.length,
+          );
+        }
       }
 
       onStage?.call(LogCollectionStage.zipping);

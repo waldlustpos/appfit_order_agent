@@ -5,7 +5,6 @@ import 'package:appfit_order_agent/services/log_collection/log_collection_servic
 import 'package:appfit_order_agent/services/log_collection/log_upload_sink.dart';
 import 'package:appfit_order_agent/services/log_collection/slack_direct_sink.dart';
 import 'package:appfit_order_agent/services/monitoring/device_identity_service.dart';
-import 'package:appfit_order_agent/services/monitoring/device_status_reporter.dart';
 
 /// 로그 업로드 sink.
 ///
@@ -26,7 +25,6 @@ final deviceIdentityServiceProvider = Provider<DeviceIdentityService>((ref) {
   return DeviceIdentityService(ref.watch(preferenceServiceProvider));
 });
 
-/// 기기 상태 보고 서비스 (스캐폴딩: 스냅샷 생성까지).
-final deviceStatusReporterProvider = Provider<DeviceStatusReporter>((ref) {
-  return DeviceStatusReporter(ref.watch(deviceIdentityServiceProvider));
-});
+// DeviceStatusReporter(스캐폴딩)는 제거했다. 소비처가 한 곳도 없었고
+// FleetSnapshot 과 책임이 완전히 겹쳐, 남겨두면 "기기 상태 스냅샷" 타입이
+// 두 벌이 되어 반드시 어긋난다. 실제 보고는 fleet_provider.dart 가 담당한다.

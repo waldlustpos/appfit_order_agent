@@ -26,6 +26,18 @@ class DeviceIdentity {
   /// [deviceId] 의 출처(serial/deviceId/installId). 진단용.
   final String idSource;
 
+  /// 제조사. Android 는 `Build.MANUFACTURER`, Windows 는 'Microsoft' 고정.
+  /// [deviceModel] 이 Android 에서 "제조사 모델" 합성이라 값이 겹치지만,
+  /// 관제 서버는 제조사로 필터링(예: Sunmi 기기만)하므로 별도로 보낸다.
+  final String deviceManufacturer;
+
+  /// android | windows | ios | unknown
+  final String platform;
+
+  /// Android 는 `version.release`(예: "13"), Windows 는 displayVersion
+  /// (예: "22H2") 또는 major.minor.build. 취득 실패 시 'unknown'.
+  final String osVersion;
+
   const DeviceIdentity({
     required this.projectName,
     required this.shopName,
@@ -34,6 +46,9 @@ class DeviceIdentity {
     required this.serial,
     required this.deviceId,
     required this.idSource,
+    required this.deviceManufacturer,
+    required this.platform,
+    required this.osVersion,
   });
 
   /// 설정화면 "매장" 값. "매장명 (매장코드)" / 코드만 / 매장명만 / 빈 문자열.
@@ -77,21 +92,40 @@ class DeviceIdentityService {
     final shopName = _prefs.getStoreName();
     final shopCode = _prefs.getId();
 
-    // 기기 모델명 + (Windows) deviceId 를 플랫폼 info 1회 조회로 확보.
+    // 플랫폼 판정은 info 조회 성공 여부와 무관하게 확정할 수 있다.
+    final platform = Platform.isAndroid
+        ? 'android'
+        : Platform.isWindows
+            ? 'windows'
+            : Platform.isIOS
+                ? 'ios'
+                : 'unknown';
+
+    // 기기 모델명 + 제조사 + OS 버전 + (Windows) deviceId 를 플랫폼 info 1회
+    // 조회로 확보한다. 관제(FleetReporter)와 설정화면이 같은 정본을 본다.
     String deviceModel = 'Unknown';
+    String deviceManufacturer = 'Unknown';
+    String osVersion = 'unknown';
     String? windowsDeviceId;
     try {
       final di = DeviceInfoPlugin();
       if (Platform.isAndroid) {
         final info = await di.androidInfo;
         deviceModel = '${info.manufacturer} ${info.model}';
+        deviceManufacturer = info.manufacturer;
+        osVersion = info.version.release;
       } else if (Platform.isWindows) {
         final info = await di.windowsInfo;
         deviceModel = info.computerName;
+        deviceManufacturer = 'Microsoft';
+        // displayVersion 은 "22H2" 같은 사람이 읽는 표기. 비어 있으면 빌드 번호로.
+        osVersion = info.displayVersion.isNotEmpty
+            ? info.displayVersion
+            : '${info.majorVersion}.${info.minorVersion}.${info.buildNumber}';
         windowsDeviceId = info.deviceId;
       }
     } catch (e, s) {
-      logger.w('[DeviceIdentity] 기기 모델 조회 실패', error: e, stackTrace: s);
+      logger.w('[DeviceIdentity] 기기 정보 조회 실패', error: e, stackTrace: s);
     }
 
     String? serial;
@@ -139,10 +173,14 @@ class DeviceIdentityService {
       serial: serial,
       deviceId: deviceId,
       idSource: source,
+      deviceManufacturer: deviceManufacturer,
+      platform: platform,
+      osVersion: osVersion,
     );
     logger.i(
       '[DeviceIdentity] 설정카드 표기값 — 매장="${_cached!.storeLabel}", '
-      '기기="${_cached!.deviceLabel}" (serial=$serial, source=$source)',
+      '기기="${_cached!.deviceLabel}" (serial=$serial, source=$source, '
+      'platform=$platform, os=$osVersion)',
     );
     return _cached!;
   }

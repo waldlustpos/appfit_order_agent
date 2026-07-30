@@ -31,6 +31,7 @@ import 'package:window_manager/window_manager.dart';
 import 'package:appfit_order_agent/config/app_env.dart'; // AppEnv 추가
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:appfit_order_agent/i18n/strings.g.dart';
+import 'package:appfit_order_agent/providers/fleet_provider.dart';
 import 'package:appfit_order_agent/providers/locale_provider.dart';
 import 'package:appfit_order_agent/providers/rotation_provider.dart';
 import 'package:appfit_order_agent/services/monitoring/order_agent_monitoring_context.dart';
@@ -433,6 +434,9 @@ class MyApp extends ConsumerWidget {
     final locale = ref.watch(localeNotifierProvider);
     // 화면 반전 상태 감지 (설정 화면 토글 UI 동기화용)
     ref.watch(rotationNotifierProvider);
+    // 기기 관제 보고 활성화. home_screen 이 아니라 여기인 이유는 로그인 화면에
+    // 머무는 기기(설치했는데 로그인 안 된 기기)도 관제에 보여야 하기 때문이다.
+    ref.watch(fleetSyncProvider);
 
     // Windows 버블 모드 처리.
     // _buildMainApp 을 ValueListenableBuilder 의 child 로 전달해 한 번만 빌드,
