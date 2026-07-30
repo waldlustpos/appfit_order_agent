@@ -84,7 +84,7 @@ class _FakeApiService implements ApiService {
     String storeId,
     OrderStatus status,
     String orderId, {
-    String? cancelReason,
+    String? readyTime,
   }) async {
     statusUpdates.add((orderId, status));
     return updateOrderStatusResult;
