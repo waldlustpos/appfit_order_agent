@@ -12,7 +12,7 @@ class OrderHelperMethods {
 
   /// 주문이 키오스크 주문인지 확인하는 Helper
   bool isKioskOrder(OrderModel order) {
-    return order.source == 'WALD_KIOSK';
+    return classifyOrderSource(order.source) == OrderSourceType.kiosk;
   }
 
   /// 주문을 UI에 표시할지 여부 확인 (모든 주문 통일 처리)

@@ -721,7 +721,7 @@ class _Translations$settings$order_source_color$ja extends Translations$settings
 
 	// Translations
 	@override String get title => '注文元別の色分け';
-	@override String get desc => 'アプリ注文とキオスク注文をカード背景色で区別します。';
+	@override String get desc => 'アプリ・キオスク・POS注文をカード背景色で区別します。';
 }
 
 // Path: settings.kds_ignore_status

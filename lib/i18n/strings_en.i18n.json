@@ -172,7 +172,7 @@
         },
         "order_source_color": {
             "title": "Color by Order Source",
-            "desc": "Distinguish app and kiosk orders by card background color."
+            "desc": "Distinguish app, kiosk, and POS orders by card background color."
         },
         "kds_ignore_status": {
             "title": "Ignore Other Device Status Updates",

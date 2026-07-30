@@ -609,3 +609,14 @@ class OrderModel {
 
 // 스페셜 코드 유형 정의
 enum SpecialProductType { none, dineIn, takeout, both }
+
+// 주문 출처 대분류
+enum OrderSourceType { app, kiosk, pos }
+
+/// 주문 출처 문자열을 대분류로 변환한다.
+/// '_KIOSK' 접미사 → kiosk, '_POS' 접미사 → pos, 그 외(WALD_APPFIT, WALD_CAMO 등) → app.
+OrderSourceType classifyOrderSource(String source) {
+  if (source.endsWith('_KIOSK')) return OrderSourceType.kiosk;
+  if (source.endsWith('_POS')) return OrderSourceType.pos;
+  return OrderSourceType.app;
+}

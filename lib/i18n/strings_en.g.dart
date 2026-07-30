@@ -729,7 +729,7 @@ class _Translations$settings$order_source_color$en extends Translations$settings
 
 	// Translations
 	@override String get title => 'Color by Order Source';
-	@override String get desc => 'Distinguish app and kiosk orders by card background color.';
+	@override String get desc => 'Distinguish app, kiosk, and POS orders by card background color.';
 }
 
 // Path: settings.kds_ignore_status

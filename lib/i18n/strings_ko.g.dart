@@ -1263,8 +1263,8 @@ class Translations$settings$order_source_color$ko {
 	/// ko: '주문 출처별 색상'
 	String get title => '주문 출처별 색상';
 
-	/// ko: '앱 주문과 키오스크 주문을 카드 배경색으로 구분합니다.'
-	String get desc => '앱 주문과 키오스크 주문을 카드 배경색으로 구분합니다.';
+	/// ko: '앱·키오스크·POS 주문을 카드 배경색으로 구분합니다.'
+	String get desc => '앱·키오스크·POS 주문을 카드 배경색으로 구분합니다.';
 }
 
 // Path: settings.kds_ignore_status

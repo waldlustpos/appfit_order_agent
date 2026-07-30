@@ -621,7 +621,8 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
           'displayNum=${currentOrder.displayNum}, simpleNum=${currentOrder.shopOrderNo}, orderId=${currentOrder.orderId}';
       logToFile(tag: LogTag.UI_ACTION, message: '주문 취소버튼: $orderInfo');
 
-      bool isKioskOrder(OrderModel o) => o.source == 'WALD_KIOSK';
+      bool isKioskOrder(OrderModel o) =>
+          classifyOrderSource(o.source) == OrderSourceType.kiosk;
 
       if (isKioskOrder(currentOrder)) {
         CommonDialog.showInfoDialog(
@@ -833,21 +834,12 @@ class _SourcePill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ({String label, Color bg, Color fg})? spec = switch (source) {
-      'WALD_APPFIT' => (
-          label: 'APP',
-          bg: AppStyles.kAppOrderBg,
-          fg: AppStyles.kAppOrderFg,
-        ),
-      'WALD_KIOSK' => (
-          label: 'KIOSK',
-          bg: AppStyles.kBlueAlpha,
-          fg: AppStyles.kBlue,
-        ),
-      _ => null,
+    final label = switch (classifyOrderSource(source)) {
+      OrderSourceType.app => 'APP',
+      OrderSourceType.kiosk => 'KIOSK',
+      OrderSourceType.pos => 'POS',
     };
-
-    if (spec == null) return const SizedBox.shrink();
+    final palette = AppStyles.orderSourcePalette(source);
 
     return Container(
       padding: const EdgeInsets.symmetric(
@@ -855,13 +847,13 @@ class _SourcePill extends StatelessWidget {
         vertical: AppSpacing.s4,
       ),
       decoration: BoxDecoration(
-        color: spec.bg,
+        color: palette.bg,
         borderRadius: AppRadius.bSm,
       ),
       child: Text(
-        spec.label,
+        label,
         style: AppTextStyles.bodySm.copyWith(
-          color: spec.fg,
+          color: palette.fg,
           fontWeight: FontWeight.w600,
         ),
       ),
