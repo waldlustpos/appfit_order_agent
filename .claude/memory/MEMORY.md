@@ -41,3 +41,4 @@
 - [BIXOLON XD5-40d 라벨프린터 Android 지원](project_bixolon_xd5_40d.md) — VID 0x1504 자동 라우팅으로 기존 PNG 파이프라인 재사용. so 필수·pdflib 불필요. 실기기 검증 대기 (2026-07-23)
 - [기기 관제(Fleet) 플랫폼](project_fleet_monitoring.md) — 배포 완료·실기기 파일럿 대기. 백엔드는 별도 레포 appfit-fleet. core 승격은 검증 후로 미룸, 격리 테스트가 강제.
 - [Cloudflare Worker 배포 함정](reference_cloudflare_worker_traps.md) — 원클릭 Access가 기기 경로까지 302, d1 create가 바인딩 덧붙임(7404), secret put이 스텁 Worker 생성.
+- [Fleet 규모 확장 한도](reference_fleet_scaling_limits.md) — 무료 천장=하루 heartbeat 10만. 2000대는 유료 $5(10분)/$16(2분). D1 쓰기가 비용 절벽. maxIntervalSeconds 미리 올려둘 것.
