@@ -2,7 +2,11 @@
 
 매장 기기(Sunmi D3 MINI 주문접수기, D2s_KDS, Windows POS)의 **① 앱 실행 상태 ② 기기 정보 ③ 원격 로그 요청**을 다루는 최소 관제 시스템.
 
-> **상태: 구현 완료(2026-07-31), 실기기 파일럿 대기.** 백엔드는 별도 레포 `appfit-fleet`(Cloudflare Workers + D1), 앱 측은 `lib/services/fleet/`.
+> **상태: 배포 완료(2026-07-31), 실기기 파일럿 대기.** 백엔드는 별도 레포 `appfit-fleet`(Cloudflare Workers + D1), 앱 측은 `lib/services/fleet/`.
+>
+> 대시보드: https://appfit-fleet.sckim.workers.dev (자격정보는 `appfit-fleet/DEPLOYMENT.local.md`)
+>
+> 에뮬레이터로 운영 서버 상대 전 구간 검증 완료 — 기기 등록 → 대시보드 표시 → 원격 로그 요청 → Slack 업로드 → 결과 반영. 실기기 검증만 남았다(§6).
 
 이 문서의 이전 버전은 "수신단 미정 / 구현 미착수" 설계안이었다. 실제 구현에서 달라진 결정은 §7 에 정리했다.
 
