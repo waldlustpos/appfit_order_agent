@@ -1,6 +1,7 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'dart:async'; // FutureOr 사용 위해 추가 (build 메서드 반환 타입)
 import 'package:appfit_order_agent/models/order_model.dart';
+import 'package:appfit_order_agent/models/enums/order_cancel_reason.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
 // PrintService import 추가
 import 'package:appfit_order_agent/utils/logger.dart'; // logger import 추가
@@ -168,13 +169,15 @@ class OrderHistory extends _$OrderHistory {
   }
 
   // 주문 취소 기능
-  Future<bool> cancelOrder(String orderId) async {
+  Future<bool> cancelOrder(String orderId,
+      {required OrderCancelReason reason}) async {
     logger.i('주문내역 화면에서 주문 취소 요청: $orderId');
 
     try {
       // 주문 취소는 OrderProvider에 위임
       final orderNotifier = ref.read(orderProvider.notifier);
-      final success = await orderNotifier.cancelOrder(orderId); // 무조건 호출
+      final success =
+          await orderNotifier.cancelOrder(orderId, reason: reason); // 무조건 호출
 
       if (success) {
         logger.i('주문내역 화면에서 주문 취소 성공: $orderId');

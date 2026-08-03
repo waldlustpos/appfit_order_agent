@@ -172,7 +172,7 @@
         },
         "order_source_color": {
             "title": "注文元別の色分け",
-            "desc": "アプリ注文とキオスク注文をカード背景色で区別します。"
+            "desc": "アプリ・キオスク・POS注文をカード背景色で区別します。"
         },
         "kds_ignore_status": {
             "title": "他端末の進行状態通知を無視",
@@ -409,6 +409,15 @@
         "dialog_kiosk_cancel_title": "注文取消",
         "dialog_kiosk_cancel_content": "キオスク注文はキオスク端末で取り消してください。",
         "dialog_cancel_confirm_content": "{n}番の注文を取り消しますか？",
+        "dialog_cancel_reason_title": "キャンセル理由を選択",
+        "dialog_cancel_reason_content": "{n}番注文のキャンセル理由を選択してください。",
+        "cancel_reason_shop_request": "店舗都合",
+        "cancel_reason_shop_closed": "店舗閉店・休業",
+        "cancel_reason_customer_request": "お客様のご要望",
+        "cancel_reason_sold_out": "売り切れ",
+        "cancel_reason_ingredient_shortage": "食材切れ",
+        "cancel_reason_system_error": "システムエラー",
+        "cancel_reason_other": "その他",
         "dialog_repickup_confirm_title": "ピックアップ再要請",
         "dialog_repickup_confirm_content": "{n}番の注文のピックアップを再要請しますか？",
         "dialog_not_picked_up_confirm_title": "未ピックアップ",

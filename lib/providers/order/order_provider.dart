@@ -4,6 +4,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart'; // Generator impo
 import 'package:appfit_order_agent/services/preference_service.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/models/order_model.dart';
+import 'package:appfit_order_agent/models/enums/order_cancel_reason.dart';
 import 'package:appfit_order_agent/exceptions/api_exceptions.dart';
 
 import 'package:appfit_order_agent/providers/order/order_cache_manager.dart';
@@ -1095,7 +1096,8 @@ class Order extends _$Order {
     await _fetchDetailsForVisibleOrders();
   }
 
-  Future<bool> cancelOrder(String orderId) async {
+  Future<bool> cancelOrder(String orderId,
+      {required OrderCancelReason reason}) async {
     final storeId = ref.read(storeProvider).value?.storeId ?? '';
     if (storeId.isEmpty) {
       logger.e('Cannot cancel order: Store ID not found.');
@@ -1108,7 +1110,7 @@ class Order extends _$Order {
       SocketEventSuppressor()
           .add(orderId, appfit_core.OrderEventType.orderCancelled.value);
 
-      final success = await _apiService.cancelOrder(orderId);
+      final success = await _apiService.cancelOrder(orderId, reason: reason);
       if (success) {
         // replication lag 대응: 폴링이 stale active 응답으로 부활시키는 것을 차단.
         _recentRemovals.mark(orderId);
@@ -1547,7 +1549,7 @@ class Order extends _$Order {
       } else {
         success = await _apiService.updateOrderStatus(
             storeId, newStatus, orderId,
-            cancelReason: readyTime);
+            readyTime: readyTime);
       }
 
       logger.d('API 호출 결과 - 성공: $success, orderId: $orderId');

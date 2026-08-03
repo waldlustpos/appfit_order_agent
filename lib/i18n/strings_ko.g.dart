@@ -578,6 +578,33 @@ class Translations$order_detail$ko {
 	/// ko: '{n}번 주문을 취소하시겠습니까?'
 	String dialog_cancel_confirm_content({required Object n}) => '${n}번 주문을 취소하시겠습니까?';
 
+	/// ko: '취소 사유 선택'
+	String get dialog_cancel_reason_title => '취소 사유 선택';
+
+	/// ko: '{n}번 주문의 취소 사유를 선택해주세요.'
+	String dialog_cancel_reason_content({required Object n}) => '${n}번 주문의 취소 사유를 선택해주세요.';
+
+	/// ko: '매장 사정'
+	String get cancel_reason_shop_request => '매장 사정';
+
+	/// ko: '매장 마감/휴무'
+	String get cancel_reason_shop_closed => '매장 마감/휴무';
+
+	/// ko: '고객 요청'
+	String get cancel_reason_customer_request => '고객 요청';
+
+	/// ko: '품절'
+	String get cancel_reason_sold_out => '품절';
+
+	/// ko: '재료 소진'
+	String get cancel_reason_ingredient_shortage => '재료 소진';
+
+	/// ko: '시스템 오류'
+	String get cancel_reason_system_error => '시스템 오류';
+
+	/// ko: '기타'
+	String get cancel_reason_other => '기타';
+
 	/// ko: '픽업 재요청'
 	String get dialog_repickup_confirm_title => '픽업 재요청';
 
@@ -1236,8 +1263,8 @@ class Translations$settings$order_source_color$ko {
 	/// ko: '주문 출처별 색상'
 	String get title => '주문 출처별 색상';
 
-	/// ko: '앱 주문과 키오스크 주문을 카드 배경색으로 구분합니다.'
-	String get desc => '앱 주문과 키오스크 주문을 카드 배경색으로 구분합니다.';
+	/// ko: '앱·키오스크·POS 주문을 카드 배경색으로 구분합니다.'
+	String get desc => '앱·키오스크·POS 주문을 카드 배경색으로 구분합니다.';
 }
 
 // Path: settings.kds_ignore_status

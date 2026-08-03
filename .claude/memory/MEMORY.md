@@ -1,44 +1,41 @@
 - [매장 프린터 토폴로지](project_store_printer_topology.md) — 외부=COM 시리얼, 라벨=USB, 별개 본체. Winspool 의도적 배제.
-- [큐 enqueue 시점 / fire-and-forget](feedback_queue_enqueue_timing.md) — 큐 분리만으로는 부족, sub-job enqueue 가 다른 await 보다 앞에. UI 트리거는 큐 결과 await 금지.
-- [FFI Isolate boxing](feedback_ffi_isolate_boxing.md) — USB/하드웨어 FFI 동기 호출은 Isolate.run 으로, handle address 만 cross-isolate. unawaited 만으로는 main thread block.
-- [Hot-reload vs cold-restart 사고](feedback_hot_reload_cold_restart.md) — 프린터/FFI/native 영역에 새 import + static 멤버 + 함수 재작성을 한 커밋에 묶으면 hot-reload 가 hang 처럼 보일 수 있음. cold-restart 로 검증.
-- [Windows 도구 함정](reference_windows_toolchain_quirks.md) — python 은 스텁(no-op), PowerShell 거부, dart.exe analyzer 잠금, background Bash 출력 재정렬. 자동화는 Dart 스크립트, 결과는 파일+inline git 으로 확인.
-- [appfit_core 듀얼 레포](project_appfit_core_dual_repo.md) — core 는 별도 git 레포(appifit_agent_core), 앱은 태그 ref 핀. 수정=태그+푸시+ref 범프 끝까지.
-- [접수 흐름 = 본질적 복잡도](project_order_intake_essential_complexity.md) — 과도설계 아님. 통합 3안 모두 복잡도 이동 착시로 반증. 건드리면 안 될 6선 + 진짜 가치는 청소+불변식 테스트.
-- [주문 접수 흐름 단순화 진단 = 1순위 목표](project_order_flow_simplification.md) — 과도설계 여부 진단 및 더 단순한 설계 여지 평가(버그 헌팅 아님). 레이스는 복잡도의 증상이자 보존할 불변식.
+- [큐 enqueue 시점 / fire-and-forget](feedback_queue_enqueue_timing.md) — sub-job enqueue 는 다른 await 보다 앞에. UI 트리거는 큐 결과 await 금지.
+- [FFI Isolate boxing](feedback_ffi_isolate_boxing.md) — USB/하드웨어 FFI 동기 호출은 Isolate.run 으로(handle address 만 cross-isolate). unawaited 만으론 main thread block.
+- [Hot-reload vs cold-restart 사고](feedback_hot_reload_cold_restart.md) — 프린터/FFI/native 에 새 import+static+함수 재작성을 한 커밋에 묶으면 hot-reload 가 hang 처럼 보임. cold-restart 로 검증.
+- [Windows 도구 함정](reference_windows_toolchain_quirks.md) — python 스텁(no-op)·PowerShell 거부·dart.exe analyzer 잠금·background Bash 출력 재정렬. 자동화는 Dart 스크립트로.
+- [appfit_core 듀얼 레포](project_appfit_core_dual_repo.md) — core 는 별도 레포(appifit_agent_core), 앱은 태그 ref 핀. 수정=태그+푸시+ref 범프까지.
+- [접수 흐름 = 본질적 복잡도](project_order_intake_essential_complexity.md) — 과도설계 아님. 통합 3안 모두 복잡도 이동 착시로 반증. 건드리면 안 될 6선 + 진짜 가치는 불변식 테스트.
+- [주문 접수 흐름 단순화 진단](project_order_flow_simplification.md) — 과도설계 진단·더 단순한 설계 여지 평가(버그 헌팅 아님). 레이스는 복잡도의 증상이자 보존할 불변식.
 - [slang 재생성 명령](reference_slang_regen_command.md) — i18n 변경 후 `dart run slang`. build_runner 로는 strings.g.dart 안 바뀜.
-- [외부 프린터 생존 판정](reference_external_printer_liveness.md) — Windows 외부=DLE EOT 1 핑이 권위. PR800은 DSR/CTS 0x00 미전달(CDC 한정). probe-timeout=wedge, 전원 사이클 회복.
-- [PR800 RS-232 직결](project_pr800_rs232_serial.md) — 시리얼측 baud 115200 고정, NEXT-340PL(PL2303) 검증 OK. StopBits DCB raw값(1=1.5stop) 버그였음. 무응답이면 baud 스윕+DLE EOT.
-- [두 변형 빌드 골격](project_dual_variant_build.md) — update/standalone, .appfit suffix. standalone=신규설치(설정 비승계, 마이그레이션 미구현). Windows격리=Runner.rc ProductName. standalone Inno GUID 영구. ※변형은 2026-07-09 폐기됨([[project_variant_rename_japan_korea]]) — 이력용.
-- [app_env.dart gitignore 함정](project_app_env_gitignored_variant.md) — app_env.dart/.env 는 머신별 gitignored 로컬. 브랜치가 새 AppEnv 멤버 추가 시 stale 사본에서 "Member not found" 빌드 실패(variant/isStandalone 은 제거됨, 현재 showInternalUi/slackBotToken/slackChannelId). const 필수.
-- [launch.json 변형 dart-define](reference_launch_json_variant_dart_define.md) — --flavor 는 Windows 무시. 변형 구분은 --dart-define=APPFIT_VARIANT 필수. cold restart 로만 재평가. ※APPFIT_VARIANT 자체가 2026-07-09 제거됨([[project_variant_rename_japan_korea]]) — 이력용.
-- [standalone 첫 INSTALL 패스 실패](project_windows_standalone_first_install_pass_fails.md) — fresh configure 직후 첫 빌드 INSTALL(MSB3073) 실패, 2차 증분 성공. build_windows.ps1 은 exit code 미검사라 깨진 산출물(data/ 누락) 아카이브.
-- [EnableImpeller 플래그가 opt-out으로 보고](reference_impeller_flag_reports_optout.md) — 매니페스트 value=true인데 T2mini_s 런타임은 Impeller opt-out(→Skia). "구형 기기 무탈"의 이유이자 Skia 제거 시 절벽. Flutter 업그레이드 전 Impeller-GLES 실검증 필수.
-- [버스트 주문 정렬 = orderedAt 우선](project_order_sort_tiebreak_burst.md) — 정본 compareForDisplay(orderedAt primary + 동일시각 displayNo tiebreak). displayNo 는 채널마다 대역 달라 단독 정렬 불가(멀티채널=시간순). 양 버퍼 디바운스+cap, emit 가드. 2026-07-13 완료.
-- [fakeAsync 순수 Timer 원칙](reference_fakeasync_pure_timer.md) — 타이머 버퍼 로직은 순수 Timer 로. DateTime.now() 는 fakeAsync 가상시계 미추종 → cap 테스트 실패. cap=재무장 안 하는 별도 Timer.
-- [D2s_KDS 는 32비트 전용](project_d2s_kds_32bit_only.md) — zygote32/abilist64 공란. armeabi-v7a 빼면 INSTALL_FAILED_NO_MATCHING_ABIS. SoC 스펙·웹리서치 둘 다 틀렸음 → ABI 축소는 fleet 전수 getprop 실측 후에만.
-- [AppFit UI 리프레시 Phase 1~6 완료](project_ui_refresh.md) — 디자인 토큰·공용 컴포넌트·애니메이션·팝업·로그인 2분할 재설계 (Phase 6: 2026-04-15)
-- [서버 전환 재로그인 크래시](project_server_switch_crash.md) — 로그아웃→환경 변경→재로그인 크래시 (2026-04-23 조사). +2026-07-22 원인#4(keepAlive 잔존) 구체 사례 수정: 매장 전환 후 shopCatalog stale categories 404(Sentry 62c783…) → 로그아웃 시 storeProvider/shopCatalog invalidate + shopCatalog 로딩 가드 + 테스트(미커밋). 동반 토큰 404 2건(NOT_FOUND_OWNER, 토큰 발급 실패)도 같은 뿌리(인터셉터가 요청 shopCode로 sign-in 재발급) → 함께 해결
-- [라벨 ACK 패치 — BITMAP PoC + buzzer 비트 식별](project_label_ack_patch.md) — Caysn 우회 USB Direct 구현 완료. paper-state machine + BITMAP 인쇄 + buzzer flag(byte1 0x01) USB 비트 발견. race 시 펌웨어 안전 처리 확인 → 청산점 #958 가설 약화 (2026-05-04). 다음: 설정 토글 통합 + 출력 로직 정비.
-- [USB Busy Holder helper APK 검증 중](project_usb_busy_holder_test.md) — 외부 영수증 프린터 BUSY backoff 재현용 helper APK 작성/빌드 완료. helper HOLDING 까지 됐으나 본 앱 fd 보유로 claim 무효 상태에서 멈춤. 다음: force-stop/케이블 분리/외부 토글로 본 앱 측 `claimInterface failed` 로그 검증 (2026-05-19).
-- [appfit_core 배포는 release.sh 단일 진입점](feedback_appfit_core_release.md) — pubspec.yaml만 수정 후 tool/release.sh. 직접 git tag/push 금지 (v1.0.10 packageVersion 동기화 누락 사고).
-- [2026-06 종합 아키텍처 감사 결론](project_refactor_audit_2026_06.md) — 전면 리팩토링 불필요, 테스트 안전망→점진 분해 로드맵. OrderMenuModel == 실버그, BatchMergeBuffer는 DID 사용(제거 금지), 보고서는 plans/appfit-order-agent-appifit-agent-core-lexical-naur.md
-- [standalone OTA 채널 분기](project_standalone_ota_channel.md) — APPFIT_VARIANT dart-define로 update/standalone OTA URL 컴파일 타임 분기. /deploy→/deploy-android 개명 + 변형 선택 (2026-06-25)
-- [기기 로그 원격 수집→Slack + 관재 토대](project_remote_log_collection.md) — **+2026-07-07: 설정버튼 경로만 새 브랜치 feat/log-upload-slack에 통합(머지 8531292·미푸시·main 미변경, 소켓트리거 제외=appfit_core v1.1.0 회피, SlackDirectSink 직접첨부, analyze0/+201pass). 남은 것: 봇토큰 .env(SLACK_BOT_TOKEN/CHANNEL_ID)+라이브검증.** 이전(2026-06-30): feature/remote-log-collection 구현 완료(앱+core v1.1.0). docs/REMOTE_LOG_COLLECTION.md 참고
-- [T2_mini_s UI 성능 감사 완료 + 후속](project_ui_perf_audit_2026_07.md) — P1(updateShouldNotify 딥 비교) 등 6건 수정 적용·테스트 고정. 남은 것: login-bg.png 죽은 자산 669KB, 실기기 profile 측정, Impeller A/B (2026-07-02)
-- [C4 모델 4개 repo (앱3 + 라이브러리1) 완료](project_c4_models.md) — **+2026-07-06 appfit_core(공유 라이브러리) 판형 변경 신규 작성·Outline 게시(corec4model 18p·appfit_core-as-is-0MNqg8q6lG).** 46페이지 + AS-IS.md×3 + C4_GUIDE.md. **appfit 66건(main 6f51428)·kokonut 15p(feature/kds-mode 6b23a19)·did 14p(feat/mediaplayer-engine 1bd599f) 정정 완료 — 3 repo 모두 커밋·origin push 완료(verify_c4.py 자립). AS-IS Outline 재게시 완료(2026-07-05, did/.env OUTLINE_KEY로 documents.update). **프로젝트 완결.** repo별 고유 계통오류(kokonut: Firestore=K069단독·Dio 인터셉터·출력 3채널 / did: 비디오 3종·MediaPlayer 이관·C:\video 날조·Sentry breadcrumb 제거)는 상세 메모 참조 (2026-07-04)
-- [LocalServerService → 로그 다운로드 서버 재구성 계획](project_log_server_plan.md) — 상품상태 API 전면 제거, 브라우저 날짜별 목록+개별 다운로드로 교체. plans/tender-noodling-bumblebee.md 에 계획 저장, 구현은 미착수 (2026-07-06)
-- [기기·앱 모니터링 최소 시스템 설계 확정](project_device_monitoring_design.md) — docs/DEVICE_MONITORING.md 커밋(626a73e), 구현 미착수. 설치 UUID + register/heartbeat 분리 + NoopSink, 수신단 미정. lift 대상은 미푸시 브랜치 feature/remote-log-collection (2026-07-07)
-- [주문흐름·출력 누락/몰림 점검 완료](project_order_output_audit_2026_07.md) — P1 3건(최종실패 무통지·재시작 유실·emit 이중기동) 검증, 보고서 plans/output-joyful-noodle.md 승인. 수정은 별도 세션 항목별, 실패통지=앱내 배너/배지 확정. 문서·인스펙터 카탈로그 구식 발견 (2026-07-07)
-- [Plane(waldsupport.com) 이슈 벌크 생성 도구](project_plane_issue_sync.md) — plane_sync/plane_sync.py(서브커맨드 check/create/states/labels) + /plane 슬래시 명령. 토큰 PLANE_API_TOKEN(.env), 프로젝트 SX(KIOSK/AGENT). 멱등 external_id, 미커밋(main) (2026-07-09)
-- [변형 폐기 → 단일 빌드 + 런타임 서버선택](project_variant_rename_japan_korea.md) — **+2026-07-09(2차) APPFIT_VARIANT 완전 제거**: 하나의 APK/exe가 한/일 서빙. 서버=저장값(기본 live)+로그인 배지(릴리즈 2종)+매장ID 프리픽스 자동전환(BrandRegistry), 미등록 프리픽스 1회 다이얼로그(override 키). OTA는 Android `_appfit` 단일 신설(무접미 동결 유지)·Windows 레거시 단일. 스크립트 인자 전부 제거. 통합작업은 c3f226d 보존 커밋. app_env.dart(gitignore 로컬) 타 머신 반영 필요 (2026-07-09)
-- [Sentry 알림 라우팅](project_sentry_alert_routing.md) — 매장/브랜드별 store_id→Slack 채널 분기, sentry_alerts/ 스크립트 코드화. MCP는 규칙 생성 불가·읽기만. 라이브 적용은 SENTRY_AUTH_TOKEN 대기.
-- [intra-order 라벨 300ms 딜레이](project_label_inter_label_delay.md) — 동일 주문 라벨 사이 firmware '종이 안 뗌' 감지 미동작(장비편차) 대응. output_service 루프에 Android 한정 고정 딜레이. 실기 Sunmi 300ms 검증완료 (2026-07-21)
-- [brand 로고 solid 배경 = 색상 마스크](reference_brand_logo_solid_bg_color_mask.md) — 원본이 알파 없는 solid 배경이면 docs alpha 매핑 대신 ImageChops.subtract(b,r) 파랑 마스크. PAIK 새 BI 교체 이력(라벨=Paik's 크롭, 세컨 dm_paik+#FECE00 setImage slug 스코핑) (2026-07-21)
-- [COM 재시도 계층 경계](feedback_com_startup_retry_scope.md) — sendRaw 는 큐 backoff 가 kokonut K2 상위 호환이라 내부 재시도 금지(면제는 sendRaw 한정). 시작 연결확인만 StartupProbeScheduler 5/15/30/60/60s. probe 결과는 출력을 게이트 안 함 (2026-07-21)
-- [logToFile ≠ 파일 보장](reference_appfit_log_file_whitelist.md) — logger.dart 화이트리스트(level>=warning 또는 태그 문자열)가 결정. logger.w/e 는 이미 파일행 → 승격은 추가 아닌 치환. onFinalFailure 의 "Sentry 자동 캡처" 주석은 거짓
-- [업데이트 채널 정책 반전](project_update_channel_policy_mhst_sunmi.md) — MHST+Sunmi만 앱스토어(OTA OFF), 그 외 전부 OTA(ON). 옛 "sunmi 전부 OFF+TPCP만 ON" 뒤집음. 분기축=제조사 sunmi + BrandFeature.sunmiAppStoreUpdate(MHST단독). 마커 KEY_UPDATE_POLICY_MHST_SUNMI_V1 로 기존 fleet 1회 재조정. 미커밋·미배포 (2026-07-22)
-- [Sentry Crons 앱 실행중 판정 검증](project_sentry_crons_liveness.md) — heartbeat 끊기면 missed 자동감지→이슈. HTTP envelope 체크인으로 토큰·대시보드 없이 모니터 upsert(tool/cron_heartbeat_test.dart). 8.14.2엔 captureCheckIn 없음(SDK는 9.x 업그레이드 전제). 모니터당 과금. 테스트만·미도입 (2026-07-22)
-- [의존성 tier① 업그레이드 실행](project_deps_tier1_upgrade.md) — 감사 후 저위험 5묶음 브랜치 실행(미푸시). tier②(Sentry/serial/Riverpod)·tier③ 로드맵 대기. 보고서 plans/dependencies-dazzling-wilkinson.md
-- [slang4 다파일 + analyze baseline 함정](reference_slang4_multifile_and_analyze_baseline.md) — slang4=다파일 생성(strings_<locale>.g.dart 필수 커밋)+lazy:false 동기API. analyze warning baseline 69(0 아님). unused_catch_stack=analyzer 진단(linter 룰 아님). grep \s POSIX 미지원
-- [BIXOLON XD5-40d 라벨프린터 Android 지원](project_bixolon_xd5_40d.md) — VID 0x1504 자동 라우팅으로 기존 PNG 파이프라인 재사용. connect(UsbDevice) 인자 무시·pdflib aar 불필요·so 필수 함정, submit-wins, APK +15MB. 실기기 검증 대기 (2026-07-23)
+- [외부 프린터 생존 판정](reference_external_printer_liveness.md) — Windows 외부=DLE EOT 1 핑이 권위. PR800 은 DSR/CTS 0x00 미전달(CDC 한정). probe-timeout=wedge.
+- [PR800 RS-232 직결](project_pr800_rs232_serial.md) — 시리얼측 baud 115200 고정, NEXT-340PL(PL2303) 검증 OK. StopBits DCB raw값(1=1.5stop) 버그였음.
+- [app_env.dart gitignore 함정](project_app_env_gitignored_variant.md) — app_env.dart/.env 는 머신별 gitignored 로컬. 새 AppEnv 멤버 추가 브랜치는 stale 사본에서 빌드 실패. const 필수.
+- [standalone 첫 INSTALL 패스 실패](project_windows_standalone_first_install_pass_fails.md) — fresh configure 후 첫 INSTALL(MSB3073) 실패·2차 성공. build_windows.ps1 exit code 미검사 → 깨진 산출물 아카이브.
+- [EnableImpeller 플래그가 opt-out 으로 보고](reference_impeller_flag_reports_optout.md) — 매니페스트 value=true 인데 T2mini_s 런타임은 Impeller opt-out(→Skia). Flutter 업그레이드 전 실검증 필수.
+- [버스트 주문 정렬 = orderedAt 우선](project_order_sort_tiebreak_burst.md) — 정본 compareForDisplay(orderedAt primary + displayNo tiebreak). displayNo 단독 정렬 불가 (2026-07-13 완료)
+- [fakeAsync 순수 Timer 원칙](reference_fakeasync_pure_timer.md) — 타이머 버퍼 로직은 순수 Timer 로. DateTime.now() 는 가상시계 미추종 → cap 테스트 실패.
+- [D2s_KDS 는 32비트 전용](project_d2s_kds_32bit_only.md) — armeabi-v7a 빼면 INSTALL_FAILED_NO_MATCHING_ABIS. SoC 스펙·웹리서치 둘 다 틀렸음 → ABI 축소는 fleet 실측 후에만.
+- [AppFit UI 리프레시 Phase 1~6 완료](project_ui_refresh.md) — 디자인 토큰·공용 컴포넌트·애니메이션·팝업·로그인 2분할 재설계 (2026-04-15)
+- [서버 전환 재로그인 크래시](project_server_switch_crash.md) — 로그아웃→환경 변경→재로그인 크래시. 로그아웃 시 storeProvider/shopCatalog invalidate 로 stale 404 해결 (2026-07-22)
+- [라벨 ACK 패치 — BITMAP PoC + buzzer 비트](project_label_ack_patch.md) — Caysn 우회 USB Direct 구현 완료. paper-state machine + BITMAP + buzzer flag USB 비트 발견 (2026-05-04)
+- [USB Busy Holder helper APK 검증 중](project_usb_busy_holder_test.md) — 외부 영수증 BUSY backoff 재현용 helper APK. HOLDING 까지 됐으나 본 앱 fd 보유로 claim 무효에서 정지 (2026-05-19)
+- [appfit_core 배포는 release.sh 단일 진입점](feedback_appfit_core_release.md) — pubspec.yaml 만 수정 후 tool/release.sh. 직접 git tag/push 금지.
+- [2026-06 종합 아키텍처 감사 결론](project_refactor_audit_2026_06.md) — 전면 리팩토링 불필요, 테스트 안전망→점진 분해. OrderMenuModel==실버그, BatchMergeBuffer 는 DID 사용(제거 금지).
+- [기기 로그 원격 수집→Slack + 관재 토대](project_remote_log_collection.md) — 브랜치 feat/log-upload-slack 에 설정버튼 경로만 통합(미푸시). 남은 것: 봇토큰 .env + 라이브 검증 (2026-07-07)
+- [T2_mini_s UI 성능 감사 완료 + 후속](project_ui_perf_audit_2026_07.md) — P1(updateShouldNotify 딥 비교) 등 6건 수정·테스트 고정. 남은 것: 실기기 profile, Impeller A/B (2026-07-02)
+- [C4 모델 4개 repo (앱3 + 라이브러리1) 완료](project_c4_models.md) — 64페이지 + AS-IS.md. 작성→검증→Outline 게시→push 전부 완료. 아키텍처 변경 시 함께 갱신 (2026-07-06)
+- [LocalServerService → 로그 다운로드 서버 재구성 계획](project_log_server_plan.md) — 상품상태 API 제거, 날짜별 목록+개별 다운로드로 교체. 계획만 저장·구현 미착수 (2026-07-06)
+- [기기·앱 모니터링 최소 시스템 설계 확정](project_device_monitoring_design.md) — docs/DEVICE_MONITORING.md 커밋, 구현 미착수. 설치 UUID + register/heartbeat 분리 + NoopSink (2026-07-07)
+- [주문흐름·출력 누락/몰림 점검 완료](project_order_output_audit_2026_07.md) — P1 3건(최종실패 무통지·재시작 유실·emit 이중기동) 검증. 실패통지=앱내 배너/배지 확정, 수정은 별도 (2026-07-07)
+- [Plane(waldsupport.com) 이슈 벌크 생성 도구](project_plane_issue_sync.md) — plane_sync/plane_sync.py + /plane 명령. 토큰 PLANE_API_TOKEN(.env), 프로젝트 SX. 미커밋 (2026-07-09)
+- [변형 폐기 → 단일 빌드 + 런타임 서버선택](project_variant_rename_japan_korea.md) — APPFIT_VARIANT 완전 제거, 단일 APK/exe 가 한/일 서빙. 서버=저장값+매장ID 프리픽스 자동전환. 폐기된 변형 기계는 이력용 보존: [두 변형 빌드 골격](project_dual_variant_build.md)·[launch.json dart-define](reference_launch_json_variant_dart_define.md)·[standalone OTA 채널](project_standalone_ota_channel.md) (2026-07-09)
+- [Sentry 알림 라우팅](project_sentry_alert_routing.md) — store_id→Slack 채널 분기, sentry_alerts/ 스크립트 코드화. MCP는 읽기만. 라이브 적용은 SENTRY_AUTH_TOKEN 대기.
+- [intra-order 라벨 300ms 딜레이](project_label_inter_label_delay.md) — 동일 주문 라벨 사이 firmware '종이 안 뗌' 감지 미동작(장비편차) 대응. Android 한정 고정 딜레이 (2026-07-21)
+- [brand 로고 solid 배경 = 색상 마스크](reference_brand_logo_solid_bg_color_mask.md) — 알파 없는 solid 배경은 docs alpha 매핑 대신 ImageChops.subtract(b,r) 파랑 마스크. PAIK 새 BI 교체 이력 (2026-07-21)
+- [COM 재시도 계층 경계](feedback_com_startup_retry_scope.md) — sendRaw 는 큐 backoff 가 상위 호환이라 내부 재시도 금지. 시작 연결확인만 StartupProbeScheduler (2026-07-21)
+- [logToFile ≠ 파일 보장](reference_appfit_log_file_whitelist.md) — logger.dart 화이트리스트가 결정. logger.w/e 는 이미 파일행 → 승격은 추가 아닌 치환.
+- [업데이트 채널 정책 반전](project_update_channel_policy_mhst_sunmi.md) — MHST+Sunmi만 앱스토어(OTA OFF), 그 외 전부 OTA(ON). 마커 KEY_UPDATE_POLICY_MHST_SUNMI_V1. 미커밋·미배포 (2026-07-22)
+- [Sentry Crons 앱 실행중 판정 검증](project_sentry_crons_liveness.md) — heartbeat 끊기면 missed 자동감지→이슈. HTTP envelope 로 모니터 upsert. 모니터당 과금. 테스트만·미도입 (2026-07-22)
+- [의존성 tier① 업그레이드 실행](project_deps_tier1_upgrade.md) — 저위험 5묶음 브랜치 실행(미푸시). tier②(Sentry/serial/Riverpod)·tier③ 로드맵 대기.
+- [slang4 다파일 + analyze baseline 함정](reference_slang4_multifile_and_analyze_baseline.md) — slang4=다파일 생성(strings_<locale>.g.dart 커밋 필수)+lazy:false. analyze warning baseline 69(0 아님).
+- [BIXOLON XD5-40d 라벨프린터 Android 지원](project_bixolon_xd5_40d.md) — VID 0x1504 자동 라우팅으로 기존 PNG 파이프라인 재사용. so 필수·pdflib 불필요. 실기기 검증 대기 (2026-07-23)

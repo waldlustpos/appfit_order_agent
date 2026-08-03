@@ -152,6 +152,8 @@ class AppStyles {
   // 배경은 kBlueAlpha(키오스크)와 동일한 0x14 알파로 옅게 맞춤
   static const Color kAppOrderBg = Color(0x1422C55E); // 앱 주문 배경(옅은 초록)
   static const Color kAppOrderFg = Color(0xFF22C55E); // 앱 주문 전경/강조(초록)
+  static const Color kPosOrderBg = Color(0x1464748B); // POS 주문 배경(옅은 슬레이트)
+  static const Color kPosOrderFg = Color(0xFF64748B); // POS 주문 전경/강조(슬레이트그레이)
 
   /// 앰버 — 준비완료(READY) 상태 강조색
   static const Color kAmber = Color(0xFFF59E0B);
@@ -345,12 +347,13 @@ class AppStyles {
     return OrderPalette(bg, fg);
   }
 
-  /// 주문 출처(앱/키오스크) 기반 카드 배경·전경 색 페어.
+  /// 주문 출처(앱/키오스크/POS) 기반 카드 배경·전경 색 페어.
   ///
   /// '주문 출처별 색상' 설정이 ON일 때 [orderPalette] 대신 사용한다.
   /// - [isCancelled]: 취소는 빨강 계열 (상태 우선)
   /// - [muted]: KDS 픽업·완료처럼 bg를 중성(gray2)으로 고정하되 fg는 유지
-  /// - 키오스크: 파랑(kBlueAlpha/kBlue), 앱(그 외): 연두 배경/초록 전경
+  /// - 키오스크: 파랑(kBlueAlpha/kBlue), POS: 슬레이트그레이(kPosOrderBg/Fg),
+  ///   앱(그 외): 연두 배경/초록 전경 — 분류는 [classifyOrderSource] 기준
   static OrderPalette orderSourcePalette(
     String source, {
     bool isCancelled = false,
@@ -359,11 +362,13 @@ class AppStyles {
     if (isCancelled) {
       return const OrderPalette(kRedAlpha, kRed);
     }
-    final isKiosk = source == 'WALD_KIOSK';
-    final fg = isKiosk ? kBlue : kAppOrderFg;
+    final (bg, fg) = switch (classifyOrderSource(source)) {
+      OrderSourceType.kiosk => (kBlueAlpha, kBlue),
+      OrderSourceType.pos => (kPosOrderBg, kPosOrderFg),
+      OrderSourceType.app => (kAppOrderBg, kAppOrderFg),
+    };
     if (muted) return OrderPalette(gray2, fg);
-    if (isKiosk) return const OrderPalette(kBlueAlpha, kBlue);
-    return const OrderPalette(kAppOrderBg, kAppOrderFg);
+    return OrderPalette(bg, fg);
   }
 
   /// 주문 상태(OrderStatus)별 배경·전경 색 페어 (단일 진실 공급원).

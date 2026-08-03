@@ -70,7 +70,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "BRANCH=$(git branch --show-current 2>/dev/null || echo \"unknown\"); STATUS=$(git status --short 2>/dev/null | head -20 || echo \"(clean)\"); jq -n --arg b \"$BRANCH\" --arg s \"$STATUS\" '{\"hookSpecificOutput\": {\"hookEventName\": \"UserPromptSubmit\", \"additionalContext\": (\"[Git Context]\\nBranch: \" + $b + \"\\n\" + $s)}}'",
+            "command": "BRANCH=$(git branch --show-current 2>/dev/null); [ -n \"$BRANCH\" ] || BRANCH=\"unknown\"; STATUS=$(git status --short 2>/dev/null); if [ -z \"$STATUS\" ]; then STATUS=\"(clean)\"; else TOTAL=$(printf '%s\\n' \"$STATUS\" | wc -l | tr -d ' '); if [ \"$TOTAL\" -gt 20 ]; then STATUS=$(printf '%s\\n... (+%d more)' \"$(printf '%s\\n' \"$STATUS\" | head -20)\" \"$((TOTAL-20))\"); fi; fi; jq -n --arg b \"$BRANCH\" --arg s \"$STATUS\" '{\"hookSpecificOutput\": {\"hookEventName\": \"UserPromptSubmit\", \"additionalContext\": (\"[Git Context]\\nBranch: \" + $b + \"\\n\" + $s)}}'",
+            "timeout": 5,
             "statusMessage": "git 상태 주입 중..."
           }
         ]

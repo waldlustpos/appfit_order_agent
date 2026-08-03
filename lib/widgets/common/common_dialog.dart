@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:appfit_order_agent/constants/app_styles.dart';
+import 'package:appfit_order_agent/models/enums/order_cancel_reason.dart';
 import 'package:appfit_order_agent/models/product_model.dart';
 import 'package:appfit_order_agent/i18n/strings.g.dart';
 import 'package:appfit_core/appfit_core.dart';
@@ -40,6 +41,83 @@ class CommonDialog {
           confirmText: resolvedConfirm,
           cancelText: resolvedCancel,
           onConfirm: onConfirm,
+        );
+      },
+    );
+  }
+
+  /// 취소 사유 선택 다이얼로그.
+  /// 선택된 사유(`OrderCancelReason`)를 반환, 바깥 탭/닫기 시 null 반환.
+  static Future<OrderCancelReason?> showCancelReasonDialog({
+    required BuildContext context,
+    required String displayNum,
+  }) async {
+    return await showDialog<OrderCancelReason>(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: const RoundedRectangleBorder(
+            borderRadius: AppRadius.bLg,
+          ),
+          title: _dialogTitleWithClose(
+            title: Text(
+              t.order_detail.dialog_cancel_reason_title,
+              style: AppTextStyles.title,
+            ),
+            onClose: () => Navigator.of(context).pop(),
+          ),
+          titlePadding: const EdgeInsets.fromLTRB(
+            AppSpacing.s24,
+            AppSpacing.s16,
+            AppSpacing.s16,
+            AppSpacing.s8,
+          ),
+          contentPadding: const EdgeInsets.fromLTRB(
+            AppSpacing.s24,
+            AppSpacing.s16,
+            AppSpacing.s24,
+            AppSpacing.s8,
+          ),
+          content: SizedBox(
+            width: 420,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  t.order_detail.dialog_cancel_reason_content(n: displayNum),
+                  style: AppTextStyles.body.copyWith(fontSize: 17),
+                ),
+                const SizedBox(height: AppSpacing.s16),
+                ...OrderCancelReason.values.map(
+                  (reason) => Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.s12),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton(
+                        style: AppStyles.outlinedButton(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.s20,
+                            vertical: AppSpacing.s12,
+                          ),
+                          minimumSize: const Size(double.infinity, 45),
+                        ),
+                        onPressed: () => Navigator.of(context).pop(reason),
+                        child: Text(
+                          _cancelReasonLabel(reason),
+                          style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         );
       },
     );
@@ -427,6 +505,25 @@ Widget _dialogTitleWithClose({
       ),
     ],
   );
+}
+
+String _cancelReasonLabel(OrderCancelReason reason) {
+  switch (reason) {
+    case OrderCancelReason.SHOP_REQUEST:
+      return t.order_detail.cancel_reason_shop_request;
+    case OrderCancelReason.SHOP_CLOSED:
+      return t.order_detail.cancel_reason_shop_closed;
+    case OrderCancelReason.CUSTOMER_REQUEST:
+      return t.order_detail.cancel_reason_customer_request;
+    case OrderCancelReason.SOLD_OUT:
+      return t.order_detail.cancel_reason_sold_out;
+    case OrderCancelReason.INGREDIENT_SHORTAGE:
+      return t.order_detail.cancel_reason_ingredient_shortage;
+    case OrderCancelReason.SYSTEM_ERROR:
+      return t.order_detail.cancel_reason_system_error;
+    case OrderCancelReason.OTHER:
+      return t.order_detail.cancel_reason_other;
+  }
 }
 
 String _statusKoreanLabel(ProductStatus status) {

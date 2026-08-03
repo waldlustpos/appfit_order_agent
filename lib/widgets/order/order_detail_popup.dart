@@ -12,6 +12,7 @@ import 'package:appfit_order_agent/widgets/common/print_action_button.dart';
 import 'package:appfit_order_agent/exceptions/api_exceptions.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:appfit_order_agent/models/order_model.dart';
+import 'package:appfit_order_agent/models/enums/order_cancel_reason.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
 import 'package:appfit_order_agent/providers/currency_provider.dart';
 import 'package:appfit_order_agent/services/output_queue_service.dart';
@@ -100,6 +101,7 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
 
     if (currentOrder.isDetailLoaded) {
       logger.d('상세 정보가 이미 로드되어 있습니다: ${currentOrder.menus.length}개 메뉴');
+      _logOrderDetail(currentOrder);
       return;
     }
 
@@ -110,10 +112,50 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
       currentOrder.orderNo,
       currentOrder.storeId,
     );
+
+    final loadedOrder = ref.read(orderDetailProvider).order;
+    if (loadedOrder != null) {
+      _logOrderDetail(loadedOrder);
+    }
+  }
+
+  // 다이얼로그에 표시되는 주문 상세 정보를 보기 좋게 정리해 파일 로그로 남긴다.
+  // 메뉴 목록이 아직 로드되지 않은 시점(isDetailLoaded=false)에는 호출하지 않고,
+  // _fetchOrderDetailIfNeeded 에서 메뉴가 확정된 뒤에만 호출한다.
+  void _logOrderDetail(OrderModel order) {
+    final buffer = StringBuffer();
+    buffer.writeln('===== 주문 상세 정보 =====');
+    buffer.writeln(
+        '주문번호: ${order.displayNum} (orderNo=${order.orderNo}, simpleNum=${order.shopOrderNo})');
+    buffer.writeln(
+        '상태: ${order.status.name} (${order.orderStatus}) / 소스: ${order.source} / 유형: ${order.orderType}');
+    buffer.writeln(
+        '주문시각: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(order.orderedAt)}');
+    buffer.writeln('주문자: ${order.ordererName}'
+        '${order.customerName != null && order.customerName!.isNotEmpty ? ' (${order.customerName})' : ''}'
+        ' / 연락처: ${order.tel ?? '-'}');
+    if (order.note != null && order.note!.isNotEmpty) {
+      buffer.writeln('요청사항: ${order.note}');
+    }
+    buffer.writeln('결제: ${order.paymentType} / 총액 ${order.totalAmount.toInt()}원'
+        ' - 할인 ${order.discountAmount.toInt()}원'
+        ' = 결제액 ${order.paymentAmount.toInt()}원');
+    buffer.writeln('메뉴 (${order.menus.length}건):');
+    for (final menu in order.menus) {
+      buffer.writeln(
+          '- ${menu.itemName} x${menu.qty} (${menu.totalAmount.toInt()}원)');
+      for (final opt in menu.options) {
+        buffer.writeln('  └ 옵션: ${opt.optionName} x${opt.qty}'
+            '${opt.optionPrice > 0 ? ' (+${opt.optionPrice.toInt()}원)' : ''}');
+      }
+    }
+    buffer.write('==========================');
+
+    logToFile(tag: LogTag.UI_ACTION, message: '\n${buffer.toString()}');
   }
 
   Future<bool> _updateOrderStatus(OrderStatus newStatus,
-      {String? readyTime}) async {
+      {String? readyTime, OrderCancelReason? cancelReason}) async {
     final currentOrder = ref.read(orderDetailProvider).order;
     if (currentOrder == null) return false;
 
@@ -122,14 +164,16 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
       final orderNotifier = ref.read(orderProvider.notifier);
 
       if (newStatus == OrderStatus.CANCELLED) {
+        final reason = cancelReason ?? OrderCancelReason.SHOP_REQUEST;
         if (widget.isFromHistory) {
           logger.d(
               '주문 내역 화면에서 취소 요청 - OrderHistoryProvider 사용: ${currentOrder.orderNo}');
           final orderHistoryNotifier = ref.read(orderHistoryProvider.notifier);
-          success =
-              await orderHistoryNotifier.cancelOrder(currentOrder.orderNo);
+          success = await orderHistoryNotifier.cancelOrder(currentOrder.orderNo,
+              reason: reason);
         } else {
-          success = await orderNotifier.cancelOrder(currentOrder.orderNo);
+          success = await orderNotifier.cancelOrder(currentOrder.orderNo,
+              reason: reason);
           logger.d(
               '현재 주문 화면에서 취소 요청 - OrderProvider 사용: ${currentOrder.orderNo}');
         }
@@ -577,7 +621,8 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
           'displayNum=${currentOrder.displayNum}, simpleNum=${currentOrder.shopOrderNo}, orderId=${currentOrder.orderId}';
       logToFile(tag: LogTag.UI_ACTION, message: '주문 취소버튼: $orderInfo');
 
-      bool isKioskOrder(OrderModel o) => o.source == 'WALD_KIOSK';
+      bool isKioskOrder(OrderModel o) =>
+          classifyOrderSource(o.source) == OrderSourceType.kiosk;
 
       if (isKioskOrder(currentOrder)) {
         CommonDialog.showInfoDialog(
@@ -587,6 +632,12 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
             content: t.order_detail.dialog_kiosk_cancel_content);
         return;
       }
+
+      final reason = await CommonDialog.showCancelReasonDialog(
+        context: context,
+        displayNum: currentOrder.displayNum,
+      );
+      if (reason == null || !mounted) return;
 
       bool success = false;
       String? errorMessage;
@@ -599,7 +650,8 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
             .dialog_cancel_confirm_content(n: currentOrder.displayNum),
         onConfirm: () async {
           try {
-            success = await _updateOrderStatus(OrderStatus.CANCELLED);
+            success = await _updateOrderStatus(OrderStatus.CANCELLED,
+                cancelReason: reason);
             if (success) {
               logToFile(
                   tag: LogTag.UI_ACTION,
@@ -782,21 +834,12 @@ class _SourcePill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ({String label, Color bg, Color fg})? spec = switch (source) {
-      'WALD_APPFIT' => (
-          label: 'APP',
-          bg: AppStyles.kAppOrderBg,
-          fg: AppStyles.kAppOrderFg,
-        ),
-      'WALD_KIOSK' => (
-          label: 'KIOSK',
-          bg: AppStyles.kBlueAlpha,
-          fg: AppStyles.kBlue,
-        ),
-      _ => null,
+    final label = switch (classifyOrderSource(source)) {
+      OrderSourceType.app => 'APP',
+      OrderSourceType.kiosk => 'KIOSK',
+      OrderSourceType.pos => 'POS',
     };
-
-    if (spec == null) return const SizedBox.shrink();
+    final palette = AppStyles.orderSourcePalette(source);
 
     return Container(
       padding: const EdgeInsets.symmetric(
@@ -804,13 +847,13 @@ class _SourcePill extends StatelessWidget {
         vertical: AppSpacing.s4,
       ),
       decoration: BoxDecoration(
-        color: spec.bg,
+        color: palette.bg,
         borderRadius: AppRadius.bSm,
       ),
       child: Text(
-        spec.label,
+        label,
         style: AppTextStyles.bodySm.copyWith(
-          color: spec.fg,
+          color: palette.fg,
           fontWeight: FontWeight.w600,
         ),
       ),
