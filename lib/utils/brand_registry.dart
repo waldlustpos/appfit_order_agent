@@ -45,6 +45,7 @@ class BrandMeta {
     required this.currency,
     required this.serverEnvironment,
     this.hasReceiptLogo = false,
+    this.hasLabelLogo = true,
     this.labelLogoWidth = 50,
     this.features = const <BrandFeature>{},
   });
@@ -58,6 +59,10 @@ class BrandMeta {
   final String assetFolder;
 
   final bool hasReceiptLogo;
+
+  /// 라벨 헤더 로고 노출 여부. 기본 true. 자산이 준비되지 않은 브랜드는 false로
+  /// 임시 비활성화(추후 이미지 작업 완료 시 true로 복구).
+  final bool hasLabelLogo;
 
   /// 라벨 헤더 로고의 정사각형 표시 폭(px, label_painter 캔버스 기준). 기본 50.
   /// BMP 자체는 이 값과 무관하게 50x50 고정이므로, 확대 시 계단현상이 생길 수
@@ -91,8 +96,9 @@ class BrandMeta {
 
   String get _assetBase => 'assets/images/brand/$assetFolder';
 
-  /// 라벨 로고 BMP 경로 (모든 브랜드 필수).
-  String get labelLogoPath => '$_assetBase/label_logo.bmp';
+  /// 라벨 로고 BMP 경로. [hasLabelLogo] 가 false 면 null(라벨에 로고 미표시).
+  String? get labelLogoPath =>
+      hasLabelLogo ? '$_assetBase/label_logo.bmp' : null;
 
   /// 영수증 로고 PNG 경로. [hasReceiptLogo] 가 false 면 null.
   String? get receiptLogoPath =>
@@ -158,6 +164,7 @@ class BrandRegistry {
       storeIdPrefix: 'PAIK',
       assetFolder: 'paik',
       hasReceiptLogo: true,
+      hasLabelLogo: false, // TODO(paik): 적절한 라벨 로고 이미지 작업 후 true로 복구
       labelLogoWidth: 70,
       theme: BrandTheme.paik,
       currency: CurrencyUnit.jpy,

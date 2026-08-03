@@ -14,10 +14,10 @@ class BrandAssets {
   static BrandMeta _current() =>
       BrandRegistry.resolve(PreferenceService().getId());
 
-  static String get labelLogoPath => _current().labelLogoPath;
+  static String? get labelLogoPath => _current().labelLogoPath;
 
   static String get labelLogoFallbackPath =>
-      BrandRegistry.fallback.labelLogoPath;
+      BrandRegistry.fallback.labelLogoPath!;
 
   static double get labelLogoWidth => _current().labelLogoWidth;
 
