@@ -12,7 +12,10 @@ import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/services/print_service.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:appfit_order_agent/core/orders/sound_service.dart';
+import 'package:appfit_order_agent/core/orders/label_print_retry.dart';
+import 'package:appfit_order_agent/exceptions/label_ack_timeout_exception.dart';
 import 'package:appfit_order_agent/exceptions/label_print_missing_exception.dart';
+import 'package:appfit_order_agent/services/label_printer/label_print_outcome.dart';
 import 'package:appfit_order_agent/exceptions/order_detail_fetch_failed_exception.dart';
 import 'package:appfit_order_agent/utils/label_painter.dart';
 
@@ -235,6 +238,7 @@ class OutputService {
           orderNo: orderToPrint.displayNum,
           labelIndex: data.orderIndex,
           totalLabels: data.orderTotal,
+          reportOrderNo: orderToPrint.orderNo,
         );
         final printMs = DateTime.now().difference(printStart).inMilliseconds;
         final labelMsg =
@@ -299,47 +303,79 @@ class OutputService {
     }
   }
 
-  /// printLabel 1회 시도 → 실패 시 1.5초 delay 후 1회 재시도. 총 최대 2회.
+  /// printLabel 1회 시도 → **재시도가 안전한 실패일 때만** 1.5초 delay 후 1회 재시도.
   ///
-  /// Java 측에서 다음 케이스는 자체 무한 대기로 처리되어 여기로 false 가 오지 않음:
+  /// Java 측에서 다음 케이스는 자체 무한 대기로 처리되어 여기로 오지 않음:
   ///   • PAPERNOFETCH (사용자가 종이 안 뗌)
   ///   • paper-out / cover-up / NoPaperCanceled (운영자 용지 교체/커버 닫음 대기)
   ///
-  /// 따라서 이 헬퍼의 1.5초 재시도는 다음 케이스의 안전망:
+  /// [LabelPrintOutcome.retryable] 만 재시도한다. 해당 케이스:
   ///   • USB 포트 단절 / 좀비 (다음 시도 시 재연결 자동 회복)
   ///   • 펌웨어 일시 ERROR (engine/voltage/cutter 등) — 0.5초 짧은 게이트 통과 후 회복 기대
   ///   • PagePrint 도중 NoPaper race — 다음 시도 시 진입 게이트가 무한 대기로 흡수
+  ///
+  /// [LabelPrintOutcome.submittedNoAck] 은 **재시도하지 않는다.** PagePrint 가 이미
+  /// 펌웨어로 나간 뒤라 재발사하면 같은 라벨이 2장 인쇄된다 — 2026-08-03 아오야마점
+  /// #0906/#0956 사고의 정확한 경로다. ACK timeout 은 "종이가 안 나왔다"가 아니라
+  /// "응답을 못 받았다"일 뿐이므로 성공으로 취급하고 Sentry 로 빈도만 집계한다.
   Future<bool> _printLabelWithRetry({
     required PrintService printService,
     required Uint8List imageBytes,
     required String orderNo,
     required int labelIndex,
     required int totalLabels,
+    required String reportOrderNo,
   }) async {
-    Future<bool> dispatch() => _dispatchPrintLabel(
-          printService: printService,
-          imageBytes: imageBytes,
-          orderNo: orderNo,
-          labelIndex: labelIndex,
-          totalLabels: totalLabels,
-        );
+    return runLabelPrintWithRetry(
+      dispatch: () => _dispatchPrintLabel(
+        printService: printService,
+        imageBytes: imageBytes,
+        orderNo: orderNo,
+        labelIndex: labelIndex,
+        totalLabels: totalLabels,
+      ),
+      onAckTimeout: (attempt) => _reportAckTimeout(
+        displayNum: orderNo,
+        reportOrderNo: reportOrderNo,
+        labelIndex: labelIndex,
+        totalLabels: totalLabels,
+        attempt: attempt,
+      ),
+      logPrefix: '[Label] $orderNo $labelIndex/$totalLabels',
+    );
+  }
 
-    final ok1 = await dispatch();
-    if (ok1) return true;
-
+  /// ACK 미수신을 기록한다. 재발행하지 않으므로 운영자 조치는 없고, 발생 빈도를
+  /// 매장·기기별로 추적하는 것이 목적이다 (관측치 0.8%가 특정 기기 문제인지 판별용).
+  void _reportAckTimeout({
+    required String displayNum,
+    required String reportOrderNo,
+    required int labelIndex,
+    required int totalLabels,
+    required int attempt,
+  }) {
     logToFile(
         tag: LogTag.WARNING,
-        message: '[Label] $orderNo $labelIndex/$totalLabels'
-            ' 1차실패 (paper/cover 외 일시적) → 1.5초 후 재시도');
-    await Future.delayed(const Duration(milliseconds: 1500));
-
-    final ok2 = await dispatch();
-    if (!ok2) {
-      logToFile(
-          tag: LogTag.ERROR,
-          message: '[Label] $orderNo $labelIndex/$totalLabels 재시도실패 — 누락');
-    }
-    return ok2;
+        message: '[Label] $displayNum $labelIndex/$totalLabels'
+            ' ACK 미수신 ($attempt차) — 인쇄된 것으로 간주, 재시도 안 함');
+    MonitoringService.instance.captureError(
+      LabelAckTimeoutException(
+        orderNo: reportOrderNo,
+        displayNum: displayNum,
+        labelIndex: labelIndex,
+        totalLabels: totalLabels,
+        attempt: attempt,
+      ),
+      StackTrace.current,
+      hint: '라벨 ACK 미수신 — 중복 방지를 위해 재시도 생략 (누락 아님)',
+      extras: {
+        'orderNo': reportOrderNo,
+        'displayNum': displayNum,
+        'labelIndex': labelIndex,
+        'totalLabels': totalLabels,
+        'attempt': attempt,
+      },
+    );
   }
 
   /// SDK 호출 1지점. 플랫폼 분기는 [PrintService.printLabel] 내부에서 처리:
@@ -348,14 +384,14 @@ class OutputService {
   ///
   /// 양 플랫폼 모두 PNG bytes 입력. 분류/필터/Painter/retry 흐름은 위층에서
   /// 동일하게 처리하므로 양 플랫폼 라벨 출력 결과는 동등하다.
-  Future<bool> _dispatchPrintLabel({
+  Future<LabelPrintOutcome> _dispatchPrintLabel({
     required PrintService printService,
     required Uint8List imageBytes,
     required String orderNo,
     required int labelIndex,
     required int totalLabels,
   }) async {
-    return printService.printLabel(
+    return printService.printLabelDetailed(
       imageBytes,
       orderNo: orderNo,
       labelIndex: labelIndex,

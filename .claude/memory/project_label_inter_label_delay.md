@@ -20,4 +20,15 @@ metadata:
 
 **How to apply:** "라벨 연속출력", "종이 안 뗌 감지 안 됨", "intra-order 라벨 딜레이", "300ms 라벨" 등 나오면 이 메모. **남은 것**: ① ✅ 실기 Sunmi 300ms 검증 완료(위 실기 검증 참조) ② 다른 프린터 개체가 300ms 로 부족하면 그때만 400~500ms 상향 튜닝 ③ Windows 는 미확인이라 현재 미적용(`Platform.isAndroid` 게이트), 확인되면 게이트 확대 ④ 딜레이로도 한계인 개체는 "네이티브 게이트 강화(PagePrint 후 idle 캐시 무효화로 fresh 비콘 강제 대기)"가 차선책.
 
+## ⚠️ 2026-08-03 실측 정정
+
+위 **진단** 문단의 "감지는 `INFO_PAPERNOFETCH` 비트에 의존" 은 맞지만, 이를 근거로 **"이 비트가 기기에 따라 안 뜬다"** 고 읽으면 안 된다. REXOD RXLA-561 실측에서 **비트는 매 인쇄마다 정상 전이한다** ([[reference_rexod_label_printer_signals]]).
+
+정정 후 그림:
+- 비트는 살아 있고, **펌웨어 보류도 실재**한다(앞 라벨 미제거 시 다음 페이지를 물고 있다가 떼면 인쇄, 19.2초까지 관측).
+- 다만 **intra-order 연속 라벨에서는 보류가 안 걸리는 경우가 많다** — 프로덕션 로그상 0.45초 간격 2/2 라벨 다수가 ~1.05초에 완료(보류 없음). 이 memo 가 기록한 현상 자체는 유효하다.
+- 즉 "장비 편차" 라기보다 **타이밍 의존**(비콘 갱신 전에 다음 PagePrint 가 도착)에 가깝고, 300ms 딜레이가 듣는 이유도 그것이다.
+
+이 오해가 2026-08-03 라벨 2장 사고 분석에서 오판을 유발했다 → [[project_label_ack_timeout_duplicate]]
+
 관련: [[project_label_ack_patch]](구 ACK 패치 — 현재 Android 는 PrintedEvent 미등록·StatusEvent 비콘+QueryPrintResult 30s 로 진화, 그 메모의 비트값 0x10/0x20 은 stale, 현재 0x20/0x40), 계획 파일 plans/replicated-stirring-treasure.md.
