@@ -42,3 +42,4 @@
 - [기기 관제(Fleet) 플랫폼](project_fleet_monitoring.md) — 배포+appfit_core 승격(v1.0.18) 완료, 실기기 파일럿 대기. 백엔드는 별도 레포 appfit-fleet.
 - [Cloudflare Worker 배포 함정](reference_cloudflare_worker_traps.md) — 원클릭 Access가 기기 경로까지 302, d1 create가 바인딩 덧붙임(7404), secret put이 스텁 Worker 생성.
 - [Fleet 규모 확장 한도](reference_fleet_scaling_limits.md) — 무료 천장=하루 heartbeat 10만. 2000대는 유료 $5(10분)/$16(2분). D1 쓰기가 비용 절벽. maxIntervalSeconds 미리 올려둘 것.
+- [Fleet 원격화면제어 확장 공수 분석](project_fleet_remote_control.md) — 자체구현 90~148PD vs 기성품 13~22PD. Sunmi MDM+MeshCentral 권고. 결정 게이트 실험 3개 미실행 (2026-08-03)
