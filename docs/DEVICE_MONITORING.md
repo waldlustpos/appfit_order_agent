@@ -2,7 +2,7 @@
 
 매장 기기(Sunmi D3 MINI 주문접수기, D2s_KDS, Windows POS)의 **① 앱 실행 상태 ② 기기 정보 ③ 원격 로그 요청**을 다루는 최소 관제 시스템.
 
-> **상태: 배포 완료(2026-07-31), 실기기 파일럿 대기.** 백엔드는 별도 레포 `appfit-fleet`(Cloudflare Workers + D1), 앱 측은 `lib/services/fleet/`.
+> **상태: 배포 완료(2026-07-31), appfit_core 승격 완료(2026-08-03), 실기기 파일럿 대기.** 백엔드는 별도 레포 `appfit-fleet`(Cloudflare Workers + D1), 공통 리포터는 `appfit_core`(`appifit_agent_core` 레포, v1.0.18~), 앱 측 전용 코드는 `lib/services/fleet/`.
 >
 > 대시보드: https://appfit-fleet.sckim.workers.dev (자격정보는 `appfit-fleet/DEPLOYMENT.local.md`)
 >
@@ -38,21 +38,25 @@ FleetReporter                      POST /v1/device/register  ──┐
 
 | 경로 | 역할 |
 |---|---|
-| `lib/services/fleet/core/fleet_models.dart` | 와이어 모델(수동 toJson/fromJson) |
-| `lib/services/fleet/core/fleet_sink.dart` | `FleetSink` 추상 + `NoopFleetSink` |
-| `lib/services/fleet/core/http_fleet_sink.dart` | 전용 Dio 로 Worker 에 전송 |
-| `lib/services/fleet/core/fleet_reporter.dart` | 타이머·백오프·명령 디스패치 |
+| `appfit_core/lib/src/fleet/fleet_models.dart` | 와이어 모델(수동 toJson/fromJson) |
+| `appfit_core/lib/src/fleet/fleet_sink.dart` | `FleetSink` 추상 + `NoopFleetSink` |
+| `appfit_core/lib/src/fleet/http_fleet_sink.dart` | 전용 Dio 로 Worker 에 전송 |
+| `appfit_core/lib/src/fleet/fleet_reporter.dart` | 타이머·백오프·명령 디스패치 |
 | `lib/services/fleet/order_agent_fleet_snapshot.dart` | 앱 전용 스냅샷 조달 |
 | `lib/services/fleet/order_agent_fleet_command_handler.dart` | 앱 전용 명령 실행(로그 수집) |
 | `lib/providers/fleet_provider.dart` | sink 교체 지점 + 생명주기 배선 |
 | `lib/services/log_collection/log_collection_request.dart` | 캡션·기간·파일명 **정본**(수동/원격 공용) |
-| `test/services/fleet/` | fakeAsync 21 + 모델 + sink + 격리 + 실서버 왕복 |
+| `appfit_core/test/fleet_*_test.dart` (`appifit_agent_core` 레포) | fakeAsync 21 + 모델 + sink + 실서버 왕복 |
 
-### `core/` 는 appfit_core 승격 대상
+### `appfit_core` 로 승격 완료 (v1.0.18, 2026-08-03)
 
-`lib/services/fleet/core/` 4파일은 나중에 `appfit_core/lib/src/fleet/` 로 옮겨 DID·KIOSK 와 공유한다. 그래서 **core/ 바깥의 앱 코드를 import 하지 않는다.** 허용은 `dart:*`, `package:dio`, `package:connectivity_plus`, `package:appfit_core`, 그리고 같은 `core/` 형제 파일뿐이다.
+기기 실행상태·기기정보 보고 + 원격 명령 리포터는 이제 `appfit_core/lib/src/fleet/`(별도 레포 `appifit_agent_core`)에 있고, `package:appfit_core/appfit_core.dart` barrel 로 export 된다. DID·KIOSK 도 같은 코드를 재사용할 수 있다.
 
-이 규율은 주석이 아니라 `test/services/fleet/fleet_core_isolation_test.dart` 가 지킨다. 빨개지면 승격 비용이 "파일 이동"에서 "재설계"로 뛴 것이다.
+승격 전 앱 안에서 먼저 구현하며 `lib/services/fleet/core/`가 앱 코드를 import 하지 않게 지켰던 `fleet_core_isolation_test.dart`는 승격 완료로 폐기했다 — 코드가 물리적으로 다른 패키지에 있어 더 이상 구조로 강제할 필요가 없다.
+
+앱 전용 파일(`order_agent_fleet_snapshot.dart`/`order_agent_fleet_command_handler.dart`)은 `PreferenceService`·`storeProvider`·`DeviceIdentityService`·`LogCollectionService` 등 앱 의존이 있어 승격 대상이 아니다 — core 쪽(`FleetReporter`)은 이들을 모르고 `Future<FleetSnapshot?>`/`FleetCommandHandler` 콜백만 안다.
+
+core 수정 시 반영 절차는 `appifit_agent_core` 레포 안에서 `cd appfit_core && bash tool/release.sh`로 태그+푸시한 뒤, 소비 앱 `pubspec.yaml`의 `ref:`를 새 태그로 올리고 `flutter pub get` — 직접 `git tag`/`git push` 금지.
 
 앱 안에서 먼저 구현한 이유는 core 가 별도 레포 + 태그 핀이라 왕복 비용이 크고, 3앱 공유 라이브러리에 검증 안 된 API 를 먼저 올리고 싶지 않았기 때문이다. 승격 절차는 §6.
 
@@ -131,8 +135,8 @@ FLEET_DEVICE_KEY=<서버 DEVICE_KEYS 중 하나>
 
 1. **실기기 파일럿** — Sunmi 1대 + Windows 1대로 며칠 운영. 확인 대상: 강제종료 후 3분 `stale`/15분 `offline`, Windows 창 닫기 → `closing`, 로그인 전 "미배정" 표시, 원격 로그 요청 왕복, **릴리즈 APK 에서 설정 카드는 숨겨진 채 원격 명령은 동작**.
 2. **로그 크기 실측** → `maxSourceBytes` 30MB 임계 확정.
-3. **appfit_core 승격** — `core/` 4파일 이동 → import 헤더 치환 → barrel export 추가 → 테스트 이동 → `pubspec.yaml` 버전만 올리고 `bash tool/release.sh`(직접 `git tag` 금지) → 앱 `ref` 범프.
-4. **DID 배선** — `did_fleet_snapshot.dart` + provider 3줄. `commandHandler` 는 주입하지 않는다(로그 수집 기능이 없으므로 `UNSUPPORTED` 자동 응답이 정답).
+3. ~~**appfit_core 승격**~~ — 완료(v1.0.18, 2026-08-03). 실기기 파일럿 검증 전에 앞당겨 진행했다.
+4. **DID 배선** — `did_fleet_snapshot.dart` + provider 3줄. `commandHandler` 는 주입하지 않는다(로그 수집 기능이 없으므로 `UNSUPPORTED` 자동 응답이 정답). core 승격이 끝나 이제 `package:appfit_core/appfit_core.dart` 하나만 import 하면 된다.
 
 후속 후보(v1 에서 뺀 것): heartbeat 이력 테이블(D1 쓰기 한도), 명령 재배달 재시도, offline 시 Slack 통지, 서버 릴레이 다운로드(`BackendRelaySink`), per-device 토큰(스키마 필드만 예약됨).
 

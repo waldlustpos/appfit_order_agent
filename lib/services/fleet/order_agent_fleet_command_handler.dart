@@ -1,4 +1,5 @@
-import 'package:appfit_order_agent/services/fleet/core/fleet_models.dart';
+import 'package:appfit_core/appfit_core.dart';
+
 import 'package:appfit_order_agent/services/log_collection/log_collection_request.dart';
 import 'package:appfit_order_agent/services/log_collection/log_collection_service.dart';
 import 'package:appfit_order_agent/services/monitoring/device_identity_service.dart';

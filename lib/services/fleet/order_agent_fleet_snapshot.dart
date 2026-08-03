@@ -3,7 +3,6 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import 'package:appfit_order_agent/models/store_model.dart';
-import 'package:appfit_order_agent/services/fleet/core/fleet_models.dart';
 import 'package:appfit_order_agent/services/monitoring/device_identity_service.dart';
 import 'package:appfit_order_agent/services/preference_service.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
