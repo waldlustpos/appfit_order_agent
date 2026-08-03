@@ -16,7 +16,7 @@ import 'package:appfit_order_agent/widgets/settings/settings_item_widget.dart';
 /// 모니터는 검은 화면이 된다.
 ///
 /// 선택지: 영상+이미지 둘 다 → [영상/이미지/노출안함], 하나만 → [그것/노출안함].
-/// 명시적으로 고르지 않았으면 영상 우선 자동(effectiveMode)으로 표시되며, 그 상태가
+/// 명시적으로 고르지 않았으면 이미지 우선 자동(effectiveMode)으로 표시되며, 그 상태가
 /// 버튼 하이라이트로 보인다.
 class SettingsDualMonitorSection extends ConsumerStatefulWidget {
   const SettingsDualMonitorSection({super.key});
@@ -28,7 +28,7 @@ class SettingsDualMonitorSection extends ConsumerStatefulWidget {
 
 class _SettingsDualMonitorSectionState
     extends ConsumerState<SettingsDualMonitorSection> {
-  // 운영자가 명시적으로 고른 모드. null=미설정 → effectiveMode 가 영상 우선 자동 해석.
+  // 운영자가 명시적으로 고른 모드. null=미설정 → effectiveMode 가 이미지 우선 자동 해석.
   String? _explicitMode;
 
   @override
@@ -120,13 +120,13 @@ class _SettingsDualMonitorSectionState
   }
 
   /// 네이티브 DualMonitorPresentation 과 동일한 해석 규칙(effectiveMode):
-  /// 명시 선택이 존재 콘텐츠와 맞으면 그것, 아니면 영상 우선 자동(video>image>none).
+  /// 명시 선택이 존재 콘텐츠와 맞으면 그것, 아니면 이미지 우선 자동(image>video>none).
   _DualMode _effectiveMode(String? explicit, bool hasVideo, bool hasImage) {
     if (explicit == 'none') return _DualMode.none;
     if (explicit == 'image' && hasImage) return _DualMode.image;
     if (explicit == 'video' && hasVideo) return _DualMode.video;
-    if (hasVideo) return _DualMode.video;
     if (hasImage) return _DualMode.image;
+    if (hasVideo) return _DualMode.video;
     return _DualMode.none;
   }
 

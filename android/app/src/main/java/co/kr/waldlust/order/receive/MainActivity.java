@@ -970,7 +970,7 @@ public class MainActivity extends FlutterActivity {
                     + " rawId=" + rawId + " drawableId=" + drawableId);
 
             // effectiveMode: explicit operator choice wins when its content exists;
-            // otherwise auto-default with video priority (video > image > none).
+            // otherwise auto-default with image priority (image > video > none).
             // No content / "none" -> black screen (default layout background). True
             // panel power-off is NOT attempted: a screenBrightness override on this
             // hardware also dims the MAIN display, so we only show black.
@@ -980,10 +980,10 @@ public class MainActivity extends FlutterActivity {
                 setImage(drawableId);
             } else if ("video".equals(mode) && hasVideo) {
                 setVideo(rawId);
-            } else if (hasVideo) {
-                setVideo(rawId);
             } else if (hasImage) {
                 setImage(drawableId);
+            } else if (hasVideo) {
+                setVideo(rawId);
             }
         }
 
