@@ -5,6 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 0bc1b321-0c0b-48ed-9e40-f73903b4b7c7
+  modified: 2026-08-03T08:11:24.778Z
 ---
 
 **목표**: TPCP00001 에러 → Slack `appfit-alert-tpc`(C0B02RCJSJ0), 그 외 전부 → `appfit-alert-test`(C0AV9RDTTT7). 브랜드 추가 시 반복 가능하게(add-brand 통합).
@@ -26,3 +27,7 @@ metadata:
 **Slack 메시지 매장코드·매장명 표시(2026-07-16)**: routes.json `slack_tags: "store_id, store_name, environment, level"` → Slack 액션 tags 필드. **store_id**(매장코드)는 기존 태그라 즉시 표시. **매장명은 원래 user.username/store_info 컨텍스트뿐이라 Slack tags 블록에 안 떴음** → appfit_core `MonitoringService` 에 `scope.setTag('store_name', storeName)` 추가(_applyScope+updateStoreInfo)로 해결. **appfit_core v1.0.16 릴리즈**(commit 589f812, 함께 릴리즈: ApiHttpException.isTransientNetworkError + SentryAppFitLogger 가 순단성 HTTP ? 오류를 issue 대신 breadcrumb 로 — 별개 WIP 였음). 앱 pubspec ref v1.0.15→v1.0.16. **store_name 태그는 앱 재빌드·기기 재배포 후 신규 이벤트부터 노출**(런타임 태그). DID 앱은 ref v1.0.16 미반영(별도).
 
 **검증 남음**: Issue Alert 소급 발화 없음 → TPCP00001 새 에러로 tpc 도착·test 미도착 실증. WHEN=FirstSeen+Regression이라 기존 이슈의 반복 이벤트엔 재알림 안 함(모든 발생 원하면 metric alert `store_id:TPCP00001 count>0`가 더 확실). org=waldlust, project=appfit-order-agent, slack integration id=344607. 관련 [[project_remote_log_collection]].
+
+**PAIK 채널 추가 완료(2026-08-03, commit 87867d3)**: `branded[]`에 `{label:PAIK, match:sw, value:PAIK, channel:appfit-alert-paik, channel_id:C0BM48A7PUP}` 추가(브랜드 전체 prefix, TPCP00001과 달리 단일 매장 eq가 아님). `apply` 실행 → PAIK 규칙 생성(REST id 17375865) + catch-all 필터에 `store_id nsw PAIK` 자동 추가, 실 트래픽 검증 완료. `sentry_alerts.py list` 서브커맨드는 legacy `/rules/` GET 엔드포인트가 Sentry에서 폐기되어(`410 This API no longer exists`) 항상 실패함 — 규칙 확인은 `list` 대신 Sentry MCP `find_alert_rules`로 교차 확인할 것(`apply`의 POST/PUT 자체는 정상 동작, GET listing만 깨짐).
+
+**함정: "Slack: Channel not found. Invalid ID provided." = 대부분 봇 초대 누락**. 비공개 채널 추가 시 이 400 에러가 나면 workspace 불일치나 OAuth 스코프(`groups:read`) 문제로 오인하기 쉬우나(기존 tpc/test 채널도 비공개인데 정상 동작 중이라 스코프 문제가 아님이 힌트), 실제 원인은 대개 **Sentry Slack 봇이 그 채널에 초대 안 됨**(또는 초대했다고 착각·재초대 시 실제로는 빠짐)이었음. Slack 채널 멤버 목록에서 봇 존재를 재확인하고 재초대하면 즉시 해결. 워크스페이스 재설치(OAuth reinstall)는 조직 전체 영향이 크므로 이 가능성부터 소거한 뒤 최후 수단으로.
