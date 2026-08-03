@@ -38,7 +38,7 @@
 - 테스트 작성·실행 방법(characterization 전략·PreferenceService seam·fake 패턴): [docs/TESTING.md](docs/TESTING.md)
 - 브랜드별 라벨/영수증 로고 자원 분기·BMP 사양·새 브랜드 추가 절차: [docs/BRAND_ASSETS.md](docs/BRAND_ASSETS.md)
 - 리팩토링 로드맵(Phase 0~3·하지 말 것 목록·작업 규율): [docs/REFACTORING.md](docs/REFACTORING.md)
-- 기기 관제(Fleet — 앱 실행상태·기기정보·원격 로그 요청. 백엔드는 별도 레포 `appfit-fleet`(Cloudflare Workers+D1), 앱 측 `lib/services/fleet/`. `core/` 는 appfit_core 승격 대상이라 앱 코드 import 금지 — 격리 테스트로 강제): [docs/DEVICE_MONITORING.md](docs/DEVICE_MONITORING.md)
+- 기기 관제(Fleet — 앱 실행상태·기기정보·원격 로그 요청. 백엔드는 별도 레포 `appfit-fleet`(Cloudflare Workers+D1). 공통 리포터는 **`appfit_core/lib/src/fleet/` 로 승격 완료**(v1.0.18) — 수정하려면 태그 릴리즈 + 앱 `pubspec.yaml` ref 범프 왕복이 필요하므로, 앱 전용으로 끝낼 수 있는 변경은 `lib/services/fleet/`(스냅샷·명령 핸들러)에 둘 것): [docs/DEVICE_MONITORING.md](docs/DEVICE_MONITORING.md)
 - 원격 화면제어 확장 공수 분석(자체 구현 90~148PD vs Sunmi MDM+MeshCentral 13~22PD·Android 무인 캡처 제약·결정 게이트 실험 3개. **분석만 완료, 착수 없음**): [docs/REMOTE_CONTROL_ANALYSIS.md](docs/REMOTE_CONTROL_ANALYSIS.md)
 - Sentry 에러 알림 라우팅(매장/브랜드별 store_id 태그 → Slack 채널 분기, `routes.json` 정본 + `sentry_alerts/` 스크립트, add-brand 연동): [docs/SENTRY_ALERTS.md](docs/SENTRY_ALERTS.md)
 - As-Is 아키텍처 요약(Outline 게시용·표 중심): [docs/AS-IS.md](docs/AS-IS.md)
