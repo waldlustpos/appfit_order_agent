@@ -13,6 +13,13 @@
       "value": "TPCP00001",
       "channel": "appfit-alert-tpc",
       "channel_id": "C0B02RCJSJ0"
+    },
+    {
+      "label": "PAIK",
+      "match": "sw",
+      "value": "PAIK",
+      "channel": "appfit-alert-paik",
+      "channel_id": "C0BM48A7PUP"
     }
   ],
   "catchall": {
