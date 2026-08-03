@@ -140,6 +140,8 @@ FLEET_DEVICE_KEY=<서버 DEVICE_KEYS 중 하나>
 
 후속 후보(v1 에서 뺀 것): heartbeat 이력 테이블(D1 쓰기 한도), 명령 재배달 재시도, offline 시 Slack 통지, 서버 릴레이 다운로드(`BackendRelaySink`), per-device 토큰(스키마 필드만 예약됨).
 
+**원격 화면제어 확장은 별도 문서로 분리했다** — [REMOTE_CONTROL_ANALYSIS.md](REMOTE_CONTROL_ANALYSIS.md). 결론만: 자체 구현(90~148 PD)이 아니라 Sunmi MDM + MeshCentral 조합(13~22 PD)을 권고하고, 착수 전에 결정 게이트 실험 3개를 먼저 돌린다. 어느 경로든 **대시보드 운영자 인증 개편이 선행 조건**이다(현재 공유 비밀번호 1개).
+
 ## 6-1. 규모 확장
 
 기기 수가 늘 때의 간격별 수용 대수·비용·수정 범위는 `appfit-fleet/SCALING.md` 에 계산해 뒀다. 앱 쪽에서 미리 알아둘 것 하나:

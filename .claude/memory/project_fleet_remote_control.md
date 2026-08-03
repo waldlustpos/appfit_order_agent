@@ -8,7 +8,7 @@ metadata:
   modified: 2026-08-03T04:47:47.588Z
 ---
 
-2026-08-03 분석. 전제는 **무인 원격 점검 + 기기 전체 화면 + 별도 에이전트 허용 + Android/Windows 동시**(사용자가 명시 선택). 분석 문서 정본은 `~/.claude/plans/fleet-crystalline-rabbit.md`.
+2026-08-03 분석. 전제는 **무인 원격 점검 + 기기 전체 화면 + 별도 에이전트 허용 + Android/Windows 동시**(사용자가 명시 선택). 분석 문서 정본은 레포의 `docs/REMOTE_CONTROL_ANALYSIS.md`(공수 산정표·리스크 등급·검증 절차 전문).
 
 **결론: 자체 구현 90~148 PD(1인 5~7개월) vs 기성품 조합 13~22 PD. 기성품 권고.**
 경로 B = Sunmi MDM Remote Assistance(Android) + MeshCentral(Apache-2.0 셀프호스팅, Windows) + Fleet 대시보드는 디렉터리·감사 계층.
