@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 62a91fcc-7494-4cc6-b3b7-fa3db9cbcda8
-  modified: 2026-08-03T06:50:50.777Z
+  modified: 2026-08-03T06:55:02.165Z
 ---
 
 2026-08-03, `fix/label-duplicate-on-ack-timeout` 브랜치 위에서 진행(무관한 다른 작업과 같은 브랜치에 공존 — 커밋 시 분리 주의). 맘모스커피 새 브랜드 키트(`~/Downloads/MAMMOTH COFFEE Logo/`)로 4개 자산 교체:
@@ -20,4 +20,6 @@ metadata:
 1. 로그인화면: 원래 지정한 `Symbol + Korean Logotype_Black`은 로그인 배경(#5B443B 어두운 브라운)에서 안 보여서(검정 on 어두운배경), 사용자가 `Symbol + English Logotype_White`로 변경 지정.
 2. D3mini 세컨모니터: 기존 `dm_mammoth.mp4`가 네이티브 로직상 이미지보다 항상 우선이라 PNG 교체만으론 화면에 반영 안 됨. 사용자가 영상 삭제 대신 **우선순위 반전(이미지>영상)**을 요청 → `MainActivity.java` `DualMonitorPresentation.onCreate()`(auto-default 분기만, 운영자 명시선택 `"video"`/`"image"` 모드는 그대로) + `lib/widgets/settings/settings_dual_monitor_section.dart` `_effectiveMode()`(네이티브 규칙 미러링 지점, 반드시 같이 바꿔야 설정화면 하이라이트 안 어긋남) 양쪽 다 image-first로 반전. mp4를 가진 브랜드는 mammoth 유일이라 다른 브랜드(paik/milkypresso/tokyoplatz/mahataste) 동작엔 영향 없음 — 전역 변경이지만 사실상 mammoth-only 효과.
 
-**상태**: 실기기(Sunmi D3 mini, MHST 매장) 검증 완료(사용자 확인) — 단, 로그인 로고를 크롭만 하고 다운스케일 없이(4125×2709 그대로) 저장해서 실기기에서 깨짐 발견. 975×640(42KB)로 재축소해서 해결. 상세: [[reference_brand_asset_large_canvas_bbox_crop]] 후속 함정 섹션. 커밋은 아직 안 함 — `fix/label-duplicate-on-ack-timeout` 브랜치에 무관한 다른 작업과 같이 있어 분리 필요.
+**상태**: 실기기(Sunmi D3 mini, MHST 매장) 검증 완료(사용자 확인) — 단, 로그인 로고를 크롭만 하고 다운스케일 없이(4125×2709 그대로) 저장해서 실기기에서 깨짐 발견. 975×640(42KB)로 재축소해서 해결. 상세: [[reference_brand_asset_large_canvas_bbox_crop]] 후속 함정 섹션. `fix/label-duplicate-on-ack-timeout` 브랜치에 커밋 7c6fb22로 단독 커밋 완료(무관한 라벨 ACK 작업 852ac44와 분리).
+
+**동시성 사고**: 커밋 과정에서 같은 워킹트리를 다른 세션(라벨 ACK 수정 작업)이 동시에 조작 중이었음이 드러남 — 내가 `git add`로 MHST 파일을 스테이징한 직후 다른 세션이 `git commit`(전체 스테이지 상태를 그대로 반영, MHST 파일까지 섞임) → 곧이어 `git commit --amend`(다행히 이번엔 MHST 파일이 빠진 상태로 재커밋)를 실행한 것으로 reflog에서 확인. 결과적으로는 무사히 분리됐지만, **여러 Claude Code 세션이 같은 저장소를 동시에 쓰면 git add/commit 타이밍이 겹쳐 서로의 스테이징 상태를 오염시킬 수 있음** — 커밋 직전엔 `git status`로 스테이징 내용을 재확인하는 습관 필요.

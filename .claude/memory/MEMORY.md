@@ -40,6 +40,6 @@
 - [slang4 다파일 + analyze baseline 함정](reference_slang4_multifile_and_analyze_baseline.md) — slang4=다파일 생성(strings_<locale>.g.dart 커밋 필수)+lazy:false. analyze warning baseline 69(0 아님).
 - [BIXOLON XD5-40d 라벨프린터 Android 지원](project_bixolon_xd5_40d.md) — VID 0x1504 자동 라우팅으로 기존 PNG 파이프라인 재사용. so 필수·pdflib 불필요. 실기기 검증 대기 (2026-07-23)
 - [브랜드 자산 대형캔버스 bbox 크롭 함정](reference_brand_asset_large_canvas_bbox_crop.md) — 4500×4500류 대형 여백 캔버스는 §4.1/gen_receipt_logo.dart 표준 파이프라인 전에 alpha bbox 크롭 필수(자동 크롭 없음).
-- [MHST 브랜드 이미지 4종 교체 + D3mini 우선순위 반전](project_mhst_brand_image_2026_08.md) — 라벨/영수증/로그인/세컨모니터 교체, D3mini 영상→이미지 우선 반전. 실기기 검증 완료(로그인 로고 다운스케일 누락으로 1차 깨짐 → 수정). 커밋 미완 (2026-08-03)
+- [MHST 브랜드 이미지 4종 교체 + D3mini 우선순위 반전](project_mhst_brand_image_2026_08.md) — 라벨/영수증/로그인/세컨모니터 교체, D3mini 영상→이미지 우선 반전. 실기기 검증·커밋(7c6fb22) 완료. 동시 세션 git add/commit 레이스 겪음 (2026-08-03)
 - [REXOD 라벨프린터 신호 실측 정본](reference_rexod_label_printer_signals.md) — PAPERNOFETCH 정상동작(통념 반박), QueryPrintResult는 떼기 안 기다림, GetPrinterPrintedInfo pageId 판정불가, 펌웨어 보류 실재(19.2초). 관찰 불가한 가드 = 없는 가드.
 - [라벨 2장 인쇄 사고 — ACK timeout 오판](project_label_ack_timeout_duplicate.md) — timeout을 인쇄실패로 단정해 재전송. printBitmap 반환 3분류로 수정, submittedNoAck 재시도 금지. 브랜치 미커밋 (2026-08-03)
