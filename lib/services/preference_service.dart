@@ -97,7 +97,7 @@ class PreferenceService {
   static const String KEY_LABEL_USE_QR_PRINT =
       "KOKONUT_LABEL_USE_QR_PRINT"; // bool (기본 false)
   static const String KEY_LABEL_QR_PAYLOAD_FORMAT =
-      "KOKONUT_LABEL_QR_PAYLOAD_FORMAT"; // int (0: 기존 {orderNo}-{shopItemId}-{cupIdx}, 1: 신규 {displayNum}-{cupIdx})
+      "KOKONUT_LABEL_QR_PAYLOAD_FORMAT"; // int (0: 기존 {orderNo}-{shopItemId}-{cupIdx}, 1: 신규 {displayNum}-{cupIdx}, 기본값 1)
 
   static const String KEY_IS_SOCKET_ENABLED =
       "KEY_IS_SOCKET_ENABLED"; // 소켓 사용 여부
@@ -622,7 +622,7 @@ class PreferenceService {
 
   /// 라벨 QR 페이로드 포맷 (0: 기존, 1: 신규 displayNum-cupIdx 테스트 포맷)
   int getLabelQrPayloadFormat() =>
-      _prefs.getInt(KEY_LABEL_QR_PAYLOAD_FORMAT) ?? 0;
+      _prefs.getInt(KEY_LABEL_QR_PAYLOAD_FORMAT) ?? 1;
 
   // 영업 상태 저장
   Future<void> setOrderOn(bool value) async {

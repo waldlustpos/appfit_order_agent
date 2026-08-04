@@ -58,7 +58,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _labelUseCalibrate = false;
   bool _labelUseQrPrint = false;
   int _labelFilterMode = 0;
-  int _labelQrPayloadFormat = 0;
+  int _labelQrPayloadFormat = 1;
 
   bool _isKioskOrderVisible = false;
   bool _isKioskOrderSoundEnabled = false;
