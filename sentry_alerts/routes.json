@@ -20,6 +20,13 @@
       "value": "PAIK",
       "channel": "appfit-alert-paik",
       "channel_id": "C0BM48A7PUP"
+    },
+    {
+      "label": "TLJP",
+      "match": "sw",
+      "value": "TLJP",
+      "channel": "appfit-alert-tljp",
+      "channel_id": "C0BMQCJMB62"
     }
   ],
   "catchall": {
