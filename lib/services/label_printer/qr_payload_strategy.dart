@@ -63,7 +63,12 @@ class DefaultQrPayloadStrategy extends QrPayloadStrategy {
 /// 대신 이 전략을 주입한다(전역 오버라이드). 브랜드 게이팅과 무관한 테스트 포맷.
 ///
 /// - DisplayNum: display no 4자리 (LabelOrderInfo.displayNum, 이미 zero-pad)
-/// - CupIdx    : 같은 메뉴 안에서 0-based 라벨 sequence (labelSeq - 1)
+/// - CupIdx    : 주문 전체를 관통하는 0-based 라벨 sequence (labelIndex - 1).
+///   [DefaultQrPayloadStrategy] 와 달리 이 포맷은 ShopItemId 를 담지 않으므로,
+///   메뉴별로 리셋되는 [LabelMenuInfo.labelSeq] 를 쓰면 서로 다른 메뉴의 첫
+///   라벨끼리 모두 "-0" 으로 충돌한다. 라벨 인쇄 텍스트("{주문번호}-{순번}",
+///   output_service.dart 의 data.orderIndex)와 동일하게 주문 전체 누적
+///   인덱스인 [labelIndex] 를 써야 라벨마다 유일하다.
 class DisplayNumIndexQrPayloadStrategy extends QrPayloadStrategy {
   const DisplayNumIndexQrPayloadStrategy();
 
@@ -74,7 +79,7 @@ class DisplayNumIndexQrPayloadStrategy extends QrPayloadStrategy {
     int labelIndex,
     int labelTotal,
   ) {
-    final cupIdx = menuInfo.labelSeq - 1; // 1-based labelSeq → 0-based cupIdx
+    final cupIdx = labelIndex - 1; // 1-based labelIndex(주문 전체) → 0-based cupIdx
     final payload = '${orderInfo.displayNum}-$cupIdx';
     logger.d('[Label][QR][신규] $labelIndex/$labelTotal'
         ' ${menuInfo.itemName} (${menuInfo.labelSeq}/${menuInfo.qty})'
