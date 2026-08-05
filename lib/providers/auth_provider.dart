@@ -36,6 +36,7 @@ void resetStoreScopedProviders(WidgetRef ref) {
   ref.invalidate(storeProvider);
   ref.invalidate(selectedDateProvider);
   ref.invalidate(orderHistoryProvider);
+  ref.read(homeTabIndexProvider.notifier).state = 0;
 }
 
 // AuthState에서 isConnected, isConnecting 제거 (SocketState에서 가져옴)
