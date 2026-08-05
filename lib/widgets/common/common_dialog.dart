@@ -132,8 +132,8 @@ class CommonDialog {
     String? title,
     List<ProductStatus>? selectableStatuses,
   }) async {
-    final List<ProductStatus> options = selectableStatuses ??
-        const [ProductStatus.sale, ProductStatus.soldOut, ProductStatus.hidden];
+    final List<ProductStatus> options =
+        selectableStatuses ?? const [ProductStatus.sale, ProductStatus.soldOut];
 
     return await showDialog<ProductStatus>(
       context: context,
