@@ -363,7 +363,7 @@ class _SettingsRightPanelState extends ConsumerState<SettingsRightPanel> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       _soundButton('alert10.mp3', t.settings.sound.sound1),
-                      _soundButton('alert_speech.mp3', t.settings.sound.sound2),
+                      _soundButton('alert_speech.m4a', t.settings.sound.sound2),
                     ],
                   ),
                 ),
