@@ -50,6 +50,11 @@ class ProductModel {
   final ProductType type; // [NEW] 상품과 옵션 구분
   final String internalId; // [NEW] 플랫폼 고유 UUID (shopItemId/optionId)
 
+  /// 서버가 지정한 표시 순서 (응답 키 `displayOrder`). "각 카테고리 및 상품은
+  /// displayOrder로 정렬"이 서버 계약이라, 응답 배열 순서가 아니라 이 필드로
+  /// 정렬해야 한다.
+  final int displayOrder;
+
   ProductModel({
     required this.productId,
     required this.productName,
@@ -59,6 +64,7 @@ class ProductModel {
     required this.status,
     required this.type,
     required this.internalId,
+    required this.displayOrder,
   });
 
   ProductModel copyWith({
@@ -70,6 +76,7 @@ class ProductModel {
     ProductStatus? status,
     ProductType? type,
     String? internalId,
+    int? displayOrder,
   }) {
     return ProductModel(
       productId: productId ?? this.productId,
@@ -80,6 +87,7 @@ class ProductModel {
       status: status ?? this.status,
       type: type ?? this.type,
       internalId: internalId ?? this.internalId,
+      displayOrder: displayOrder ?? this.displayOrder,
     );
   }
 
@@ -96,6 +104,7 @@ class ProductModel {
       status: ProductStatus.fromCode(json['prdSaleCd'] ?? 'OS'),
       type: ProductType.fromCode(json['type'] ?? 'ITEM'),
       internalId: json['internalId'] ?? '',
+      displayOrder: int.tryParse(json['displayOrder']?.toString() ?? '0') ?? 0,
     );
   }
 

@@ -49,3 +49,4 @@
 - [Cloudflare Worker 배포 함정](reference_cloudflare_worker_traps.md) — 원클릭 Access가 기기 경로까지 302, d1 create가 바인딩 덧붙임(7404), secret put이 스텁 Worker 생성.
 - [Fleet 규모 확장 한도](reference_fleet_scaling_limits.md) — 무료 천장=하루 heartbeat 10만. 2000대는 유료 $5(10분)/$16(2분). D1 쓰기가 비용 절벽. maxIntervalSeconds 미리 올려둘 것.
 - [Fleet 원격화면제어 확장 공수 분석](project_fleet_remote_control.md) — 자체구현 90~148PD vs 기성품 13~22PD. Sunmi MDM+MeshCentral 권고. 결정 게이트 실험 3개 미실행 (2026-08-03)
+- [상품 카탈로그 displayOrder 필드](reference_shop_catalog_display_order.md) — 서버 응답에 정렬 전용 필드가 이미 있었는데 미파싱+가나다순 강제정렬 중이었음. 카테고리+상품 모두 displayOrder 반영 수정 완료 (2026-08-05)

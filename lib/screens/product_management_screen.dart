@@ -50,18 +50,34 @@ class _ProductManagementScreenState
   ///
   /// 서버 카테고리를 기준으로 삼아 **소속 상품이 0개인 카테고리도 노출**한다
   /// (상품에서 역산하면 빈 카테고리는 표현 자체가 불가능).
-  /// 옵션 버킷('옵션')은 서버 카테고리가 아닌 앱의 인공 그룹이라 상품에서 보충하며,
-  /// 서버 목록을 아직 못 받았으면 전량 상품에서 역산해 기존 동작으로 폴백한다.
+  /// 서버 카테고리는 `displayOrder`(서버가 "각 카테고리 및 상품은 displayOrder로
+  /// 정렬"이라 명시한 필드)로 정렬한다. 옵션 버킷('옵션')처럼 서버 카테고리가
+  /// 아닌 앱의 인공 그룹은 상품에서 보충해 뒤에 가나다순으로 덧붙이며, 서버 목록을
+  /// 아직 못 받았으면(순서 정보 자체가 없으므로) 전량 상품에서 역산해 가나다순으로
+  /// 폴백한다.
   List<String> _getCategoryNames(
     List<ProductModel> products,
     List<ShopCategoryModel>? serverCategories,
   ) {
-    final names = <String>{
-      if (serverCategories != null)
-        ...serverCategories.map((c) => c.categoryName),
-      ...products.map((p) => p.categoryName),
+    final productCategoryNames = products.map((p) => p.categoryName).toSet();
+
+    if (serverCategories == null) {
+      return productCategoryNames.toList()..sort();
+    }
+
+    final sortedServerCategories = [...serverCategories]..sort((a, b) {
+        final byOrder = a.displayOrder.compareTo(b.displayOrder);
+        return byOrder != 0
+            ? byOrder
+            : a.categoryName.compareTo(b.categoryName);
+      });
+
+    final ordered = <String>{
+      for (final category in sortedServerCategories) category.categoryName,
     };
-    return names.toList()..sort();
+    final extras = productCategoryNames.difference(ordered).toList()..sort();
+
+    return [...ordered, ...extras];
   }
 
   /// 화면에 노출될 수 있는 상품의 공통 base — hidden 제외 + 검색어 적용.
@@ -82,20 +98,24 @@ class _ProductManagementScreenState
   ///
   /// 전체만 `internalId` 로 중복을 제거한다 — 같은 상품이 여러 카테고리에 속할 수
   /// 있어 카테고리별 합계는 전체보다 클 수 있고, 그게 정상이다.
+  ///
+  /// 어느 분기든 서버 `displayOrder` 로 정렬해 반환한다.
   List<ProductModel> _productsFor(
     List<ProductModel> products,
     String? category,
   ) {
     final base = _visibleBase(products);
 
+    final List<ProductModel> result;
     if (category == t.product_mgmt.sold_out) {
-      return base.where((p) => p.status == ProductStatus.soldOut).toList();
-    }
-    if (category == null) {
+      result = base.where((p) => p.status == ProductStatus.soldOut).toList();
+    } else if (category == null) {
       final seen = <String>{};
-      return base.where((p) => seen.add(p.internalId)).toList();
+      result = base.where((p) => seen.add(p.internalId)).toList();
+    } else {
+      result = base.where((p) => p.categoryName == category).toList();
     }
-    return base.where((p) => p.categoryName == category).toList();
+    return result..sort((a, b) => a.displayOrder.compareTo(b.displayOrder));
   }
 
   List<ProductModel> _getFilteredProducts(List<ProductModel> products) =>
