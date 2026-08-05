@@ -50,3 +50,4 @@
 - [상품 카탈로그 displayOrder 필드](reference_shop_catalog_display_order.md) — 서버 응답에 정렬 전용 필드가 이미 있었는데 미파싱+가나다순 강제정렬 중이었음. 카테고리+상품 모두 displayOrder 반영 수정 완료 (2026-08-05)
 - [로그인 서버 초기값 타임존 유도](project_login_timezone_env_hint.md) — 완전신규설치 시 KR/JP 을 기기 타임존으로 추정해 live/japanLive 선유도. analyze만 통과, 실기기 미검증·미커밋 (2026-08-05)
 - [win32 deferred import 규칙](reference_win32_deferred_import.md) — top-level import 시 Android kernel32.dll lookup 크래시. leaf 파일 분리 + deferred as 필수, 도달가능성으로 판단.
+- [동시 세션 git 상태 재확인](feedback_concurrent_session_git_state.md) — 다른 세션의 git commit -a 가 내 미스테이징 변경분을 함께 커밋할 수 있음. 커밋 직전 항상 git status/log 재확인 (2026-08-05)
