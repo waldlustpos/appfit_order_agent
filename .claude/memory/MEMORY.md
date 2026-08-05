@@ -47,3 +47,4 @@
 - [동시 배포 세션 버전 레이스](feedback_concurrent_deploy_version_race.md) — 승인 후에도 실행 직전 pubspec.yaml 재확인 필수. 다른 세션이 build-number 계속 올리며 먼저 배포한 사례 2회 (2026-08-04)
 - [fleet-monitoring 브랜치 유지 전략](project_fleet_monitoring_branch_strategy.md) — main+fleet 파일럿 구성 유지, main 신규 커밋은 주기적으로 merge(리베이스 아님)로 반영. 첫 병합(5f02d5d) analyze/test 검증 후 push 완료 (2026-08-05)
 - [기기-앱버전-Alias 매칭 반복작업](project_device_version_alias_audit.md) — sm_partner+apps CSV 교차매칭. apps CSV 1행 타이틀 스킵 함정. 스크립트 ~/Downloads/에 영구보존(scratchpad 아님) (2026-08-05)
+- [상품 카탈로그 displayOrder 필드](reference_shop_catalog_display_order.md) — 서버 응답에 정렬 전용 필드가 이미 있었는데 미파싱+가나다순 강제정렬 중이었음. 카테고리+상품 모두 displayOrder 반영 수정 완료 (2026-08-05)

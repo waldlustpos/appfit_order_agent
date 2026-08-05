@@ -596,6 +596,7 @@ class ApiService {
                 menuPrice: (item['salePrice'] as num).toInt(),
                 status: _mapAppFitStatus(item['status'] as String),
                 type: ProductType.item,
+                displayOrder: (item['displayOrder'] as num).toInt(),
               ));
             }
           }
@@ -604,6 +605,9 @@ class ApiService {
         // 2. 상위 레벨 옵션(options) 처리
         if (data.containsKey('options')) {
           final options = data['options'] as List<dynamic>;
+          // options 는 서버 스키마에 displayOrder 가 없어 응답 배열 순서를
+          // 대신 쓰되, 큰 오프셋을 더해 아이템(실제 displayOrder) 뒤로 보낸다.
+          var optionOrder = 0;
           for (var option in options) {
             allProducts.add(ProductModel(
               productId: option['optionPosId'] as String, // prdId용 (POS ID)
@@ -618,6 +622,7 @@ class ApiService {
               menuPrice: (option['salePrice'] as num).toInt(),
               status: _mapAppFitStatus(option['status'] as String),
               type: ProductType.option,
+              displayOrder: 1000000 + optionOrder++,
             ));
           }
         }

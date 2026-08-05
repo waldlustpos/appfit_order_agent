@@ -11,9 +11,15 @@ class ShopCategoryModel {
   /// POS 카테고리 코드 (예: `DX0000`, `EC0001`). 응답 키는 `categoryPosId`.
   final String categoryCode;
 
+  /// 서버가 지정한 표시 순서 (응답 키 `displayOrder`). "각 카테고리 및 상품은
+  /// displayOrder로 정렬"이 서버 계약이라, 응답 배열 순서가 아니라 이 필드로
+  /// 정렬해야 한다.
+  final int displayOrder;
+
   const ShopCategoryModel({
     required this.categoryName,
     required this.categoryCode,
+    required this.displayOrder,
   });
 
   /// 카테고리명은 화면 식별자이자 상품 그룹핑 키라 누락 시 표시가 불가능하므로,
@@ -27,21 +33,25 @@ class ShopCategoryModel {
     return ShopCategoryModel(
       categoryName: name,
       categoryCode: json['categoryPosId']?.toString() ?? '',
+      displayOrder: (json['displayOrder'] as num?)?.toInt() ?? 0,
     );
   }
 
   Map<String, dynamic> toJson() => {
         'categoryName': categoryName,
         'categoryPosId': categoryCode,
+        'displayOrder': displayOrder,
       };
 
   ShopCategoryModel copyWith({
     String? categoryName,
     String? categoryCode,
+    int? displayOrder,
   }) {
     return ShopCategoryModel(
       categoryName: categoryName ?? this.categoryName,
       categoryCode: categoryCode ?? this.categoryCode,
+      displayOrder: displayOrder ?? this.displayOrder,
     );
   }
 
@@ -50,12 +60,13 @@ class ShopCategoryModel {
       identical(this, other) ||
       other is ShopCategoryModel &&
           other.categoryName == categoryName &&
-          other.categoryCode == categoryCode;
+          other.categoryCode == categoryCode &&
+          other.displayOrder == displayOrder;
 
   @override
-  int get hashCode => Object.hash(categoryName, categoryCode);
+  int get hashCode => Object.hash(categoryName, categoryCode, displayOrder);
 
   @override
   String toString() =>
-      'ShopCategoryModel(categoryName: $categoryName, categoryCode: $categoryCode)';
+      'ShopCategoryModel(categoryName: $categoryName, categoryCode: $categoryCode, displayOrder: $displayOrder)';
 }

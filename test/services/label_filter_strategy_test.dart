@@ -19,6 +19,7 @@ ProductModel _product({
     status: ProductStatus.sale,
     type: ProductType.item,
     internalId: 'internal-$id',
+    displayOrder: 0,
   );
 }
 
