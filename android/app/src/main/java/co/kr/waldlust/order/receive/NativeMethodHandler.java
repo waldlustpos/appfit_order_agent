@@ -417,6 +417,10 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
                 result.success(Build.VERSION.SDK_INT);
                 break;
 
+            case "getTimezoneId":
+                result.success(java.util.TimeZone.getDefault().getID());
+                break;
+
             case "checkIgnoringBatteryOptimizations":
                 result.success(activity.isIgnoringBatteryOptimizations());
                 break;

@@ -270,14 +270,37 @@ class PreferenceService {
   ///
   /// 마이그레이션이 스킵된 구버전 AppFit 사용자 또는 환경값이 유실된 경우를
   /// 대응하기 위해 매번 init() 시 확인. KEY_ENVIRONMENT가 이미 있으면 즉시 리턴.
+  ///
+  /// 매장 ID조차 없는 완전 신규 설치는 기기 타임존으로 국가를 추정해 로그인
+  /// 화면 초기 선택값을 유도한다(정확도 100% 목적 아님 — 실패 시 기존과
+  /// 동일하게 KEY_ENVIRONMENT 를 비워 'live' 폴백 유지, 사용자가 언제든
+  /// 로그인 화면에서 재선택 가능).
   Future<void> _ensureEnvironmentIsSet() async {
     if (_prefs.containsKey(KEY_ENVIRONMENT)) return;
     final savedId = getId();
-    if (savedId == null || savedId.isEmpty) return;
-    final env =
-        BrandRegistry.resolveOrNull(savedId)?.serverEnvironment ?? 'live';
-    await _prefs.setString(KEY_ENVIRONMENT, env);
-    logger.i('[PreferenceService] 서버 환경 자동 복원: $env (ID: $savedId)');
+    if (savedId != null && savedId.isNotEmpty) {
+      final env =
+          BrandRegistry.resolveOrNull(savedId)?.serverEnvironment ?? 'live';
+      await _prefs.setString(KEY_ENVIRONMENT, env);
+      logger.i('[PreferenceService] 서버 환경 자동 복원: $env (ID: $savedId)');
+      return;
+    }
+    final tzId = await PlatformService.getDeviceTimezoneId();
+    final guessedEnv = _environmentFromTimezoneId(tzId);
+    if (guessedEnv != null) {
+      await _prefs.setString(KEY_ENVIRONMENT, guessedEnv);
+      logger.i('[PreferenceService] 서버 환경 타임존 추정: $guessedEnv (tz: $tzId)');
+    }
+  }
+
+  /// 타임존 ID/키 이름에서 국가를 추정. Android(IANA) 는 "Seoul"/"Tokyo",
+  /// Windows(레지스트리 키 이름) 는 "Korea"/"Japan" 문자열을 포함하므로 양쪽
+  /// 형식을 모두 검사. 판정 불가 시 null(호출 측이 기존 폴백 유지).
+  static String? _environmentFromTimezoneId(String? tzId) {
+    if (tzId == null) return null;
+    if (tzId.contains('Seoul') || tzId.contains('Korea')) return 'live';
+    if (tzId.contains('Tokyo') || tzId.contains('Japan')) return 'japanLive';
+    return null;
   }
 
   /// 레거시 데이터 접근 권한 확인
@@ -562,7 +585,13 @@ class PreferenceService {
   int getVolume() => _prefs.getInt(KEY_VOLUME) ?? 5; //알림음 볼륨 (0-10)
   bool getOrderOn() => _prefs.getBool(KEY_ORDER_ON) ?? false; //오더 영업중 여부
   bool getVersionFirst() => _prefs.getBool(KEY_VERSION_FIRST) ?? false;
-  String getSound() => _prefs.getString(KEY_SOUND) ?? 'alert10.mp3'; //알림음 파일명
+  String getSound() {
+    final raw = _prefs.getString(KEY_SOUND) ?? 'alert10.mp3'; //알림음 파일명
+    // alert_speech.mp3 -> .m4a 교체. 레거시 파일명이 저장된 기기가 존재하지 않는
+    // 에셋을 참조해 무음이 되는 것을 방지.
+    return raw == 'alert_speech.mp3' ? 'alert_speech.m4a' : raw;
+  }
+
   int getSoundNum() => _prefs.getInt(KEY_SOUND_NUM) ?? 5; //알림음 재생 횟수
   bool getIsNewOrder() => _prefs.getBool(KEY_IS_NEW_ORDER) ?? false; //
   bool getShowKioskOrder() =>

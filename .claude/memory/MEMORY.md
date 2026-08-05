@@ -48,3 +48,5 @@
 - [fleet-monitoring 브랜치 유지 전략](project_fleet_monitoring_branch_strategy.md) — main+fleet 파일럿 구성 유지, main 신규 커밋은 주기적으로 merge(리베이스 아님)로 반영. 첫 병합(5f02d5d) analyze/test 검증 후 push 완료 (2026-08-05)
 - [기기-앱버전-Alias 매칭 반복작업](project_device_version_alias_audit.md) — sm_partner+apps CSV 교차매칭. apps CSV 1행 타이틀 스킵 함정. 스크립트 ~/Downloads/에 영구보존(scratchpad 아님) (2026-08-05)
 - [상품 카탈로그 displayOrder 필드](reference_shop_catalog_display_order.md) — 서버 응답에 정렬 전용 필드가 이미 있었는데 미파싱+가나다순 강제정렬 중이었음. 카테고리+상품 모두 displayOrder 반영 수정 완료 (2026-08-05)
+- [로그인 서버 초기값 타임존 유도](project_login_timezone_env_hint.md) — 완전신규설치 시 KR/JP 을 기기 타임존으로 추정해 live/japanLive 선유도. analyze만 통과, 실기기 미검증·미커밋 (2026-08-05)
+- [win32 deferred import 규칙](reference_win32_deferred_import.md) — top-level import 시 Android kernel32.dll lookup 크래시. leaf 파일 분리 + deferred as 필수, 도달가능성으로 판단.

@@ -8,6 +8,11 @@ import 'package:appfit_order_agent/services/windows_log_file_writer.dart';
 import 'package:appfit_order_agent/services/windows_restart_service.dart';
 import 'package:launch_at_startup/launch_at_startup.dart';
 
+// win32 는 Android 에서 kernel32.dll lookup 크래시를 일으켜 deferred 로만
+// 참조한다 (com_port_descriptor.dart 주석 참고).
+import 'package:appfit_order_agent/services/windows_timezone_service.dart'
+    deferred as win_timezone;
+
 const _kAppfitChannelName = 'co.kr.waldlust.order.receive.appfit_order_agent';
 
 /// Windows 에서 Android MethodChannel 호출이 MissingPluginException 을 던지지
@@ -342,6 +347,29 @@ class PlatformService {
       return await platform.invokeMethod<String>('getDeviceSerial');
     } catch (e, s) {
       logger.w('[PlatformService] getDeviceSerial 실패', error: e, stackTrace: s);
+      return null;
+    }
+  }
+
+  /// 기기 타임존 ID. Android 는 IANA 형식(`"Asia/Seoul"`), Windows 는
+  /// 레지스트리 키 이름(`"Korea Standard Time"`)을 반환 — 형식이 다르므로
+  /// 호출 측은 부분 문자열(도시/국가명) 매칭으로 판정해야 한다. 조회 실패 시 null.
+  static Future<String?> getDeviceTimezoneId() async {
+    if (Platform.isWindows) {
+      try {
+        await win_timezone.loadLibrary();
+        return win_timezone.getWindowsTimezoneKeyName();
+      } catch (e, s) {
+        logger.w('[PlatformService] Windows 타임존 조회 실패',
+            error: e, stackTrace: s);
+        return null;
+      }
+    }
+    try {
+      return await platform.invokeMethod<String>('getTimezoneId');
+    } catch (e, s) {
+      logger.w('[PlatformService] getDeviceTimezoneId 실패',
+          error: e, stackTrace: s);
       return null;
     }
   }
