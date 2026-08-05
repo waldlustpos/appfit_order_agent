@@ -49,4 +49,5 @@
 - [Cloudflare Worker 배포 함정](reference_cloudflare_worker_traps.md) — 원클릭 Access가 기기 경로까지 302, d1 create가 바인딩 덧붙임(7404), secret put이 스텁 Worker 생성.
 - [Fleet 규모 확장 한도](reference_fleet_scaling_limits.md) — 무료 천장=하루 heartbeat 10만. 2000대는 유료 $5(10분)/$16(2분). D1 쓰기가 비용 절벽. maxIntervalSeconds 미리 올려둘 것.
 - [Fleet 원격화면제어 확장 공수 분석](project_fleet_remote_control.md) — 자체구현 90~148PD vs 기성품 13~22PD. Sunmi MDM+MeshCentral 권고. 결정 게이트 실험 3개 미실행 (2026-08-03)
+- [FleetKit 파사드 v1.1.0](project_fleet_kit_facade_v1_1_0.md) — core 릴리즈+push 완료, 앱당 채택비용 512→40줄. did 최초채택 완료(로컬커밋, 미푸시), order_agent는 ref범프만(FleetKit 이전은 파일럿 이후) (2026-08-05)
 - [상품 카탈로그 displayOrder 필드](reference_shop_catalog_display_order.md) — 서버 응답에 정렬 전용 필드가 이미 있었는데 미파싱+가나다순 강제정렬 중이었음. 카테고리+상품 모두 displayOrder 반영 수정 완료 (2026-08-05)
