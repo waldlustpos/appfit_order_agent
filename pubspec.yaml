@@ -65,7 +65,7 @@ dependencies:
   encrypt: ^5.0.3
   flutter_secure_storage: ^10.0.0
 
-  # AppFit 공통 패키지
+  # AppFit 공통 패키지 v1.0.18 부터 fleet 지원가능
   appfit_core:
     git:
       url: https://github.com/ratm10/appifit_agent_core.git
