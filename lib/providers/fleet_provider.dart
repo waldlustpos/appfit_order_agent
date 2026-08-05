@@ -9,8 +9,6 @@ import 'package:appfit_order_agent/providers/preference_provider.dart';
 import 'package:appfit_order_agent/providers/store_provider.dart';
 import 'package:appfit_order_agent/services/appfit/appfit_providers.dart';
 import 'package:appfit_order_agent/services/appfit/kokonut_appfit_logger.dart';
-import 'package:appfit_order_agent/services/fleet/fleet_connection_status.dart';
-import 'package:appfit_order_agent/services/fleet/observing_fleet_sink.dart';
 import 'package:appfit_order_agent/services/fleet/order_agent_fleet_command_handler.dart';
 import 'package:appfit_order_agent/services/fleet/order_agent_fleet_snapshot.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
