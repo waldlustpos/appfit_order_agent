@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 118abc6d-c915-4daf-ae65-06f64ffa1018
-  modified: 2026-07-22T00:23:14.331Z
+  modified: 2026-08-05T06:25:47.972Z
 ---
 
 2026-07-22 Android 업데이트 채널 정책을 **반전**했다.
@@ -26,4 +26,4 @@ metadata:
 
 **신규 브랜드 규칙**: Sunmi App Store 관리 함대면 `sunmiAppStoreUpdate` 부여(→OFF), 아니면 미부여(→ON/OTA).
 
-변경 파일: brand_registry.dart(enum 의미 반전+TPCP→MHST 이동), login_screen.dart, preference_service.dart, brand_registry_test.dart(16 pass), docs(RELEASE/ARCHITECTURE/AS-IS). analyze 새 에러 0. main 미커밋·미배포(2026-07-22). 배포는 `/deploy-android` 별도. 이중 채널 배경은 [[feedback_com_startup_retry_scope]] 아닌 RELEASE.md 참조.
+변경 파일: brand_registry.dart(enum 의미 반전+TPCP→MHST 이동), login_screen.dart, preference_service.dart, brand_registry_test.dart(16 pass), docs(RELEASE/ARCHITECTURE/AS-IS). analyze 새 에러 0. 커밋 `5e7004a`로 main에 병합 완료(확인 2026-08-05) — 작성 당시 "미커밋" 메모는 낡은 정보였음. 실기기 배포 여부는 `/deploy-android` 이력 별도 확인 필요. 이중 채널 배경은 [[feedback_com_startup_retry_scope]] 아닌 RELEASE.md 참조.
