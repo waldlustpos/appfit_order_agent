@@ -103,11 +103,19 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
                         // 벤더 라우팅: 연결된 USB VID 로 매 인쇄 재평가 (attach/detach stale 방지).
                         // 두 벤더 동시 연결 시 BIXOLON 우선. Caysn 전용 knob(autoReplyMode 등)은
                         // BIXOLON 경로에서 무의미하므로 전달하지 않는다.
-                        boolean printResult;
+                        //
+                        // 반환은 LabelPrinter.RESULT_* 3분류(0=성공 / 1=재시도가능 /
+                        // 2=발사후 무응답). Dart 는 1 일 때만 재시도한다 — 2 에서 재시도하면
+                        // 이미 펌웨어에 들어간 페이지가 한 장 더 인쇄된다.
+                        int printResult;
                         if (co.kr.waldlust.order.receive.util.print.BixolonLabelDriver
                                 .isBixolonAttached(activity)) {
+                            // BIXOLON 드라이버는 아직 bool 만 반환 — 실패는 재시도 가능으로 본다
+                            // (기존 동작 유지).
                             printResult = co.kr.waldlust.order.receive.util.print.BixolonLabelDriver
-                                    .printBitmap(bitmap, finalOrderNo, finalLabelIndex, finalTotalLabels);
+                                    .printBitmap(bitmap, finalOrderNo, finalLabelIndex, finalTotalLabels)
+                                    ? co.kr.waldlust.order.receive.util.print.LabelPrinter.RESULT_SUCCESS
+                                    : co.kr.waldlust.order.receive.util.print.LabelPrinter.RESULT_RETRYABLE;
                         } else {
                             printResult = co.kr.waldlust.order.receive.util.print.LabelPrinter.printBitmap(
                                     bitmap,

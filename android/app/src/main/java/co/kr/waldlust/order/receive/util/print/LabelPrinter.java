@@ -5,6 +5,8 @@ import android.util.Log;
 
 import com.caysn.autoreplyprint.AutoReplyPrint;
 import com.sun.jna.Pointer;
+import com.sun.jna.ptr.IntByReference;
+import com.sun.jna.ptr.LongByReference;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -17,6 +19,23 @@ public class LabelPrinter {
     // 라벨 재출력 버튼 연타 등 동시 호출 시 카운터 경쟁을 방지하기 위해 Atomic 사용
     private static final AtomicInteger printCount = new AtomicInteger(0);
     private static MainActivity sActivity = null;
+
+    // ── printBitmap 반환 코드 ────────────────────────────────────────────────
+    // bool 하나로는 "아직 안 보냈다"와 "보냈는데 응답이 없다"를 구분할 수 없어,
+    // 후자에서 Dart 재시도가 같은 페이지를 재발사해 라벨이 2장 인쇄되는 사고가
+    // 발생했다 (2026-08-03 아오야마점 #0906/#0956). 재시도 가능 여부를 호출자가
+    // 알 수 있도록 3분류로 반환한다.
+
+    /** 인쇄 완료가 확인됨. */
+    public static final int RESULT_SUCCESS = 0;
+    /** PagePrint 발사 전에 실패 — 종이가 나가지 않았으므로 재시도해도 안전. */
+    public static final int RESULT_RETRYABLE = 1;
+    /**
+     * PagePrint 를 이미 발사한 뒤 완료 응답을 못 받음.
+     * 페이지는 펌웨어에 들어간 상태라 <b>재시도하면 중복 인쇄</b>가 된다.
+     * 호출자는 재시도 없이 성공으로 취급하고 별도 집계만 할 것.
+     */
+    public static final int RESULT_SUBMITTED_NO_ACK = 2;
 
     /** {@link AutoReplyPrint#CP_Pos_QueryPrintResult} 의 동기 블로킹 timeout. samplelabel 표준값. */
     private static final int QUERY_PRINT_RESULT_TIMEOUT_MS = 30_000;
@@ -51,6 +70,15 @@ public class LabelPrinter {
     private static volatile String lastLoggedPhase = null;
 
     /**
+     * PAPERNOFETCH 전이 로깅용 dedup 캐시 (null = 아직 미로깅).
+     *
+     * <p>이 비트는 QueryPrintResult 가 실패했을 때만 로그에 남아 왔다. 즉 "이 단말에서
+     * 비트가 동작하긴 하는가" 를 확인할 방법이 없었고, 2026-08-03 라벨 2장 사고 분석에서
+     * 이 공백이 오판(비트가 아예 안 온다고 단정)의 원인이 됐다. 전이 시점만 기록한다.
+     */
+    private static volatile Boolean lastLoggedPaperNoFetch = null;
+
+    /**
      * 현재 활성 라벨의 표시 prefix (예: "[0812]" 또는 "[0812 1/7]").
      * ERROR phase 비콘에 컨텍스트 prefix 로 사용 — 어느 라벨에서 에러가 났는지 식별용.
      * printBitmap 시작 시 갱신되고, 다음 printBitmap 이 시작되거나 close() 까지 유지된다.
@@ -83,8 +111,11 @@ public class LabelPrinter {
      *
      * <p>비프음 흐름: 사용자가 라벨을 안 떼면 펌웨어가 다음 PagePrint 명령 진입 시
      * buzzer 를 울려 알린다. PAPERNOFETCH 비트는 게이트 조건에서 의도적 제외.
+     *
+     * @return {@link #RESULT_SUCCESS} / {@link #RESULT_RETRYABLE} /
+     *         {@link #RESULT_SUBMITTED_NO_ACK} — 호출자는 RETRYABLE 일 때만 재시도할 것.
      */
-    public static synchronized boolean printBitmap(Bitmap bitmap,
+    public static synchronized int printBitmap(Bitmap bitmap,
                                        int autoReplyMode,
                                        boolean useFeedToTear,
                                        boolean useBackToPrint,
@@ -92,7 +123,9 @@ public class LabelPrinter {
                                        String orderNo,
                                        int labelIndex,
                                        int totalLabels) {
-        boolean result = false;
+        int result = RESULT_RETRYABLE;
+        // PagePrint 발사 여부. 예외/timeout 시 재시도 가능 여부를 가르는 기준.
+        boolean submitted = false;
         final int seq = printCount.incrementAndGet();
         long startTime = System.currentTimeMillis();
 
@@ -135,7 +168,7 @@ public class LabelPrinter {
                 if (!AutoReplyPrint.INSTANCE.CP_Port_IsOpened(hPrinter)) {
                     long elapsed = System.currentTimeMillis() - startTime;
                     log("#" + seq + " " + orderTag + " 실패 [연결오류] (" + elapsed + "ms)");
-                    return false;
+                    return RESULT_RETRYABLE;
                 }
             }
 
@@ -180,7 +213,7 @@ public class LabelPrinter {
                         long elapsed = System.currentTimeMillis() - startTime;
                         log("#" + seq + " " + orderTag + " 실패 [복구대기 인터럽트] ("
                                 + elapsed + "ms)");
-                        return false;
+                        return RESULT_RETRYABLE;
                     }
                     long waited = System.currentTimeMillis() - waitStart;
                     log("#" + seq + " " + orderTag + " 복구감지 [" + entryPhase
@@ -198,7 +231,7 @@ public class LabelPrinter {
                         log("#" + seq + " " + orderTag + " 실패 [프린터 에러 0x"
                                 + String.format("%04X", lastErrorStatusBits)
                                 + " — 재시도 위임] (" + elapsed + "ms)");
-                        return false;
+                        return RESULT_RETRYABLE;
                     }
                 }
             }
@@ -238,7 +271,13 @@ public class LabelPrinter {
                     AutoReplyPrint.CP_ImageBinarizationMethod_Thresholding,
                     AutoReplyPrint.CP_Label_Rotation_0);
 
+            // PagePrint 직전의 인쇄 매수 스냅샷. ACK timeout 시 "실제로 인쇄됐는가" 를
+            // 비콘 캐시 추측이 아니라 이 값의 변화로 판정한다 (조회 미지원이면 -1).
+            final int pageIdBefore = queryPrintedPageId();
+
             AutoReplyPrint.INSTANCE.CP_Label_PagePrint(hPrinter, 1);
+            // 이 지점부터 페이지는 펌웨어 소유 — 재전송은 곧 중복 인쇄다.
+            submitted = true;
 
             if (useFeedToTear) {
                 AutoReplyPrint.INSTANCE.CP_Label_FeedPaperToTearPosition(hPrinter);
@@ -255,8 +294,10 @@ public class LabelPrinter {
             // 않지만, idle 게이트 통과 직후 PagePrint 도중 용지가 떨어지는 race 안전망.
             // false 반환 → Dart 재시도(1.5초) → 다음 진입 시 게이트 무한 대기로 복구.
             if (!printed && lastInfoNoPaperCanceled) {
+                // NoPaperCanceled = 용지가 없어 펌웨어가 인쇄를 취소함 = 종이가 안 나감.
+                // PagePrint 를 발사했더라도 중복 위험이 없는 유일한 케이스라 재시도 허용.
                 log("#" + seq + " " + orderTag + " 실패 [용지없음 race — Dart 재시도 위임]");
-                return false;
+                return RESULT_RETRYABLE;
             }
 
             // 1-D-① 장시간 방치 누락 방지 — PAPERNOFETCH 풀릴 때까지 무한 대기
@@ -289,7 +330,7 @@ public class LabelPrinter {
                 }
                 if (interrupted) {
                     log("#" + seq + " " + orderTag + " 실패 [떼기대기 인터럽트]");
-                    return false;
+                    return RESULT_SUBMITTED_NO_ACK;
                 }
                 long fetchWait = System.currentTimeMillis() - fetchStart;
                 boolean portOk = AutoReplyPrint.INSTANCE.CP_Port_IsOpened(hPrinter);
@@ -297,7 +338,8 @@ public class LabelPrinter {
                 log("#" + seq + " " + orderTag + " 떼어짐 wait=" + fetchWait
                         + "ms (" + (portOk ? "출력끝" : "실패")
                         + ", 총 " + elapsed2 + "ms)");
-                return portOk;
+                // 포트가 죽었어도 페이지는 이미 발사된 뒤라 재시도 금지.
+                return portOk ? RESULT_SUCCESS : RESULT_SUBMITTED_NO_ACK;
             }
 
             // ★ 중복 인쇄 방지 (PAPERNOFETCH 가드와 동일 정신):
@@ -307,19 +349,111 @@ public class LabelPrinter {
             // result=false 가 되고 Dart _printLabelWithRetry 가 1.5초 후 같은 라벨을
             // 한 장 더 인쇄하는 사고가 발생한다 (USB_DEVICE_DETACHED 직후 케이스).
             // 출력 자체가 끝났다면 후속 USB 이벤트로 실패 처리하지 않는다.
-            result = printed;
+            //
+            // ★ 2026-08-03 아오야마점 라벨 2장 사고: QueryPrintResult 가 30초를 꽉 채워
+            // false 를 반환했지만 라벨은 정상 출력된 상태였다 (하루 258장 중 2장, 0.8%).
+            // 이를 인쇄 실패로 단정해 Dart 가 같은 페이지를 재발사 → 2장 인쇄.
+            // timeout 은 "안 나왔다" 가 아니라 "응답을 못 받았다" 일 뿐이므로,
+            // 인쇄 매수 스냅샷으로 한 번 더 확인하고 그래도 불명이면 재시도를 금지한다.
+            // 인쇄 매수는 진단 표시용으로만 쓴다. REXOD RXLA-561 실측(2026-08-03)에서
+            // 이 값은 인쇄 도중에는 갱신되지 않고 다음 인쇄 시작 시점에야 반영됐다
+            // (pg=0→0, 0→0, 1→1). 따라서 "매수가 늘었으니 인쇄된 것" 판정은 이 단말에서
+            // 항상 false 가 되어 의미가 없다. 동작하지 않는 가드를 코드에 남겨 두면
+            // PAPERNOFETCH 때처럼 '있는 줄 알았는데 무력한' 상태가 반복되므로 판정에서 제외.
+            final int pageIdAfter = queryPrintedPageId();
             long elapsed = System.currentTimeMillis() - startTime;
-            log("#" + seq + " " + orderTag + " " + (result ? "출력끝" : "실패")
-                    + " (" + elapsed + "ms)");
+
+            if (printed) {
+                result = RESULT_SUCCESS;
+                log("#" + seq + " " + orderTag + " 출력끝 (" + elapsed + "ms"
+                        + ", pg=" + pageIdBefore + "→" + pageIdAfter + ")");
+            } else {
+                result = RESULT_SUBMITTED_NO_ACK;
+                log("#" + seq + " " + orderTag + " 실패 [ACK timeout "
+                        + QUERY_PRINT_RESULT_TIMEOUT_MS + "ms — 재시도 금지] ("
+                        + elapsed + "ms) " + diagnosticSnapshot(pageIdBefore, pageIdAfter));
+            }
 
         } catch (Exception e) {
             long elapsed = System.currentTimeMillis() - startTime;
+            // PagePrint 를 이미 발사한 뒤의 예외는 재시도하면 중복 인쇄가 된다.
+            result = submitted ? RESULT_SUBMITTED_NO_ACK : RESULT_RETRYABLE;
             log("#" + seq + " " + orderTag + " 실패 [예외: " + e.getMessage() + "] ("
-                    + elapsed + "ms)");
+                    + elapsed + "ms"
+                    + (submitted ? ", PagePrint 발사후 — 재시도 금지" : "") + ")");
             Log.e(TAG, "[ERROR] " + e.getMessage(), e);
         }
 
         return result;
+    }
+
+    /**
+     * 마지막으로 인쇄 완료된 page id 를 동기 조회한다. 비콘 콜백과 독립적인 경로라
+     * ACK timeout 시 "실제로 인쇄됐는가" 를 추측 없이 판정할 수 있다.
+     *
+     * <p>이 단말에서 {@code CP_Printer_AddOnPrinterPrintedEvent} 콜백은 fire 0건
+     * 이력이 있으므로(2026-05-04 D2s_KDS_STGL 부하 테스트), 같은 데이터원을 쓰는
+     * 이 API 도 동작하지 않을 수 있다. 그 경우 -1 또는 항상 같은 값이 나오며,
+     * 호출부는 판정을 포기하고 재시도 금지로 폴백한다.
+     *
+     * @return page id, 조회 실패 시 -1
+     */
+    private static int queryPrintedPageId() {
+        if (hPrinter == Pointer.NULL) {
+            return -1;
+        }
+        try {
+            IntByReference pageId = new IntByReference();
+            LongByReference printedTime = new LongByReference();
+            boolean ok = AutoReplyPrint.INSTANCE.CP_Printer_GetPrinterPrintedInfo(
+                    hPrinter, pageId, printedTime);
+            return ok ? pageId.getValue() : -1;
+        } catch (Throwable t) {
+            return -1;
+        }
+    }
+
+    /**
+     * ACK timeout 실패 로그에 붙일 진단 스냅샷.
+     *
+     * <p>기존 로그는 {@code 실패 (30182ms)} 뿐이라 timeout 인지 다른 사유인지,
+     * 그 시점 프린터가 어떤 상태였는지 사후 판별이 불가능했다. 비콘 캐시와
+     * 동기 조회값을 나란히 남겨 둘이 어긋나는지도 함께 본다.
+     */
+    private static String diagnosticSnapshot(int pageIdBefore, int pageIdAfter) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("pg=").append(pageIdBefore).append("→").append(pageIdAfter);
+        sb.append(" 비콘[");
+        sb.append("paperNoFetch=").append(lastInfoPaperNoFetch);
+        sb.append(" noPaperCanceled=").append(lastInfoNoPaperCanceled);
+        sb.append(" recvIdle=").append(lastInfoRecvIdle);
+        sb.append(" printIdle=").append(lastInfoPrintIdle);
+        sb.append(String.format(" err=0x%04X", lastErrorStatusBits));
+        sb.append(" age=");
+        sb.append(lastStatusTime == 0L
+                ? "미수신"
+                : (System.currentTimeMillis() - lastStatusTime) + "ms");
+        sb.append(']');
+
+        // 동기 상태조회 — 비콘 캐시가 stale 인지 교차 확인.
+        try {
+            LongByReference err = new LongByReference();
+            LongByReference info = new LongByReference();
+            LongByReference statusTime = new LongByReference();
+            boolean ok = AutoReplyPrint.INSTANCE.CP_Printer_GetPrinterStatusInfo(
+                    hPrinter, err, info, statusTime);
+            if (ok) {
+                sb.append(String.format(" 동기[err=0x%04X info=0x%04X]",
+                        err.getValue() & 0xFFFFL, info.getValue() & 0xFFFFL));
+            } else {
+                sb.append(" 동기[조회실패]");
+            }
+        } catch (Throwable t) {
+            sb.append(" 동기[미지원]");
+        }
+
+        sb.append(" portOk=").append(AutoReplyPrint.INSTANCE.CP_Port_IsOpened(hPrinter));
+        return sb.toString();
     }
 
     /**
@@ -364,6 +498,16 @@ public class LabelPrinter {
                 lastInfoPrintIdle = s.INFO_PRINTIDLE();
                 lastInfoNoPaperCanceled = s.INFO_NOPAPERCANCELED();
                 lastInfoPaperNoFetch = s.INFO_PAPERNOFETCH();
+
+                // 떼기 상태 전이 — logcat 전용. 파일 로그는 건드리지 않는다
+                // (라벨 1장당 2줄씩 늘어나 운영 로그가 두꺼워짐).
+                if (lastLoggedPaperNoFetch == null
+                        || lastLoggedPaperNoFetch != lastInfoPaperNoFetch) {
+                    lastLoggedPaperNoFetch = lastInfoPaperNoFetch;
+                    Log.i(TAG, (currentOrderTag != null ? currentOrderTag + " " : "")
+                            + "PAPERNOFETCH → "
+                            + (lastInfoPaperNoFetch ? "안뗌(라벨 대기중)" : "떼어짐/없음"));
+                }
 
                 // ── phase 비콘 로그: ERROR 만 출력, 정상 phase(수신중/인쇄중/대기중 등)는 무음 ──
                 // 정상 phase 는 라벨 라이프사이클 로그(출력중/출력끝)와 PAPERNOFETCH 추적으로
@@ -455,6 +599,7 @@ public class LabelPrinter {
         }
         // dedup 캐시 리셋 — 재오픈 시 첫 비콘부터 다시 로그
         lastLoggedPhase = null;
+        lastLoggedPaperNoFetch = null;
         currentOrderTag = null;
     }
 }

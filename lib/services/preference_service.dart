@@ -97,7 +97,7 @@ class PreferenceService {
   static const String KEY_LABEL_USE_QR_PRINT =
       "KOKONUT_LABEL_USE_QR_PRINT"; // bool (기본 false)
   static const String KEY_LABEL_QR_PAYLOAD_FORMAT =
-      "KOKONUT_LABEL_QR_PAYLOAD_FORMAT"; // int (0: 기존 {orderNo}-{shopItemId}-{cupIdx}, 1: 신규 {displayNum}-{cupIdx})
+      "KOKONUT_LABEL_QR_PAYLOAD_FORMAT"; // int (0: 기존 {orderNo}-{shopItemId}-{cupIdx}, 1: 신규 {displayNum}-{cupIdx}, 기본값 1)
 
   static const String KEY_IS_SOCKET_ENABLED =
       "KEY_IS_SOCKET_ENABLED"; // 소켓 사용 여부
@@ -130,7 +130,7 @@ class PreferenceService {
   // 브랜드 slug 는 네이티브가 res/raw·res/drawable 콘텐츠를 getIdentifier 로 찾는 데 사용.
   static const String KEY_BRAND_SLUG = "KEY_BRAND_SLUG";
   // 콘텐츠 표시 모드: "video" / "image" / "none" / 미설정(null).
-  // null=미설정 → 네이티브가 영상 우선 자동 표시(effectiveMode 규칙). "none"=운영자 명시적 끔.
+  // null=미설정 → 네이티브가 이미지 우선 자동 표시(effectiveMode 규칙). "none"=운영자 명시적 끔.
   static const String KEY_DUAL_MONITOR_MODE = "KEY_DUAL_MONITOR_MODE";
 
   // New Printer Setting Keys
@@ -482,7 +482,7 @@ class PreferenceService {
       _prefs.setString(KEY_BRAND_THEME, id);
 
   // 듀얼모니터 콘텐츠 표시 모드 조회.
-  // null=미설정 → effectiveMode 규칙이 영상 우선으로 자동 해석(콘텐츠 있으면 자동 표시).
+  // null=미설정 → effectiveMode 규칙이 이미지 우선으로 자동 해석(콘텐츠 있으면 자동 표시).
   // "none" 은 운영자가 명시적으로 끈 상태. 기본값으로 "none" 을 반환하지 말 것.
   String? getDualMonitorMode() => _prefs.getString(KEY_DUAL_MONITOR_MODE);
 
@@ -622,7 +622,7 @@ class PreferenceService {
 
   /// 라벨 QR 페이로드 포맷 (0: 기존, 1: 신규 displayNum-cupIdx 테스트 포맷)
   int getLabelQrPayloadFormat() =>
-      _prefs.getInt(KEY_LABEL_QR_PAYLOAD_FORMAT) ?? 0;
+      _prefs.getInt(KEY_LABEL_QR_PAYLOAD_FORMAT) ?? 1;
 
   // 영업 상태 저장
   Future<void> setOrderOn(bool value) async {

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:appfit_order_agent/services/external_receipt_printer.dart';
+import 'package:appfit_order_agent/services/label_printer/label_print_outcome.dart';
 import 'package:appfit_order_agent/services/label_printer/label_printer_options.dart';
 import 'package:appfit_order_agent/services/label_printer/windows/windows_label_router.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
@@ -380,8 +381,8 @@ class PrintService {
 
           if (isKnownLabelPrinter) {
             isLabelConnected = true;
-            labelModel = labelPrinterModelName(
-                vendorId: vendorId, productId: productId);
+            labelModel =
+                labelPrinterModelName(vendorId: vendorId, productId: productId);
             identification =
                 ' [라벨 프린터 식별됨${labelModel != null ? ' $labelModel' : ''}]'
                 ' VID:$vendorId / PID:$productId';
@@ -682,12 +683,27 @@ class PrintService {
     }
   }
 
-  /// 라벨 한 장 인쇄. 네이티브 [LabelPrinter.printBitmap] 의 boolean 결과를 그대로 반환.
-  /// false 반환 시 호출자가 재시도/누락 로깅 결정.
+  /// 라벨 한 장 인쇄 (bool 편의 래퍼). 종이가 나갔다고 볼 수 있으면 true.
   ///
-  /// rethrow 대신 `return false` 로 처리: 한 라벨 실패가 OutputService 의 catch 블록을
-  /// 트리거해 같은 주문의 나머지 라벨까지 막는 것을 방지하기 위함. 실패는 반환값으로 표현.
+  /// 재시도 가능 여부까지 알아야 하는 호출자는 [printLabelDetailed] 를 쓸 것 —
+  /// bool 은 "안 보냄"과 "보냈는데 응답 없음"을 구분하지 못해, 후자에서 재시도하면
+  /// 같은 라벨이 2장 인쇄된다.
   Future<bool> printLabel(Uint8List imageBytes,
+      {String orderNo = '-', int labelIndex = 1, int totalLabels = 1}) async {
+    final outcome = await printLabelDetailed(
+      imageBytes,
+      orderNo: orderNo,
+      labelIndex: labelIndex,
+      totalLabels: totalLabels,
+    );
+    return outcome.isPrinted;
+  }
+
+  /// 라벨 한 장 인쇄. 네이티브 `LabelPrinter.printBitmap` 의 3분류 결과를 그대로 전달.
+  ///
+  /// rethrow 대신 결과값으로 처리: 한 라벨 실패가 OutputService 의 catch 블록을
+  /// 트리거해 같은 주문의 나머지 라벨까지 막는 것을 방지하기 위함.
+  Future<LabelPrintOutcome> printLabelDetailed(Uint8List imageBytes,
       {String orderNo = '-', int labelIndex = 1, int totalLabels = 1}) async {
     try {
       if (_cachedExternalPrinter == null) {
@@ -698,7 +714,7 @@ class PrintService {
 
       if (!useLabel) {
         logger.w('Label printer is disabled in settings.');
-        return false;
+        return LabelPrintOutcome.retryable;
       }
 
       // Windows: FFI 직접 호출 — MethodChannel 'printLabel' 핸들러가
@@ -706,7 +722,10 @@ class PrintService {
       // 벤더(Caysn/BIXOLON) 선택은 라우터가 USB VID 로 매 인쇄 재평가.
       // Android 의 기존 MethodChannel 경로는 아래 else 로 보존.
       if (Platform.isWindows) {
-        return await WindowsLabelRouter.instance.printPng(
+        // Windows 백엔드는 내부적으로 이미 submit-wins 를 구현하고 있어
+        // (windows_label_printer_backend `_printedAckCount` 스냅샷 + 완료 폴링),
+        // false 는 "제출 전 실패 = 재시도 안전" 을 뜻한다.
+        final ok = await WindowsLabelRouter.instance.printPng(
           pngBytes: imageBytes,
           width: LabelPainter.width.toInt(),
           height: LabelPainter.height.toInt(),
@@ -720,9 +739,10 @@ class PrintService {
           labelIndex: labelIndex,
           totalLabels: totalLabels,
         );
+        return ok ? LabelPrintOutcome.success : LabelPrintOutcome.retryable;
       }
 
-      final result = await platform.invokeMethod<bool>('printLabel', {
+      final result = await platform.invokeMethod<int>('printLabel', {
         'imageBytes': imageBytes,
         'autoReplyMode': _preferenceService.getLabelAutoReplyMode(),
         'useFeedToTear': _preferenceService.getLabelUseFeedToTear(),
@@ -732,10 +752,10 @@ class PrintService {
         'labelIndex': labelIndex,
         'totalLabels': totalLabels,
       });
-      return result ?? false;
+      return LabelPrintOutcome.fromNativeCode(result);
     } on PlatformException catch (e, s) {
       logger.e('Failed to print label', error: e, stackTrace: s);
-      return false;
+      return LabelPrintOutcome.retryable;
     }
   }
 

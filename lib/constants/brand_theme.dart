@@ -21,7 +21,7 @@ enum BrandTheme {
     primaryAlpha: Color(0x144A3730),
     loginBackground: Color(0xFF5B443B),
     onLoginBackground: Color(0xFFfcfaf8),
-    logoAsset: 'assets/images/brand/mammoth/logo.svg',
+    logoAsset: 'assets/images/brand/mammoth/logo.png',
     loginGradient: LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,

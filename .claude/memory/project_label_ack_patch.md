@@ -182,6 +182,17 @@ byte 7 마스크 (이전 발견 그대로):
 - 커밋 안 됨 (`d187e57` 위에 미커밋 변경 4 파일)
 - 다음 단계 (운영 통합) 전까지 PoC 코드 그대로 유지 권장
 
+## ⚠️ 2026-08-03 실측 정정 — 신호 상태 재평가
+
+이 메모의 "SDK 신호를 못 믿는다" 기조는 **PrintedEvent 한정**으로 좁혀야 한다. 실측 결과([[reference_rexod_label_printer_signals]]):
+
+- `CP_Printer_AddOnPrinterStatusEvent` 비콘은 **정상 동작**하고 `INFO_PAPERNOFETCH` 도 매 인쇄마다 전이한다. (이 메모의 "발견 1" 은 PrintedEvent 에만 해당)
+- `CP_Pos_QueryPrintResult` 는 하루 250여 회 정상(~1.1초). 떼기를 기다리지 않고 인쇄 엔진 완료 시점에 반환한다.
+- `CP_Printer_GetPrinterPrintedInfo`(PrintedEvent 와 같은 데이터원)의 pageId 는 인쇄 도중 갱신되지 않아 **인쇄 여부 판정에 쓸 수 없음** — PrintedEvent 미동작과 같은 뿌리로 보인다.
+- "발견 6 — 펌웨어 race 처리는 안전함" 은 유효. 보류 + 떼면 자동 인쇄가 실기기에서 재현됨(19.2초).
+
+따라서 **USB Direct 전환(대안 SDK 조사 표)의 동기는 약해졌다** — 필요한 신호는 Caysn StatusEvent 로 이미 얻을 수 있다. 2026-08-03 라벨 2장 사고도 SDK 교체 없이 재시도 정책 수정으로 해결 → [[project_label_ack_timeout_duplicate]]
+
 ## 다음 결정 분기
 
 - **A. ACK 타임아웃 5s → 1.5~2s 단축** ([LabelPrinter.java:30](android/app/src/main/java/co/kr/waldlust/order/receive/util/print/LabelPrinter.java#L30) `PRINTED_ACK_TIMEOUT_MS`). 정상 ACK 단말 영향 없음, D2s sleep 짧아짐. 단 race 보호 약화 가능.

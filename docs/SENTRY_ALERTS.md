@@ -20,7 +20,9 @@ Sentry Issue Alert 라우팅. 규칙은 대시보드 수동이 아니라
 | 규칙 | 필터 | 채널 |
 |---|---|---|
 | `[auto] TPCP00001 -> #appfit-alert-tpc` | `store_id == TPCP00001` | appfit-alert-tpc (C0B02RCJSJ0) |
-| `[auto] catch-all -> #appfit-alert-test` | `store_id != TPCP00001` | appfit-alert-test (C0AV9RDTTT7) |
+| `[auto] PAIK -> #appfit-alert-paik` | `store_id sw PAIK` | appfit-alert-paik (C0BM48A7PUP) |
+| `[auto] TLJP -> #appfit-alert-tljp` | `store_id sw TLJP` | appfit-alert-tljp (C0BMQCJMB62) |
+| `[auto] catch-all -> #appfit-alert-test` | `store_id != TPCP00001` (+ PAIK, TLJP 제외) | appfit-alert-test (C0AV9RDTTT7) |
 
 - WHEN(트리거): `when: "every"` — 빈 conditions = **모든 이벤트마다 발화**(Sentry 사양상
   트리거 미지정 = 모든 이벤트 충족). `actionMatch=any`. 모든 환경. 액션 간격 5분.

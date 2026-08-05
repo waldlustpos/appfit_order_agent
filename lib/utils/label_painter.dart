@@ -140,7 +140,8 @@ class LabelPainter extends CustomPainter {
   double _drawHeader(Canvas canvas, Size size, double startY) {
     final paint = Paint()..color = Colors.black;
     // 헤더는 V1·V2 동일 (로고 + 우측 순번 + 구분선).
-    const double logoW = logoWidthDefault;
+    // 로고 표시 폭은 브랜드별 지정 가능(BrandMeta.labelLogoWidth, 기본 50).
+    final double logoW = BrandAssets.labelLogoWidth;
 
     // Order Time
     if (orderTime != null) {
@@ -661,14 +662,18 @@ class LabelPainter extends CustomPainter {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
 
-    final String targetPath = BrandAssets.labelLogoPath;
+    final String? targetPath = BrandAssets.labelLogoPath;
     if (_cachedLogoPath != targetPath) {
       // 브랜드 전환(또는 첫 로드) — 캐시 무효화 후 재시도.
       _cachedLogo = null;
       _logoLoadAttempted = false;
       _cachedLogoPath = null;
     }
-    if (!_logoLoadAttempted) {
+    if (targetPath == null) {
+      // hasLabelLogo=false 브랜드 — 로고 미표시(자산 준비 전 임시 비활성화).
+      _logoLoadAttempted = false;
+      _cachedLogoPath = null;
+    } else if (!_logoLoadAttempted) {
       _logoLoadAttempted = true;
       _cachedLogo = await _loadLogoImage(targetPath);
       if (_cachedLogo == null &&
@@ -679,7 +684,7 @@ class LabelPainter extends CustomPainter {
       }
       _cachedLogoPath = targetPath;
     }
-    final ui.Image? logo = _cachedLogo;
+    final ui.Image? logo = targetPath == null ? null : _cachedLogo;
 
     final painter = LabelPainter(
       menuName: menuName,

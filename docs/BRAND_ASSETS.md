@@ -37,7 +37,9 @@
 | palette[1] | white (0xFFFFFF) |
 | 픽셀 의미 | 0=검정 잉크, 1=흰 종이 (인쇄 안 됨) |
 
-라벨 painter는 캔버스 50×50 영역(`logoWidthDefault=50`, `logoHeight=logoWidthDefault`)에 로고를 그린다. 정사각형이 아닌 비율은 squish되므로 BMP 자체를 50×50 캔버스 + 흰 패딩으로 만들 것.
+라벨 painter는 기본적으로 캔버스 50×50 영역(`logoWidthDefault=50`, `logoHeight=logoWidthDefault`)에 로고를 그린다. 정사각형이 아닌 비율은 squish되므로 BMP 자체를 50×50 캔버스 + 흰 패딩으로 만들 것.
+
+표시 크기는 브랜드별로 `BrandMeta.labelLogoWidth`(기본 50)로 조정 가능하다(예: PAIK=70). BMP 원본은 여전히 50×50 이고, `label_painter.dart`가 `FilterQuality.none`으로 확대/축소해서 그리므로 큰 폭을 지정하면 계단현상이 두드러질 수 있다 — 필요 시 원본 BMP 해상도를 높이는 것도 함께 고려.
 
 ## 3. 핵심 노하우 (시행착오 산출물)
 

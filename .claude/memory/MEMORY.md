@@ -29,7 +29,7 @@
 - [주문흐름·출력 누락/몰림 점검 완료](project_order_output_audit_2026_07.md) — P1 3건(최종실패 무통지·재시작 유실·emit 이중기동) 검증. 실패통지=앱내 배너/배지 확정, 수정은 별도 (2026-07-07)
 - [Plane(waldsupport.com) 이슈 벌크 생성 도구](project_plane_issue_sync.md) — plane_sync/plane_sync.py + /plane 명령. 토큰 PLANE_API_TOKEN(.env), 프로젝트 SX. 미커밋 (2026-07-09)
 - [변형 폐기 → 단일 빌드 + 런타임 서버선택](project_variant_rename_japan_korea.md) — APPFIT_VARIANT 완전 제거, 단일 APK/exe 가 한/일 서빙. 서버=저장값+매장ID 프리픽스 자동전환. 폐기된 변형 기계는 이력용 보존: [두 변형 빌드 골격](project_dual_variant_build.md)·[launch.json dart-define](reference_launch_json_variant_dart_define.md)·[standalone OTA 채널](project_standalone_ota_channel.md) (2026-07-09)
-- [Sentry 알림 라우팅](project_sentry_alert_routing.md) — store_id→Slack 채널 분기, sentry_alerts/ 스크립트 코드화. MCP는 읽기만. 라이브 적용은 SENTRY_AUTH_TOKEN 대기.
+- [Sentry 알림 라우팅](project_sentry_alert_routing.md) — store_id→Slack 채널 분기. TPCP+PAIK+TLJP 라이브 적용(미커밋). environment 태그 부팅시 1회 스냅샷 버그 발견+수정(updateContext 미호출).
 - [intra-order 라벨 300ms 딜레이](project_label_inter_label_delay.md) — 동일 주문 라벨 사이 firmware '종이 안 뗌' 감지 미동작(장비편차) 대응. Android 한정 고정 딜레이 (2026-07-21)
 - [brand 로고 solid 배경 = 색상 마스크](reference_brand_logo_solid_bg_color_mask.md) — 알파 없는 solid 배경은 docs alpha 매핑 대신 ImageChops.subtract(b,r) 파랑 마스크. PAIK 새 BI 교체 이력 (2026-07-21)
 - [COM 재시도 계층 경계](feedback_com_startup_retry_scope.md) — sendRaw 는 큐 backoff 가 상위 호환이라 내부 재시도 금지. 시작 연결확인만 StartupProbeScheduler (2026-07-21)
@@ -39,6 +39,12 @@
 - [의존성 tier① 업그레이드 실행](project_deps_tier1_upgrade.md) — 저위험 5묶음 브랜치 실행(미푸시). tier②(Sentry/serial/Riverpod)·tier③ 로드맵 대기.
 - [slang4 다파일 + analyze baseline 함정](reference_slang4_multifile_and_analyze_baseline.md) — slang4=다파일 생성(strings_<locale>.g.dart 커밋 필수)+lazy:false. analyze warning baseline 69(0 아님).
 - [BIXOLON XD5-40d 라벨프린터 Android 지원](project_bixolon_xd5_40d.md) — VID 0x1504 자동 라우팅으로 기존 PNG 파이프라인 재사용. so 필수·pdflib 불필요. 실기기 검증 대기 (2026-07-23)
+- [브랜드 자산 대형캔버스 bbox 크롭 함정](reference_brand_asset_large_canvas_bbox_crop.md) — 4500×4500류 대형 여백 캔버스는 §4.1/gen_receipt_logo.dart 표준 파이프라인 전에 alpha bbox 크롭 필수(자동 크롭 없음).
+- [MHST 브랜드 이미지 4종 교체 + D3mini 우선순위 반전](project_mhst_brand_image_2026_08.md) — 라벨/영수증/로그인/세컨모니터 교체, D3mini 영상→이미지 우선 반전. 실기기 검증·커밋(7c6fb22) 완료. 동시 세션 git add/commit 레이스 겪음 (2026-08-03)
+- [REXOD 라벨프린터 신호 실측 정본](reference_rexod_label_printer_signals.md) — PAPERNOFETCH 정상동작(통념 반박), QueryPrintResult는 떼기 안 기다림, GetPrinterPrintedInfo pageId 판정불가, 펌웨어 보류 실재(19.2초). 관찰 불가한 가드 = 없는 가드.
+- [라벨 2장 인쇄 사고 — ACK timeout 오판](project_label_ack_timeout_duplicate.md) — timeout을 인쇄실패로 단정해 재전송. printBitmap 반환 3분류로 수정, submittedNoAck 재시도 금지. 브랜치 미커밋 (2026-08-03)
+- [신규 라벨 QR cupIdx 충돌 버그+수정](project_label_qr_cupidx_collision.md) — 표시번호-컵순번 포맷이 메뉴별 리셋 labelSeq 사용해 다른메뉴도 전부 "-0" 충돌. order-wide labelIndex로 교체, 미커밋 (2026-08-04)
+- [동시 배포 세션 버전 레이스](feedback_concurrent_deploy_version_race.md) — 승인 후에도 실행 직전 pubspec.yaml 재확인 필수. 다른 세션이 build-number 계속 올리며 먼저 배포한 사례 2회 (2026-08-04)
 - [기기 관제(Fleet) 플랫폼](project_fleet_monitoring.md) — 배포+appfit_core 승격(v1.0.18) 완료, 실기기 파일럿 대기. 백엔드는 별도 레포 appfit-fleet.
 - [Cloudflare Worker 배포 함정](reference_cloudflare_worker_traps.md) — 원클릭 Access가 기기 경로까지 302, d1 create가 바인딩 덧붙임(7404), secret put이 스텁 Worker 생성.
 - [Fleet 규모 확장 한도](reference_fleet_scaling_limits.md) — 무료 천장=하루 heartbeat 10만. 2000대는 유료 $5(10분)/$16(2분). D1 쓰기가 비용 절벽. maxIntervalSeconds 미리 올려둘 것.

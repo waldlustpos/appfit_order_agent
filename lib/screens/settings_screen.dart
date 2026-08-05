@@ -12,6 +12,7 @@ import 'package:appfit_order_agent/providers/product_provider.dart';
 import 'package:appfit_order_agent/constants/app_styles.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/services/local_server_service.dart';
+import 'package:appfit_order_agent/services/monitoring/monitoring_context_builder.dart';
 import 'package:appfit_order_agent/services/preference_service.dart';
 import 'package:appfit_order_agent/services/windows_update_service.dart';
 import 'package:appfit_order_agent/widgets/update/update_progress_dialog.dart';
@@ -57,7 +58,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _labelUseCalibrate = false;
   bool _labelUseQrPrint = false;
   int _labelFilterMode = 0;
-  int _labelQrPayloadFormat = 0;
+  int _labelQrPayloadFormat = 1;
 
   bool _isKioskOrderVisible = false;
   bool _isKioskOrderSoundEnabled = false;
@@ -325,6 +326,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     };
     AppFitConfig.configure(
         environment: newEnvironment, requestSource: 'ORDER_AGENT');
+
+    // Sentry environment 태그는 부팅 시 1회만 세팅되므로, 런타임 환경 전환 시
+    // 여기서 다시 반영하지 않으면 알림에 이전 환경이 그대로 찍힌다.
+    if (AppEnv.hasSentryDsn) {
+      MonitoringService.instance
+          .updateContext(await buildOrderAgentMonitoringContext());
+    }
 
     final tokenManager = ref.read(appfit_providers.appFitTokenManagerProvider);
     await tokenManager.clearToken();

@@ -457,8 +457,7 @@ class ComPortPrintService {
           // _probePrinter 가 _lastFailureReason 을 'probe-timeout' /
           // 'probe-write-failed' 로 이미 세팅.
           _lastFailureAt = DateTime.now();
-          logger.w(
-              '[ComPortPrint] 생존 확인 실패: $comPort DLE EOT 무응답 '
+          logger.w('[ComPortPrint] 생존 확인 실패: $comPort DLE EOT 무응답 '
               '-- printer offline?');
           return false;
         }
@@ -633,9 +632,9 @@ class ComPortPrintService {
       final ring = (bits & _msRingOn) != 0;
       final rlsd = (bits & _msRlsdOn) != 0;
       final alive = dsr || cts;
-      logger.i(
-          '[ComPortPrint] 모뎀상태 0x${bits.toRadixString(16).padLeft(2, '0')} '
-          'DSR=$dsr CTS=$cts RING=$ring RLSD=$rlsd -> alive=$alive');
+      logger
+          .i('[ComPortPrint] 모뎀상태 0x${bits.toRadixString(16).padLeft(2, '0')} '
+              'DSR=$dsr CTS=$cts RING=$ring RLSD=$rlsd -> alive=$alive');
       return alive;
     } finally {
       calloc.free(stat);

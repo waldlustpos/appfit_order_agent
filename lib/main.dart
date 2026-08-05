@@ -3,11 +3,9 @@ import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/services.dart';
 
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 // import 'package:flutter_dotenv/flutter_dotenv.dart'; // Removed
 
 import 'package:appfit_order_agent/services/label_printer/windows/windows_label_router.dart';
@@ -34,6 +32,7 @@ import 'package:appfit_order_agent/i18n/strings.g.dart';
 import 'package:appfit_order_agent/providers/fleet_provider.dart';
 import 'package:appfit_order_agent/providers/locale_provider.dart';
 import 'package:appfit_order_agent/providers/rotation_provider.dart';
+import 'package:appfit_order_agent/services/monitoring/monitoring_context_builder.dart';
 import 'package:appfit_order_agent/services/monitoring/order_agent_monitoring_context.dart';
 import 'package:appfit_order_agent/constants/app_styles.dart';
 import 'package:appfit_order_agent/constants/brand_theme.dart';
@@ -112,7 +111,7 @@ void main() async {
   }
 
   // 기기 및 앱 정보 수집 (MonitoringService 초기화에 필요)
-  final monitoringContext = await _buildMonitoringContext();
+  final monitoringContext = await buildOrderAgentMonitoringContext();
   // 기기 시리얼(예: H092W24A1G00862). Sunmi 는 프린터 서비스 폴링이 있어 시작
   // 지연을 막기 위해 1초 타임아웃 best-effort.
   String? deviceSerial;
@@ -234,49 +233,6 @@ void _logStartupInfo(OrderAgentMonitoringContext ctx, String? deviceSerial) {
       '[SYSTEM]  기기: ${ctx.deviceManufacturer} ${ctx.deviceModel}$serialSuffix');
   logger.i('[SYSTEM]  환경: ${ctx.environment}');
   logger.i(sep);
-}
-
-/// 기기/앱 정보를 수집하여 MonitoringContext 생성
-Future<OrderAgentMonitoringContext> _buildMonitoringContext() async {
-  String deviceModel = 'Unknown';
-  String deviceManufacturer = 'Unknown';
-  String appVersion = '';
-  String buildNumber = '';
-
-  try {
-    final deviceInfo = DeviceInfoPlugin();
-    if (Platform.isAndroid) {
-      final info = await deviceInfo.androidInfo;
-      deviceModel = info.model;
-      deviceManufacturer = info.manufacturer;
-    } else if (Platform.isIOS) {
-      final info = await deviceInfo.iosInfo;
-      deviceModel = info.model;
-      deviceManufacturer = 'Apple';
-    } else if (Platform.isWindows) {
-      final info = await deviceInfo.windowsInfo;
-      deviceModel = info.computerName;
-      deviceManufacturer = 'Microsoft';
-    }
-  } catch (e, s) {
-    logger.d('Failed to get device info: $e');
-  }
-
-  try {
-    final pkgInfo = await PackageInfo.fromPlatform();
-    appVersion = pkgInfo.version;
-    buildNumber = pkgInfo.buildNumber;
-  } catch (e, s) {
-    logger.d('Failed to get package info: $e');
-  }
-
-  return OrderAgentMonitoringContext(
-    appVersion: appVersion,
-    buildNumber: buildNumber,
-    deviceModel: deviceModel,
-    deviceManufacturer: deviceManufacturer,
-    environment: AppFitConfig.environment.name,
-  );
 }
 
 // _checkLegacyDataPermissions 제거됨: V2 마이그레이션은 PreferenceService.init()에서 처리

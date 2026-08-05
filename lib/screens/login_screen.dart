@@ -25,6 +25,7 @@ import 'package:appfit_order_agent/widgets/common/common_dialog.dart';
 import 'package:appfit_order_agent/widgets/common/brand_logo.dart';
 import 'package:appfit_order_agent/constants/app_styles.dart';
 import 'package:appfit_order_agent/services/local_server_service.dart';
+import 'package:appfit_order_agent/services/monitoring/monitoring_context_builder.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
 // For kDebugMode if needed
 import 'package:appfit_order_agent/i18n/strings.g.dart';
@@ -1210,6 +1211,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       environment: newEnvironment,
       requestSource: 'ORDER_AGENT',
     );
+
+    // Sentry environment 태그는 부팅 시 1회만 세팅되므로, 런타임 환경 전환 시
+    // 여기서 다시 반영하지 않으면 알림에 이전 환경이 그대로 찍힌다.
+    if (AppEnv.hasSentryDsn) {
+      MonitoringService.instance
+          .updateContext(await buildOrderAgentMonitoringContext());
+    }
 
     final tokenManager = ref.read(appfit_providers.appFitTokenManagerProvider);
     await tokenManager.clearToken();
