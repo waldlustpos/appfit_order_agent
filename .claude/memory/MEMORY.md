@@ -45,3 +45,5 @@
 - [라벨 2장 인쇄 사고 — ACK timeout 오판](project_label_ack_timeout_duplicate.md) — timeout을 인쇄실패로 단정해 재전송. printBitmap 반환 3분류로 수정, submittedNoAck 재시도 금지. 브랜치 미커밋 (2026-08-03)
 - [신규 라벨 QR cupIdx 충돌 버그+수정](project_label_qr_cupidx_collision.md) — 표시번호-컵순번 포맷이 메뉴별 리셋 labelSeq 사용해 다른메뉴도 전부 "-0" 충돌. order-wide labelIndex로 교체, 미커밋 (2026-08-04)
 - [동시 배포 세션 버전 레이스](feedback_concurrent_deploy_version_race.md) — 승인 후에도 실행 직전 pubspec.yaml 재확인 필수. 다른 세션이 build-number 계속 올리며 먼저 배포한 사례 2회 (2026-08-04)
+- [fleet-monitoring 브랜치 유지 전략](project_fleet_monitoring_branch_strategy.md) — main+fleet 파일럿 구성 유지, main 신규 커밋은 주기적으로 merge(리베이스 아님)로 반영. 첫 병합(5f02d5d) analyze/test 검증 후 push 완료 (2026-08-05)
+- [기기-앱버전-Alias 매칭 반복작업](project_device_version_alias_audit.md) — sm_partner+apps CSV 교차매칭. apps CSV 1행 타이틀 스킵 함정. 스크립트 ~/Downloads/에 영구보존(scratchpad 아님) (2026-08-05)
