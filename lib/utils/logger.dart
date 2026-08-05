@@ -117,6 +117,10 @@ class CustomLogOutput extends LogOutput {
       else if (line.contains('[LIFECYCLE]')) {
         shouldLogToFile = true;
       }
+      // 기기 관제(Fleet) 이벤트 (연결 상태 전환 등)
+      else if (line.contains('[FLEET]')) {
+        shouldLogToFile = true;
+      }
 
       // Notifier(WebSocket) 메시지 수신 로그
       else if (line.contains('[Notifier]')) {

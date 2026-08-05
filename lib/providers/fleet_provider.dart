@@ -9,13 +9,23 @@ import 'package:appfit_order_agent/providers/preference_provider.dart';
 import 'package:appfit_order_agent/providers/store_provider.dart';
 import 'package:appfit_order_agent/services/appfit/appfit_providers.dart';
 import 'package:appfit_order_agent/services/appfit/kokonut_appfit_logger.dart';
+import 'package:appfit_order_agent/services/fleet/fleet_connection_status.dart';
+import 'package:appfit_order_agent/services/fleet/observing_fleet_sink.dart';
 import 'package:appfit_order_agent/services/fleet/order_agent_fleet_command_handler.dart';
 import 'package:appfit_order_agent/services/fleet/order_agent_fleet_snapshot.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
-import 'package:appfit_order_agent/utils/logger.dart';
 
 AppFitLogger _fleetLogger() =>
     SentryAppFitLogger(delegate: AppfitAppFitLogger());
+
+/// 앱바 아이콘이 watch 하는 관제 연결 상태. 최초값은 설정 유무로 정하고,
+/// 이후 register/heartbeat 결과는 [fleetSinkProvider] 의 [ObservingFleetSink]
+/// 가 갱신한다(빌드 중 다른 provider 상태를 쓰지 않도록 초기값은 순수 계산).
+final fleetConnectionStatusProvider = StateProvider<FleetConnectionStatus>(
+  (ref) => AppEnv.hasFleetConfig
+      ? FleetConnectionStatus.connecting
+      : FleetConnectionStatus.disabled,
+);
 
 /// 기기 보고의 전송 목적지. **단일 교체 지점**이다
 /// (logUploadSinkProvider 와 같은 패턴).
@@ -25,13 +35,32 @@ AppFitLogger _fleetLogger() =>
 /// 정확히 동작하지 않는, 가장 발견이 늦는 버그가 된다.
 final fleetSinkProvider = Provider<FleetSink>((ref) {
   if (!AppEnv.hasFleetConfig) {
-    logger.i('[Fleet] FLEET_BASE_URL/FLEET_DEVICE_KEY 미주입 — 관제 보고 비활성');
+    logToFile(
+      tag: LogTag.FLEET,
+      message: '설정 없음 — 관제 보고 비활성 (FLEET_BASE_URL/FLEET_DEVICE_KEY 미주입)',
+    );
     return NoopFleetSink(logger: _fleetLogger());
   }
-  return HttpFleetSink(
-    baseUrl: AppEnv.fleetBaseUrl,
-    deviceKey: AppEnv.fleetDeviceKey,
-    logger: _fleetLogger(),
+  logToFile(
+    tag: LogTag.FLEET,
+    message: '관제 보고 활성화 (baseUrl=${AppEnv.fleetBaseUrl})',
+  );
+  return ObservingFleetSink(
+    inner: HttpFleetSink(
+      baseUrl: AppEnv.fleetBaseUrl,
+      deviceKey: AppEnv.fleetDeviceKey,
+      logger: _fleetLogger(),
+    ),
+    onStatus: (status) {
+      final prev = ref.read(fleetConnectionStatusProvider);
+      if (prev != status) {
+        logToFile(
+          tag: LogTag.FLEET,
+          message: '연결 상태 전환: ${prev.name} → ${status.name}',
+        );
+      }
+      ref.read(fleetConnectionStatusProvider.notifier).state = status;
+    },
   );
 });
 
@@ -87,7 +116,7 @@ final fleetSyncProvider = Provider<void>((ref) {
     if (storeId == null || storeId.isEmpty) return;
     if (storeId == prev?.value?.storeId) return;
 
-    logToFile(tag: LogTag.SYSTEM, message: '[Fleet] 매장 전환 감지 → 재등록 ($storeId)');
+    logToFile(tag: LogTag.FLEET, message: '매장 전환 감지 → 재등록 ($storeId)');
     ref.read(deviceIdentityServiceProvider).invalidate();
     reporter.invalidateRegistration();
     reporter.flushNow();
