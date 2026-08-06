@@ -8,6 +8,7 @@ import 'package:appfit_order_agent/widgets/product/product_card_widget.dart';
 import 'package:appfit_order_agent/models/product_model.dart';
 import 'package:appfit_order_agent/models/shop_category_model.dart';
 import 'package:appfit_order_agent/i18n/strings.g.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
 
 class ProductManagementScreen extends ConsumerStatefulWidget {
   const ProductManagementScreen({super.key});
@@ -76,6 +77,23 @@ class _ProductManagementScreenState
       for (final category in sortedServerCategories) category.categoryName,
     };
     final extras = productCategoryNames.difference(ordered).toList()..sort();
+
+    if (ordered.length != serverCategories.length) {
+      // categoryName 기준 Set 이라 서버가 같은 이름의 카테고리를 여러 개(다른
+      // categoryPosId) 내려주면 여기서 조용히 합쳐진다 — "서버는 22개인데 화면은
+      // 그보다 적다" 문의가 나오면 이 로그로 어느 이름이 중복인지 확인한다.
+      final nameCounts = <String, int>{};
+      for (final c in sortedServerCategories) {
+        nameCounts[c.categoryName] = (nameCounts[c.categoryName] ?? 0) + 1;
+      }
+      final duplicates = nameCounts.entries.where((e) => e.value > 1).toList();
+      logger.w('[상품관리] 서버 카테고리 ${serverCategories.length}개 중 '
+          '이름 기준 고유값은 ${ordered.length}개 — categoryName 중복: '
+          '${duplicates.map((e) => '${e.key}(${e.value})').join(', ')}');
+    }
+    logger.d('[상품관리] 좌측 목록: 서버기반 ${ordered.length}개 + '
+        '상품역산 추가 ${extras.length}개(${extras.join(', ')}) '
+        '= 총 ${ordered.length + extras.length}개');
 
     return [...ordered, ...extras];
   }
