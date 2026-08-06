@@ -110,6 +110,10 @@ external/
 # (서브디렉토리 docs/<dir>/ 는 이 패턴에 안 잡히므로, 그때는 별도 negation 추가)
 docs/*
 !docs/*.md
+# 배포용 안내서(점주·브랜드 담당자). docs/* 가 디렉토리 docs/guide 자체를 제외해
+# 버리면 하위 negation 이 동작하지 않으므로, 디렉토리를 통째로 재포함한다.
+# 안내서 HTML 과 여기 붙는 스크린샷 자산이 함께 추적된다.
+!docs/guide/
 
 # AppFit Generated
 lib/services/appfit/*.g.dart

@@ -30,6 +30,7 @@
 
 ## 상세 문서
 
+- **점주·브랜드 담당자용 안내서**(kokonut→AppFit 변화점 + 화면별 사용법 + 운영 확인사항. 단일 HTML·브라우저에서 A4 PDF 저장. 개발 용어 금지, 배포용 정본): [docs/guide/appfit-agent-guide.html](docs/guide/appfit-agent-guide.html) — 설정 항목·상태 전이 버튼·프린터 지원 모델·업데이트 정책이 바뀌면 함께 갱신 ([docs/FEATURES.md](docs/FEATURES.md) 는 이 문서를 가리키는 포인터만 유지)
 - 아키텍처(데이터 흐름·Riverpod·서비스·UI·네이티브·브랜드 테마·주요 패턴): [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - 사운드그래프(MHST) 연동 흐름 도식(As-Is kokonut 왕복 ↔ To-Be 구서버 중계안·Firestore 제거 권고): [docs/SOUNDGRAPH.md](docs/SOUNDGRAPH.md)
 - 빌드/배포/환경설정/다국어(Slang): [docs/BUILD.md](docs/BUILD.md)

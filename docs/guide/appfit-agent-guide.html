@@ -1,0 +1,950 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>주문 에이전트 안내서 — kokonut에서 AppFit으로</title>
+<style>
+  :root{
+    --accent:#fb3e7e;
+    --accent-2:#9843cb;
+    --accent-soft:#fff0f5;
+    --ink:#1b1d21;
+    --ink-2:#41454c;
+    --muted:#71767f;
+    --line:#e3e6ea;
+    --line-2:#f0f2f5;
+    --soft:#f7f8fa;
+    --warn:#b45309;
+    --warn-bg:#fffaf0;
+    --warn-line:#f2d9a8;
+    --ok:#0f766e;
+    --ok-bg:#f2fbfa;
+    --ok-line:#bfe4df;
+  }
+
+  *{box-sizing:border-box;}
+  html{-webkit-text-size-adjust:100%;}
+  body{
+    margin:0;
+    padding:0 20px 80px;
+    font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic","맑은 고딕",
+                "Noto Sans KR","Segoe UI",Roboto,sans-serif;
+    font-size:15px;
+    line-height:1.75;
+    color:var(--ink);
+    background:#fff;
+    word-break:keep-all;
+  }
+  .page{max-width:860px;margin:0 auto;}
+
+  /* ---------- 인쇄 안내 (화면 전용) ---------- */
+  .printbar{
+    max-width:860px;margin:0 auto 28px;
+    display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+    padding:12px 16px;border-radius:10px;
+    background:var(--soft);border:1px solid var(--line);
+    font-size:13.5px;color:var(--ink-2);
+  }
+  .printbar b{color:var(--ink);}
+  .kbd{
+    display:inline-block;padding:1px 7px;border-radius:5px;
+    border:1px solid var(--line);border-bottom-width:2px;background:#fff;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;
+  }
+
+  /* ---------- 표지 ---------- */
+  .cover{padding:56px 0 40px;border-bottom:1px solid var(--line);margin-bottom:44px;}
+  .cover .rule{height:6px;width:96px;border-radius:3px;
+    background:linear-gradient(90deg,var(--accent),var(--accent-2));margin-bottom:26px;}
+  .cover .eyebrow{font-size:13px;letter-spacing:.14em;font-weight:700;color:var(--accent);margin:0 0 12px;}
+  .cover h1{font-size:40px;line-height:1.25;letter-spacing:-.02em;margin:0 0 14px;font-weight:800;}
+  .cover .sub{font-size:18px;color:var(--ink-2);margin:0 0 30px;font-weight:500;}
+  .meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px 24px;
+    padding-top:24px;border-top:1px solid var(--line-2);}
+  .meta dt{font-size:12px;letter-spacing:.06em;color:var(--muted);font-weight:700;margin:0 0 3px;}
+  .meta dd{margin:0;font-size:14.5px;font-weight:600;color:var(--ink);}
+
+  /* ---------- 목차 ---------- */
+  .toc{background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:24px 28px;margin-bottom:52px;}
+  .toc h2{margin:0 0 14px;font-size:16px;letter-spacing:.02em;border:0;padding:0;}
+  .toc ol{margin:0;padding-left:0;list-style:none;counter-reset:none;}
+  .toc > ol > li{margin-bottom:12px;}
+  .toc > ol > li > a{font-weight:700;font-size:15px;}
+  .toc ul{margin:5px 0 0;padding-left:14px;list-style:none;
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:1px 18px;}
+  .toc ul a{font-size:13.5px;color:var(--ink-2);}
+  .toc a{color:var(--ink);text-decoration:none;}
+  .toc a:hover{color:var(--accent);text-decoration:underline;}
+
+  /* ---------- 구조 ---------- */
+  .part{margin-bottom:20px;padding-top:8px;}
+  h2{
+    font-size:26px;letter-spacing:-.015em;font-weight:800;
+    margin:56px 0 8px;padding-bottom:12px;border-bottom:2px solid var(--ink);
+  }
+  h2 .num{color:var(--accent);margin-right:10px;}
+  .part-lead{color:var(--ink-2);font-size:15px;margin:0 0 30px;}
+  h3{font-size:19px;font-weight:700;letter-spacing:-.01em;margin:38px 0 12px;}
+  h3 .num{color:var(--muted);font-weight:700;margin-right:8px;font-size:16px;}
+  h4{font-size:15.5px;font-weight:700;margin:24px 0 8px;}
+  p{margin:0 0 14px;}
+  section{scroll-margin-top:16px;}
+
+  /* ---------- 카드 그리드 ---------- */
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin:22px 0 8px;}
+  .card{border:1px solid var(--line);border-radius:11px;padding:16px 18px;background:#fff;}
+  .card .tag{font-size:11.5px;font-weight:700;letter-spacing:.05em;color:var(--accent);
+    display:block;margin-bottom:6px;}
+  .card b{display:block;font-size:15.5px;margin-bottom:5px;}
+  .card span{font-size:13.5px;color:var(--ink-2);line-height:1.6;display:block;}
+
+  /* ---------- 표 ---------- */
+  .tw{overflow-x:auto;margin:18px 0 26px;-webkit-overflow-scrolling:touch;}
+  table{border-collapse:collapse;width:100%;min-width:520px;font-size:14px;}
+  caption{caption-side:top;text-align:left;font-size:13px;color:var(--muted);padding-bottom:8px;}
+  th,td{border:1px solid var(--line);padding:10px 12px;vertical-align:top;text-align:left;}
+  thead th{background:var(--soft);font-weight:700;font-size:13.5px;white-space:nowrap;}
+  tbody th{background:#fcfcfd;font-weight:700;white-space:nowrap;}
+  td small{color:var(--muted);display:block;font-size:12.5px;line-height:1.55;margin-top:2px;}
+  .col-key{width:27%;}
+  .was{color:var(--muted);}
+  .now{font-weight:600;}
+
+  /* ---------- 강조 박스 ---------- */
+  .callout{border:1px solid var(--line);border-left:5px solid var(--muted);
+    border-radius:0 10px 10px 0;padding:16px 20px;margin:22px 0;background:var(--soft);}
+  .callout > :first-child{margin-top:0;}
+  .callout > :last-child{margin-bottom:0;}
+  .callout .head{font-weight:800;font-size:15px;margin-bottom:8px;display:block;}
+  .callout.must{border-left-color:var(--accent);background:var(--accent-soft);border-color:#f6d4e0;}
+  .callout.must .head{color:#c31f57;}
+  .callout.warn{border-left-color:#d97706;background:var(--warn-bg);border-color:var(--warn-line);}
+  .callout.warn .head{color:var(--warn);}
+  .callout.tip{border-left-color:var(--ok);background:var(--ok-bg);border-color:var(--ok-line);}
+  .callout.tip .head{color:var(--ok);}
+
+  .checklist{margin:0;padding:0;list-style:none;counter-reset:chk;}
+  .checklist > li{position:relative;padding-left:38px;margin-bottom:16px;counter-increment:chk;}
+  .checklist > li:last-child{margin-bottom:0;}
+  .checklist > li::before{
+    content:counter(chk);position:absolute;left:0;top:1px;
+    width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;
+    font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center;
+  }
+  .checklist > li > b:first-of-type{display:block;font-size:15.5px;margin-bottom:2px;}
+
+  /* ---------- 흐름도 ---------- */
+  .flow{display:flex;flex-wrap:wrap;align-items:stretch;gap:8px;margin:20px 0 8px;}
+  .flow .step{flex:1 1 120px;min-width:110px;border:1px solid var(--line);border-radius:10px;
+    padding:12px 10px;text-align:center;background:#fff;}
+  .flow .step .s-name{display:block;font-weight:700;font-size:14.5px;margin-bottom:3px;}
+  .flow .step .s-act{display:block;font-size:12.5px;color:var(--accent);font-weight:600;}
+  .flow .arrow{align-self:center;color:var(--muted);font-weight:700;font-size:16px;flex:0 0 auto;}
+
+  /* ---------- 스크린샷 자리표시자 ---------- */
+  .shot{margin:22px 0 26px;}
+  .shot-box{
+    border:2px dashed #c9ced6;border-radius:10px;background:var(--line-2);
+    aspect-ratio:16/10;width:100%;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+    color:#8a9099;font-size:14px;font-weight:600;text-align:center;padding:16px;
+  }
+  .shot-box .ph{font-size:11.5px;letter-spacing:.1em;font-weight:700;color:#aab0b9;}
+  .shot img{width:100%;height:auto;display:block;border:1px solid var(--line);border-radius:10px;}
+  .shot figcaption{margin-top:8px;font-size:13px;color:var(--muted);}
+
+  /* ---------- FAQ ---------- */
+  .faq{margin:22px 0;}
+  .faq .q{border-top:1px solid var(--line);padding:16px 0 4px;font-weight:700;font-size:15.5px;}
+  .faq .q::before{content:"Q. ";color:var(--accent);font-weight:800;}
+  .faq .a{padding:0 0 14px;color:var(--ink-2);font-size:14.5px;}
+  .faq .a::before{content:"A. ";color:var(--muted);font-weight:800;}
+  .faq > div:last-child{border-bottom:1px solid var(--line);padding-bottom:16px;}
+
+  ul.plain{margin:8px 0 16px;padding-left:20px;}
+  ul.plain li{margin-bottom:6px;}
+  .btn{display:inline-block;padding:1px 8px;border-radius:6px;background:var(--soft);
+    border:1px solid var(--line);font-size:13px;font-weight:600;white-space:nowrap;}
+  .path{color:var(--ink-2);font-weight:600;white-space:nowrap;}
+
+  /* ---------- 문의 ---------- */
+  .contact{border:1px solid var(--line);border-radius:12px;padding:22px 26px;margin:26px 0 0;
+    background:linear-gradient(180deg,#fff,var(--soft));}
+  .contact .tel{font-size:26px;font-weight:800;letter-spacing:-.01em;margin:4px 0 6px;}
+
+  footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--line);
+    font-size:12.5px;color:var(--muted);display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+
+  @media (max-width:600px){
+    body{font-size:14.5px;padding:0 14px 60px;}
+    .cover h1{font-size:30px;}
+    .cover{padding:36px 0 30px;}
+    h2{font-size:22px;}
+  }
+
+  /* ---------- 인쇄 (A4) ---------- */
+  @page{size:A4;margin:16mm 14mm;}
+  @media print{
+    html,body{background:#fff;}
+    body{font-size:10.5pt;line-height:1.6;padding:0;}
+    .page{max-width:none;}
+    .no-print{display:none !important;}
+    body,.card,.callout,.toc,thead th,tbody th,.shot-box,.contact,.step{
+      -webkit-print-color-adjust:exact;print-color-adjust:exact;
+    }
+    a{color:inherit;text-decoration:none;}
+    .cover{padding:0 0 22px;break-after:page;}
+    .cover h1{font-size:30pt;}
+    .toc{break-after:page;margin-bottom:0;}
+    h2{font-size:17pt;margin:0 0 6px;padding-top:2px;break-before:page;break-after:avoid;}
+    #part1 h2,.toc + .part h2{break-before:auto;}
+    h3{font-size:13pt;margin:16pt 0 6pt;break-after:avoid;}
+    h4{break-after:avoid;}
+    section{break-inside:auto;}
+    .tw{overflow:visible;}
+    table{min-width:0;font-size:9.5pt;}
+    thead{display:table-header-group;break-after:avoid;}
+    caption{break-after:avoid;}
+    tr,.card,.callout,.shot,.flow,.contact,.faq > div,.checklist > li{break-inside:avoid;}
+    .shot-box{aspect-ratio:16/8;}
+    .cards{gap:8px;}
+    footer{break-inside:avoid;}
+  }
+</style>
+</head>
+<body>
+
+<div class="printbar no-print">
+  <b>인쇄 · PDF 저장</b>
+  <span>브라우저에서 <span class="kbd">Ctrl</span>+<span class="kbd">P</span> (Mac은 <span class="kbd">⌘</span>+<span class="kbd">P</span>) → 대상을 <b>PDF로 저장</b>으로 선택하세요.
+  용지는 A4, <b>배경 그래픽</b> 옵션을 켜면 표와 강조 상자가 그대로 인쇄됩니다.</span>
+</div>
+
+<div class="page">
+
+<!-- ============================ 표지 ============================ -->
+<header class="cover">
+  <div class="rule"></div>
+  <p class="eyebrow">주문 에이전트</p>
+  <h1>주문 에이전트 안내서</h1>
+  <p class="sub">kokonut에서 AppFit으로 — 무엇이 달라졌고, 어떻게 쓰는가</p>
+
+  <dl class="meta">
+    <div><dt>대상</dt><dd>매장 점주 · 브랜드 담당자</dd></div>
+    <div><dt>기준 앱 버전</dt><dd>v3.0.1 (빌드 180)</dd></div>
+    <div><dt>발행일</dt><dd>2026년 8월 6일</dd></div>
+    <div><dt>지원 기기</dt><dd>Android 단말 · Windows POS</dd></div>
+  </dl>
+</header>
+
+<!-- ============================ 목차 ============================ -->
+<nav class="toc">
+  <h2>목차</h2>
+  <ol>
+    <li>
+      <a href="#part1">1부 · 무엇이 달라졌나</a>
+      <ul>
+        <li><a href="#s11">1.1 한눈에 보는 변화</a></li>
+        <li><a href="#s12">1.2 확인해 둘 사항</a></li>
+        <li><a href="#s13">1.3 새로 설치할 때 확인할 사항</a></li>
+      </ul>
+    </li>
+    <li>
+      <a href="#part2">2부 · 화면별 사용 안내</a>
+      <ul>
+        <li><a href="#s21">2.1 로그인</a></li>
+        <li><a href="#s22">2.2 주문 접수 화면</a></li>
+        <li><a href="#s23">2.3 주문 처리 흐름</a></li>
+        <li><a href="#s24">2.4 주문내역</a></li>
+        <li><a href="#s25">2.5 상품관리</a></li>
+        <li><a href="#s26">2.6 멤버십</a></li>
+        <li><a href="#s27">2.7 주방 모니터(KDS)</a></li>
+        <li><a href="#s28">2.8 설정</a></li>
+      </ul>
+    </li>
+    <li>
+      <a href="#part3">3부 · 도입 · 운영 확인사항</a>
+      <ul>
+        <li><a href="#s31">3.1 접수 단말 중복 주의</a></li>
+        <li><a href="#s32">3.2 프린터 지원 모델</a></li>
+        <li><a href="#s33">3.3 앱 업데이트 방식</a></li>
+        <li><a href="#s34">3.4 영업 시작과 종료</a></li>
+        <li><a href="#s35">3.5 문의처</a></li>
+      </ul>
+    </li>
+    <li><a href="#appendix">부록 · 용어 정리</a></li>
+  </ol>
+</nav>
+
+
+<!-- ============================================================
+     1부
+     ============================================================ -->
+<div class="part" id="part1">
+<h2><span class="num">1부</span>무엇이 달라졌나</h2>
+<p class="part-lead">
+  주문 에이전트가 kokonut 플랫폼에서 <b>AppFit 플랫폼</b>으로 옮겨 갔습니다.
+  주문을 받고 만들고 내보내는 매장의 일 자체는 그대로지만, 화면과 설정이 넓어졌고
+  <b>매장 ID와 로그인 방식이 바뀌었습니다.</b> 이 1부만 읽어도 전환 시 필요한 준비는 끝납니다.
+</p>
+
+<section id="s11">
+<h3><span class="num">1.1</span>한눈에 보는 변화</h3>
+
+<div class="cards">
+  <div class="card">
+    <span class="tag">기기</span>
+    <b>Windows POS 지원</b>
+    <span>안드로이드 단말뿐 아니라 매장 윈도우 POS에서도 같은 앱을 그대로 씁니다.</span>
+  </div>
+  <div class="card">
+    <span class="tag">언어</span>
+    <b>3개 국어</b>
+    <span>한국어 · English · 日本語. 설정에서 언제든 바꿀 수 있습니다.</span>
+  </div>
+  <div class="card">
+    <span class="tag">금액</span>
+    <b>원 · 엔 표시</b>
+    <span>매장이 있는 나라에 맞춰 원(₩) 또는 엔(¥)으로 금액을 표시합니다.</span>
+  </div>
+  <div class="card">
+    <span class="tag">주방</span>
+    <b>주방 모니터 기본 탑재</b>
+    <span>별도 연동 설정 없이 주방 모니터(KDS) 모드로 바로 전환됩니다. 주문 상태가 실시간으로 맞춰집니다.</span>
+  </div>
+  <div class="card">
+    <span class="tag">출력</span>
+    <b>프린터 설정 세분화</b>
+    <span>기존 내장프린터에 더해 외부프린터도 지원하며, 각 프린터별로 영수증 · 주문서 출력 방향을 설정할 수 있습니다. '기기 호출 알림'으로 키오스크 용지 부족 등의 알림도 출력할 수 있습니다.</span>
+  </div>
+  <div class="card">
+    <span class="tag">라벨</span>
+    <b>라벨프린터 지원</b>
+    <span>매장에서 라벨프린터를 사용 가능합니다. 단순 메뉴정보 또는 QR코드를 추가 인쇄하여 활용할 수 있습니다.</span>
+  </div>
+</div>
+</section>
+
+<section id="s12">
+<h3><span class="num">1.2</span>확인해 둘 사항</h3>
+
+<div class="tw">
+<table>
+  <caption>표 1-1. 확인해 둘 사항</caption>
+  <thead>
+    <tr><th class="col-key">항목</th><th>현재 (AppFit)</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>사용 기기</th>
+      <td>안드로이드 단말 + Windows POS</td>
+    </tr>
+    <tr>
+      <th>주방 모니터(KDS)</th>
+      <td>기본 기능. 모드만 바꾸면 되고 주문 상태가 실시간으로 반영됨</td>
+    </tr>
+    <tr>
+      <th>주문 취소</th>
+      <td>취소 사유 7종 중 선택 후 취소</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="callout tip">
+  <span class="head">그대로인 것</span>
+  <p>주문을 받고 → 접수하고 → 픽업을 요청하고 → 완료하는 <b>일하는 순서는 바뀌지 않았습니다.</b>
+  주문서 · 영수증 · 라벨의 인쇄 내용과 형식, 상품관리와 멤버십 사용법도 이전과 같습니다.</p>
+</div>
+</section>
+
+<section id="s13">
+<h3><span class="num">1.3</span>새로 설치할 때 확인할 사항</h3>
+<p>AppFit 주문 에이전트는 기존 kokonut 앱과는 <b>별개의 새 앱</b>으로 설치됩니다.
+기존 앱을 지우고 새로 설치하는 방식이라, 로그인 정보를 포함한 <b>모든 설정값이 초기화된 상태로 시작</b>합니다.</p>
+
+<div class="callout warn">
+  <span class="head">매장 ID를 모르는 경우</span>
+  <p>기존 kokonut 매장 ID(K로 시작)는 AppFit 매장 ID로 그대로 쓸 수 없습니다.
+  새 매장 ID를 안내받지 못했다면 <b>로그인하지 말고</b> 브랜드 담당자 또는 고객센터(3.5)로 문의해 주세요.</p>
+</div>
+</section>
+</div>
+
+
+<!-- ============================================================
+     2부
+     ============================================================ -->
+<div class="part" id="part2">
+<h2><span class="num">2부</span>화면별 사용 안내</h2>
+<p class="part-lead">
+  앱은 <b>주문접수 모드</b>(카운터)와 <b>주방모니터 모드</b>(주방) 두 가지로 씁니다.
+  2.1~2.6은 주문접수 모드, 2.7은 주방모니터 모드, 2.8은 두 모드 공통 설정입니다.
+</p>
+
+<section id="s21">
+<h3><span class="num">2.1</span>로그인</h3>
+
+<figure class="shot">
+  <div class="shot-box"><span class="ph">SCREENSHOT</span>로그인 화면</div>
+  <figcaption>그림 2-1. 로그인 — 왼쪽 브랜드 영역, 오른쪽 입력 영역</figcaption>
+</figure>
+
+<div class="tw">
+<table>
+  <thead><tr><th class="col-key">항목</th><th>설명</th></tr></thead>
+  <tbody>
+    <tr><th>아이디 · 비밀번호</th><td>안내받은 <b>매장 ID</b>(영문 4자 + 숫자)와 비밀번호를 입력합니다.</td></tr>
+    <tr><th>아이디 저장</th><td>다음 실행 때 매장 ID가 미리 채워집니다.</td></tr>
+    <tr><th>자동 로그인</th><td>앱을 켜면 자동으로 로그인합니다. <small>비밀번호가 저장돼 있어야 동작합니다. 새로 설치한 직후에는 1회 수동 로그인이 필요합니다.</small></td></tr>
+    <tr><th>모드 선택</th><td><span class="btn">주문접수</span> / <span class="btn">주방모니터</span> 중 이 기기의 역할을 고릅니다. 로그인 후에도 설정에서 바꿀 수 있습니다.</td></tr>
+    <tr><th>앱 종료</th><td>전원 모양 버튼으로 앱을 완전히 종료합니다.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="callout">
+  <p><b>안드로이드에서 "다른 앱 위에 표시" 권한을 물어보는 경우</b> — 앱을 최소화한 상태에서
+  화면 위에 작은 아이콘을 띄우기 위한 권한입니다. <span class="btn">설정하기</span>를 눌러 허용해 두면
+  최소화 후에도 주문 알림을 놓치지 않습니다.</p>
+</div>
+</section>
+
+<section id="s22">
+<h3><span class="num">2.2</span>주문 접수 화면</h3>
+
+<figure class="shot">
+  <div class="shot-box"><span class="ph">SCREENSHOT</span>주문현황 화면 (주문접수 모드)</div>
+  <figcaption>그림 2-2. 주문현황 — 상단 표시줄과 4단계 세로 배치</figcaption>
+</figure>
+
+<h4>상단 표시줄</h4>
+<div class="tw">
+<table>
+  <thead><tr><th class="col-key">요소</th><th>설명</th></tr></thead>
+  <tbody>
+    <tr><th>매장명 · 현재 시각</th><td>로그인한 매장 이름과 오전/오후 시각이 표시됩니다.</td></tr>
+    <tr><th>신규 <i>n</i>건</th><td>아직 접수하지 않은 주문 수. 새 주문이 오면 알림음이 울리고 깜빡입니다. <b>이 배지를 누르면 알림음과 깜빡임이 멈춥니다.</b></td></tr>
+    <tr><th>새로고침</th><td>주문 목록을 서버에서 다시 불러옵니다.</td></tr>
+    <tr><th><span class="btn">오더</span> 토글</th><td><b>영업중 ↔ 준비중</b>을 전환합니다. 준비중이면 손님이 새 주문을 넣을 수 없습니다. 실수 방지를 위해 확인 창이 한 번 뜹니다.</td></tr>
+    <tr><th>네트워크 아이콘</th><td>인터넷 연결 상태입니다.</td></tr>
+    <tr><th>실시간 연결 아이콘</th><td>주문을 즉시 받아오는 연결 상태입니다. <b>끊긴 표시라면 아이콘을 눌러 다시 연결</b>하세요.</td></tr>
+    <tr><th>최소화 · 앱 종료</th><td>최소화는 화면을 잠시 내려두고, 종료는 앱을 완전히 끕니다. <small>종료하면 매장이 자동으로 '오더 준비중'으로 바뀝니다.</small></td></tr>
+  </tbody>
+</table>
+</div>
+
+<h4>왼쪽 탭</h4>
+<div class="tw">
+<table>
+  <thead><tr><th class="col-key">탭</th><th>하는 일</th></tr></thead>
+  <tbody>
+    <tr><th>주문현황</th><td>오늘 들어온 주문을 단계별로 보고 처리합니다. (2.3)</td></tr>
+    <tr><th>주문내역</th><td>지난 날짜를 포함해 주문 기록을 조회합니다. (2.4)</td></tr>
+    <tr><th>상품관리</th><td>상품을 판매중 · 품절로 바꿉니다. (2.5)</td></tr>
+    <tr><th>멤버십</th><td>회원 조회, 스탬프 · 쿠폰 처리를 합니다. (2.6)</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>왼쪽 위 <b>메뉴 버튼(≡)</b>을 누르면 <span class="btn">설정</span>, <span class="btn">로그아웃</span>,
+고객센터 번호와 현재 앱 버전을 볼 수 있습니다.</p>
+</section>
+
+<section id="s23">
+<h3><span class="num">2.3</span>주문 처리 흐름</h3>
+
+<p>주문현황 화면은 위에서 아래로 <b>4단계</b>가 동시에 보입니다. 주문 카드를 누르면 상세 창이 열리고,
+거기서 다음 단계로 넘깁니다.</p>
+
+<div class="flow">
+  <div class="step"><span class="s-name">신규주문</span><span class="s-act">주문 접수</span></div>
+  <div class="arrow">→</div>
+  <div class="step"><span class="s-name">주문접수</span><span class="s-act">픽업 요청</span></div>
+  <div class="arrow">→</div>
+  <div class="step"><span class="s-name">상품준비완료</span><span class="s-act">주문 완료</span></div>
+  <div class="arrow">→</div>
+  <div class="step"><span class="s-name">완료</span><span class="s-act">—</span></div>
+</div>
+
+<figure class="shot">
+  <div class="shot-box"><span class="ph">SCREENSHOT</span>주문 상세 팝업</div>
+  <figcaption>그림 2-3. 주문 상세 — 메뉴 · 옵션 · 메모 · 금액과 처리 버튼</figcaption>
+</figure>
+
+<div class="tw">
+<table>
+  <caption>표 2-1. 단계별로 눌러야 하는 버튼</caption>
+  <thead><tr><th class="col-key">현재 단계</th><th>주 버튼</th><th>함께 쓰는 버튼</th></tr></thead>
+  <tbody>
+    <tr>
+      <th>신규주문</th>
+      <td><span class="btn">주문 접수</span><small>누르면 <b>조리 시간(5분 · 10분 · 15분)</b>을 고르는 창이 뜹니다. 고른 시간은 손님에게 안내됩니다.</small></td>
+      <td>영수증 재출력 · 라벨 재출력 · 주문 취소</td>
+    </tr>
+    <tr>
+      <th>주문접수</th>
+      <td><span class="btn">픽업 요청</span><small>상품이 준비돼 손님을 부르는 단계입니다.</small></td>
+      <td>주문 완료 · 재출력 · 주문 취소</td>
+    </tr>
+    <tr>
+      <th>상품준비완료</th>
+      <td><span class="btn">주문 완료</span><small>손님이 상품을 가져가면 누릅니다.</small></td>
+      <td>픽업 재요청 · 미픽업 처리 · 재출력</td>
+    </tr>
+    <tr>
+      <th>완료 · 취소</th>
+      <td>—</td>
+      <td>영수증 재출력 · 라벨 재출력</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<h4>자동 접수</h4>
+<p><span class="path">설정 → 일반 설정 → 픽업 오더 자동 접수</span>를 켜면 주문이 들어오는 즉시
+<b>신규주문 → 주문접수</b>로 자동 처리되고 주문서도 바로 출력됩니다. 바쁜 매장에서 주로 씁니다.</p>
+<div class="callout warn">
+  <span class="head">중요</span>
+  <p>자동 접수를 켠 기기는 <b>매장에 하나</b>여야 합니다. 자세한 내용은 3.1을 꼭 확인하세요.</p>
+</div>
+
+<h4>일괄 완료</h4>
+<p><b>상품준비완료</b> 단계 제목 옆의 건수 배지를 누르면 그 단계의 주문을 <b>한 번에 완료 처리</b>합니다.
+마감 정리에 편리합니다. (연속 오작동 방지를 위해 누른 뒤 몇 초간 다시 눌리지 않습니다.)</p>
+
+<h4>주문 취소</h4>
+<ol class="plain" style="padding-left:22px">
+  <li><span class="btn">주문 취소</span>를 누릅니다.</li>
+  <li><b>취소 사유</b>를 고릅니다 — 매장 사정 / 매장 마감·휴무 / 고객 요청 / 품절 / 재료 소진 / 시스템 오류 / 기타</li>
+  <li>확인 창에서 한 번 더 확인하면 취소됩니다.</li>
+</ol>
+<div class="callout">
+  <p><b>키오스크에서 들어온 주문</b>은 이 앱에서 취소할 수 없습니다.
+  "키오스크 주문은 키오스크 기기에서 취소해주세요"라는 안내가 뜹니다. 키오스크 기기에서 처리해 주세요.</p>
+</div>
+
+<h4>재출력</h4>
+<p>주문서나 라벨이 제대로 나오지 않았을 때, 주문 상세 창에서
+<span class="btn">영수증 재출력</span> · <span class="btn">라벨 재출력</span>으로 다시 뽑을 수 있습니다.
+완료 · 취소된 주문에서도 가능합니다.</p>
+</section>
+
+<section id="s24">
+<h3><span class="num">2.4</span>주문내역</h3>
+
+<figure class="shot">
+  <div class="shot-box"><span class="ph">SCREENSHOT</span>주문내역 화면</div>
+  <figcaption>그림 2-4. 주문내역 — 날짜 조회와 필터</figcaption>
+</figure>
+
+<ul class="plain">
+  <li><b>날짜 선택</b> — 달력에서 원하는 날짜의 주문을 조회합니다. <span class="btn">오늘날짜조회</span>로 오늘로 바로 돌아옵니다.</li>
+  <li><b>필터</b> — 전체주문 / 픽업완료 / 주문취소</li>
+  <li><b>정렬</b> — 오래된 순 ↔ 최신 순 전환</li>
+  <li><b>건수 표시</b> — 총 <i>n</i>건, 취소 <i>n</i>건이 함께 보입니다.</li>
+  <li>목록의 주문을 누르면 상세 창이 열리고, 여기서도 <b>재출력</b>과 <b>주문 취소</b>가 가능합니다.</li>
+</ul>
+</section>
+
+<section id="s25">
+<h3><span class="num">2.5</span>상품관리</h3>
+
+<figure class="shot">
+  <div class="shot-box"><span class="ph">SCREENSHOT</span>상품관리 화면</div>
+  <figcaption>그림 2-5. 상품관리 — 카테고리 · 검색 · 상태 전환</figcaption>
+</figure>
+
+<div class="tw">
+<table>
+  <thead><tr><th class="col-key">상태</th><th>손님에게 보이는 모습</th></tr></thead>
+  <tbody>
+    <tr><th>판매중</th><td>정상적으로 주문할 수 있습니다.</td></tr>
+    <tr><th>품절</th><td>메뉴에는 보이지만 주문할 수 없습니다. 재료가 떨어졌을 때 사용합니다.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<ul class="plain">
+  <li><b>카테고리 · 품절 필터</b>와 <b>상품명 검색</b>으로 원하는 상품을 빠르게 찾습니다.</li>
+  <li>진입 경로 — 주문접수 모드는 <b>왼쪽 상품관리 탭</b>, 주방모니터 모드는 <b>메뉴 버튼(≡) → 상품관리</b></li>
+</ul>
+</section>
+
+<section id="s26">
+<h3><span class="num">2.6</span>멤버십</h3>
+
+<figure class="shot">
+  <div class="shot-box"><span class="ph">SCREENSHOT</span>멤버십 화면</div>
+  <figcaption>그림 2-6. 멤버십 — 회원 조회와 스탬프 · 쿠폰 처리</figcaption>
+</figure>
+
+<ul class="plain">
+  <li><b>회원 조회</b> — 전화번호 입력 또는 바코드 스캔</li>
+  <li><b>스탬프</b> — 적립 및 적립 취소</li>
+  <li><b>쿠폰</b> — 사용 및 사용 취소, 보유 쿠폰 확인</li>
+  <li><b>바코드 스캐너</b> — 기기 내장 스캐너, 외부 USB 스캐너를 지원합니다. <small>토스 프론트 · 네이버 커넥트 스캐너는 Windows 장비에서만 지원합니다.</small></li>
+</ul>
+
+<div class="callout">
+  <p><b>멤버십은 주문접수 모드 전용</b>입니다. 주방모니터 모드에는 멤버십 탭이 없습니다.</p>
+</div>
+</section>
+
+<section id="s27">
+<h3><span class="num">2.7</span>주방 모니터(KDS)</h3>
+<p>주방에 두고 쓰는 큰 카드 화면입니다. 메뉴와 옵션이 크게 보여 조리 중에도 읽기 쉽습니다.</p>
+
+<figure class="shot">
+  <div class="shot-box"><span class="ph">SCREENSHOT</span>주방 모니터(KDS) 화면</div>
+  <figcaption>그림 2-7. 주방 모니터 — 5개 탭과 카드 목록</figcaption>
+</figure>
+
+<div class="tw">
+<table>
+  <thead><tr><th class="col-key">요소</th><th>설명</th></tr></thead>
+  <tbody>
+    <tr><th>상단 탭 5개</th><td>전체 · 진행 · 픽업 · 완료 · 취소. 탭마다 현재 건수가 함께 표시됩니다.</td></tr>
+    <tr><th>주문 카드</th><td>주문번호, 총 항목 수, 주문 시각, 메뉴 목록, 손님 메모가 크게 보입니다.</td></tr>
+    <tr><th>카드 버튼</th><td><b>진행</b> 탭에서는 <span class="btn">픽업 요청</span>, <b>픽업</b> 탭에서는 <span class="btn">주문 완료</span>. <span class="btn">주문 상세</span>로 자세히 볼 수 있습니다.</td></tr>
+    <tr><th>일괄 완료</th><td><b>픽업</b> 탭에서만 나타납니다. 픽업 대기 주문을 한 번에 완료 처리합니다.</td></tr>
+    <tr><th>정렬</th><td>오래된 주문순 / 최신 주문순. <b>탭마다 따로 기억</b>됩니다.</td></tr>
+    <tr><th>날짜 조회</th><td><b>전체</b> 탭에서만 달력으로 지난 날짜를 조회할 수 있습니다.</td></tr>
+    <tr><th>좌우 스크롤</th><td>카드가 많으면 화면 양옆의 화살표 버튼으로 넘깁니다. 새 주문이 오면 자동으로 맨 앞으로 이동합니다.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="callout must">
+  <span class="head">주방 모니터만으로 매장을 운영하려면</span>
+  <p>기본적으로 주방 모니터는 <b>주문을 직접 받지 않고 보기만</b> 합니다.
+  카운터 접수 기기 없이 주방 모니터 하나로 운영하려면
+  <span class="path">설정 → 모드 설정 → 주문 접수</span>를 켜야 합니다. 이 토글을 켜야 상단에 <span class="btn">오더</span> 영업 토글도 나타납니다.</p>
+  <p><b>주의</b> — 주방 모니터의 <b>주문 접수</b>를 켰다면, 카운터의 자동 접수는 반드시 꺼야 합니다. (3.1 참고)</p>
+</div>
+</section>
+
+<section id="s28">
+<h3><span class="num">2.8</span>설정</h3>
+<p>메뉴 버튼(≡) → <span class="btn">설정</span>으로 들어갑니다. 화면이 좌 · 우 두 칸으로 나뉩니다.</p>
+
+<figure class="shot">
+  <div class="shot-box"><span class="ph">SCREENSHOT</span>설정 화면 — 왼쪽 (모드 · 일반 · 프린터)</div>
+  <figcaption>그림 2-8. 설정 왼쪽 — 모드 · 일반 · 프린터</figcaption>
+</figure>
+
+<h4>모드 설정</h4>
+<div class="tw">
+<table>
+  <thead><tr><th class="col-key">항목</th><th>설명</th></tr></thead>
+  <tbody>
+    <tr><th>메인 ↔ 주방모니터 전환</th><td>이 기기의 역할을 바꿉니다. 확인 창이 한 번 뜹니다.</td></tr>
+    <tr><th>주문 접수 <small>주방모니터 모드에서만</small></th><td>주방 모니터가 주문을 직접 자동 접수합니다. 켤 때 중복 사용 경고가 표시됩니다.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h4>일반 설정</h4>
+<div class="tw">
+<table>
+  <thead><tr><th class="col-key">항목</th><th>설명</th></tr></thead>
+  <tbody>
+    <tr><th>픽업 오더 자동 접수</th><td>주문 수신 시 자동으로 접수됩니다.</td></tr>
+    <tr><th>PC시작 시 자동 실행</th><td>PC를 켜면 에이전트가 자동 실행됩니다. <small>실행 후 <span class="btn">오더</span>를 영업중으로 바꿔야 주문을 받습니다.</small></td></tr>
+    <tr><th>매장/포장 표시</th><td>주문 상세 위쪽에 매장 · 포장 구분 배지를 표시합니다.</td></tr>
+    <tr><th>주문 출처별 색상</th><td>앱 · 키오스크 · POS 주문을 카드 배경색으로 구분합니다.</td></tr>
+    <tr><th>타 기기 진행상태 알림 무시 <small>주방모니터 모드</small></th><td>다른 주방 모니터에서 상태를 바꿔도 내 화면이 새로고침되지 않습니다. 화면 흐름을 직접 통제하고 싶을 때 켭니다.</td></tr>
+    <tr><th>화면 상하 반전</th><td>화면을 180도 회전합니다. 기기를 뒤집어 설치한 경우 사용합니다.</td></tr>
+    <tr><th>언어 설정</th><td>한국어 / English / 日本語</td></tr>
+    <tr><th>화폐단위 설정</th><td>원(₩) / 엔(¥)</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h4>프린터 설정</h4>
+<div class="tw">
+<table>
+  <thead><tr><th class="col-key">항목</th><th>설명</th></tr></thead>
+  <tbody>
+    <tr><th>주문서 출력</th><td>전체 스위치입니다. 끄면 주문서를 인쇄하지 않습니다.</td></tr>
+    <tr><th>기기 내장 프린터 사용</th><td>단말에 내장된 프린터를 씁니다. 감지 여부가 화면에 표시됩니다.<br><small>하위: <b>주문서 출력</b> · <b>영수증 출력</b> · <b>기기 호출 알림 출력</b>을 각각 체크, <span class="btn">테스트 출력</span></small></td></tr>
+    <tr><th>외부 프린터 사용</th><td>USB(또는 Windows는 COM 포트)로 연결한 별도 영수증 프린터를 씁니다.<br><small>하위: 출력물 3종 체크, 연결 상태 표시, <span class="btn">재연결</span>, <span class="btn">테스트 출력</span>, (Windows) COM 포트 · 통신 속도 선택</small></td></tr>
+    <tr><th>라벨 프린터 사용</th><td>컵에 붙이는 라벨 스티커(50mm × 70mm)를 인쇄합니다.<br><small>하위: 연결 상태, <span class="btn">재연결</span>, <span class="btn">테스트 출력</span></small></td></tr>
+    <tr><th>QR 코드 출력</th><td>라벨에 주문 확인용 QR 코드를 함께 인쇄합니다.<br><small><b>현재는 활용할 수 없습니다.</b> MHST 브랜드의 'AI픽업테이블' 도입 매장에서만 사용 가능하며, 추후 다양한 방식으로 확대될 예정입니다.</small></td></tr>
+    <tr><th>라벨 QR 포맷</th><td>QR에 담을 정보 형식을 고릅니다. <small>브랜드 안내에 따라 설정하세요.</small></td></tr>
+    <tr><th>전면 모니터 콘텐츠</th><td>보조 화면에 표시할 브랜드 콘텐츠 — 영상 / 이미지 / 노출 안 함 <small><b>Sunmi D3MINI 전용</b> 설정입니다. 보조 화면이 연결된 기기에서만 표시됩니다.</small></td></tr>
+  </tbody>
+</table>
+</div>
+
+<figure class="shot">
+  <div class="shot-box"><span class="ph">SCREENSHOT</span>설정 화면 — 오른쪽 (알림 · 키오스크 · 출력)</div>
+  <figcaption>그림 2-9. 설정 오른쪽 — 알림 · 키오스크 · 출력</figcaption>
+</figure>
+
+<h4>알림 설정</h4>
+<div class="tw">
+<table>
+  <thead><tr><th class="col-key">항목</th><th>설명</th></tr></thead>
+  <tbody>
+    <tr><th>알림음 크기설정</th><td>0~10단계로 조절합니다.</td></tr>
+    <tr><th>알림음 설정</th><td>알림음 1(효과음) / 알림음 2(음성 안내) 중 선택합니다.</td></tr>
+    <tr><th>알림횟수 설정</th><td>1회 / 3회 / 5회 / 10회 / 무제한. <small>무제한은 신규 건수 배지를 누를 때까지 계속 울립니다.</small></td></tr>
+  </tbody>
+</table>
+</div>
+
+<h4>키오스크 설정</h4>
+<div class="tw">
+<table>
+  <thead><tr><th class="col-key">항목</th><th>설명</th></tr></thead>
+  <tbody>
+    <tr><th>키오스크 주문 노출</th><td>키오스크에서 들어온 주문을 이 화면에 표시합니다.</td></tr>
+    <tr><th>키오스크 주문 주문서 및 알림소리</th><td>키오스크 주문 수신 시 주문서를 출력하고 알림음을 재생합니다.</td></tr>
+    <tr><th>키오스크 주문 자동 접수</th><td>키오스크 주문은 '픽업 오더 자동 접수' 설정과 관계없이 <b>항상 즉시</b> 접수합니다.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="callout warn">
+  <span class="head">대부분 매장은 전체 ON</span>
+  <p>대부분의 매장은 키오스크 설정 3가지를 모두 <b>ON</b>으로 사용합니다.
+  이 설정을 변경해서 사용하는 매장이라면 반드시 담당자와 확인해 주세요.</p>
+</div>
+
+<h4>출력</h4>
+<div class="tw">
+<table>
+  <thead><tr><th class="col-key">항목</th><th>설명</th></tr></thead>
+  <tbody>
+    <tr><th>출력 매수</th><td>주문 접수 시 주문서를 몇 장 뽑을지 정합니다.</td></tr>
+  </tbody>
+</table>
+</div>
+</section>
+</div>
+
+
+<!-- ============================================================
+     3부
+     ============================================================ -->
+<div class="part" id="part3">
+<h2><span class="num">3부</span>도입 · 운영 확인사항</h2>
+<p class="part-lead">매장에 설치하거나 기기를 늘릴 때 확인해야 할 것들입니다.</p>
+
+<section id="s31">
+<h3><span class="num">3.1</span>접수 단말 중복 주의</h3>
+
+<div class="callout warn">
+  <span class="head">한 매장에서 주문을 자동으로 접수하는 기기는 하나여야 합니다</span>
+  <p>여러 기기가 동시에 자동 접수를 하면 <b>같은 주문이 중복 처리되거나 주문서 · 라벨이 두 번 인쇄</b>될 수 있습니다.
+  기기를 추가하거나 주방 모니터를 새로 들일 때 반드시 확인하세요.</p>
+</div>
+
+<div class="tw">
+<table>
+  <caption>표 3-1. 자동 접수와 관련된 설정 3가지</caption>
+  <thead><tr><th class="col-key">설정</th><th>위치</th><th>중복 주의</th></tr></thead>
+  <tbody>
+    <tr>
+      <th>픽업 오더 자동 접수</th>
+      <td>주문접수 모드 → 설정 → 일반 설정</td>
+      <td><b>예</b> — 아래 항목과 동시에 켜지 않도록 확인</td>
+    </tr>
+    <tr>
+      <th>주문 접수 (주방모니터)</th>
+      <td>주방모니터 모드 → 설정 → 모드 설정</td>
+      <td><b>예</b> — 위 항목과 동시에 켜지 않도록 확인</td>
+    </tr>
+    <tr>
+      <th>키오스크 주문 자동 접수</th>
+      <td>설정 → 키오스크 설정</td>
+      <td>아니오 — 키오스크 주문에만 적용되므로 위 두 항목과 무관합니다.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<p><b>권장 구성</b></p>
+<ul class="plain">
+  <li><b>카운터 + 주방</b> — 카운터 기기에서만 자동 접수를 켜고, 주방 모니터의 '주문 접수'는 끕니다.</li>
+  <li><b>주방 모니터 단독</b> — 주방 모니터의 '주문 접수'를 켜고, 다른 접수 프로그램은 사용하지 않습니다.</li>
+</ul>
+</section>
+
+<section id="s32">
+<h3><span class="num">3.2</span>프린터 지원 모델</h3>
+
+<div class="tw">
+<table>
+  <thead><tr><th class="col-key">구분</th><th>용도</th><th>연결 · 지원 모델</th></tr></thead>
+  <tbody>
+    <tr>
+      <th>내장 영수증 프린터</th>
+      <td>주문서 · 영수증 · 기기 호출 알림</td>
+      <td>단말 내장 모듈<br><small>Sunmi D3 MINI, T2_mini_s 등 내장 프린터가 있는 기기 전용</small></td>
+    </tr>
+    <tr>
+      <th>외부 영수증 프린터</th>
+      <td>주문서 · 영수증 · 기기 호출 알림</td>
+      <td>안드로이드는 USB, Windows는 COM 포트(시리얼)<br><small>일반적인 영수증 프린터를 사용합니다.</small></td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="callout tip">
+  <span class="head">라벨 프린터를 쓸 때</span>
+  <p>라벨이 출력되면 <b>바로 떼어 주세요.</b> 앞 라벨을 떼지 않으면 다음 라벨 출력이 지연되거나
+  프린터가 대기 상태로 멈출 수 있습니다. 라벨이 밀리기 시작하면 먼저 <b>떼지 않은 라벨이 남아 있는지</b> 확인해 주세요.</p>
+</div>
+
+<p>연결이 되지 않을 때는 <span class="path">설정 → 프린터 설정</span>에서 해당 프린터의
+<span class="btn">재연결</span> → <span class="btn">테스트 출력</span> 순서로 확인합니다.
+그래도 되지 않으면 USB 케이블 · 전원 · 용지를 점검한 뒤 고객센터로 문의해 주세요.</p>
+</section>
+
+<section id="s33">
+<h3><span class="num">3.3</span>앱 업데이트 방식</h3>
+<p>매장 기기에 따라 업데이트가 오는 경로가 다릅니다.</p>
+
+<div class="tw">
+<table>
+  <thead><tr><th class="col-key">대상</th><th>업데이트 경로</th><th>점주가 할 일</th></tr></thead>
+  <tbody>
+    <tr>
+      <th>매머드커피 + Sunmi 단말</th>
+      <td>Sunmi 앱스토어</td>
+      <td>앱스토어를 통해 배포됩니다. 앱 안에서는 업데이트를 확인하지 않습니다.</td>
+    </tr>
+    <tr>
+      <th>그 외 모든 매장 · 기기<br><small>(Windows POS 포함)</small></th>
+      <td>앱 내 자동 업데이트</td>
+      <td>앱을 켤 때 자동으로 확인합니다. 업데이트 안내가 뜨면 진행하고, 완료되면 앱이 다시 시작됩니다.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="callout">
+  <p><b>업데이트는 영업 시작 전에</b> 하는 것을 권장합니다. 업데이트 중에는 앱이 재시작되므로 주문을 받을 수 없습니다.
+  현재 버전은 <span class="path">메뉴 버튼(≡) 하단</span> 또는 <span class="path">설정 → 업데이트</span>에서 확인할 수 있습니다.</p>
+</div>
+</section>
+
+<section id="s34">
+<h3><span class="num">3.4</span>영업 시작과 종료</h3>
+
+<div class="tw">
+<table>
+  <thead><tr><th class="col-key">상황</th><th>동작</th></tr></thead>
+  <tbody>
+    <tr><th>영업 시작</th><td>앱 실행 후 상단 <span class="btn">오더</span> 토글을 <b>영업중</b>으로 바꿉니다. 이때부터 손님이 주문할 수 있습니다.</td></tr>
+    <tr><th>잠시 주문 중단</th><td><span class="btn">오더</span> 토글을 <b>준비중</b>으로 바꿉니다. 재료 소진이나 혼잡 시 사용합니다.</td></tr>
+    <tr><th>영업 종료</th><td>앱을 종료하거나 로그아웃하면 <b>자동으로 '오더 준비중'</b>으로 바뀝니다.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="callout warn">
+  <span class="head">가장 흔한 문의</span>
+  <p>"주문이 안 들어와요"의 상당수는 <b><span class="btn">오더</span> 토글이 준비중</b>인 경우입니다.
+  주문이 없다고 느껴지면 이것부터 확인해 주세요.</p>
+</div>
+</section>
+
+<section id="s35">
+<h3><span class="num">3.5</span>문의처</h3>
+<div class="contact">
+  <div style="font-size:13px;color:var(--muted);font-weight:700;letter-spacing:.06em;">고객센터</div>
+  <div class="tel">070-7781-4531</div>
+  <div style="font-size:14px;color:var(--ink-2);">
+    앱 화면에서도 <b>메뉴 버튼(≡) 하단</b>에서 같은 번호를 확인할 수 있습니다.<br>
+    문의 시 <b>매장 ID</b>와 <b>앱 버전</b>(메뉴 하단 표시)을 함께 알려 주시면 빠르게 확인할 수 있습니다.
+  </div>
+</div>
+</section>
+</div>
+
+
+<!-- ============================================================
+     부록
+     ============================================================ -->
+<div class="part" id="appendix">
+<h2>부록 · 용어 정리</h2>
+
+<div class="tw">
+<table>
+  <thead><tr><th class="col-key">용어</th><th>뜻</th></tr></thead>
+  <tbody>
+    <tr><th>주문접수 모드</th><td>카운터에 두고 주문을 받고 처리하는 기본 모드. 주문현황 · 주문내역 · 상품관리 · 멤버십을 씁니다.</td></tr>
+    <tr><th>주방모니터(KDS) 모드</th><td>주방에 두고 조리 상황을 보는 큰 카드 화면 모드.</td></tr>
+    <tr><th>오더 영업중 / 준비중</th><td>손님이 주문을 넣을 수 있는 상태(영업중)인지 아닌지(준비중)를 나타냅니다. 상단 <span class="btn">오더</span> 토글로 바꿉니다.</td></tr>
+    <tr><th>신규주문</th><td>들어왔지만 아직 접수하지 않은 주문.</td></tr>
+    <tr><th>주문접수</th><td>접수해서 조리 중인 주문. 접수할 때 조리 시간을 함께 정합니다.</td></tr>
+    <tr><th>상품준비완료</th><td>조리가 끝나 손님을 부른 상태. '픽업 요청'을 누르면 이 단계가 됩니다.</td></tr>
+    <tr><th>완료</th><td>손님이 상품을 가져가 마무리된 주문.</td></tr>
+    <tr><th>픽업 요청</th><td>상품이 준비됐음을 손님에게 알리는 동작.</td></tr>
+    <tr><th>미픽업 처리</th><td>손님이 상품을 가져가지 않은 경우에 남기는 처리.</td></tr>
+    <tr><th>주문서</th><td>매장 · 주방이 보는 조리용 출력물.</td></tr>
+    <tr><th>영수증</th><td>손님에게 주는 결제 내역 출력물.</td></tr>
+    <tr><th>라벨</th><td>컵이나 포장에 붙이는 스티커. 메뉴 · 옵션이 인쇄되며 QR을 함께 넣을 수 있습니다.</td></tr>
+    <tr><th>기기 호출 알림</th><td>진동벨 등 호출 장치와 연동해 인쇄되는 짧은 출력물.</td></tr>
+    <tr><th>자동 접수</th><td>주문이 들어오면 사람이 누르지 않아도 바로 접수 단계로 넘기는 기능.</td></tr>
+    <tr><th>실시간 연결</th><td>주문을 즉시 받아오기 위한 서버 연결. 끊기면 상단 아이콘으로 표시됩니다.</td></tr>
+  </tbody>
+</table>
+</div>
+</div>
+
+<footer>
+  <span>주문 에이전트 안내서 · v3.0.1 기준 · 2026년 8월 6일</span>
+  <span>고객센터 070-7781-4531</span>
+</footer>
+
+</div>
+
+<!--
+  ============================================================
+  스크린샷 교체 방법
+  ============================================================
+  이 문서에는 스크린샷 자리표시자 9개가 들어 있습니다.
+  실기기 캡처를 찍은 뒤 아래처럼 <div class="shot-box">...</div> 한 줄을
+  <img> 태그로 바꾸면 됩니다.
+
+  [교체 전]
+    <figure class="shot">
+      <div class="shot-box"><span class="ph">SCREENSHOT</span>주문현황 화면</div>
+      <figcaption>그림 2-2. ...</figcaption>
+    </figure>
+
+  [교체 후]
+    <figure class="shot">
+      <img src="shots/order-status.png" alt="주문현황 화면">
+      <figcaption>그림 2-2. ...</figcaption>
+    </figure>
+
+  주의 — 이 문서는 "파일 하나로 전달"이 원칙입니다.
+  외부 이미지 파일을 참조하면 메일/메신저로 보낼 때 이미지가 깨집니다.
+  파일 하나를 유지하려면 이미지를 data URI 로 넣으세요.
+
+    <img src="data:image/png;base64,iVBORw0KGgo..." alt="주문현황 화면">
+
+    변환: base64 -i shots/order-status.png | tr -d '\n'   (macOS)
+
+  자리표시자 목록
+    그림 2-1  로그인
+    그림 2-2  주문현황
+    그림 2-3  주문 상세 팝업
+    그림 2-4  주문내역
+    그림 2-5  상품관리
+    그림 2-6  멤버십
+    그림 2-7  주방 모니터(KDS)
+    그림 2-8  설정 왼쪽
+    그림 2-9  설정 오른쪽
+  ============================================================
+-->
+
+</body>
+</html>
