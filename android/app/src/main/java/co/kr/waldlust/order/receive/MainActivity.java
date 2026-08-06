@@ -1307,11 +1307,34 @@ public class MainActivity extends FlutterActivity {
             RectF dstRect = new RectF(left, top, left + drawW, top + drawH);
             canvas.drawBitmap(src, srcRect, dstRect, paint);
             src.recycle();
+            // 원본 워드마크·bilinear 축소 모두 안티에일리어싱 회색 경계 픽셀을 남긴다. 이 회색
+            // 픽셀을 그대로 sendLCDBitmap 으로 넘기면 SDK 내부 디더링이 O/C 같은 곡선 정점
+            // (12시 방향)에 불필요한 튐 도트를 만들어낸다(실기기 확인). 로고 텍스트는 사진이
+            // 아니라 디더링보다 하드 스레숄드가 더 선명하므로 여기서 직접 흑/백 이진화한다.
+            binarizeForMonoLcd(canvasBmp);
             return canvasBmp;
         } catch (Exception e) {
             Log.e("MainActivity", "buildLcdLogoBitmap error", e);
             return null;
         }
+    }
+
+    // ARGB 비트맵을 흑/백으로 하드 스레숄드한다. 흰 배경 위에 합성된 상태라 알파는 항상
+    // 255 이므로 RGB 휘도만으로 판정하면 충분하다.
+    private void binarizeForMonoLcd(Bitmap bitmap) {
+        int width = bitmap.getWidth();
+        int height = bitmap.getHeight();
+        int[] pixels = new int[width * height];
+        bitmap.getPixels(pixels, 0, width, 0, 0, width, height);
+        for (int i = 0; i < pixels.length; i++) {
+            int p = pixels[i];
+            int r = (p >> 16) & 0xFF;
+            int g = (p >> 8) & 0xFF;
+            int b = p & 0xFF;
+            int luminance = (r * 299 + g * 587 + b * 114) / 1000;
+            pixels[i] = luminance < 128 ? Color.BLACK : Color.WHITE;
+        }
+        bitmap.setPixels(pixels, 0, width, 0, 0, width, height);
     }
 
     // Persists the operator's dual monitor content choice (video/image/none) and
