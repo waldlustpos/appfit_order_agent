@@ -37,8 +37,15 @@ public class LabelPrinter {
      */
     public static final int RESULT_SUBMITTED_NO_ACK = 2;
 
-    /** {@link AutoReplyPrint#CP_Pos_QueryPrintResult} 의 동기 블로킹 timeout. samplelabel 표준값. */
+    /** 완료 대기 총 상한. samplelabel 표준값. 줄이면 미인쇄 페이지를 넘겨 펌웨어 버퍼에 쌓인다. */
     private static final int QUERY_PRINT_RESULT_TIMEOUT_MS = 30_000;
+
+    /**
+     * 완료 대기를 쪼개는 슬라이스 크기. 정상 인쇄(~1.1초)는 첫 슬라이스 안에서 끝나 기존과
+     * 동일하게 동작하고, 보류는 이 간격마다 peel edge 를 확인해 최대 이만큼만 늦게 감지된다.
+     */
+    private static final int QUERY_RESULT_SLICE_MS = 2_000;
+
 
     /** ERROR_OCCURED 상태에서 클리어 까지 짧게 대기 — 피크타임 큐 막힘 방지. */
     private static final long ERROR_QUICK_GATE_MS = 500L;
@@ -65,6 +72,15 @@ public class LabelPrinter {
     private static volatile boolean lastInfoPrintIdle = false;
     private static volatile boolean lastInfoNoPaperCanceled = false;
     private static volatile boolean lastInfoPaperNoFetch = false;
+
+    /**
+     * PAPERNOFETCH 의 false→true 상승 edge 누적 횟수.
+     *
+     * <p>"내 라벨이 물리적으로 나왔는가" 를 {@code CP_Pos_QueryPrintResult} 와 독립적으로
+     * 확인하는 신호다. 인쇄 시작 ~0.83초 뒤 라벨이 peel 에 도달하며 edge 가 발생한다
+     * (2026-08-03 실측). 레벨이 아니라 edge 를 세는 이유는 필드 주석 참조.
+     */
+    private static volatile int paperNoFetchRiseCount = 0;
 
     /** 동일 phase 연속 출력을 막기 위한 dedup 캐시 (null = 아직 미로깅). */
     private static volatile String lastLoggedPhase = null;
@@ -286,9 +302,12 @@ public class LabelPrinter {
                     AutoReplyPrint.CP_ImageBinarizationMethod_Thresholding,
                     AutoReplyPrint.CP_Label_Rotation_0);
 
-            // PagePrint 직전의 인쇄 매수 스냅샷. ACK timeout 시 "실제로 인쇄됐는가" 를
-            // 비콘 캐시 추측이 아니라 이 값의 변화로 판정한다 (조회 미지원이면 -1).
+            // PagePrint 직전의 인쇄 매수 스냅샷. 완료 판정에는 쓰지 않고(아래 주석 참조)
+            // 진단 로그에만 남긴다 — 사후에 "정말 인쇄됐는가" 를 따지는 근거가 된다
+            // (조회 미지원이면 -1).
             final int pageIdBefore = queryPrintedPageId();
+            // peel edge 기준선. 이 값이 늘면 "내 라벨이 peel 에 도달했다".
+            final int riseBefore = paperNoFetchRiseCount;
 
             AutoReplyPrint.INSTANCE.CP_Label_PagePrint(hPrinter, 1);
             // 이 지점부터 페이지는 펌웨어 소유 — 재전송은 곧 중복 인쇄다.
@@ -298,11 +317,63 @@ public class LabelPrinter {
                 AutoReplyPrint.INSTANCE.CP_Label_FeedPaperToTearPosition(hPrinter);
             }
 
-            // samplelabel `TestFunction.java:282` 의 Test_Pos_QueryPrintResult 와 동일한 호출.
-            // 인쇄 완료 또는 timeout 까지 동기 블로킹 → 다음 호출의 진입을 자연 직렬화.
-            // ACK 결과는 아래 출력결과 라인에 통합 (정상 흐름은 출력끝 한 줄로 충분).
-            boolean printed = AutoReplyPrint.INSTANCE.CP_Pos_QueryPrintResult(
-                    hPrinter, QUERY_PRINT_RESULT_TIMEOUT_MS);
+            // ── 다중 신호 완료 판정 ────────────────────────────────────────────────
+            //
+            // 기존에는 CP_Pos_QueryPrintResult 30초 블로킹 하나에만 완료 판정을 걸었다.
+            // 그래서 **응답만 유실되면** 라벨이 이미 나왔고 프린터가 놀고 있는데도 30초를
+            // 태운 뒤 "모르겠다"(SUBMITTED_NO_ACK) 로 끝났다. 新橋店 2026-08-07 로그의
+            // #40 이 그 경우다 — recvIdle/printIdle 둘 다 true(프린터 idle)에 비콘도
+            // 살아 있는데 응답만 오지 않았다.
+            //
+            // ⚠️ 반대로 **펌웨어 보류는 이 변경으로 빨라지지 않는다.** 앞 라벨을 안 떼면
+            // 펌웨어가 실제로 인쇄를 안 하고 있는 것이므로 그 30초는 낭비가 아니라
+            // 기다려야 하는 시간이다. 그리고 라벨을 늦게 떼는 것은 러시아워의 **정상
+            // 운영**이지 고쳐야 할 대상이 아니다. 이 루프가 고치는 것은 보류가 아니라
+            // "이미 나왔는데 응답이 없는" 경우다.
+            //
+            // 그래서 대기를 슬라이스로 쪼개고, 아래 둘 중 **먼저 오는 것**으로 완료를
+            // 판정한다. 총 상한(30초)은 그대로 둔다 — 상한을 줄이면 아직 인쇄되지 않은
+            // 페이지를 넘겨 펌웨어 버퍼에 쌓이기 때문이고, 바꾸는 것은 상한이 아니라
+            // **판정 근거의 개수**다.
+            //
+            //   query : QueryPrintResult true (기존 경로)
+            //   peel  : PAPERNOFETCH 상승 edge = 라벨이 물리적으로 peel 에 도달
+            //
+            // 인쇄 매수(pageId)는 신호로 쓰지 않는다. 실측상 같은 호출 안에서는 절대
+            // 갱신되지 않고(新橋店 로그 199건 중 0건) 다음 인쇄 시점에야 반영돼,
+            // 판정에 쓰면 앞 페이지의 뒤늦은 등록을 내 페이지로 오인할 수 있다.
+            // 그 오인은 아직 인쇄되지 않은 페이지를 넘겨 펌웨어 버퍼에 쌓는다.
+            // peel edge 가 정상·보류·응답유실 세 경우를 모두 덮으므로 보강도 불필요하다.
+            // (진단 스냅샷에는 계속 남긴다 — 사후에 인쇄 여부를 따지는 근거로 유용하다.)
+            //
+            // 실측 2026-08-07 (D2s_KDS_STGL + REXOD):
+            //   정상   #1 출력끝 (1250ms, via=query, ack=849ms)   — 슬라이싱해도 응답 유실 없음
+            //   보류   #4 출력끝 (12645ms, via=peel, ack=12515ms) — 떼는 순간 edge 로 481ms 만에 완료
+            //   미떼기 #2 30.2초 후 떼기대기 전환 (buzzer 활성)     — 폴백·비프음 정상
+            //
+            // 중복 인쇄 위험은 구조적으로 없다 — 여기는 submitted=true 이후라 결과가
+            // SUCCESS / SUBMITTED_NO_ACK 뿐이고 재발사 경로 자체가 존재하지 않는다.
+            boolean printed = false;
+            String via = null;
+            final long waitStartMs = System.currentTimeMillis();
+            while (System.currentTimeMillis() - waitStartMs < QUERY_PRINT_RESULT_TIMEOUT_MS) {
+                if (AutoReplyPrint.INSTANCE.CP_Pos_QueryPrintResult(
+                        hPrinter, QUERY_RESULT_SLICE_MS)) {
+                    printed = true;
+                    via = "query";
+                    break;
+                }
+                // 용지없음 취소는 종이가 안 나간 유일한 케이스 — 즉시 빠져나가 재시도로 넘긴다.
+                if (lastInfoNoPaperCanceled) {
+                    break;
+                }
+                if (paperNoFetchRiseCount != riseBefore) {
+                    printed = true;
+                    via = "peel";
+                    break;
+                }
+            }
+            final long ackWaitMs = System.currentTimeMillis() - waitStartMs;
 
             // 1-D 후처리: PageBegin/PagePrint 진행 중 NoPaper 가 발생한 race 케이스.
             // 진입 게이트(1-B-①)가 paper/cover 를 무한 대기로 차단하므로 보통 도달하지
@@ -386,16 +457,21 @@ public class LabelPrinter {
 
             if (printed) {
                 result = RESULT_SUCCESS;
+                // via 는 어느 신호로 완료를 판정했는지 — 배포 후 로그로 신호별 기여도를
+                // 셀 수 있어야 "동작하는 줄 알았는데 무력한" 신호를 남겨 두지 않는다.
                 log("#" + seq + " " + orderTag + " 출력끝 (" + elapsed + "ms"
+                        + ", via=" + via + ", ack=" + ackWaitMs + "ms"
                         + ", pg=" + pageIdBefore + "→" + pageIdAfter + ")");
             } else {
                 result = RESULT_SUBMITTED_NO_ACK;
                 // 같은 스냅샷을 로그와 Sentry 양쪽에 쓴다 (두 번 만들면 시점이 어긋난다).
                 final String snapshot = diagnosticSnapshot(pageIdBefore, pageIdAfter);
-                lastAckDiagnostic = "elapsed=" + elapsed + "ms " + snapshot;
-                log("#" + seq + " " + orderTag + " 실패 [ACK timeout "
+                lastAckDiagnostic = "elapsed=" + elapsed + "ms via=none rise="
+                        + riseBefore + "→" + paperNoFetchRiseCount + " " + snapshot;
+                log("#" + seq + " " + orderTag + " 실패 [완료신호 없음 "
                         + QUERY_PRINT_RESULT_TIMEOUT_MS + "ms — 재시도 금지] ("
-                        + elapsed + "ms) " + snapshot);
+                        + elapsed + "ms) rise=" + riseBefore + "→"
+                        + paperNoFetchRiseCount + " " + snapshot);
             }
 
         } catch (Exception e) {
@@ -539,7 +615,18 @@ public class LabelPrinter {
                 lastInfoRecvIdle = s.INFO_RECVIDLE();
                 lastInfoPrintIdle = s.INFO_PRINTIDLE();
                 lastInfoNoPaperCanceled = s.INFO_NOPAPERCANCELED();
+
+                // PAPERNOFETCH 의 false→true 상승 edge 를 센다.
+                // 레벨(현재 true 인가)이 아니라 edge 여야 하는 이유: 앞 라벨이 안 떼어져
+                // 있으면 레벨은 이미 true 라 "내 라벨이 나왔는가" 를 구별할 수 없다.
+                // 보류 상황에서도 edge 는 반드시 생긴다 —
+                //   앞 라벨 peel(true) → 운영자가 뗌(false) → 붙잡힌 페이지 인쇄(true).
+                // 즉 이 카운터의 증가 = "내 라벨이 물리적으로 peel 에 도달했다".
+                final boolean prevPaperNoFetch = lastInfoPaperNoFetch;
                 lastInfoPaperNoFetch = s.INFO_PAPERNOFETCH();
+                if (!prevPaperNoFetch && lastInfoPaperNoFetch) {
+                    paperNoFetchRiseCount++;
+                }
 
                 // 떼기 상태 전이 — logcat 전용. 파일 로그는 건드리지 않는다
                 // (라벨 1장당 2줄씩 늘어나 운영 로그가 두꺼워짐).
