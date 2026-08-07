@@ -43,8 +43,19 @@ import co.kr.waldlust.order.receive.MainActivity;
  *       (device_filter attach 승계가 1차, requestPermission 폴링이 fallback).</li>
  * </ul>
  *
- * <p>XD5-40d 표준기는 필러(peeler) 미장착 — Caysn 의 PAPERNOFETCH(떼기대기+buzzer)
- * 등가물이 없고 라벨이 연속 배출된다. PAUSED_IN_PEELER_UNIT 비트는 필러 장착기 방어용.
+ * <p>PAUSED_IN_PEELER_UNIT 은 이 기종에서 <b>실제로 동작한다.</b> 2026-07-23 실기기 8장 주문
+ * 실증 — 라벨마다 떼기대기에 진입했고 사용자가 떼는 즉시 다음 장이 인쇄됐다(빨리 떼면
+ * ≈1.9초, 늦게 떼면 6~8초로 소요시간이 사용자 행동과 정확히 상관). 즉 표준기에도 라벨 회수
+ * 센서가 활성이며 Caysn INFO_PAPERNOFETCH 와 동일한 운영 모델(떼야 다음 장)이다.
+ * (구현 시점의 "표준기는 필러 미장착" 가정은 이 실측으로 기각됐다. 그 낡은 주석이 비프음
+ * 작업의 착수를 한 번 막았다.)
+ *
+ * <p>★ 불변식: <b>떼지 않은 상태에서 다음 인쇄 명령이 펌웨어에 도달한다.</b> 완료 판정이
+ * 내 라벨을 뗄 때까지 기다리면 다음 제출이 클래스 lock 에 막혀 펌웨어가 "라벨 미회수 +
+ * 다음 페이지 대기" 상태에 도달하지 못하고, 그러면 buzzer 가 울릴 계기 자체가 사라진다.
+ * BIXOLON SDK 에는 buzzer 제어 API 가 없으므로(V2.1.1 jar / libbxl_common.so / Windows
+ * BXLLAPI V3.10 전수 확인) 이 불변식이 비프음을 내는 유일한 수단이다.
+ * Windows Caysn 이 이 대기를 성공 경로에 두었다가 비프음을 잃었던 사고(4f222b3) 참조.
  */
 public class BixolonLabelDriver {
     private static final String TAG = "BixolonLabelDriver";
@@ -96,6 +107,23 @@ public class BixolonLabelDriver {
     private static final long STATUS_POLL_INTERVAL_MS = 200L;
     private static final long RECOVERY_HEARTBEAT_MS = 60_000L;
 
+    /**
+     * 완료 신호(peel edge / busy 하강)를 하나도 관측하지 못했을 때 idle 레벨만 보고
+     * 완료로 받아들이기까지의 최소 체류 시간.
+     *
+     * <p>두 경우에 쓰인다: ① BASIC variant(1바이트 응답) — byte1 이 0 패딩이라 peel/busy
+     * 신호가 아예 없다. ② 인쇄가 폴링 간격보다 빨라 busy 상승을 한 번도 못 본 경우.
+     * 이 안전망이 없으면 두 경우 모두 30초를 소진하고 false 를 반환해 Dart 재시도가
+     * <b>같은 라벨을 한 장 더 인쇄</b>한다.
+     *
+     * <p>기준선은 {@code pollStart} 다 — 떼기대기/복구대기에서 리셋되므로, 보류가 풀린
+     * 직후(펌웨어가 아직 인쇄를 시작하지 않은 창)에 이 폴백이 먼저 터지지 않는다.
+     */
+    private static final long MIN_PRINT_DWELL_MS = 1_000L;
+
+    /** 이상 프레임(직전 명령 응답 잔여 추정)을 흘려보내는 재읽기 상한. */
+    private static final int STATUS_DRAIN_ATTEMPTS = 3;
+
     private static MainActivity sActivity = null;
     /** 클래스 lock 으로 보호. 연결마다 재생성 (SDK 내부 상태 초기화 보장). */
     private static BixolonLabelPrinter sSdk = null;
@@ -111,6 +139,30 @@ public class BixolonLabelDriver {
      * 플래그만 세워 대기 루프를 깨우고, 실제 close 는 백그라운드 스레드에서 수행한다.
      */
     private static volatile boolean sDetachRequested = false;
+
+    /**
+     * PAUSED_IN_PEELER 의 false→true 상승 edge 누적 횟수.
+     *
+     * <p>"내 라벨이 물리적으로 배출됐는가" 를 판정하는 주 신호다. 레벨이 아니라 edge 여야
+     * 하는 이유: 앞 라벨이 안 떼어져 있으면 레벨은 이미 true 라 "내 라벨이 나왔는가" 를
+     * 구별할 수 없다. 보류 상황에서도 edge 는 반드시 생긴다 —
+     * 앞 라벨 peel(true) → 운영자가 뗌(false) → 붙잡힌 페이지 인쇄(true).
+     *
+     * <p>★ 어디서도 리셋하지 않는다({@link #closeLocked()} 포함). 판정이 {@code !=} 비교라
+     * 리셋이 "변했다" 로 읽혀 <b>인쇄되지 않은 라벨을 완료로 판정</b>한다. Caysn
+     * {@code LabelPrinter.paperNoFetchRiseCount} 와 Windows {@code _paperNoFetchRiseCount}
+     * 도 같은 이유로 단조 카운터다.
+     */
+    private static volatile int sPeelRiseCount = 0;
+
+    /**
+     * 직전 상태 읽기에서 관측한 peel 레벨 (edge 검출용).
+     *
+     * <p>이것도 리셋하지 않는다. false 로 되돌리면 재연결 직후 첫 읽기가 <b>없던 edge 를
+     * 만들어낸다</b>. 놓친 edge 는 busy 신호로 폴백되지만(안전), 만들어낸 edge 는 곧바로
+     * 오검출(false completion)이 된다 — 해악이 비대칭이므로 항상 후자를 피한다.
+     */
+    private static volatile boolean sLastPeelLevel = false;
 
     public static void init(MainActivity activity) {
         sActivity = activity;
@@ -203,6 +255,11 @@ public class BixolonLabelDriver {
                         + " rcPrint=" + rcPrint + " — 재시도 위임] (" + elapsed + "ms)");
                 return false;
             }
+            // peel edge 기준선. 이 값이 늘면 "내 라벨이 배출됐다".
+            // 반드시 waitIdleLocked() 뒤에서 잡아야 한다 — 앞 라벨의 edge 를 내 것으로
+            // 오인하지 않기 위함. 여기부터 endTransactionPrint 까지 상태 읽기는 없다.
+            final int riseBefore = sPeelRiseCount;
+
             int rcEnd = sSdk.endTransactionPrint();
             if (rcEnd != END_TRANSACTION_OK) {
                 // -1 은 "write 실패" 와 "제출 후 응답 없음(3초)" 을 구분하지 못한다.
@@ -224,11 +281,13 @@ public class BixolonLabelDriver {
 
             // ── 4. 완료 폴링 (Caysn QueryPrintResult 등가, 최대 30초) ─────────
             // 여기서부터는 submit-wins 구간: 상태 읽기 실패/USB 끊김은 성공 처리.
-            boolean printed = waitPrintCompleteLocked(seq, orderTag);
+            String doneVia = waitPrintCompleteLocked(seq, orderTag, riseBefore);
             long elapsed = System.currentTimeMillis() - startTime;
-            log("#" + seq + " " + orderTag + " " + (printed ? "출력끝" : "실패")
-                    + " (" + elapsed + "ms)");
-            return printed;
+            log("#" + seq + " " + orderTag
+                    + (doneVia != null
+                            ? " 출력끝 (" + elapsed + "ms, " + doneVia + ")"
+                            : " 실패 (" + elapsed + "ms)"));
+            return doneVia != null;
 
         } catch (Exception e) {
             long elapsed = System.currentTimeMillis() - startTime;
@@ -408,27 +467,111 @@ public class BixolonLabelDriver {
 
     private static int sStatusVariant = STATUS_VARIANT_UNKNOWN;
 
+    /** byte0 에 SDK 가 정의한 에러 비트 전체 (0xFC). 그 밖의 비트가 서면 상태 프레임이 아니다. */
+    private static final int STATUS0_DEFINED_BITS =
+            (BixolonLabelPrinter.STATUS_1ST_BYTE_PAPER_EMPTY & 0xFF)
+                    | (BixolonLabelPrinter.STATUS_1ST_BYTE_COVER_OPEN & 0xFF)
+                    | (BixolonLabelPrinter.STATUS_1ST_BYTE_CUTTER_JAMMED & 0xFF)
+                    | (BixolonLabelPrinter.STATUS_1ST_BYTE_TPH_OVERHEAT & 0xFF)
+                    | (BixolonLabelPrinter.STATUS_1ST_BYTE_AUTO_SENSING_FAILURE & 0xFF)
+                    | (BixolonLabelPrinter.STATUS_1ST_BYTE_RIBBON_END_ERROR & 0xFF);
+
+    /** byte1 에 SDK 가 정의한 버퍼/필러 비트 전체 (0xE0). */
+    private static final int STATUS1_DEFINED_BITS =
+            (BixolonLabelPrinter.STATUS_2ND_BYTE_BUILDING_IN_IMAGE_BUFFER & 0xFF)
+                    | (BixolonLabelPrinter.STATUS_2ND_BYTE_PRINTING_IN_IMAGE_BUFFER & 0xFF)
+                    | (BixolonLabelPrinter.STATUS_2ND_BYTE_PAUSED_IN_PEELER_UNIT & 0xFF);
+
     /**
-     * 상태 동기 조회. 항상 2바이트 배열(부족분 0 패딩) 또는 실패 시 null 을 반환한다.
+     * 이 바이트쌍이 상태 프레임으로 성립하는가 (정의되지 않은 비트가 없는가).
+     *
+     * <p>실기기에서 인쇄 직후 폴링이 {@code 0x5630} 을 반복해서 읽었다 — 비트로 풀면
+     * "커버열림+헤드과열+리본소진 동시" 인데 프린터는 정상 인쇄 중이었고, <b>두 바이트 모두
+     * 미정의 비트</b>(byte0 의 0x02, byte1 의 0x10)를 갖고 있었다. ASCII 로는 {@code "V0"} 라
+     * 직전 명령 응답의 잔여 바이트를 상태로 읽은 것으로 본다.
+     *
+     * <p>이 프레임은 두 가지 피해를 동시에 낸다:
+     * <ul>
+     *   <li>byte0 의 0x40 → <b>없는 커버열림</b>으로 복구대기 진입 (로그 오염)</li>
+     *   <li>byte1 의 0x20 → <b>없던 peel 상승 edge 를 만들어내</b> 인쇄가 끝나기도 전에
+     *       완료 판정. 실기기 8장 로그에서 4장이 ~400ms 에 조기 완료됐다.</li>
+     * </ul>
+     *
+     * <p>BASIC variant 는 byte1 을 0 으로 패딩하므로 이 검사를 그대로 통과한다.
+     */
+    private static boolean isPlausibleStatus(byte[] status) {
+        return ((status[0] & 0xFF) & ~STATUS0_DEFINED_BITS) == 0
+                && ((status[1] & 0xFF) & ~STATUS1_DEFINED_BITS) == 0;
+    }
+
+    private static byte[] readStatusLocked() {
+        byte[] status = readValidatedStatusLocked();
+        if (status != null) {
+            // 모든 상태 읽기(진입 게이트/idle 게이트/완료 폴링/복구 대기)가 이 함수를
+            // 지나므로, 레벨 캐시가 호출 사이에 stale 해지지 않는다. Caysn 이 SDK status
+            // 콜백에서 하는 edge 검출의 폴링판 등가물이다.
+            boolean peel = isPausedInPeeler(status);
+            if (!sLastPeelLevel && peel) sPeelRiseCount++;
+            sLastPeelLevel = peel;
+        }
+        return status;
+    }
+
+    /**
+     * 상태 프레임 검증 래퍼. 미정의 비트가 섞인 프레임({@link #isPlausibleStatus})은 상태가
+     * 아니라 <b>직전 명령 응답의 잔여</b>로 보고, 즉시 한 번 더 읽어 버퍼를 흘려보낸다.
+     * 재읽기도 이상하면 읽기 실패(null)로 넘겨 기존 재시도 경로가 받게 한다 —
+     * ★ 절대 edge 카운터나 에러 판정에 먹이지 않는다.
+     */
+    private static byte[] readValidatedStatusLocked() {
+        byte[] status = readStatusRawLocked();
+        if (status == null || isPlausibleStatus(status)) return status;
+
+        // 잔여가 한 프레임보다 길 수 있어 몇 번 더 흘려보낸다 (상한 있음 — 응답이 아예
+        // 없으면 getStatus 자체가 최대 3초를 쓰므로 무한히 늘리지 않는다).
+        final String first = statusHex(status);
+        for (int i = 0; i < STATUS_DRAIN_ATTEMPTS; i++) {
+            byte[] retry = readStatusRawLocked();
+            if (retry == null) break;
+            if (isPlausibleStatus(retry)) {
+                log("상태프레임 이상 " + first + " — 상태 아님(응답 잔여 추정), "
+                        + (i + 1) + "회 재읽기 후 " + statusHex(retry));
+                return retry;
+            }
+        }
+        log("상태프레임 이상 " + first + " — 재읽기 실패, 읽기오류로 처리");
+        return null;
+    }
+
+    /**
+     * 상태 동기 조회 (검증 전 원본). 항상 2바이트 배열(부족분 0 패딩) 또는 실패 시 null.
      *
      * <p>실기기(XD5-40d PID:0x0106) 검증: 상태 응답은 **1바이트일 수 있다** — 샘플도
-     * {@code report.length == 2} 일 때만 byte1 을 읽는다. 과거 length<2 를 실패로
+     * {@code report.length == 2} 일 때만 byte1 을 읽는다. 과거 length&lt;2 를 실패로
      * 처리해 정상 응답을 "상태조회 불가" 로 오판하는 사고가 있었음.
      *
      * <p>연결당 1회 getStatus(true)(확장 상태 요청)를 시도해 variant 를 학습한다:
      * 2바이트 응답이면 extended 유지(byte1 게이트 활성), 아니면 basic 으로 고정.
      * 빈 응답(길이 0)만 실패 — SDK 는 미연결 시 빈 배열을 반환한다.
+     *
+     * <p>★ 직접 호출 금지. 반드시 {@link #readStatusLocked()} 를 통해 읽는다 — 그래야
+     * 프레임 검증과 peel edge 갱신을 거친다.
      */
-    private static byte[] readStatusLocked() {
+    private static byte[] readStatusRawLocked() {
         if (sSdk == null) return null;
         try {
             if (sStatusVariant == STATUS_VARIANT_UNKNOWN) {
                 byte[] ext = sSdk.getStatus(true);
                 if (ext != null && ext.length >= 2) {
                     sStatusVariant = STATUS_VARIANT_EXTENDED;
+                    log("상태응답=확장(2바이트) — 라벨회수/버퍼 신호 사용");
                     return ext;
                 }
                 sStatusVariant = STATUS_VARIANT_BASIC;
+                // ⚠️ BASIC 이면 byte1 이 0 패딩이라 떼기대기·busy 게이트가 영구 no-op 이 된다.
+                //    이 사실을 로그에 남기지 않으면 "떼기대기 로그가 없다" 를 "필러가 없다"
+                //    로 오독하게 된다 — 현장 진단에서 이 둘은 반드시 구분돼야 한다.
+                log("상태응답=기본(1바이트) — 라벨회수/버퍼 신호 없음, 체류시간 폴백 사용");
                 if (ext != null && ext.length == 1) {
                     return new byte[]{ext[0], 0};
                 }
@@ -466,7 +609,11 @@ public class BixolonLabelDriver {
                 || hasBit(status[1], BixolonLabelPrinter.STATUS_2ND_BYTE_PRINTING_IN_IMAGE_BUFFER);
     }
 
-    /** 필러 유닛에 라벨 대기 중 (필러 장착기 한정 — 표준 XD5-40d 는 뜨지 않음). */
+    /**
+     * 배출된 라벨을 아직 회수하지 않아 펌웨어가 다음 페이지를 붙잡고 있다.
+     * XD5-40d 표준기에서 실제로 동작하는 비트다 (클래스 javadoc 의 2026-07-23 실측 참조).
+     * BASIC variant 에서는 byte1 이 0 패딩이라 항상 false — 신호 부재이지 필러 부재가 아니다.
+     */
     private static boolean isPausedInPeeler(byte[] status) {
         return hasBit(status[1], BixolonLabelPrinter.STATUS_2ND_BYTE_PAUSED_IN_PEELER_UNIT);
     }
@@ -534,39 +681,65 @@ public class BixolonLabelDriver {
     }
 
     /**
-     * 인쇄 완료 폴링 — Caysn CP_Pos_QueryPrintResult 등가.
+     * 인쇄 완료 폴링 — Caysn CP_Pos_QueryPrintResult 등가. 완료 사유 또는 실패 시 null.
+     *
+     * <p>완료 신호는 셋이며 <b>이 순서로</b> 평가한다. 순서 자체가 정확성의 일부다:
+     * <ol>
+     *   <li><b>peel 상승 edge</b>({@code 라벨나옴}/{@code 떼기대기}) — 내 라벨이 물리적으로
+     *       배출됐다. 주 신호.</li>
+     *   <li><b>떼기대기 분기</b> — edge 가 아직인데 peel 레벨이 true 면 앞 라벨이 남아
+     *       내 페이지를 펌웨어가 붙잡고 있는 것이다. 무한 대기가 <b>옳다</b>. 아래 3·4 가
+     *       이 구간에서 평가되지 않도록 반드시 그 앞에 있어야 한다 — 보류 중에도 이미지
+     *       버퍼 빌드로 busy 가 잠깐 섰다가 내려갈 수 있고, 그때 3을 먼저 보면
+     *       <b>아직 배출되지 않은 라벨을 완료로 판정</b>한다.</li>
+     *   <li><b>busy 상승 후 하강</b>({@code 프린터응답}) — 인쇄 엔진이 한 장을 끝냈다.
+     *       상승을 요구하는 이유: 제출 직후 sleep 없이 첫 폴링이 도는데, 펌웨어가 busy 를
+     *       세우기 전이면 레벨만 보고 <b>인쇄 시작 전에 완료 판정</b>을 하게 된다.</li>
+     *   <li><b>체류시간 폴백</b>({@code 상태정상}) — 위 둘을 모두 관측 못 한 경우
+     *       ({@link #MIN_PRINT_DWELL_MS} 참조).</li>
+     * </ol>
+     *
+     * <p>★ <b>내 라벨을 뗄 때까지 기다리지 않는다.</b> edge 를 받으면 peel 이 여전히 true
+     * 여도 즉시 반환한다 — 클래스 javadoc 의 불변식(다음 인쇄 명령이 펌웨어에 도달) 참조.
      *
      * <p>★ submit-wins 구간: 인쇄 데이터는 이미 펌웨어에 전달됐다.
      * <ul>
-     *   <li>상태조회 실패/USB 끊김 → true (인쇄 직후 detach 하는 펌웨어 대응)</li>
-     *   <li>인쇄 중 용지없음/커버열림 → 무한 복구대기 후 true — false 를 주면 Dart
+     *   <li>상태조회 실패/USB 끊김 → 성공 (인쇄 직후 detach 하는 펌웨어 대응)</li>
+     *   <li>인쇄 중 용지없음/커버열림 → 무한 복구대기 후 성공 — 실패를 주면 Dart
      *       재시도가 중복 인쇄. SLCS 펌웨어의 에러 복구 후 자동 재인쇄를 전제
-     *       (P3 실기기 검증 항목 — 재인쇄 안 되면 이 분기만 false 로 조정)</li>
-     *   <li>필러 대기(PAUSED_IN_PEELER) → 떼기까지 무한 대기 후 true</li>
-     *   <li>30초 내 busy 미해제 → false (wedge — Dart 재시도 위임, Caysn timeout 동일)</li>
+     *       (P3 실기기 검증 항목 — 재인쇄 안 되면 이 분기만 실패로 조정)</li>
+     *   <li>30초 내 신호 없음 → null (wedge — Dart 재시도 위임, Caysn timeout 동일)</li>
      * </ul>
      */
-    private static boolean waitPrintCompleteLocked(int seq, String orderTag) {
+    private static String waitPrintCompleteLocked(int seq, String orderTag, int riseBefore) {
         long pollStart = System.currentTimeMillis();
         int consecutiveReadFailures = 0;
         boolean recoveryLogged = false;
         long fetchNotice = 0L;
+        boolean heldInPeeler = false;
+        boolean sawBusy = false;
+        int busyIdlePolls = 0;
         while ((System.currentTimeMillis() - pollStart) < PRINT_RESULT_TIMEOUT_MS) {
             if (sDetachRequested || Thread.currentThread().isInterrupted()) {
                 // 인쇄 제출 후 detach/인터럽트 — 출력 자체는 끝났다고 간주 (submit-wins).
                 log("#" + seq + " " + orderTag + " 완료폴링 중단 (detach/interrupt) — submit-wins");
-                return true;
+                return "연결끊김";
             }
-            byte[] status = readStatusLocked();
+            byte[] status = readStatusLocked(); // ← peel edge 는 여기서 갱신된다
             if (status == null) {
                 if (++consecutiveReadFailures >= 5) {
                     log("#" + seq + " " + orderTag + " 완료폴링 상태조회 실패 — submit-wins");
-                    return true;
+                    return "상태조회불가";
                 }
                 sleep(STATUS_POLL_INTERVAL_MS);
                 continue;
             }
             consecutiveReadFailures = 0;
+
+            // ── 신호 ①: 내 라벨이 배출됐다. 떼기를 기다리지 않고 즉시 반환. ──────────
+            if (sPeelRiseCount != riseBefore) {
+                return heldInPeeler ? "떼기대기" : "라벨나옴";
+            }
 
             if (isRecoverableError(status)) {
                 // 인쇄 도중 용지소진/커버열림 race — 복구까지 무한 대기 후 성공 처리.
@@ -577,35 +750,52 @@ public class BixolonLabelDriver {
                 }
                 if (!waitOperatorRecoveryDuringPrint(seq, orderTag)) {
                     // 장치 소멸 — 제출은 끝났으므로 submit-wins.
-                    return true;
+                    return "장치소멸";
                 }
                 // 복구됨 — 펌웨어 재인쇄 진행을 기다리도록 폴링 타이머 리셋.
                 pollStart = System.currentTimeMillis();
                 continue;
             }
 
+            // ── 신호 ②: 앞 라벨 미회수로 내 페이지가 펌웨어에 붙잡혀 있다 ───────────
             if (isPausedInPeeler(status)) {
+                heldInPeeler = true;
                 long now = System.currentTimeMillis();
                 if (fetchNotice == 0L) {
-                    log("#" + seq + " " + orderTag + " 떼기대기 (PAUSED_IN_PEELER)");
+                    log("#" + seq + " " + orderTag + " 떼기대기 (앞 라벨을 안 뗌 — 비프음 울림)");
                     fetchNotice = now;
                 } else if (now - fetchNotice >= RECOVERY_HEARTBEAT_MS) {
                     log("#" + seq + " " + orderTag + " 떼기대기중");
                     fetchNotice = now;
                 }
-                // 떼기 대기는 timeout 에 걸리지 않게 타이머 리셋.
+                // 떼기 대기는 timeout 에 걸리지 않게 타이머 리셋. 체류시간 폴백의 기준선도
+                // 함께 밀려, 보류가 풀린 직후 창에서 ④가 먼저 터지지 않는다.
                 pollStart = System.currentTimeMillis();
                 sleep(STATUS_POLL_INTERVAL_MS);
                 continue;
             }
 
-            if (!isAnyError(status) && !isBusy(status)) {
-                return true; // byte0 정상 + 버퍼 idle = 인쇄 완료.
+            if (isBusy(status)) {
+                sawBusy = true;
+                busyIdlePolls = 0;
+            } else if (!isAnyError(status)) {
+                // ── 신호 ③: busy 가 섰다가 내려감 ───────────────────────────────
+                // ★ 한 폴링 더 확인하고 확정한다. peel 비트가 busy 하강보다 반 박자 늦게
+                //   설 수 있는데, 여기서 곧바로 반환하면 그 edge 가 아직 세어지지 않은 채
+                //   다음 라벨이 riseBefore 를 잡는다 → 앞 라벨의 edge 를 자기 것으로
+                //   오인해 인쇄 시작 전에 완료 판정한다(귀속 어긋남이 이후 라벨로 연쇄).
+                //   대기 중 edge 가 오면 루프 상단의 ①이 가져가므로 귀속이 바로잡힌다.
+                if (sawBusy) {
+                    if (++busyIdlePolls >= 2) return "프린터응답";
+                } else if ((System.currentTimeMillis() - pollStart) >= MIN_PRINT_DWELL_MS) {
+                    // ── 신호 ④: 체류시간 폴백 (BASIC variant / busy 미관측) ──────
+                    return "상태정상";
+                }
             }
             sleep(STATUS_POLL_INTERVAL_MS);
         }
         log("#" + seq + " " + orderTag + " 완료폴링 timeout status 미해제");
-        return false;
+        return null;
     }
 
     /** 완료폴링 내부의 복구대기 (로그 중복 방지용 축약판). 회복 true / 장치소멸 false. */
@@ -670,6 +860,7 @@ public class BixolonLabelDriver {
         sMediaConfigured = false;
         sDetachRequested = false;
         sStatusVariant = STATUS_VARIANT_UNKNOWN;
+        // ★ sPeelRiseCount / sLastPeelLevel 은 의도적으로 리셋하지 않는다 — 각 필드 주석 참조.
     }
 
     // ─────────────────────────────────────────────────────────────────────────

@@ -46,7 +46,7 @@
 - [Android/Windows 라벨 동작 차이 5건](project_label_printer_platform_divergence.md) — 비프음 비대칭 원인=떼기대기 시점. 통일은 Android 방향(Windows로 맞추면 비프음 소멸). 플랫폼 비교를 근거로 쓸 때 교란 주의
 - [라벨 완료 판정 다중 신호화](project_label_completion_multi_signal.md) — query 단일→+PAPERNOFETCH edge(3e700f6). 보류는 정상 운영이라 안 빨라짐 — 기대효과를 보류 건수로 계산하지 말 것 (2026-08-07)
 - [Windows 라벨 비프음 복원](project_windows_label_beep_restore.md) — 완료 시 떼기대기 제거+레벨→edge(4f222b3, 검증완료). 대기를 없앨 땐 그 대기가 떠받치던 사전조건을 먼저 찾을 것
-- [BIXOLON 비프음 — 착수 전 확인](project_bixolon_beep_next_step.md) — XD5-40d 표준기는 필러 미장착이라 비프음 메커니즘 자체가 없음. 하드웨어 확인이 선행 (2026-08-07)
+- [BIXOLON Android 완료 판정 재설계](project_bixolon_label_beep_android.md) — '필러 미장착' 전제 기각. 증상 부재 ≠ 원인 부재(구조가 발생을 막고 있었음). edge 귀속 레이스 포함. 실기기 검증 대기 (2026-08-07)
 - [신규 라벨 QR cupIdx 충돌 버그+수정](project_label_qr_cupidx_collision.md) — 표시번호-컵순번 포맷이 메뉴별 리셋 labelSeq 사용해 다른메뉴도 전부 "-0" 충돌. order-wide labelIndex로 교체, 미커밋 (2026-08-04)
 - [동시 배포 세션 버전 레이스](feedback_concurrent_deploy_version_race.md) — 승인 후에도 실행 직전 pubspec.yaml 재확인 필수. 다른 세션이 build-number 계속 올리며 먼저 배포한 사례 2회 (2026-08-04)
 - [fleet-monitoring 브랜치 유지 전략](project_fleet_monitoring_branch_strategy.md) — main+fleet 파일럿 구성 유지, main 신규 커밋은 주기적으로 merge(리베이스 아님)로 반영. 첫 병합(5f02d5d) analyze/test 검증 후 push 완료 (2026-08-05)
