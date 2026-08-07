@@ -82,6 +82,7 @@ class _Translations$common$ja extends Translations$common$ko {
 	@override String get unknown => '不明';
 	@override String get later => '後で';
 	@override late final _Translations$common$api_error$ja api_error = _Translations$common$api_error$ja._(_root);
+	@override late final _Translations$common$sync$ja sync = _Translations$common$sync$ja._(_root);
 }
 
 // Path: login
@@ -463,6 +464,19 @@ class _Translations$common$api_error$ja extends Translations$common$api_error$ko
 	@override String get not_found => 'リクエストされた情報が見つかりませんでした。';
 	@override String get server => '一時的なサーバーエラーが発生しました。しばらくしてからもう一度お試しください。';
 	@override String get generic => 'リクエストを処理できませんでした。しばらくしてからもう一度お試しください。';
+}
+
+// Path: common.sync
+class _Translations$common$sync$ja extends Translations$common$sync$ko {
+	_Translations$common$sync$ja._(TranslationsJa root) : this._root = root, super.internal(root);
+
+	final TranslationsJa _root; // ignore: unused_field
+
+	// Translations
+	@override String get degraded => 'サーバーの応答が遅延しています — 注文の同期が遅れています';
+	@override String last_updated({required Object time}) => '最終更新 ${time}';
+	@override String get never_updated => 'まだ更新されていません';
+	@override String get retry_now => '今すぐ再試行';
 }
 
 // Path: login.tabs

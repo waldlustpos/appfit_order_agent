@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
+import 'package:appfit_order_agent/providers/order/order_provider.dart';
 
 part 'lifecycle_provider.g.dart';
 
@@ -33,10 +34,11 @@ class AppLifecycleObserver extends _$AppLifecycleObserver
     switch (newState) {
       case AppLifecycleState.resumed:
         logToFile(tag: LogTag.LIFECYCLE, message: 'App resumed (foreground)');
-        // 앱이 다시 활성화될 때 필요한 작업 수행 (예: 데이터 새로고침)
-        // 이 부분은 HomeScreen에서 ref.watch(appLifecycleObserverProvider)를 통해 상태 변경을 감지하고 처리할 수 있습니다.
-        // 또는 특정 프로바이더의 데이터를 여기서 직접 refresh 할 수도 있습니다.
-        // 예: ref.read(orderProvider.notifier).refreshOrders(); (필요시)
+        // 복귀 즉시 재동기화한다. 백그라운드에 있는 동안 폴링 타이머가 멈춰 있었을
+        // 수 있고(OS 가 임의로 억제), 그렇지 않더라도 다음 틱까지 최대 60초 동안
+        // 낡은 목록을 보여주게 된다. 로그아웃 상태·중복 호출은 refreshOrders
+        // 내부 가드가 흡수하므로 여기서 조건을 더 걸지 않는다.
+        ref.read(orderProvider.notifier).refreshOrders();
         break;
       case AppLifecycleState.inactive:
         // 예: 전화 수신 등 비활성 상태

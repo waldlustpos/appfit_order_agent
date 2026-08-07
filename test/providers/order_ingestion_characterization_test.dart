@@ -1,6 +1,8 @@
 // fake_async 는 flutter_test 의 전이 의존성(pubspec.lock 에 이미 고정)이며,
 // 새 직접 의존성 추가 없이 타이머 검증에 사용한다.
 // ignore_for_file: depend_on_referenced_packages
+import 'dart:async';
+
 import 'package:appfit_order_agent/core/orders/alert_manager.dart';
 import 'package:appfit_order_agent/core/orders/sound_service.dart';
 import 'package:appfit_order_agent/models/order_menu_model.dart';
@@ -60,6 +62,10 @@ class _FakeApiService implements ApiService {
   bool updateOrderStatusResult = true;
   final List<(String orderId, OrderStatus status)> statusUpdates = [];
 
+  /// 응답을 붙잡아 두는 게이트. null 이면 즉시 반환(기존 동작 그대로).
+  /// 느린 네트워크의 in-flight 구간을 재현할 때만 주입한다.
+  Completer<bool>? updateGate;
+
   @override
   Future<List<OrderModel>> getOrders(
     String storeId, {
@@ -84,9 +90,11 @@ class _FakeApiService implements ApiService {
     String storeId,
     OrderStatus status,
     String orderId, {
-    String? cancelReason,
+    String? readyTime,
   }) async {
     statusUpdates.add((orderId, status));
+    final gate = updateGate;
+    if (gate != null) return gate.future;
     return updateOrderStatusResult;
   }
 
@@ -692,6 +700,69 @@ void main() {
         expect(refreshes, 1);
         m.dispose();
       });
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // (f) 상태변경 in-flight 락
+  //
+  // "이미 그 상태면 조기 return" 가드는 첫 요청이 **성공해서 state 가 갱신된
+  // 뒤에만** 작동한다. 응답이 20초 넘게 걸리는 저품질 네트워크에서는 그 구간이
+  // 통째로 무방비여서, 반응 없는 버튼을 연타하면 같은 주문에 PUT 이 N번 나갔다.
+  // (2026-08-07 매장 장애)
+  // -------------------------------------------------------------------------
+  group('(f) updateOrderStatus in-flight 락', () {
+    test('응답 대기 중 같은 주문을 다시 요청하면 API 는 한 번만 나간다', () async {
+      final h = await _buildProvider();
+      final a = _order(orderNo: 'A', status: OrderStatus.PREPARING);
+      final gate = Completer<bool>();
+      h.api.updateGate = gate;
+
+      final first = h.notifier.updateOrderStatus(a, OrderStatus.READY);
+      await _wait(20); // 첫 호출이 API await 지점에 도달하도록
+
+      final second = await h.notifier.updateOrderStatus(a, OrderStatus.READY);
+
+      expect(second, isFalse,
+          reason: 'in-flight 거절은 반드시 false — true 면 호출부가 "성공" 로그를 남겨 '
+              '장애 분석에서 진짜 성공과 구분되지 않는다');
+      expect(h.api.statusUpdates.length, 1);
+
+      gate.complete(true);
+      expect(await first, isTrue);
+    });
+
+    test('서로 다른 주문은 서로를 막지 않는다', () async {
+      final h = await _buildProvider();
+      final gate = Completer<bool>();
+      h.api.updateGate = gate;
+
+      final a = h.notifier.updateOrderStatus(
+          _order(orderNo: 'A', status: OrderStatus.PREPARING),
+          OrderStatus.READY);
+      await _wait(20);
+      final b = h.notifier.updateOrderStatus(
+          _order(orderNo: 'B', status: OrderStatus.PREPARING),
+          OrderStatus.READY);
+      await _wait(20);
+
+      expect(h.api.statusUpdates.length, 2);
+
+      gate.complete(true);
+      await Future.wait([a, b]);
+    });
+
+    test('실패로 끝나도 락이 풀려 다시 시도할 수 있다', () async {
+      final h = await _buildProvider();
+      final a = _order(orderNo: 'C', status: OrderStatus.PREPARING);
+      h.api.updateOrderStatusResult = false;
+
+      expect(await h.notifier.updateOrderStatus(a, OrderStatus.READY), isFalse);
+      expect(await h.notifier.updateOrderStatus(a, OrderStatus.READY), isFalse);
+
+      // 연타 차단이 아니라 "순차 재시도" 는 통과해야 한다 — 실패 후 운영자가
+      // 다시 누르는 것은 정당한 요청이다.
+      expect(h.api.statusUpdates.length, 2);
     });
   });
 }

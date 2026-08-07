@@ -63,6 +63,23 @@ class SocketEventSuppressor {
     return false;
   }
 
+  /// 등록해 둔 억제를 **소비 없이** 해제한다.
+  ///
+  /// [add] 는 API 호출 **전에** 불리므로, 그 호출이 실패하면 억제만 남아 TTL(10초)
+  /// 동안 엉뚱한 이벤트를 삼킨다. 실패 분기에서 이 메서드로 되돌린다.
+  ///
+  /// 두 가지 실패 모두에서 해제가 옳다:
+  /// - PUT 이 진짜 실패 → 다른 기기가 만든 **진짜** 이벤트가 통과해야 한다.
+  /// - PUT 은 서버에 적용됐는데 클라이언트만 타임아웃 → 자기 echo 가 통과해
+  ///   로컬 상태를 서버와 맞춰준다(자가 치유). 늦게 도착한 소켓 이벤트가
+  ///   유일한 복구 경로인 경우가 실제로 있었다.
+  void discard(String orderId, String eventType) {
+    final key = _makeKey(orderId, eventType);
+    if (_suppressionList.remove(key) != null) {
+      logger.d('[SocketEventSuppressor] 해제: $key');
+    }
+  }
+
   String _makeKey(String orderId, String eventType) {
     return "${orderId}_$eventType";
   }

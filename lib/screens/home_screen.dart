@@ -24,6 +24,8 @@ import 'package:appfit_order_agent/screens/product_management_screen.dart';
 import 'package:appfit_order_agent/widgets/home/drawer_menu.dart';
 import 'package:appfit_order_agent/screens/settings_screen.dart';
 import 'package:appfit_order_agent/widgets/common/common_dialog.dart';
+import 'package:appfit_order_agent/widgets/common/fault_injection_ribbon.dart';
+import 'package:appfit_order_agent/widgets/common/sync_status_banner.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:appfit_order_agent/services/monitoring/monitoring_sync_provider.dart';
 import 'package:appfit_order_agent/screens/kds_screen.dart';
@@ -180,12 +182,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   void _handleConnectionRestored() {
     _connectionCheckTimer?.cancel();
 
-    // 소켓 재연결이 자동으로 refreshOrders()를 호출하므로 여기서는 호출하지 않음.
-    // (appfit_core 내부에서 Connectivity를 감시하여 인터넷 복구 시 소켓을 재연결하고,
-    //  order_socket_manager.dart의 재연결 핸들러가 refresh를 담당)
+    // 예전에는 "소켓 재연결이 알아서 refreshOrders 를 부른다"고 보고 아무것도
+    // 하지 않았다. 2026-08-07 장애가 그 전제를 반증했다 — 소켓이 애초에 끊기지
+    // 않으면(끊김 감지에 14분이 걸렸다) 재연결 핸들러도 영영 돌지 않는다.
+    // 복구 신호가 있을 때는 그 자리에서 재동기화한다. 중복은 내부 가드가 흡수.
     if (mounted) {
-      logToFile(
-          tag: LogTag.SYSTEM, message: '인터넷 연결 복구 감지 (소켓 재연결 후 refresh 예정)');
+      logToFile(tag: LogTag.SYSTEM, message: '인터넷 연결 복구 감지 → 즉시 재동기화');
+      ref.read(orderProvider.notifier).refreshOrders();
     }
   }
 
@@ -550,8 +553,21 @@ class HomeContent extends ConsumerWidget {
   }
 
   Widget _buildNormalMode(int selectedIndex, WidgetRef ref) {
-    return Row(
+    return Column(
       key: const ValueKey('normal'),
+      children: [
+        // 장애 주입 무장 리본 (개발 전용, 비무장 시 높이 0)
+        const FaultInjectionRibbon(),
+        // 서버 응답 지연 배너 — KDS 모드와 같은 위젯을 쓴다. 장애는 모드를
+        // 가리지 않고, 두 모드 모두 같은 HTTP 파이프라인 위에서 돈다.
+        const SyncStatusBanner(),
+        Expanded(child: _buildNormalBody(selectedIndex, ref)),
+      ],
+    );
+  }
+
+  Widget _buildNormalBody(int selectedIndex, WidgetRef ref) {
+    return Row(
       children: [
         Container(
           width: 120,

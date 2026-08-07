@@ -113,6 +113,7 @@ class Translations$common$ko {
 	String get later => '나중에';
 
 	late final Translations$common$api_error$ko api_error = Translations$common$api_error$ko.internal(_root);
+	late final Translations$common$sync$ko sync = Translations$common$sync$ko.internal(_root);
 }
 
 // Path: login
@@ -867,6 +868,27 @@ class Translations$common$api_error$ko {
 
 	/// ko: '요청을 처리하지 못했습니다. 잠시 후 다시 시도해주세요.'
 	String get generic => '요청을 처리하지 못했습니다. 잠시 후 다시 시도해주세요.';
+}
+
+// Path: common.sync
+class Translations$common$sync$ko {
+	Translations$common$sync$ko.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// ko: '서버 응답 지연 — 주문 동기화가 지연되고 있습니다'
+	String get degraded => '서버 응답 지연 — 주문 동기화가 지연되고 있습니다';
+
+	/// ko: '마지막 갱신 {time}'
+	String last_updated({required Object time}) => '마지막 갱신 ${time}';
+
+	/// ko: '아직 갱신되지 않음'
+	String get never_updated => '아직 갱신되지 않음';
+
+	/// ko: '지금 재시도'
+	String get retry_now => '지금 재시도';
 }
 
 // Path: login.tabs

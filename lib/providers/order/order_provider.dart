@@ -7,12 +7,14 @@ import 'package:appfit_order_agent/models/order_model.dart';
 import 'package:appfit_order_agent/models/enums/order_cancel_reason.dart';
 import 'package:appfit_order_agent/exceptions/api_exceptions.dart';
 
+import 'package:appfit_order_agent/providers/api_health_provider.dart';
 import 'package:appfit_order_agent/providers/order/order_cache_manager.dart';
 import 'package:appfit_order_agent/providers/order/order_settings_manager.dart';
 import 'package:appfit_order_agent/providers/order/order_state_manager.dart';
 import 'package:appfit_order_agent/providers/order/order_timer_manager.dart';
 import 'package:appfit_order_agent/providers/order/order_queue_manager.dart';
 import 'package:appfit_order_agent/providers/order/order_socket_manager.dart';
+import 'package:appfit_order_agent/providers/order/status_update_in_flight_provider.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:appfit_order_agent/core/orders/alert_manager.dart';
@@ -58,6 +60,10 @@ class Order extends _$Order {
   // 동일 orderId 에 대한 추가 자동접수 시도를 차단한다. 소켓 폭증, 폴링↔소켓 동시 발화,
   // refreshOrders 재진입 사이의 race window 를 좁히는 마지막 가드.
   final Set<String> _autoAcceptingOrderIds = <String>{};
+  // 상태변경(PUT) in-flight 락은 statusUpdateInFlightProvider 로 승격됐다.
+  // KDS 카드 버튼이 주문별 busy 를 select 해야 해서다 — 카드 서브트리가
+  // 조건부 교체될 때 버튼 State 의 로컬 busy 가 리셋되는 관통 버그의 수정.
+  // (락의 존재 이유는 그 provider doc comment 참조)
   // KDS PREPARING 분기의 알림/출력 dedup 전용. `_processedOrderCache` 는 `queueOrderExternal`
   // 의 enqueue 중복 차단도 같이 쓰는 키라, 외부 접수로 들어온 첫 PREPARING 이벤트도 캐시 hit
   // 되어 "자가 자동접수 흔적" 으로 false positive 가 난다. 그래서 자가 자동접수 + KDS
@@ -191,6 +197,27 @@ class Order extends _$Order {
             '[OrderProvider] 소켓 단절됨 → 폴링 간격 ${OrderTimerManager.socketDisconnectedIntervalSeconds}s');
         _timerManager.restartPolling(
             OrderTimerManager.socketDisconnectedIntervalSeconds);
+      }
+    });
+
+    // HTTP 건강도 회복(지연 → 정상) 감지 → 즉시 재동기화.
+    //
+    // 소켓이 끊기지 않은 채 HTTP 만 죽는 구간에서는 소켓 재연결 이벤트가 영영
+    // 오지 않는다(2026-08-07 장애: 첫 HTTP 실패부터 소켓 끊김 감지까지 14분 7초).
+    // 그동안 폴링은 "연결됨" 기준인 60초 간격을 그대로 유지하므로, 네트워크가
+    // 돌아와도 운영자는 최대 1분을 더 기다린다. 건강도 회복이 그 공백을 메우는
+    // 유일한 신호다.
+    //
+    // 폴링 간격은 건드리지 않는다 — 이미 혼잡한 링크에 요청을 더 얹어봐야
+    // 얻는 것이 없고, 소켓 상태를 강등하면 DNS 가 죽은 구간에서 재연결 백오프만
+    // 소진해 영구 disconnected 로 악화된다.
+    ref.listen(apiHealthNotifierProvider, (previous, next) {
+      if (previous == null) return;
+      if (previous.isDegraded && !next.isDegraded) {
+        logger.i('[OrderProvider] API 건강도 회복 → 즉시 재동기화');
+        // fire-and-forget. 회복을 만든 요청이 refreshOrders 자신이었다면
+        // _isRefreshing 가드가 이 호출을 흡수한다.
+        refreshOrders();
       }
     });
 
@@ -899,6 +926,13 @@ class Order extends _$Order {
     if (state.isLoading || _isRefreshing) {
       logger.d(
           '[refreshOrders] 이미 로딩/새로고침 중이므로 건너뜀 (loading: ${state.isLoading}, refreshing: $_isRefreshing)');
+      // 파일 로그로 남긴다 — 장애 분석에서 "새로고침버튼 터치" 뒤에 아무 API 로그도
+      // 없는 침묵 구간이 가장 오래 발목을 잡았다. 폴링 틱이 삼켜진 경우도 동일.
+      logToFile(
+        tag: LogTag.SYSTEM,
+        message: '새로고침 스킵 (이미 진행 중: loading=${state.isLoading}, '
+            'refreshing=$_isRefreshing)',
+      );
       return;
     }
     date = todayDateString();
@@ -1512,27 +1546,28 @@ class Order extends _$Order {
       return true;
     }
 
+    // in-flight 락. 위의 "이미 그 상태" 가드가 열려 있는 응답 대기 구간을 막는다.
+    // 반환값은 반드시 false 여야 한다 — true 로 돌리면 호출부(kds_button_widget)가
+    // "픽업 요청 성공" 을 파일 로그에 남겨 진짜 성공과 구분되지 않는다.
+    if (!ref.read(statusUpdateInFlightProvider.notifier).tryAcquire(orderId)) {
+      logger.w(
+          '[OrderProvider] 상태변경 중복 요청 무시 (in-flight): $orderId → $newStatus');
+      return false;
+    }
+
+    // 자가 PUT 의 echo 로 돌아올 소켓 이벤트 타입. 실패 시 억제를 **해제**해야 하므로
+    // try 밖에 둔다 (catch/finally 에서도 참조 가능해야 한다).
+    final String? expectedEventType = switch (newStatus) {
+      OrderStatus.PREPARING => appfit_core.OrderEventType.orderAccepted.value,
+      OrderStatus.READY =>
+        appfit_core.OrderEventType.orderPickupRequested.value,
+      OrderStatus.DONE => appfit_core.OrderEventType.orderDone.value,
+      OrderStatus.CANCELLED => appfit_core.OrderEventType.orderCancelled.value,
+      _ => null,
+    };
+
     try {
       // 소켓 이벤트 무시 등록
-      String? expectedEventType;
-      switch (newStatus) {
-        case OrderStatus.PREPARING:
-          expectedEventType = appfit_core.OrderEventType.orderAccepted.value;
-          break;
-        case OrderStatus.READY:
-          expectedEventType =
-              appfit_core.OrderEventType.orderPickupRequested.value;
-          break;
-        case OrderStatus.DONE:
-          expectedEventType = appfit_core.OrderEventType.orderDone.value;
-          break;
-        case OrderStatus.CANCELLED:
-          expectedEventType = appfit_core.OrderEventType.orderCancelled.value;
-          break;
-        default:
-          break;
-      }
-
       if (expectedEventType != null) {
         SocketEventSuppressor().add(orderId, expectedEventType);
       }
@@ -1602,15 +1637,25 @@ class Order extends _$Order {
             message:
                 '주문 상태 업데이트 실패: displayNum=$displayNum, orderId=$orderId, statusCd=${newStatus.name}');
         logger.w('Server failed to update order status for $orderId');
+        // 호출 전에 걸어둔 echo 억제를 되돌린다. 남겨두면 TTL(10초) 동안
+        // 타 기기의 진짜 이벤트나, 뒤늦게 도착한 자기 echo 까지 삼킨다.
+        if (expectedEventType != null) {
+          SocketEventSuppressor().discard(orderId, expectedEventType);
+        }
         state = state.copyWith(error: '서버에서 주문 상태 업데이트 실패 (orderId: $orderId)');
         return false;
       }
     } catch (e, s) {
       // ApiService에서 이미 [API] ERROR 로그를 남겼을 것이므로, 여기서는 경고 수준으로 기록
       logger.e('[OrderProvider] updateOrderStatus 오류', error: e, stackTrace: s);
+      if (expectedEventType != null) {
+        SocketEventSuppressor().discard(orderId, expectedEventType);
+      }
       if (e is ApiException) rethrow;
       state = state.copyWith(error: e.toString());
       return false;
+    } finally {
+      ref.read(statusUpdateInFlightProvider.notifier).release(orderId);
     }
   }
 

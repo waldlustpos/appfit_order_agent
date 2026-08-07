@@ -6,7 +6,7 @@ part of 'product_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$shopCatalogHash() => r'c886c7074df7b8534a949e4970b6d76133804f39';
+String _$shopCatalogHash() => r'c4108674eadedeb130bf4bcd5f670fdfbca6d63b';
 
 /// 매장 카탈로그(카테고리 + 상품) 로드 — 서버 응답의 정본.
 ///

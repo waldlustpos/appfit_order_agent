@@ -1,9 +1,9 @@
 // import 'package:flutter_dotenv/flutter_dotenv.dart'; // Removed
 import 'dart:convert'; // JsonEncoder.withIndent (카테고리 원본 응답 로깅)
 import 'package:appfit_order_agent/config/app_env.dart'; // AppEnv 추가
+import 'package:appfit_order_agent/providers/api_health_provider.dart'; // HTTP 건강도 기록
 import 'package:dio/dio.dart'; // Added for DioException
-import 'package:flutter/foundation.dart' show kDebugMode;
-import 'package:appfit_order_agent/dev/order_detail_fault_injector.dart';
+import 'package:appfit_order_agent/dev/net_fault_injector.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
@@ -51,6 +51,77 @@ class ApiService {
   }
 
   // Dio get _dio => _ref.read(appFitDioProvider);
+
+  /// API 실패의 **단계**와 **소요시간**을 파일 로그로 남긴다.
+  ///
+  /// 코어 인터셉터의 `[API 오류] HTTP ? {method} {path}` 는 응답이 없었다는
+  /// 사실만 알려줄 뿐, 그것이 DNS/연결 단계(connectionError·connectionTimeout)인지
+  /// 응답 대기 단계(receiveTimeout)인지 구분하지 못한다. 이 둘은 대응이 완전히
+  /// 다르다 — 전자는 per-request `Options` 로 못 줄이고 코어의 `connectTimeout`
+  /// 을 손대야 한다.
+  ///
+  /// 2026-08-07 매장 장애에서 소켓은 DNS 실패로 59ms 만에 즉사했는데 HTTP 는
+  /// 20~27초를 끌었다. 같은 "네트워크 장애"가 아니었다는 뜻이고, 그 구분 없이는
+  /// 타임아웃 전략을 정할 수 없어 이 계측을 넣는다.
+  void _logApiFailure(String label, Object e, Stopwatch sw) {
+    final String kind;
+    final int? status;
+    final String cause;
+    if (e is DioException) {
+      kind = e.type.name;
+      status = e.response?.statusCode;
+      cause = e.error?.runtimeType.toString() ?? '-';
+    } else {
+      kind = e.runtimeType.toString();
+      status = null;
+      cause = '-';
+    }
+    logToFile(
+      tag: LogTag.SYSTEM,
+      message: '[API진단] $label kind=$kind status=${status ?? '-'} '
+          'cause=$cause elapsed=${sw.elapsedMilliseconds}ms',
+    );
+  }
+
+  /// 건강도 기록 — 주문 파이프라인의 핵심 3요청(목록/상세/상태변경)에만 건다.
+  ///
+  /// 목록 조회는 폴링이 60초마다 때리므로 사실상 HTTP heartbeat 구실을 하고,
+  /// 상태변경은 사용자 액션이라 장애 시 카운터를 가장 빨리 채운다.
+  /// 설정·상품·멤버십 등 산발적 요청까지 넣으면 신호가 흐려지므로 제외한다.
+  void _recordApiSuccess() =>
+      _ref.read(apiHealthNotifierProvider.notifier).recordSuccess();
+
+  void _recordApiFailure(Object e) =>
+      _ref.read(apiHealthNotifierProvider.notifier).recordFailure(e);
+
+  /// 개발 전용 — 무장돼 있으면 지연을 소비하고 합성 실패를 던진다.
+  ///
+  /// 반드시 각 메서드의 `try` **안**, 실제 `dio.*` 호출 **직전**에서 부른다.
+  /// - `try` 안이어야 [_logApiFailure]·[_recordApiFailure] 가 실제 장애와
+  ///   똑같이 실행된다. 전신 injector 는 `try` 밖에 있어서 강제 실패를 걸어도
+  ///   건강도 배너가 안 뜨고 진단 로그도 안 남았다.
+  /// - `dio.*` **직전**이어야 요청 준비 코드(상태 매핑·queryParams 조립)가
+  ///   검증에서 빠지지 않고, 조기 반환하는 호출이 카운터를 헛되이 소모하지 않는다.
+  ///
+  /// [kAllowFaultInjection] 이 `const` 이므로 릴리즈 빌드에서는 이 메서드
+  /// 본문 전체가 컴파일 타임에 제거된다.
+  Future<void> _maybeInjectFault(NetFaultTarget target, String path) async {
+    if (!kAllowFaultInjection) return;
+    final fault = NetFaultInjector.take(target, path);
+    if (fault == null) return;
+    // [FAULT주입] 마커는 타협 불가 — 없으면 검증하며 만든 합성 장애 로그가
+    // 나중에 진짜 장애로 오독된다. 이 로그는 Slack 업로드까지 타고 나간다.
+    logToFile(
+      tag: LogTag.SYSTEM,
+      message: '[FAULT주입] target=${target.name} path=$path '
+          'delay=${fault.delay.inMilliseconds}ms '
+          'error=${fault.error?.type.name ?? 'none(slowOnly)'}',
+    );
+    if (fault.delay > Duration.zero) {
+      await Future.delayed(fault.delay);
+    }
+    if (fault.error != null) throw fault.error!;
+  }
 
   /// 프로젝트 정보 조회
   ///
@@ -151,6 +222,7 @@ class ApiService {
     String orderId, {
     String? readyTime,
   }) async {
+    final sw = Stopwatch()..start();
     try {
       final dio = _ref.read(appFitDioProvider);
 
@@ -174,15 +246,20 @@ class ApiService {
           return false;
       }
 
+      await _maybeInjectFault(
+          NetFaultTarget.orderUpdate, ApiRoutes.orderUpdate(orderId));
       final response = await dio.put(ApiRoutes.orderUpdate(orderId), data: {
         'action': action,
         'readyTime': parsedReadyTime,
       });
 
+      _recordApiSuccess();
       return response.statusCode == 200;
     } catch (e, s) {
       // Dio/AppFitCore에서 이미 상세한 에러 로그를 남겼으므로, 여기서는 콘솔용 로그만 남김
       logger.i('[AppFit API] updateOrderStatus 실패: $e');
+      _logApiFailure('PUT order/$orderId', e, sw);
+      _recordApiFailure(e);
       if (e is DioException) {
         final data = e.response?.data;
         if (data is Map<String, dynamic> &&
@@ -214,11 +291,11 @@ class ApiService {
   }
 
   Future<OrderModel> getOrder(String orderId, {String? storeId}) async {
-    // [DEBUG] 상세조회 강제 실패 주입 — release 빌드에서는 게이트로 비활성.
-    // 개발자 옵션의 "상세조회 강제 실패" 토글로 무장. 프로덕션 영향 없음.
-    if (kDebugMode) OrderDetailFaultInjector.maybeThrow(orderId);
+    final sw = Stopwatch()..start();
     try {
       final dio = _ref.read(appFitDioProvider);
+      await _maybeInjectFault(
+          NetFaultTarget.orderDetail, ApiRoutes.orderDetail(orderId));
       // AppFit: /v1/orders/{orderNo}
       final response = await dio.get(ApiRoutes.orderDetail(orderId));
 
@@ -311,12 +388,15 @@ class ApiService {
               .toList(),
         );
 
+        _recordApiSuccess();
         return order;
       } else {
         throw Exception('주문 상세 조회 실패: ${response.statusCode}');
       }
     } catch (e, s) {
       // Dio/AppFitCore에서 이미 로그를 남겼으므로 리스로우만 수행
+      _logApiFailure('GET order/$orderId', e, sw);
+      _recordApiFailure(e);
       rethrow;
     }
   }
@@ -404,6 +484,7 @@ class ApiService {
     int page = 0,
     int size = 500,
   }) async {
+    final sw = Stopwatch()..start();
     try {
       final dio = _ref.read(appFitDioProvider);
       final Map<String, dynamic> queryParams = {
@@ -425,6 +506,7 @@ class ApiService {
 
       if (orderStatus != null) queryParams['status'] = [orderStatus.name];
 
+      await _maybeInjectFault(NetFaultTarget.orders, ApiRoutes.orders);
       // AppFit: /v1/orders — 응답 스키마는 v0 과 동일(SliceResponse<ReadAllOrderResponse>).
       final response =
           await dio.get(ApiRoutes.orders, queryParameters: queryParams);
@@ -475,11 +557,14 @@ class ApiService {
         logger.i(
             '[getOrders] 페이지 $page 응답: ${orders.length}건, isLast=$isLast, isEmpty=${slice?['empty']}');
 
+        _recordApiSuccess();
         return (orders, isLast);
       } else {
         throw Exception('주문 목록 조회 실패: ${response.statusCode}');
       }
     } catch (e, s) {
+      _logApiFailure('GET orders(page=$page)', e, sw);
+      _recordApiFailure(e);
       rethrow;
     }
   }

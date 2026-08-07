@@ -1,7 +1,7 @@
 import 'dart:async';
-import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
+import 'package:appfit_order_agent/core/net/transient_error.dart';
 import 'package:appfit_order_agent/core/orders/order_queue_service.dart';
 import 'package:appfit_order_agent/exceptions/order_detail_fetch_failed_exception.dart';
 import 'package:appfit_order_agent/models/order_model.dart';
@@ -389,20 +389,11 @@ class OrderSocketManager {
 
   /// transient 판정: 일시적 네트워크 장애(타임아웃/연결/5xx)만 재시도 대상.
   /// 4xx·취소·파싱 오류는 재시도해도 동일 실패이므로 false.
+  ///
+  /// 구현은 [isTransientNetworkError] 로 옮겼다(건강도 판정과 공유). 이 별칭은
+  /// 기존 호출부·테스트 호환을 위해 남긴다.
   @visibleForTesting
-  static bool isTransientError(Object e) {
-    if (e is! DioException) return false;
-    switch (e.type) {
-      case DioExceptionType.connectionTimeout:
-      case DioExceptionType.receiveTimeout:
-      case DioExceptionType.sendTimeout:
-      case DioExceptionType.connectionError:
-        return true;
-      default:
-        final code = e.response?.statusCode;
-        return code != null && code >= 500;
-    }
-  }
+  static bool isTransientError(Object e) => isTransientNetworkError(e);
 
   /// 소켓 상세조회 실패 시: Sentry 보고 + 폴링 안전망(refreshOrders) 즉시 트리거.
   ///

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:appfit_order_agent/config/app_env.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:appfit_order_agent/constants/app_styles.dart';
@@ -244,24 +245,38 @@ class _HomeAppBarWidgetState extends ConsumerState<HomeAppBarWidget> {
   }
 
   // 새로고침 버튼 클릭 핸들러 분리
-  void _handleRefresh() {
+  ///
+  /// 스피너는 **실제 조회가 끝날 때까지** 유지한다. 예전에는 `refreshOrders()` 를
+  /// await 하지 않고 고정 3초 타이머로 풀었는데, 조회가 20초 걸리는 저품질
+  /// 네트워크에서는 3초 뒤 버튼이 되살아나고 그때의 탭은 OrderProvider 의
+  /// `_isRefreshing` 가드가 조용히 삼켰다. 운영자 입장에서는 "눌러도 아무 일도
+  /// 일어나지 않는 버튼" 이 되고, 로그에도 터치만 남아 원인 추적이 막힌다.
+  Future<void> _handleRefresh() async {
     if (_isRefreshing) return; // 이미 새로고침 중이면 무시
 
     setState(() {
       _isRefreshing = true;
     });
-
-    ref.read(orderProvider.notifier).refreshOrders();
     logToFile(tag: LogTag.UI_ACTION, message: '새로고침버튼 터치');
 
-    // 1.5초 후에 다시 새로고침 가능하도록 설정
-    Future.delayed(const Duration(milliseconds: 3000), () {
+    final sw = Stopwatch()..start();
+    try {
+      // 상한 60초 — 조회가 끝내 돌아오지 않아도 버튼이 영구히 잠기지는 않게 한다.
+      // (provider 쪽 가드가 중복 실행은 계속 막아준다)
+      await ref
+          .read(orderProvider.notifier)
+          .refreshOrders()
+          .timeout(const Duration(seconds: 60), onTimeout: () {});
+    } finally {
+      // 너무 빨리 끝나면 스피너가 깜빡이기만 하므로 최소 표시시간을 준다.
+      final remain = const Duration(milliseconds: 400) - sw.elapsed;
+      if (remain > Duration.zero) await Future.delayed(remain);
       if (mounted) {
         setState(() {
           _isRefreshing = false;
         });
       }
-    });
+    }
   }
 
   @override
@@ -312,10 +327,15 @@ class _HomeAppBarWidgetState extends ConsumerState<HomeAppBarWidget> {
       children: [
         Center(
           child: GestureDetector(
-            onLongPress: () {
-              logger.w('시계 영역 롱프레스 감지 - 소켓 폭주 테스트 실행');
-              _runSocketBurstTest(ref);
-            },
+            // 소켓 폭주 테스트 — 개발/디버그 전용.
+            //
+            // 게이트가 없던 동안 **릴리즈 매장 기기에서도** 시계 롱프레스로
+            // 발동했다. TEST_ 주문 10건이 출력 큐에 들어가 영수증·라벨이 실제로
+            // 인쇄되므로, 직원이 우연히 밟으면 용지와 시간을 그대로 태운다.
+            // 확인 다이얼로그를 둔 이유도 같다 — debug 로 매장에서 검증하는
+            // 동안에도 오발동은 프린터를 소모한다.
+            onLongPress:
+                AppEnv.showInternalUi ? () => _confirmSocketBurstTest() : null,
             child: const _CurrentTimeWidget(),
           ),
         ),
@@ -725,6 +745,21 @@ class _HomeAppBarWidgetState extends ConsumerState<HomeAppBarWidget> {
         });
       }
     });
+  }
+
+  /// 소켓 폭주 테스트 실행 전 확인. 실제 출력(영수증·라벨)을 소모하므로
+  /// 롱프레스 한 번으로 바로 나가지 않게 한다.
+  Future<void> _confirmSocketBurstTest() async {
+    final ok = await CommonDialog.showConfirmDialog(
+      context: context,
+      title: '소켓 폭주 테스트',
+      content: '테스트 주문 10건을 큐에 넣습니다.\n영수증·라벨이 실제로 출력됩니다. 진행할까요?',
+      confirmText: t.common.confirm,
+      cancelText: t.common.cancel,
+    );
+    if (ok != true || !mounted) return;
+    logger.w('시계 영역 롱프레스 - 소켓 폭주 테스트 실행');
+    _runSocketBurstTest(ref);
   }
 
   void _runSocketBurstTest(WidgetRef ref) {
