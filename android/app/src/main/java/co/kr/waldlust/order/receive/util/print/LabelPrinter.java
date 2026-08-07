@@ -566,8 +566,11 @@ public class LabelPrinter {
         //     실제로 인쇄가 일어났다는 뜻이다 (#40 의 7→8 이 그 근거였다).
         sb.append("pg=").append(pageIdBefore).append("→").append(pageIdAfter);
         // 이번 인쇄분이 배출됐는지 = 상승 edge 발생 여부. 판정의 핵심 근거라 맨 앞에 둔다.
-        sb.append(" 배출edge=").append(paperNoFetchRiseCount);
-        // paperNoFetch / recvIdle / printIdle / portOk 는 plainState() 가 사람 말로 이미
+        // 배출 edge 카운터는 적지 않는다. 이 스냅샷은 실패 분기에서만 쓰이는데, 그 분기는
+        // "edge 가 안 올랐다" 를 조건으로 도달하므로 값이 늘 같다. 숫자만 남으면 무언가를
+        // 말해 주는 것처럼 보여 오히려 오해를 부른다.
+        //
+        // paperNoFetch / recvIdle / printIdle / portOk 도 plainState() 가 사람 말로 이미
         // 전달하므로 여기 다시 적지 않는다. 이 괄호 안은 **plainState 가 못 담는 것만** 남긴다.
         sb.append(" 비콘[");
         sb.append("noPaperCanceled=").append(lastInfoNoPaperCanceled);
