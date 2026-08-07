@@ -81,6 +81,13 @@ class WindowsLabelPrinterBackend {
   bool _lastInfoNoPaperCanceled = false;
   bool _lastInfoPaperNoFetch = false;
 
+  /// paperNoFetch 의 false→true 상승 edge 누적 횟수.
+  ///
+  /// "내 라벨이 물리적으로 나왔는가" 를 printed 콜백과 독립적으로 확인하는 신호다.
+  /// 인쇄 시작 ~0.83초 뒤 라벨이 peel 에 도달하며 edge 가 발생한다.
+  /// 레벨이 아니라 edge 를 세는 이유는 [_onPrinterStatusEvent] 주석 참조.
+  int _paperNoFetchRiseCount = 0;
+
   /// 마지막으로 ERROR phase 를 로깅한 타임스탬프 (dedup 용).
   int _lastLoggedErrorBits = 0;
 
@@ -257,6 +264,8 @@ class WindowsLabelPrinterBackend {
     // PagePrint 직전의 ACK 카운트 snapshot. 이 호출에 대한 PrintedEvent 가
     // 도착했는지 race-free 로 판정하기 위함.
     final ackBefore = _printedAckCount;
+    // peel edge 기준선. 이 값이 늘면 "내 라벨이 peel 에 도달했다".
+    final riseBefore = _paperNoFetchRiseCount;
 
     final pngPtr = malloc.allocate<ffi.Uint8>(pngBytes.length);
     try {
@@ -292,21 +301,35 @@ class WindowsLabelPrinterBackend {
     // 의 내부 신호를 race 로 갱신하지 않는 케이스가 5장 부하 테스트로 검증됨.
     // (ackArrived=true 인데 QueryPrintResult 가 풀 timeout 까지 대기)
     //
-    // ACK 콜백 또는 비콘 (PAPERNOFETCH/NoPaperCanceled) 이 인쇄 완료/실패의
-    // 충분 신호이므로, main isolate 에서 가벼운 폴링으로 즉시 응답을 잡는다.
-    // 폴링 timeout 까지 신호가 하나도 안 오면 fallback 으로 SDK
-    // QueryPrintResult 를 1회 호출 (메모리 invariant: "두 번째 QueryPrintResult
-    // 호출 금지" — fallback 은 1차 폴링과 1회만이므로 invariant 보존).
+    // ACK 콜백 또는 비콘이 인쇄 완료/실패의 충분 신호이므로, main isolate 에서
+    // 가벼운 폴링으로 즉시 응답을 잡는다. 폴링 timeout 까지 신호가 하나도 안 오면
+    // fallback 으로 SDK QueryPrintResult 를 1회 호출 (메모리 invariant: "두 번째
+    // QueryPrintResult 호출 금지" — fallback 은 1차 폴링과 1회만이므로 invariant 보존).
     // 폴링 timeout: 5장 부하 테스트에서 ACK 도착이 PagePrint 후 최대 1.7초까지
-    // 지연되는 케이스 관찰됨 (SEQ 1, ACK pageId=0). paperFetch 비콘이 잡히는
-    // 정상 케이스는 0~700ms 에 즉시 break 하므로 timeout 을 길게 잡아도 영향
-    // 없음. 1700ms 면 ACK 늦은 케이스도 폴링 안에서 잡고 fallback 회피.
+    // 지연되는 케이스 관찰됨 (SEQ 1, ACK pageId=0).
+    //
+    // 완료 신호는 둘이고 **먼저 오는 쪽**을 취한다:
+    //   프린터응답 — printed 콜백 (_printedAckCount 증가)
+    //   라벨나옴   — paperNoFetch **상승 edge** = 라벨이 물리적으로 peel 에 도달
+    //
+    // ⚠️ 예전에는 paperNoFetch 를 **레벨**로 봤다. 아래 (7) 의 떼기 대기가 성공 경로에
+    // 있어서 "인쇄 시작 시 peel 은 늘 비어 있다" 를 보장해 준 덕에 그 레벨 검사가
+    // 맞아떨어졌을 뿐이다. 비프음 복원을 위해 그 대기를 성공 경로에서 걷어내면 앞 라벨이
+    // 남아 있는 채로 인쇄가 시작되고, 그러면 레벨은 이미 true 라 **아직 나오지도 않은
+    // 라벨을 첫 폴링에서 완료로 판정**하게 된다. 그래서 레벨이 아니라 edge 를 본다.
     const fastPollTimeoutMs = 1700;
     const fastPollIntervalMs = 30;
     final tPoll = DateTime.now();
+    String? via;
     while (true) {
-      if (_printedAckCount > ackBefore) break;
-      if (_lastInfoPaperNoFetch) break;
+      if (_printedAckCount > ackBefore) {
+        via = '프린터응답';
+        break;
+      }
+      if (_paperNoFetchRiseCount != riseBefore) {
+        via = '라벨나옴';
+        break;
+      }
       if (_lastInfoNoPaperCanceled) break;
       if (DateTime.now().difference(tPoll).inMilliseconds >=
           fastPollTimeoutMs) {
@@ -314,17 +337,16 @@ class WindowsLabelPrinterBackend {
       }
       await Future.delayed(const Duration(milliseconds: fastPollIntervalMs));
     }
-    bool ackArrived = _printedAckCount > ackBefore;
 
     // 용지없음 race - 즉시 실패 (Dart 재시도 위임).
-    if (_lastInfoNoPaperCanceled) {
+    if (via == null && _lastInfoNoPaperCanceled) {
       logger.w('$tag 용지없음 race (NoPaperCanceled) — Dart 재시도 위임');
       return false;
     }
 
     // 폴링 timeout 인데 신호가 하나도 없으면 fallback QueryPrintResult.
     // SDK 가 콜백/비콘 모두 발화하지 않은 케이스 - 보수적으로 SDK 에 직접 질의.
-    if (!ackArrived && !_lastInfoPaperNoFetch) {
+    if (via == null) {
       final handleAddr = _hPrinter.address;
       final queryRc = await Isolate.run<int>(() {
         final innerBindings = AutoReplyPrintBindings.instance;
@@ -332,17 +354,35 @@ class WindowsLabelPrinterBackend {
         return innerBindings.posQueryPrintResult(
             innerHandle, _kQueryPrintResultTimeoutMs);
       });
-      ackArrived = _printedAckCount > ackBefore;
-      if (queryRc == 0 && !ackArrived && !_lastInfoPaperNoFetch) {
-        logger.w('$tag step9 fallback timeout — 인쇄 신호 없음');
-        return false;
+      // 질의 대기 중에 신호가 도착했을 수 있으므로 다시 확인한다.
+      if (_printedAckCount > ackBefore) {
+        via = '프린터응답';
+      } else if (_paperNoFetchRiseCount != riseBefore) {
+        via = '라벨나옴';
+      } else if (queryRc != 0) {
+        via = '프린터질의';
       }
     }
 
-    // PAPERNOFETCH 비트가 떠있으면 사용자가 라벨을 떼기까지 무한 대기.
-    if (_lastInfoPaperNoFetch) {
+    // 여기까지 완료 신호가 없는데 peel 에 라벨이 남아 있다 = 앞 라벨을 안 떼서 펌웨어가
+    // 이번 페이지를 붙잡고 있는 상태(**정상 운영**). 떼기까지 무한 대기한다.
+    // Android LabelPrinter 의 `떼기대기` 분기와 같은 자리·같은 의미.
+    if (via == null) {
+      if (!_lastInfoPaperNoFetch) {
+        logger.w('$tag 완료 신호 없음 — 인쇄 여부 불명');
+        return false;
+      }
+      logger.w('$tag 떼기대기 (앞 라벨을 안 뗌 — 비프음 울림)');
       await _waitPaperFetched(tag);
+      via = '떼기대기';
     }
+
+    // ★ 완료 신호를 받았으면 **떼기를 기다리지 않고 반환한다.**
+    // 예전에는 여기서 매번 _waitPaperFetched 로 떼기까지 블로킹했는데, 그 탓에 다음
+    // PagePrint 가 peel 이 비워진 뒤에야 나가 펌웨어가 비프음을 울릴 계기를 얻지
+    // 못했다. Android 는 완료 시 떼기를 안 기다리므로 다음 PagePrint 가 보류 상태에
+    // 도달해 buzzer 가 울린다 — 이제 양 플랫폼이 같다.
+    // 불변식: **떼지 않은 상태에서 다음 PagePrint 가 펌웨어에 도달한다.**
 
     if (options.useFeedToTear) {
       bindings.labelFeedLabel(_hPrinter);
@@ -353,8 +393,11 @@ class WindowsLabelPrinterBackend {
 
     final stillOpen = bindings.portIsOpened(_hPrinter) != 0;
     final totalElapsed = DateTime.now().difference(tStart).inMilliseconds;
-    logger.i(
-        '$tag 완료: stillOpen=$stillOpen ackCount=$_printedAckCount total=${totalElapsed}ms');
+    // 판정 근거(via)를 남긴다 — 신호별 기여도를 셀 수 있어야 "동작하는 줄 알았는데
+    // 무력한" 신호를 코드에 남겨 두지 않는다. Android 와 같은 어휘를 쓰므로 두 플랫폼
+    // 로그를 같은 키워드로 grep 할 수 있다.
+    logger
+        .i('$tag 출력끝 (${totalElapsed}ms, $via) 연결=${stillOpen ? "정상" : "끊김"}');
     return stillOpen;
   }
 
@@ -639,6 +682,9 @@ class WindowsLabelPrinterBackend {
     _lastInfoNoPaperCanceled = false;
     _lastInfoPaperNoFetch = false;
     _lastLoggedErrorBits = 0;
+    // _paperNoFetchRiseCount 는 **의도적으로 리셋하지 않는다.** 절대값은 의미가 없고
+    // 인쇄 전후 델타만 쓰는 단조 카운터인데, 여기서 0 으로 되돌리면 riseBefore 가
+    // 0 보다 클 때 `!=` 비교가 "변했다" 로 읽혀 인쇄되지도 않은 라벨을 완료로 판정한다.
   }
 
   void _onPrinterStatusEvent(
@@ -655,7 +701,20 @@ class WindowsLabelPrinterBackend {
     _lastInfoPrintIdle = (infoStatus & CpPrinterInfoBits.printIdle) != 0;
     _lastInfoNoPaperCanceled =
         (infoStatus & CpPrinterInfoBits.noPaperCanceled) != 0;
+
+    // paperNoFetch 의 false→true 상승 edge 를 센다.
+    //
+    // 레벨(현재 true 인가)이 아니라 edge 여야 하는 이유: 앞 라벨이 안 떼어져 있으면
+    // 레벨은 이미 true 라 "내 라벨이 나왔는가" 를 구별할 수 없다. 보류 상황에서도
+    // edge 는 반드시 생긴다 — 앞 라벨 peel(true) → 운영자가 뗌(false) → 붙잡혀 있던
+    // 페이지 인쇄(true). 즉 이 카운터의 증가 = "내 라벨이 물리적으로 peel 에 도달".
+    //
+    // Android [LabelPrinter.paperNoFetchRiseCount] 와 같은 패턴이다.
+    final prevPaperNoFetch = _lastInfoPaperNoFetch;
     _lastInfoPaperNoFetch = (infoStatus & CpPrinterInfoBits.paperNoFetch) != 0;
+    if (!prevPaperNoFetch && _lastInfoPaperNoFetch) {
+      _paperNoFetchRiseCount++;
+    }
 
     // ERROR phase 변경 시 1회만 로깅 (Java _loggedErrorPhase 패턴).
     // _currentTag 가 set 되어 있으면 어느 라벨에서 비콘이 떴는지 추적 가능.
@@ -779,7 +838,7 @@ class WindowsLabelPrinterBackend {
 
   Future<void> _waitPaperFetched(String tag) async {
     final bindings = AutoReplyPrintBindings.tryGet();
-    logger.w('$tag PAPERNOFETCH wait 진입: paper=$_lastInfoPaperNoFetch '
+    logger.w('$tag 떼기대기 진입: 라벨=${_lastInfoPaperNoFetch ? "안뗀채로있음" : "없음"} '
         'cover=$_lastErrorIsCoverUp noPaper=$_lastErrorIsNoPaper '
         'noPaperCanceled=$_lastInfoNoPaperCanceled '
         'errorBits=0x${_lastErrorStatusBits.toRadixString(16)}');
@@ -797,7 +856,7 @@ class WindowsLabelPrinterBackend {
           _hPrinter != ffi.nullptr &&
           bindings.portIsConnectionValid(_hPrinter) == 0) {
         logger.w(
-            '$tag PAPERNOFETCH wait 중 USB 포트 stale 감지 (elapsed=${elapsed}ms) '
+            '$tag 떼기대기 중 USB 포트 stale 감지 (elapsed=${elapsed}ms) '
             '-> wait 종료, 다음 호출에서 reconnect');
         return;
       }
@@ -806,7 +865,7 @@ class WindowsLabelPrinterBackend {
       if (_lastErrorOccurred != prevError ||
           _lastErrorIsCoverUp != prevCover ||
           _lastErrorIsNoPaper != prevNoPaper) {
-        logger.i('$tag PAPERNOFETCH wait 중 ERROR 비트 변화: '
+        logger.i('$tag 떼기대기 중 ERROR 비트 변화: '
             'cover=$_lastErrorIsCoverUp noPaper=$_lastErrorIsNoPaper '
             'errorBits=0x${_lastErrorStatusBits.toRadixString(16)} '
             '(elapsed=${elapsed}ms)');
@@ -818,13 +877,13 @@ class WindowsLabelPrinterBackend {
       await Future.delayed(const Duration(milliseconds: _kPaperWaitStepMs));
       elapsed += _kPaperWaitStepMs;
       if (elapsed % 1000 == 0 && elapsed > 0) {
-        logger.i('$tag PAPERNOFETCH 대기 ${elapsed ~/ 1000}s '
+        logger.i('$tag 떼기대기 ${elapsed ~/ 1000}s '
             '(paper=$_lastInfoPaperNoFetch cover=$_lastErrorIsCoverUp '
             'noPaper=$_lastErrorIsNoPaper '
             'noPaperCanceled=$_lastInfoNoPaperCanceled)');
       }
     }
-    logger.i('$tag 라벨 fetch 완료 wait=${elapsed}ms');
+    logger.i('$tag 떼어짐 (대기 ${elapsed}ms)');
   }
 
   /// 앱 종료 시 호출. 콜백/포트를 모두 정리한다.
