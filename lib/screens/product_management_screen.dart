@@ -49,32 +49,27 @@ class _ProductManagementScreenState
 
   /// 좌측 목록에 표시할 카테고리명 정본.
   ///
-  /// 서버 카테고리를 기준으로 삼아 **소속 상품이 0개인 카테고리도 노출**한다
-  /// (상품에서 역산하면 빈 카테고리는 표현 자체가 불가능).
-  /// 서버 카테고리는 `displayOrder`(서버가 "각 카테고리 및 상품은 displayOrder로
-  /// 정렬"이라 명시한 필드)로 정렬한다. 옵션 버킷('옵션')처럼 서버 카테고리가
-  /// 아닌 앱의 인공 그룹은 상품에서 보충해 뒤에 가나다순으로 덧붙이며, 서버 목록을
-  /// 아직 못 받았으면(순서 정보 자체가 없으므로) 전량 상품에서 역산해 가나다순으로
-  /// 폴백한다.
+  /// 서버가 내려준 목록 순서(list order)를 그대로 유지한다 — `displayOrder`
+  /// 필드는 정렬 기준이 아니었음이 확인되어 더 이상 쓰지 않는다. 옵션 버킷
+  /// ('옵션')처럼 서버 카테고리가 아닌 앱의 인공 그룹은 상품에서 보충해 뒤에
+  /// 가나다순으로 덧붙이며, 서버 목록을 아직 못 받았으면(순서 정보 자체가
+  /// 없으므로) 전량 상품에서 역산해 가나다순으로 폴백한다.
+  /// 소속 상품이 0개인 카테고리(= [counts] 에 없거나 0)는 목록에서 제외한다.
   List<String> _getCategoryNames(
     List<ProductModel> products,
     List<ShopCategoryModel>? serverCategories,
+    Map<String, int> counts,
   ) {
     final productCategoryNames = products.map((p) => p.categoryName).toSet();
 
     if (serverCategories == null) {
-      return productCategoryNames.toList()..sort();
+      return (productCategoryNames.toList()..sort())
+          .where((name) => (counts[name] ?? 0) > 0)
+          .toList();
     }
 
-    final sortedServerCategories = [...serverCategories]..sort((a, b) {
-        final byOrder = a.displayOrder.compareTo(b.displayOrder);
-        return byOrder != 0
-            ? byOrder
-            : a.categoryName.compareTo(b.categoryName);
-      });
-
     final ordered = <String>{
-      for (final category in sortedServerCategories) category.categoryName,
+      for (final category in serverCategories) category.categoryName,
     };
     final extras = productCategoryNames.difference(ordered).toList()..sort();
 
@@ -83,7 +78,7 @@ class _ProductManagementScreenState
       // categoryPosId) 내려주면 여기서 조용히 합쳐진다 — "서버는 22개인데 화면은
       // 그보다 적다" 문의가 나오면 이 로그로 어느 이름이 중복인지 확인한다.
       final nameCounts = <String, int>{};
-      for (final c in sortedServerCategories) {
+      for (final c in serverCategories) {
         nameCounts[c.categoryName] = (nameCounts[c.categoryName] ?? 0) + 1;
       }
       final duplicates = nameCounts.entries.where((e) => e.value > 1).toList();
@@ -95,7 +90,9 @@ class _ProductManagementScreenState
         '상품역산 추가 ${extras.length}개(${extras.join(', ')}) '
         '= 총 ${ordered.length + extras.length}개');
 
-    return [...ordered, ...extras];
+    return [...ordered, ...extras]
+        .where((name) => (counts[name] ?? 0) > 0)
+        .toList();
   }
 
   /// 화면에 노출될 수 있는 상품의 공통 base — hidden 제외 + 검색어 적용.
@@ -272,16 +269,19 @@ class _ProductManagementScreenState
             child: Consumer(
               builder: (context, ref, child) {
                 final productsAsync = ref.watch(productProvider);
-                // 카테고리명은 서버 목록이 정본(상품 0개 카테고리 포함). 카운트는
-                // updateProductStatus 의 낙관적 갱신에 반응해야 하므로 계속
-                // productProvider 에서 파생한다.
+                // 카테고리명·순서는 서버 목록이 정본이나 상품 0개 카테고리는
+                // 숨긴다. 카운트는 updateProductStatus 의 낙관적 갱신에
+                // 반응해야 하므로 계속 productProvider 에서 파생한다.
                 final serverCategories =
                     ref.watch(shopCategoryListProvider).valueOrNull;
                 return productsAsync.when(
                   data: (products) {
                     final categoryCounts = _getCategoryCounts(products);
-                    final categories =
-                        _getCategoryNames(products, serverCategories);
+                    final categories = _getCategoryNames(
+                      products,
+                      serverCategories,
+                      categoryCounts,
+                    );
                     // 타일마다 재계산하지 않도록 build 당 1회만 집계한다.
                     final allCount = _productsFor(products, null).length;
                     final soldOutCount =

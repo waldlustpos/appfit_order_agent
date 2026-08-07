@@ -11,9 +11,8 @@ class ShopCategoryModel {
   /// POS 카테고리 코드 (예: `DX0000`, `EC0001`). 응답 키는 `categoryPosId`.
   final String categoryCode;
 
-  /// 서버가 지정한 표시 순서 (응답 키 `displayOrder`). "각 카테고리 및 상품은
-  /// displayOrder로 정렬"이 서버 계약이라, 응답 배열 순서가 아니라 이 필드로
-  /// 정렬해야 한다.
+  /// 서버 응답의 `displayOrder` 필드 원본 값(참고용 보존). 카테고리 정렬 기준이
+  /// 아님이 확인됨 — 카테고리 순서는 응답 배열 순서(list order)를 그대로 쓴다.
   final int displayOrder;
 
   const ShopCategoryModel({
