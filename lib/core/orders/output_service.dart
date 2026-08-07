@@ -381,10 +381,11 @@ class OutputService {
     required int attempt,
   }) async {
     _ackTimeouts++;
-    logToFile(
-        tag: LogTag.WARNING,
-        message: '[Label] $displayNum $labelIndex/$totalLabels'
-            ' ACK 미수신 ($attempt차) — 인쇄된 것으로 간주, 재시도 안 함');
+    // 파일 로그는 남기지 않는다 — 바로 앞줄에 Java 가 찍는
+    // `실패 [완료신호 없음 …] 프린터=… 라벨=… 연결=… | …` 이 같은 사건을 더 자세히
+    // 기록한다. 재시도 회차는 Java 의 `출력시작` 반복 횟수로 그대로 드러난다.
+    logger.w('[Label] $displayNum $labelIndex/$totalLabels'
+        ' ACK 미수신 ($attempt차) — 인쇄된 것으로 간주, 재시도 안 함');
     // 조회 실패는 null 로 흡수된다 — 진단이 없어도 집계는 진행한다.
     final diagnostic = await printService.fetchLastLabelAckDiagnostic();
     MonitoringService.instance.captureError(

@@ -360,7 +360,7 @@ public class LabelPrinter {
                 if (AutoReplyPrint.INSTANCE.CP_Pos_QueryPrintResult(
                         hPrinter, QUERY_RESULT_SLICE_MS)) {
                     printed = true;
-                    via = "query";
+                    via = "프린터응답";
                     break;
                 }
                 // 용지없음 취소는 종이가 안 나간 유일한 케이스 — 즉시 빠져나가 재시도로 넘긴다.
@@ -369,7 +369,7 @@ public class LabelPrinter {
                 }
                 if (paperNoFetchRiseCount != riseBefore) {
                     printed = true;
-                    via = "peel";
+                    via = "라벨나옴";
                     break;
                 }
             }
@@ -395,7 +395,7 @@ public class LabelPrinter {
             // 인쇄되는 사고 발생 (예: 1/7 두 장, 745번 두 장). 떼기 감지 = 펌웨어 인쇄
             // 완료로 간주하고 USB 포트만 확인 후 즉시 success 반환.
             if (!printed && lastInfoPaperNoFetch) {
-                log("#" + seq + " " + orderTag + " 떼기대기 (PAPERNOFETCH, buzzer 활성)");
+                log("#" + seq + " " + orderTag + " 떼기대기 (앞 라벨을 안 뗌 — 비프음 울림)");
                 long fetchStart = System.currentTimeMillis();
                 long lastNotice = fetchStart;
                 boolean interrupted = false;
@@ -445,33 +445,33 @@ public class LabelPrinter {
             // ★ 2026-08-03 아오야마점 라벨 2장 사고: QueryPrintResult 가 30초를 꽉 채워
             // false 를 반환했지만 라벨은 정상 출력된 상태였다 (하루 258장 중 2장, 0.8%).
             // 이를 인쇄 실패로 단정해 Dart 가 같은 페이지를 재발사 → 2장 인쇄.
-            // timeout 은 "안 나왔다" 가 아니라 "응답을 못 받았다" 일 뿐이므로,
-            // 인쇄 매수 스냅샷으로 한 번 더 확인하고 그래도 불명이면 재시도를 금지한다.
-            // 인쇄 매수는 진단 표시용으로만 쓴다. REXOD RXLA-561 실측(2026-08-03)에서
-            // 이 값은 인쇄 도중에는 갱신되지 않고 다음 인쇄 시작 시점에야 반영됐다
-            // (pg=0→0, 0→0, 1→1). 따라서 "매수가 늘었으니 인쇄된 것" 판정은 이 단말에서
-            // 항상 false 가 되어 의미가 없다. 동작하지 않는 가드를 코드에 남겨 두면
-            // PAPERNOFETCH 때처럼 '있는 줄 알았는데 무력한' 상태가 반복되므로 판정에서 제외.
-            final int pageIdAfter = queryPrintedPageId();
             long elapsed = System.currentTimeMillis() - startTime;
 
             if (printed) {
                 result = RESULT_SUCCESS;
-                // via 는 어느 신호로 완료를 판정했는지 — 배포 후 로그로 신호별 기여도를
-                // 셀 수 있어야 "동작하는 줄 알았는데 무력한" 신호를 남겨 두지 않는다.
-                log("#" + seq + " " + orderTag + " 출력끝 (" + elapsed + "ms"
-                        + ", via=" + via + ", ack=" + ackWaitMs + "ms"
-                        + ", pg=" + pageIdBefore + "→" + pageIdAfter + ")");
+                // 어느 신호로 완료를 판정했는지 남긴다 — 신호별 기여도를 셀 수 있어야
+                // "동작하는 줄 알았는데 무력한" 신호를 코드에 남겨 두지 않는다.
+                // pg 는 붙이지 않는다: 같은 호출 안에서는 절대 안 변한다(로그 199건 중 0건).
+                log("#" + seq + " " + orderTag + " 출력끝 (" + elapsed + "ms, "
+                        + via + " " + ackWaitMs + "ms)");
             } else {
                 result = RESULT_SUBMITTED_NO_ACK;
-                // 같은 스냅샷을 로그와 Sentry 양쪽에 쓴다 (두 번 만들면 시점이 어긋난다).
+                // 인쇄 매수 재조회는 **여기서만** 한다. 성공 경로에서도 부르면 매 인쇄마다
+                // 공유 USB IN 엔드포인트에 명령을 하나씩 더 얹게 되는데, 그 간섭이야말로
+                // 응답 유실의 유력한 후보다 (feedToTear 순서 가설과 같은 성질).
+                // 값 자체는 판정에 쓰지 않고 진단용으로만 남긴다 — 같은 호출 안에서는
+                // 갱신되지 않고 다음 인쇄 시점에야 반영되기 때문(로그 199건 중 0건).
+                // 다만 30초짜리 긴 대기에서는 증가하며, 그것이 #40 의 pg=7→8 근거였다.
+                final int pageIdAfter = queryPrintedPageId();
+                // 요약과 원자료를 한 번만 만들어 로그·Sentry 양쪽에 같은 값을 쓴다
+                // (두 번 만들면 시점이 어긋나고, 문구도 갈린다).
+                final String summary = plainState();
                 final String snapshot = diagnosticSnapshot(pageIdBefore, pageIdAfter);
-                lastAckDiagnostic = "elapsed=" + elapsed + "ms via=none rise="
-                        + riseBefore + "→" + paperNoFetchRiseCount + " " + snapshot;
+                lastAckDiagnostic = "총 " + elapsed + "ms " + summary + " | " + snapshot;
+                // 앞쪽은 운영자가 읽는 요약, `|` 뒤는 개발자용 원자료.
                 log("#" + seq + " " + orderTag + " 실패 [완료신호 없음 "
-                        + QUERY_PRINT_RESULT_TIMEOUT_MS + "ms — 재시도 금지] ("
-                        + elapsed + "ms) rise=" + riseBefore + "→"
-                        + paperNoFetchRiseCount + " " + snapshot);
+                        + (QUERY_PRINT_RESULT_TIMEOUT_MS / 1000) + "초 — 재시도 금지] ("
+                        + elapsed + "ms) " + summary + " | " + snapshot);
             }
 
         } catch (Exception e) {
@@ -532,6 +532,28 @@ public class LabelPrinter {
     }
 
     /**
+     * 실패 로그 앞부분에 붙는 **운영자용** 한 줄 요약.
+     *
+     * <p>진단 스냅샷은 원인 규명에 필수지만 비트 이름과 16진수라 현장에서 읽을 수 없다.
+     * 같은 상태를 사람 말로 먼저 적고, 원자료는 `|` 뒤로 미룬다.
+     *
+     * <p>세 값이 답하는 질문:
+     * <ul>
+     *   <li>프린터 — 지금 일하고 있나, 손 놓고 있나 (일하는 중이면 아직 차례가 안 온 것)</li>
+     *   <li>라벨 — 이번 인쇄분이 실제로 배출됐나 (상승 edge 발생 여부)</li>
+     *   <li>연결 — USB 가 살아 있나</li>
+     * </ul>
+     */
+    private static String plainState() {
+        final String printer = (lastInfoRecvIdle && lastInfoPrintIdle)
+                ? "대기중(할일없음)" : "작업중";
+        final String label = lastInfoPaperNoFetch ? "안뗀채로있음" : "없음";
+        final String port = AutoReplyPrint.INSTANCE.CP_Port_IsOpened(hPrinter)
+                ? "정상" : "끊김";
+        return "프린터=" + printer + " 라벨=" + label + " 연결=" + port;
+    }
+
+    /**
      * ACK timeout 실패 로그에 붙일 진단 스냅샷.
      *
      * <p>기존 로그는 {@code 실패 (30182ms)} 뿐이라 timeout 인지 다른 사유인지,
@@ -540,12 +562,15 @@ public class LabelPrinter {
      */
     private static String diagnosticSnapshot(int pageIdBefore, int pageIdAfter) {
         StringBuilder sb = new StringBuilder();
+        // pg: 인쇄 매수. 같은 호출 안에서는 안 변하는 것이 정상이고, 변했다면 긴 대기 동안
+        //     실제로 인쇄가 일어났다는 뜻이다 (#40 의 7→8 이 그 근거였다).
         sb.append("pg=").append(pageIdBefore).append("→").append(pageIdAfter);
+        // 이번 인쇄분이 배출됐는지 = 상승 edge 발생 여부. 판정의 핵심 근거라 맨 앞에 둔다.
+        sb.append(" 배출edge=").append(paperNoFetchRiseCount);
+        // paperNoFetch / recvIdle / printIdle / portOk 는 plainState() 가 사람 말로 이미
+        // 전달하므로 여기 다시 적지 않는다. 이 괄호 안은 **plainState 가 못 담는 것만** 남긴다.
         sb.append(" 비콘[");
-        sb.append("paperNoFetch=").append(lastInfoPaperNoFetch);
-        sb.append(" noPaperCanceled=").append(lastInfoNoPaperCanceled);
-        sb.append(" recvIdle=").append(lastInfoRecvIdle);
-        sb.append(" printIdle=").append(lastInfoPrintIdle);
+        sb.append("noPaperCanceled=").append(lastInfoNoPaperCanceled);
         sb.append(String.format(" err=0x%04X", lastErrorStatusBits));
         sb.append(" age=");
         sb.append(lastStatusTime == 0L
@@ -570,7 +595,7 @@ public class LabelPrinter {
             sb.append(" 동기[미지원]");
         }
 
-        sb.append(" portOk=").append(AutoReplyPrint.INSTANCE.CP_Port_IsOpened(hPrinter));
+        // portOk 는 plainState() 의 `연결=` 이 담당한다 (중복 제거).
         return sb.toString();
     }
 
@@ -634,8 +659,8 @@ public class LabelPrinter {
                         || lastLoggedPaperNoFetch != lastInfoPaperNoFetch) {
                     lastLoggedPaperNoFetch = lastInfoPaperNoFetch;
                     Log.i(TAG, (currentOrderTag != null ? currentOrderTag + " " : "")
-                            + "PAPERNOFETCH → "
-                            + (lastInfoPaperNoFetch ? "안뗌(라벨 대기중)" : "떼어짐/없음"));
+                            + "라벨 → "
+                            + (lastInfoPaperNoFetch ? "나옴(안 뗀 상태)" : "떼어짐/없음"));
                 }
 
                 // ── phase 비콘 로그: ERROR 만 출력, 정상 phase(수신중/인쇄중/대기중 등)는 무음 ──
