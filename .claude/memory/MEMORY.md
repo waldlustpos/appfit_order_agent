@@ -44,6 +44,7 @@
 - [REXOD 라벨프린터 신호 실측 정본](reference_rexod_label_printer_signals.md) — PAPERNOFETCH 정상동작(통념 반박), QueryPrintResult는 떼기 안 기다림, GetPrinterPrintedInfo pageId 판정불가, 펌웨어 보류 실재(19.2초). 관찰 불가한 가드 = 없는 가드.
 - [라벨 2장 인쇄 사고 — ACK timeout 오판](project_label_ack_timeout_duplicate.md) — 수정은 852ac44(+173) 반영·운영 검증 완료(16건 전부 attempt=1). 후속 계측 Phase A 미커밋. 강제 재현 기법 포함 (2026-08-07)
 - [Android/Windows 라벨 동작 차이 5건](project_label_printer_platform_divergence.md) — 비프음 비대칭 원인=떼기대기 시점. 통일은 Android 방향(Windows로 맞추면 비프음 소멸). 플랫폼 비교를 근거로 쓸 때 교란 주의
+- [라벨 완료 판정 다중 신호화](project_label_completion_multi_signal.md) — query 단일→+PAPERNOFETCH edge(3e700f6). 보류는 정상 운영이라 안 빨라짐 — 기대효과를 보류 건수로 계산하지 말 것 (2026-08-07)
 - [신규 라벨 QR cupIdx 충돌 버그+수정](project_label_qr_cupidx_collision.md) — 표시번호-컵순번 포맷이 메뉴별 리셋 labelSeq 사용해 다른메뉴도 전부 "-0" 충돌. order-wide labelIndex로 교체, 미커밋 (2026-08-04)
 - [동시 배포 세션 버전 레이스](feedback_concurrent_deploy_version_race.md) — 승인 후에도 실행 직전 pubspec.yaml 재확인 필수. 다른 세션이 build-number 계속 올리며 먼저 배포한 사례 2회 (2026-08-04)
 - [fleet-monitoring 브랜치 유지 전략](project_fleet_monitoring_branch_strategy.md) — main+fleet 파일럿 구성 유지, main 신규 커밋은 주기적으로 merge(리베이스 아님)로 반영. 첫 병합(5f02d5d) analyze/test 검증 후 push 완료 (2026-08-05)
