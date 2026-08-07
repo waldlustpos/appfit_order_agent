@@ -261,6 +261,16 @@ class _ProductManagementScreenState
               decoration: AppStyles.filledInputDecoration(
                 hintText: t.product_mgmt.search_placeholder,
                 prefixIcon: const Icon(Icons.search),
+                // 입력이 있을 때만 초기화 버튼 노출
+                suffixIcon: _searchQuery.isEmpty
+                    ? null
+                    : IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() => _searchQuery = '');
+                        },
+                      ),
               ),
               onChanged: (value) => setState(() => _searchQuery = value),
             ),
