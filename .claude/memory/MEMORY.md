@@ -56,3 +56,4 @@
 - [win32 deferred import 규칙](reference_win32_deferred_import.md) — top-level import 시 Android kernel32.dll lookup 크래시. leaf 파일 분리 + deferred as 필수, 도달가능성으로 판단.
 - [동시 세션 git 상태 재확인](feedback_concurrent_session_git_state.md) — 다른 세션의 git commit -a 가 내 미스테이징 변경분을 함께 커밋할 수 있음. 커밋 직전 항상 git status/log 재확인 (2026-08-05)
 - [T2mini LCD 텍스트/이미지 비교 + 이진화 수정](project_t2mini_lcd_binarize.md) — 실기기 검증상 이미지가 더 적합. O/C 곡선 튐 도트는 안티에일리어싱 회색픽셀 원인, 하드 스레숄드로 해결 (2026-08-06)
+- [매장 네트워크 열화 장애 대응](project_network_degradation_2026_08.md) — NAT고갈 유력(비대칭 증거). ApiHealth+배너+in-flight락+NetFaultInjector 구현, 미커밋·실기기 검증 대기. kind= 결과가 C1 방향 결정, 코어 C4 최우선 (2026-08-08)
