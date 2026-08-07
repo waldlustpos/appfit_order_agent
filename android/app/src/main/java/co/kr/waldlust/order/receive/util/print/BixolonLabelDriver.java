@@ -50,12 +50,19 @@ import co.kr.waldlust.order.receive.MainActivity;
  * (구현 시점의 "표준기는 필러 미장착" 가정은 이 실측으로 기각됐다. 그 낡은 주석이 비프음
  * 작업의 착수를 한 번 막았다.)
  *
- * <p>★ 불변식: <b>떼지 않은 상태에서 다음 인쇄 명령이 펌웨어에 도달한다.</b> 완료 판정이
- * 내 라벨을 뗄 때까지 기다리면 다음 제출이 클래스 lock 에 막혀 펌웨어가 "라벨 미회수 +
- * 다음 페이지 대기" 상태에 도달하지 못하고, 그러면 buzzer 가 울릴 계기 자체가 사라진다.
- * BIXOLON SDK 에는 buzzer 제어 API 가 없으므로(V2.1.1 jar / libbxl_common.so / Windows
- * BXLLAPI V3.10 전수 확인) 이 불변식이 비프음을 내는 유일한 수단이다.
- * Windows Caysn 이 이 대기를 성공 경로에 두었다가 비프음을 잃었던 사고(4f222b3) 참조.
+ * <p><b>이 기종에는 버저가 없다 (2026-08-07 실기기 확정).</b> 앞 라벨 미회수 보류 상태를
+ * 5회 만들어도 무음이었고, 커버열림·용지없음 같은 <b>진짜 에러에서도 소리가 나지 않는다.</b>
+ * SDK 전수 조사(V2.1.1 jar / libcommon / libbxl_common.so / Windows BXLLAPI V3.10)에서도
+ * buzzer 제어 API 는 0건이었다. 따라서 Caysn 의 비프음 알림에 대응하는 기능이 이 경로에는
+ * <b>존재하지 않는다</b> — 필요하면 앱이 내야 한다.
+ *
+ * <p>★ 그럼에도 불변식은 유지한다: <b>떼지 않은 상태에서 다음 인쇄 명령이 펌웨어에 도달한다.</b>
+ * 비프음은 이 설계의 <b>계기였을 뿐 근거가 아니다.</b> 완료 판정이 내 라벨을 뗄 때까지
+ * 기다리면 (1) 다음 제출이 클래스 lock 에 막혀 큐 전체가 사람 손을 기다리고, (2) 그 대기가
+ * "인쇄 시작 시 필러가 비어 있다" 를 암묵적으로 보장해 주던 탓에 완료 판정이 레벨 검사로
+ * 버텨 왔다 — 대기를 되돌리면 그 레벨 검사도 함께 돌아와야 하고, 그건 배출 전 라벨을 완료로
+ * 판정하는 결함으로 되돌아가는 것이다. <b>"비프음이 없으니 대기를 되살려도 된다" 는 추론은
+ * 틀렸다.</b> Windows Caysn 이 이 대기를 성공 경로에 두었다가 겪은 사고(4f222b3) 참조.
  */
 public class BixolonLabelDriver {
     private static final String TAG = "BixolonLabelDriver";
@@ -762,7 +769,9 @@ public class BixolonLabelDriver {
                 heldInPeeler = true;
                 long now = System.currentTimeMillis();
                 if (fetchNotice == 0L) {
-                    log("#" + seq + " " + orderTag + " 떼기대기 (앞 라벨을 안 뗌 — 비프음 울림)");
+                    // 키워드 "떼기대기" 는 Caysn 과 공통(운영 grep 계약). 다만 이 기종은
+                    // 버저가 없어 Caysn 의 "비프음 울림" 을 그대로 쓰면 거짓이 된다.
+                    log("#" + seq + " " + orderTag + " 떼기대기 (앞 라벨을 안 뗌 — 무음 보류)");
                     fetchNotice = now;
                 } else if (now - fetchNotice >= RECOVERY_HEARTBEAT_MS) {
                     log("#" + seq + " " + orderTag + " 떼기대기중");
