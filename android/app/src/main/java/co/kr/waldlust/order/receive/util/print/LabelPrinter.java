@@ -79,6 +79,19 @@ public class LabelPrinter {
     private static volatile Boolean lastLoggedPaperNoFetch = null;
 
     /**
+     * 마지막 ACK timeout 의 진단 스냅샷. Dart 가 Sentry 이벤트에 실어 보낸다.
+     *
+     * <p>{@link #diagnosticSnapshot} 은 판정에 필요한 값을 전부 만들어 두고도 기기 로그
+     * 파일로만 나가서, Sentry 에 쌓인 이벤트로는 "왜 timeout 했는가" 를 되물을 수 없었다.
+     * 특히 비콘 age 가 핵심이다 — timeout 순간 비콘이 살아 있었으면 유실된 것은 print-result
+     * 응답 하나뿐이고, 비콘도 함께 끊겼으면 IN 엔드포인트 전체가 멎은 것이라 원인이 다르다.
+     *
+     * <p>{@code printBitmap} 진입 시 null 로 초기화한다. 직전 라벨의 스냅샷이 다음 라벨
+     * 이벤트에 잘못 붙는 것을 막기 위함.
+     */
+    private static volatile String lastAckDiagnostic = null;
+
+    /**
      * 현재 활성 라벨의 표시 prefix (예: "[0812]" 또는 "[0812 1/7]").
      * ERROR phase 비콘에 컨텍스트 prefix 로 사용 — 어느 라벨에서 에러가 났는지 식별용.
      * printBitmap 시작 시 갱신되고, 다음 printBitmap 이 시작되거나 close() 까지 유지된다.
@@ -135,6 +148,8 @@ public class LabelPrinter {
                 + (totalLabels > 1 ? " " + labelIndex + "/" + totalLabels : "") + "]";
         // 활성 라벨 컨텍스트 등록 — ERROR phase 비콘에 prefix 로 사용.
         currentOrderTag = orderTag;
+        // 직전 라벨의 진단 스냅샷이 이번 라벨 이벤트에 붙지 않도록 초기화.
+        lastAckDiagnostic = null;
         log("#" + seq + " " + orderTag + " 출력시작");
 
         try {
@@ -329,6 +344,8 @@ public class LabelPrinter {
                     }
                 }
                 if (interrupted) {
+                    lastAckDiagnostic = "reason=떼기대기 인터럽트 elapsed="
+                            + (System.currentTimeMillis() - startTime) + "ms";
                     log("#" + seq + " " + orderTag + " 실패 [떼기대기 인터럽트]");
                     return RESULT_SUBMITTED_NO_ACK;
                 }
@@ -338,6 +355,10 @@ public class LabelPrinter {
                 log("#" + seq + " " + orderTag + " 떼어짐 wait=" + fetchWait
                         + "ms (" + (portOk ? "출력끝" : "실패")
                         + ", 총 " + elapsed2 + "ms)");
+                if (!portOk) {
+                    lastAckDiagnostic = "reason=떼기 후 포트 사망 fetchWait=" + fetchWait
+                            + "ms elapsed=" + elapsed2 + "ms";
+                }
                 // 포트가 죽었어도 페이지는 이미 발사된 뒤라 재시도 금지.
                 return portOk ? RESULT_SUCCESS : RESULT_SUBMITTED_NO_ACK;
             }
@@ -369,15 +390,22 @@ public class LabelPrinter {
                         + ", pg=" + pageIdBefore + "→" + pageIdAfter + ")");
             } else {
                 result = RESULT_SUBMITTED_NO_ACK;
+                // 같은 스냅샷을 로그와 Sentry 양쪽에 쓴다 (두 번 만들면 시점이 어긋난다).
+                final String snapshot = diagnosticSnapshot(pageIdBefore, pageIdAfter);
+                lastAckDiagnostic = "elapsed=" + elapsed + "ms " + snapshot;
                 log("#" + seq + " " + orderTag + " 실패 [ACK timeout "
                         + QUERY_PRINT_RESULT_TIMEOUT_MS + "ms — 재시도 금지] ("
-                        + elapsed + "ms) " + diagnosticSnapshot(pageIdBefore, pageIdAfter));
+                        + elapsed + "ms) " + snapshot);
             }
 
         } catch (Exception e) {
             long elapsed = System.currentTimeMillis() - startTime;
             // PagePrint 를 이미 발사한 뒤의 예외는 재시도하면 중복 인쇄가 된다.
             result = submitted ? RESULT_SUBMITTED_NO_ACK : RESULT_RETRYABLE;
+            if (submitted) {
+                lastAckDiagnostic = "reason=발사후 예외 [" + e.getMessage()
+                        + "] elapsed=" + elapsed + "ms";
+            }
             log("#" + seq + " " + orderTag + " 실패 [예외: " + e.getMessage() + "] ("
                     + elapsed + "ms"
                     + (submitted ? ", PagePrint 발사후 — 재시도 금지" : "") + ")");
@@ -385,6 +413,20 @@ public class LabelPrinter {
         }
 
         return result;
+    }
+
+    /**
+     * 마지막 ACK timeout 의 진단 스냅샷을 읽고 비운다 (consume).
+     *
+     * <p>Dart 는 {@code submittedNoAck} 를 받은 직후에만 호출한다. 한 번 읽으면 비우므로
+     * 같은 스냅샷이 다음 이벤트에 중복으로 붙지 않는다.
+     *
+     * @return 스냅샷 문자열, 없으면 null
+     */
+    public static String consumeLastAckDiagnostic() {
+        String snapshot = lastAckDiagnostic;
+        lastAckDiagnostic = null;
+        return snapshot;
     }
 
     /**
@@ -601,5 +643,6 @@ public class LabelPrinter {
         lastLoggedPhase = null;
         lastLoggedPaperNoFetch = null;
         currentOrderTag = null;
+        lastAckDiagnostic = null;
     }
 }

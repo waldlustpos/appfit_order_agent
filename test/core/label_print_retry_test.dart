@@ -32,7 +32,7 @@ void main() {
     final ackAttempts = <int>[];
     final ok = await runLabelPrintWithRetry(
       dispatch: d.dispatch,
-      onAckTimeout: ackAttempts.add,
+      onAckTimeout: (attempt) async => ackAttempts.add(attempt),
       logPrefix: '[Label] 0956 1/1',
       retryDelay: noDelay,
     );
@@ -57,6 +57,24 @@ void main() {
       expect(r.dispatchCount, 2);
       expect(r.ok, isTrue);
       expect(r.ackAttempts, [2], reason: '2차 시도로 집계');
+    });
+
+    test('집계 훅이 끝날 때까지 기다린 뒤 반환한다', () async {
+      // 훅은 네이티브에서 진단 스냅샷을 가져온다. 기다리지 않으면 다음 라벨의
+      // printBitmap 이 그 스냅샷을 덮어써 엉뚱한 값이 Sentry 로 올라간다.
+      var hookFinished = false;
+      final ok = await runLabelPrintWithRetry(
+        dispatch: () async => LabelPrintOutcome.submittedNoAck,
+        onAckTimeout: (_) async {
+          await Future<void>.delayed(const Duration(milliseconds: 10));
+          hookFinished = true;
+        },
+        logPrefix: '[Label] 0956 1/1',
+        retryDelay: noDelay,
+      );
+
+      expect(hookFinished, isTrue, reason: '반환 시점에 훅이 이미 완료돼 있어야 한다');
+      expect(ok, isTrue);
     });
   });
 

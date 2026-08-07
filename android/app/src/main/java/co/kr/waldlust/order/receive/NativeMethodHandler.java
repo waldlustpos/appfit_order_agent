@@ -134,6 +134,15 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
                 }
                 break;
 
+            // ACK timeout 진단 스냅샷 조회. printLabel 의 int 반환 계약을 건드리지 않기
+            // 위해 별도 메서드로 분리했다 — Map 으로 바꾸면 invokeMethod<int> 가 타입
+            // 캐스트로 실패하고, 그 실패는 PlatformException catch 에 안 잡혀 중복 인쇄
+            // 불변식을 지키는 3분류 경로를 흔들 수 있다.
+            case "getLastLabelAckDiagnostic":
+                result.success(co.kr.waldlust.order.receive.util.print.LabelPrinter
+                        .consumeLastAckDiagnostic());
+                break;
+
             case "reconnectExternalPrinter": {
                 try {
                     if (MainActivity.receiptPrinter != null) {

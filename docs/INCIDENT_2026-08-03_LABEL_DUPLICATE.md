@@ -157,3 +157,63 @@ Windows 경로는 이미 동등한 보호(submit-wins)가 구현돼 있어 변�
 
 **발생 빈도 관측.** `LabelAckTimeoutException` Sentry 집계로 0.8%가 이 기기·매장에 한정된
 현상인지 확인한 뒤 다음 판단을 한다.
+
+---
+
+## 후속 경과 (2026-08-07)
+
+### 수정은 운영에서 작동했다
+
+2026-08-04~06 Sentry 16건(TPCP00001 8 · PAIK00002 8) **전부 `attempt=1`** —
+`submittedNoAck` 에서 재발사가 한 번도 없었고 중복 인쇄 재발 보고도 없다.
+`test/core/label_print_retry_test.dart` 가 고정한 "submittedNoAck ⇒ dispatch 1회" 불변식이
+실운영에서 실증됐다.
+
+### 위 "발생 빈도 관측" 은 현 구성으로 답할 수 없다
+
+두 가지 이유로 이 숙제는 그대로는 성립하지 않는다.
+
+**① 대조군이 없다.** 실 운영 매장은 2곳이 전부이고 둘 다 D2s_KDS_STGL + REXOD 만 쓴다.
+"D2s_KDS_STGL 16/16, 다른 기종 0건" 은 기기 고유 현상의 근거가 **아니다** — 다른 기종은
+라벨을 안 찍으니 0건인 선택 효과다. 다른 조합이 운영에 투입되기 전까지는 판별 불가다.
+
+**② 비율을 낼 수 없었다.** 이벤트에 분모(총 라벨 수)가 없었고, `MonitoringService.captureError`
+가 `runtimeType` 기준 **5분 쿨다운**을 걸어 버스트는 breadcrumb 으로만 남았다. 즉 이벤트
+개수는 하한선일 뿐이다. 본문 "258장 중 2장(0.8%)" 은 기기 로그 파일을 사람이 하루치 센 값이고,
+Sentry 로는 재현할 수 없는 수치였다.
+
+### 그래서 계측을 먼저 넣었다 (Phase A)
+
+- **네이티브 진단 스냅샷을 이벤트에 첨부.** `diagnosticSnapshot()` 이 이미 만들던 값(`portOk`·
+  비콘 `age`·`err`·`pg`)이 기기 로그로만 나가고 있었다. `LabelPrinter.consumeLastAckDiagnostic()`
+  + MethodChannel `getLastLabelAckDiagnostic` 으로 Dart 가 읽어 `extras['diagnostic']` 에 싣는다.
+  `printLabel` 의 int 반환 계약은 건드리지 않았다(Map 으로 바꾸면 `invokeMethod<int>` 타입
+  캐스트 실패가 `on PlatformException` 에 안 잡혀 3분류 경로를 흔든다).
+- **분모·누적 카운터.** `labelsAttempted` / `ackTimeouts` 를 모든 이벤트에 싣는다. 비율을
+  이벤트 하나에서 읽을 수 있고, 연속한 두 이벤트의 `ackTimeouts` 차이가 그 사이 실제 발생
+  건수라 쿨다운에 먹힌 건수도 복원된다.
+
+**비콘 `age` 가 핵심 판별자다.** timeout 순간 비콘이 살아 있었으면 유실된 것은 print-result
+응답 하나뿐이고, 비콘도 함께 끊겼으면 IN 엔드포인트 전체가 멎은 것이라 원인이 다르다.
+
+검증: 실기기(D2s_KDS_STGL `DK1925AJ40349` + REXOD)에서 `QUERY_PRINT_RESULT_TIMEOUT_MS` 를
+임시로 300ms 로 낮춘 디버그 빌드로 경로를 강제 발생시켜 Sentry 도달까지 확인(원복 완료).
+
+```
+09:05:16.230 #1 [0005] 출력시작
+09:05:16.926 #1 [0005] 실패 [ACK timeout 300ms — 재시도 금지] (691ms) pg=0→0
+             비콘[paperNoFetch=false … err=0x0000 age=104ms] 동기[…] portOk=true
+09:05:17.016   PAPERNOFETCH → 안뗌(라벨 대기중)      ← 라벨은 실제로 나왔다
+```
+
+`출력시작` 이 1회뿐이고, timeout 0.09초 뒤 라벨이 peel 에 도달했다 — **"timeout ≠ 안 나왔다"**
+라는 이 문서의 핵심 전제가 실기기에서 다시 확인됐다.
+
+### 다음 (Phase B, 미착수)
+
+`FeedPaperToTearPosition` 이 `PagePrint` 와 `QueryPrintResult` **사이**에 있다(Windows 는
+ACK 확정 뒤에 호출). 공유 IN 엔드포인트에 명령 응답이 끼어든다는 가설과 정합하지만,
+두 플랫폼은 이 순서 말고도 떼기 대기 시점·ACK 획득 방식이 함께 달라 **"Windows 는 멀쩡하다"
+는 이 가설의 근거로 약하다** (전수 대조: [PRINTER_FLOW.md §3.1](PRINTER_FLOW.md)).
+가장 싸게 시험해 볼 후보일 뿐이며, Phase A 기준선을 1~2주 확보한 뒤 순서를 바꿔 같은 지표로
+전후를 비교한다.

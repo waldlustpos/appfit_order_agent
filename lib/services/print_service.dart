@@ -759,6 +759,24 @@ class PrintService {
     }
   }
 
+  /// 직전 ACK timeout 의 네이티브 진단 스냅샷을 가져온다 (읽으면 네이티브에서 비워짐).
+  ///
+  /// `[LabelPrintOutcome.submittedNoAck]` 을 받은 직후에만 호출할 것. Java 가 이미
+  /// 만들어 두고 기기 로그 파일로만 내보내던 값(`portOk`·비콘 age·`err`·`pg`)을 Sentry
+  /// 이벤트에 실어 "왜 timeout 했는가" 를 사후 판별할 수 있게 한다.
+  ///
+  /// 조회 실패는 전부 null — **진단 조회가 집계를 막으면 안 된다.**
+  /// Android 전용 (Windows 백엔드는 자체 submit-wins 경로라 이 스냅샷이 없다).
+  Future<String?> fetchLastLabelAckDiagnostic() async {
+    if (!Platform.isAndroid) return null;
+    try {
+      return await platform.invokeMethod<String>('getLastLabelAckDiagnostic');
+    } catch (e) {
+      logger.w('[Label] ACK 진단 스냅샷 조회 실패: $e');
+      return null;
+    }
+  }
+
   /// 설정 화면 "테스트 출력" 버튼용.
   ///
   /// 외부 영수증 프린터(Windows COM/Winspool, Android 범용 USB)는 모두 동일한

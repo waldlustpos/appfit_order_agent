@@ -125,6 +125,38 @@ flowchart TD
 - **QR 페이로드**: `qrPayloadStrategyProvider`가 브랜드별 전략 선택(현재 모두 `DefaultQrPayloadStrategy` = `{OrderNo}-{ShopItemId}-{CupIdx}`). 자세한 흐름은 [docs/BRAND_I18N_FLOW.md](BRAND_I18N_FLOW.md).
 - FFI Isolate boxing·hot-reload 주의는 메모리 `ffi_isolate_boxing`, `hot_reload_cold_restart` 참조.
 
+### 3.1 Android / Windows 동작 차이 전수 (통일 시 참조)
+
+두 백엔드는 **에러 의미론과 결과 계약(3분류)은 같지만 명령 순서와 대기 시점이 다르다.**
+"Windows 는 이 증상이 없다" 를 근거로 쓸 때 어느 차이가 작용했는지 구분하지 않으면 오판한다.
+
+| # | 항목 | Android `LabelPrinter.java` | Windows `windows_label_printer_backend.dart` |
+|---|---|---|---|
+| ① | feedToTear 위치 | `PagePrint` → **`FeedPaperToTearPosition`** → `QueryPrintResult` (**ACK 대기 창 안**) | ACK 확정 → 떼기 대기 → **그 다음** `labelFeedLabel` (창 밖) |
+| ② | 떼기 대기 시점 | `printed` 실패일 때만. 성공 시 **안 기다리고 반환** | 매 인쇄마다 반환 **전에** `_waitPaperFetched` |
+| ③ | ACK 획득 방식 | `CP_Pos_QueryPrintResult` 동기 블로킹이 **주 경로** | printed 콜백 카운터 + 폴링이 주 경로, `QueryPrintResult` 는 fallback |
+| ④ | `useCalibrate` | 매 라벨마다 `CP_Label_CalibrateLabel` | **의도적 무시** (매 라벨 호출 시 갭센서 정렬로 텀 급증 — 50장 부하 검증). 기본값 `false` 라 현재 실피해 없음 |
+| ⑤ | 라벨 간 300ms | `index > 0 && Platform.isAndroid` (`output_service.dart`) | 없음 |
+| — | 에러 게이트 / idle 게이트 / 결과 계약 | paper·cover 무한 대기, 그 외 500ms, idle 5000ms, 3분류 | **동일** ✓ |
+
+**②가 운영자 체감 차이를 만든다 — Android 는 비프음이 울리고 Windows 는 안 울린다.**
+Android 는 앞 라벨을 안 뗀 상태로 다음 `PagePrint` 를 펌웨어에 보내고, 펌웨어가 buzzer 를
+울리며 보류한다(`INFO_PAPERNOFETCH` 를 진입 게이트에서 **의도적 제외**한 결과). Windows 는
+현재 인쇄 호출 안에서 떼기까지 블로킹하므로 다음 `PagePrint` 가 애초에 펌웨어에 닿지 않는다.
+
+2026-08-07 실기기(D2s_KDS_STGL + REXOD RXLA-561) 확인:
+
+```
+09:07:53.155 #2 [0005] 출력시작
+09:07:53.593 #2 [0005] 떼기대기 (PAPERNOFETCH, buzzer 활성)   ← 앞 라벨 안 뗌
+```
+
+> **통일 방향 원칙 — Android 쪽으로 맞춘다.** ②를 *Windows 기준*으로 맞추면(= Android 에
+> PAPERNOFETCH 선행 게이트 추가) **비프음이 조용히 사라진다.** 비프음은 버그가 아니라 점주
+> 알림 기능이다. 불변식: **"떼지 않은 상태에서 다음 `PagePrint` 가 펌웨어에 도달한다."**
+> ③은 통일하지 않는다 — D2s_KDS_STGL 에서 printed 콜백이 fire 0건이라(2026-05-04 부하 테스트)
+> 기기 제약에서 온 정당한 divergence다. 계약(3분류)이 같으므로 상위 계층은 이미 동일하다.
+
 ---
 
 ## 4. PrintService 초기화·연결 점검

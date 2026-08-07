@@ -19,10 +19,14 @@ import 'package:appfit_order_agent/services/platform_service.dart';
 /// [logPrefix] 는 `[Label] 0956 1/1` 형태의 운영자 식별자.
 /// [onAckTimeout] 은 ACK 미수신 집계 훅 — 시도 회차(1 또는 2)를 받는다.
 ///
+/// [onAckTimeout] 은 **await 한다.** 이 훅이 네이티브에서 진단 스냅샷을 가져오는데,
+/// fire-and-forget 으로 두면 다음 라벨의 `printBitmap` 이 그 스냅샷을 덮어쓸 수 있다.
+/// 직렬 큐 + 라벨 간 300ms 덕에 실제로 겹칠 확률은 낮지만, 관측 수단을 확률에 맡기지 않는다.
+///
 /// @return 종이가 나갔다고 볼 수 있으면 true. false 는 누락(운영자 재출력 필요).
 Future<bool> runLabelPrintWithRetry({
   required Future<LabelPrintOutcome> Function() dispatch,
-  required void Function(int attempt) onAckTimeout,
+  required Future<void> Function(int attempt) onAckTimeout,
   required String logPrefix,
   Duration retryDelay = const Duration(milliseconds: 1500),
 }) async {
@@ -30,7 +34,7 @@ Future<bool> runLabelPrintWithRetry({
   if (first == LabelPrintOutcome.success) return true;
   if (first == LabelPrintOutcome.submittedNoAck) {
     // PagePrint 가 이미 펌웨어로 나갔다. 재발사하면 중복 인쇄다.
-    onAckTimeout(1);
+    await onAckTimeout(1);
     return true;
   }
 
@@ -42,7 +46,7 @@ Future<bool> runLabelPrintWithRetry({
 
   final second = await dispatch();
   if (second == LabelPrintOutcome.submittedNoAck) {
-    onAckTimeout(2);
+    await onAckTimeout(2);
     return true;
   }
   if (second != LabelPrintOutcome.success) {

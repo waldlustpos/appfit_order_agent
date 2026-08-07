@@ -35,6 +35,23 @@ class OutputService {
   /// 주문 첫 라벨은 상위 방출 throttle(500ms)로 이미 텀이 있어 제외한다.
   static const Duration _kInterLabelDelay = Duration(milliseconds: 300);
 
+  // ── ACK 미수신 집계용 세션 카운터 ──────────────────────────────────────────
+  //
+  // Sentry 이벤트만으로는 발생 "비율" 을 낼 수 없었다. 분모(총 라벨 수)가 어디에도
+  // 없었고, MonitoringService.captureError 가 runtimeType 기준 5분 쿨다운을 걸어
+  // 버스트는 breadcrumb 으로만 남아 사라졌다 — 즉 이벤트 개수는 하한선일 뿐이다.
+  //
+  // 두 누적값을 모든 이벤트에 실으면 그 두 문제가 한 번에 풀린다:
+  //   • 비율 = ackTimeouts / labelsAttempted 를 이벤트 하나에서 바로 읽는다
+  //   • 연속한 두 이벤트의 ackTimeouts 차이가 그 사이 실제 발생 건수 —
+  //     차이가 1보다 크면 쿨다운에 먹힌 건수를 그대로 알 수 있다
+  //
+  // [OutputService] 는 재생성될 수 있어(order_provider.dart) 인스턴스 필드로는
+  // 세션 누적이 안 된다. 앱 시작 이후 누적이므로 static.
+  static int _labelsAttempted = 0;
+  static int _ackTimeouts = 0;
+  static final DateTime _sessionStart = DateTime.now();
+
   Future<void> notifyNewOrder(
     OrderModel order, {
     required bool playSound,
@@ -326,6 +343,8 @@ class OutputService {
     required int totalLabels,
     required String reportOrderNo,
   }) async {
+    // 분모. 재시도 여부와 무관하게 "라벨 1장 = 1" 로 센다.
+    _labelsAttempted++;
     return runLabelPrintWithRetry(
       dispatch: () => _dispatchPrintLabel(
         printService: printService,
@@ -335,6 +354,7 @@ class OutputService {
         totalLabels: totalLabels,
       ),
       onAckTimeout: (attempt) => _reportAckTimeout(
+        printService: printService,
         displayNum: orderNo,
         reportOrderNo: reportOrderNo,
         labelIndex: labelIndex,
@@ -346,18 +366,27 @@ class OutputService {
   }
 
   /// ACK 미수신을 기록한다. 재발행하지 않으므로 운영자 조치는 없고, 발생 빈도를
-  /// 매장·기기별로 추적하는 것이 목적이다 (관측치 0.8%가 특정 기기 문제인지 판별용).
-  void _reportAckTimeout({
+  /// 매장·기기별로 추적하는 것이 목적이다.
+  ///
+  /// 네이티브 진단 스냅샷을 함께 싣는다. 이게 없으면 이벤트가 "몇 번 났다" 만 알려주고
+  /// **왜 났는지는 답하지 못한다** — 판정 근거는 기기 로그 파일에만 남아 있었다.
+  /// 특히 비콘 age 가 핵심 판별자다: timeout 순간 비콘이 살아 있었으면 유실된 것은
+  /// print-result 응답 하나뿐이고, 비콘도 함께 끊겼으면 IN 엔드포인트 전체가 멎은 것이다.
+  Future<void> _reportAckTimeout({
+    required PrintService printService,
     required String displayNum,
     required String reportOrderNo,
     required int labelIndex,
     required int totalLabels,
     required int attempt,
-  }) {
+  }) async {
+    _ackTimeouts++;
     logToFile(
         tag: LogTag.WARNING,
         message: '[Label] $displayNum $labelIndex/$totalLabels'
             ' ACK 미수신 ($attempt차) — 인쇄된 것으로 간주, 재시도 안 함');
+    // 조회 실패는 null 로 흡수된다 — 진단이 없어도 집계는 진행한다.
+    final diagnostic = await printService.fetchLastLabelAckDiagnostic();
     MonitoringService.instance.captureError(
       LabelAckTimeoutException(
         orderNo: reportOrderNo,
@@ -374,6 +403,11 @@ class OutputService {
         'labelIndex': labelIndex,
         'totalLabels': totalLabels,
         'attempt': attempt,
+        'diagnostic': diagnostic ?? '(없음)',
+        // 분모·누적. 비율 산출 + 쿨다운에 먹힌 건수 복원용 (필드 선언부 주석 참조).
+        'labelsAttempted': _labelsAttempted,
+        'ackTimeouts': _ackTimeouts,
+        'sessionMinutes': DateTime.now().difference(_sessionStart).inMinutes,
       },
     );
   }

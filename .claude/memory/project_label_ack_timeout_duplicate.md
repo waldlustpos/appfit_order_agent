@@ -1,41 +1,72 @@
 ---
 name: project_label_ack_timeout_duplicate
-description: "라벨 2장 인쇄 사고(2026-08-03 아오야마점) — ACK timeout을 인쇄 실패로 오판해 재전송. printBitmap 반환 3분류로 수정. 브랜치 미커밋."
-metadata:
+description: 라벨 2장 사고(2026-08-03) 수정 + 후속 계측(Phase A). 수정은 커밋 852ac44(3.0.0+173)로 운영 반영·검증 완료. 계측은 미커밋.
+metadata: 
+  node_type: memory
   type: project
+  originSessionId: 3386bd7a-e00e-4391-9ed0-84a919ea04eb
+  modified: 2026-08-07T00:11:50.654Z
 ---
 
-2026-08-03 아오야마점(TPCP00001, REXOD RXLA-561) 주문 **#956 라벨 2장** 출력. 일일 로그 258건 중 2건(09:35 #0906, 13:08 #0956, **0.8%**).
+2026-08-03 아오야마점(TPCP00001, REXOD RXLA-561) 주문 **#956 라벨 2장** 출력.
+`CP_Pos_QueryPrintResult` 30초 timeout 을 "인쇄 실패"로 단정 → 같은 페이지 재전송.
+`PageBegin → DrawImage → PagePrint` 는 ACK 조회 **이전에** 이미 펌웨어로 나가므로,
+`printed=false` 는 "종이가 안 나왔다"가 아니라 **"결과를 모른다"** 일 뿐이었다.
 
-## 원인
+## 수정 (커밋 852ac44, `3.0.0+173` 부터 — main 반영 완료)
 
-`CP_Pos_QueryPrintResult`의 30초 timeout을 "인쇄 실패"로 단정 → `_printLabelWithRetry`가 1.5초 뒤 **같은 페이지를 재전송** → 2장.
-
-`PageBegin → DrawImage → PagePrint`는 QueryPrintResult **이전에** 이미 펌웨어로 나간다. 그래서 `printed=false`는 "종이가 안 나왔다"가 아니라 **"결과를 모른다"**일 뿐인데 실패로 단정했다.
-
-**보류가 아니라 응답 유실이었다.** 근거: timeout 시점 `lastInfoPaperNoFetch == false`였고, 그 비트가 정상 동작함이 실측으로 확인됐다([[reference_rexod_label_printer_signals]]). 30초 내내 보류였다면 ~2초 주기 비콘이 열댓 번 오는 동안 true로 유지됐어야 한다. 재시도가 1070ms로 즉시 성공한 것도 부합. 유실 지점은 SDK/펌웨어 USB bulk-in 응답 경로 추정 — **앱에서 없앨 수 있는 성질이 아니다**.
-
-**기존 `떼기대기` 가드는 고장이 아니었다.** 그 상황이 보류가 아니어서 안 걸린 것. 빠져 있던 건 "보류도 아닌데 응답이 없는" 케이스 하나뿐.
-
-## 수정 (브랜치 `fix/label-duplicate-on-ack-timeout`, main 분기, **미커밋**)
-
-`LabelPrinter.printBitmap` 반환을 `boolean` → `int` 3분류. `PagePrint` 성공 직후 `submitted=true` 플래그를 세워 발사 후 무응답·예외를 전부 재시도 금지로 분류.
+`printBitmap` 반환을 `boolean` → `int` 3분류. `PagePrint` 성공 직후 `submitted=true`.
 
 | 반환 | 의미 | 재시도 |
 |---|---|---|
 | `RESULT_SUCCESS` | 인쇄 완료 확인 | — |
-| `RESULT_RETRYABLE` | 발사 **전** 실패(연결오류·펌웨어 ERROR·NoPaperCanceled) | O |
+| `RESULT_RETRYABLE` | 발사 **전** 실패 | O |
 | `RESULT_SUBMITTED_NO_ACK` | 발사 **후** 무응답 | **X** |
 
-- `LabelPrintOutcome` enum으로 Dart 배선. Windows는 이미 submit-wins가 있어 매핑만(로직 무변경)
-- 재시도 정책을 `lib/core/orders/label_print_retry.dart`로 분리 — 불변식 **"submittedNoAck ⇒ dispatch 정확히 1회"**를 `test/core/label_print_retry_test.dart` 9개로 고정
-- `LabelAckTimeoutException` Sentry 집계(전용 타입 = 5분 쿨다운 키 분리). **누락으로 카운트하거나 `markPendingReprint`에 넣지 말 것 — 재발행이 곧 중복**
-- 실패 로그에 판정 근거 첨부: `실패 [ACK timeout 30000ms — 재시도 금지] pg=… 비콘[…] 동기[…] portOk=…`
+불변식 **"submittedNoAck ⇒ dispatch 정확히 1회"** 를 `test/core/label_print_retry_test.dart` 로 고정.
+**`LabelAckTimeoutException` 을 누락으로 카운트하거나 `markPendingReprint` 에 넣지 말 것 — 재발행이 곧 중복.**
 
-검증: analyze 변경파일 0건, test 267 통과, 실기기 cold-restart 2회차 정상. 문서 [docs/INCIDENT_2026-08-03_LABEL_DUPLICATE.md](docs/INCIDENT_2026-08-03_LABEL_DUPLICATE.md).
+## 운영 검증 (Sentry, 2026-08-04~06)
 
-**Why:** 분석 중 가설을 두 번 뒤집었다. 최종 결론은 첫 방향(응답 유실)과 같지만, 중간 근거였던 "PAPERNOFETCH가 안 뜬다"와 "소요시간 분포에 8.5~30초 공백"은 **둘 다 틀렸다** — 전자는 실측으로 반증, 후자는 19.2초 보류가 재현되며 무너졌다. 258건 표본의 분포 공백을 메커니즘 근거로 쓴 것이 성급했다.
+16건 / 2개 매장(TPCP00001 8 · PAIK00002 8) **전부 `attempt=1`** = 재발사 0.
+불변식이 실운영에서 실증됐고 중복 인쇄 재발 보고 없음. **정상 운영 중.**
 
-**How to apply:** "라벨 2장", "중복 인쇄", "ACK timeout", "submittedNoAck" 나오면 이 메모. **남은 것**: ① 커밋(작업트리에 mammoth 브랜드 작업이 섞여 있어 경로 지정 필요) ② Sentry로 0.8%의 기기·매장 분포 관측 ③ 보류 중 큐 30초 정지는 미해결(정상 동작이라 현행 유지 판단, `QUERY_PRINT_RESULT_TIMEOUT_MS` 30초 유지 권장 — 줄이면 미인쇄 페이지를 넘겨 펌웨어 버퍼에 쌓임)
+## 계측 Phase A (2026-08-07, **미커밋**)
 
-관련: [[reference_rexod_label_printer_signals]], [[project_label_ack_patch]], [[project_label_inter_label_delay]], [[project_order_output_audit_2026_07]]
+사고 문서가 남긴 "Sentry 집계로 기기 한정인지 확인" 숙제가 **현 구성으로는 답할 수 없음**을 확인:
+
+- **대조군 부재** — 실 운영 매장 2곳이 전부이고 둘 다 D2s_KDS_STGL + REXOD. "16/16 이 기종,
+  다른 기종 0건" 은 기기 특이성 근거가 **아니다**(다른 기종은 라벨을 안 찍는 선택 효과).
+- **분모 부재 + 쿨다운** — `MonitoringService.captureError` 가 `runtimeType` 기준 5분 쿨다운을
+  걸어 버스트가 breadcrumb 으로만 남는다. 이벤트 수는 **하한선**. 0.8% 는 기기 로그를 사람이
+  하루치 센 값이었고 Sentry 로 재현 불가였다.
+
+그래서 넣은 것:
+1. `LabelPrinter.consumeLastAckDiagnostic()` + MethodChannel `getLastLabelAckDiagnostic`
+   → `extras['diagnostic']`. **`printLabel` 의 int 반환 계약은 건드리지 않음** (Map 으로 바꾸면
+   `invokeMethod<int>` 타입 캐스트 실패가 `on PlatformException` 에 안 잡혀 3분류를 흔든다).
+2. `OutputService` static `_labelsAttempted` / `_ackTimeouts` → 비율을 이벤트 하나에서 산출,
+   연속 이벤트의 `ackTimeouts` 차이로 쿨다운에 먹힌 건수 복원. 별도 억제 카운터 불필요.
+3. `onAckTimeout` 을 `Future<void> Function(int)` 로 바꿔 **await** — 안 기다리면 다음 라벨의
+   `printBitmap` 이 스냅샷을 덮어쓴다.
+
+**비콘 `age` 가 핵심 판별자**: timeout 순간 비콘이 살아 있으면 print-result 응답 하나만 유실,
+함께 끊겼으면 IN 엔드포인트 전체가 멎은 것 → 원인이 다르다.
+
+### 강제 재현 기법 (재사용 가치 있음)
+
+`QUERY_PRINT_RESULT_TIMEOUT_MS` 를 임시 300ms 로 낮춘 디버그 빌드면 **라벨 2~3장으로**
+`submittedNoAck` 경로를 재현할 수 있다(자연 재현은 0.8% 라 수백 장 필요). 원복 필수.
+실측(D2s_KDS_STGL `DK1925AJ40349` + REXOD, 2026-08-07): `출력시작` 1회 → ACK timeout →
+**0.09초 뒤 `PAPERNOFETCH → 안뗌`** = 라벨은 실제로 나왔다. 전제 재확인 + 중복 없음 확인.
+⚠️ 라벨을 **바로 떼야** ACK timeout 경로가 나온다. 안 떼면 떼기대기(보류) 경로로 빠진다.
+
+**Why:** 관측 수단이 없는 집계는 "몇 번 났다"만 알려주고 "왜"는 답하지 못한다. 판정 근거를
+Java 가 이미 만들고 있었는데 기기 로그로만 흘리고 있었다.
+
+**How to apply:** "라벨 2장", "중복 인쇄", "ACK timeout", "submittedNoAck" → 이 메모.
+**남은 것**: ① Phase A 커밋(작업트리에 타 세션 변경 섞여 있어 경로 지정 필요) ② 1~2주 기준선
+확보 후 Phase B(feedToTear 순서 교정) ③ 30초 큐 정지는 현행 유지 결정.
+
+관련: [[reference_rexod_label_printer_signals]], [[project_label_printer_platform_divergence]],
+[[project_label_ack_patch]], [[project_label_inter_label_delay]], [[feedback_concurrent_session_git_state]]
