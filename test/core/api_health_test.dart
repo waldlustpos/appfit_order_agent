@@ -126,6 +126,37 @@ void main() {
     });
   });
 
+  // 전이 시 Sentry 태그 세팅 + 원격 이벤트를 발행하는데, 테스트 환경은
+  // Sentry 미init 이라 NoOpHub(configureScope 콜백 미실행) + MonitoringService
+  // 의 _initialized 가드로 이중 차단된다. 그 전제가 깨지면(예: 태그 세팅을
+  // 게이트 밖으로 옮기면) 여기서 먼저 터진다.
+  group('전이 발행이 미init 환경을 오염시키지 않는다', () {
+    test('degraded 진입', () {
+      expect(() {
+        notifier().recordFailure(_dioType(DioExceptionType.connectionError));
+        notifier().recordFailure(_dioType(DioExceptionType.connectionError));
+      }, returnsNormally);
+      expect(read().isDegraded, isTrue);
+    });
+
+    test('성공 회복', () {
+      notifier().recordFailure(_dioType(DioExceptionType.connectionError));
+      notifier().recordFailure(_dioType(DioExceptionType.connectionError));
+      expect(() => notifier().recordSuccess(at: DateTime(2026, 8, 8)),
+          returnsNormally);
+      expect(read().isDegraded, isFalse);
+    });
+
+    test('4xx 리셋 회복 — 태그가 degraded 로 sticky 하게 남으면 안 되는 경로', () {
+      notifier().recordFailure(_dioType(DioExceptionType.connectionError));
+      notifier().recordFailure(_dioType(DioExceptionType.connectionError));
+      expect(read().isDegraded, isTrue);
+
+      expect(() => notifier().recordFailure(_dioStatus(404)), returnsNormally);
+      expect(read().isDegraded, isFalse, reason: '4xx 는 서버 도달 확인이므로 정식 회복 전이다');
+    });
+  });
+
   group('동등성', () {
     test('같은 값이면 == (불필요한 리빌드 방지의 전제)', () {
       final at = DateTime(2026, 8, 7);
