@@ -221,25 +221,33 @@ class Order extends _$Order {
         // _isRefreshing 가드가 이 호출을 흡수한다.
         refreshOrders();
 
-        // 백오프를 소진하고 정지한 소켓 깨우기.
+        // 느린 재시도로 넘어간 소켓 깨우기.
         //
-        // 코어는 재연결 5회(누적 93초) 실패 후 disconnected 로 정지하고,
-        // 그 뒤 복구는 connectivity 인터페이스 이벤트에만 의존한다. 링크는
-        // 살아있고 상위 경로만 죽는 장애에서는 그 이벤트가 오지 않아 앱
-        // 재시작 전까지 실시간 수신이 영구히 멈춘다(PAIK00002 실발생).
-        // "HTTP 가 다시 성공한다"는 사실을 복원 신호로 삼아 한 번 깨운다.
+        // 코어(v1.2.0~)는 빠른 재연결 5회(누적 93초)가 실패하면 disconnected 를
+        // 알린 뒤 5분 간격으로 무한 재시도한다. 즉 복구 자체는 코어가 보장하고,
+        // 여기서 줄이는 것은 **최대 5분인 다음 시도까지의 대기**다.
+        // "HTTP 가 다시 성공한다"는 사실이 그 대기를 건너뛸 근거가 된다.
         //
-        // 전이 에지 1회라 루프가 아니다. 반복 재시도는 코어 몫이고, 이건
-        // 앱 레이어 완화책이다.
+        // 코어 v1.2.0 이전에는 5회 소진 후 완전히 멈췄고 복구가 connectivity
+        // 이벤트에만 달려 있어, 링크가 살아있는 장애에서는 앱 재시작 전까지
+        // 실시간 수신이 영구히 끊겼다(PAIK00002 실발생). 이 호출은 그 시절의
+        // 탈출구였다가 이제 단축 경로가 됐다.
+        //
+        // 전이 에지 1회라 루프가 아니다. 반복 재시도는 코어 몫이다.
         if (shouldWakeSocket(
           status: ref.read(appFitNotifierServiceProvider),
           isLoggedOut: _isLoggedOut,
         )) {
           logToFile(
             tag: LogTag.SYSTEM,
-            message: '소켓 영구 정지 감지 → HTTP 회복 신호로 재연결 시도',
+            message: '소켓 느린 재시도 감지 → HTTP 회복 신호로 즉시 재연결',
           );
-          unawaited(ref.read(authProvider.notifier).reconnect());
+          // Auth.reconnect() 가 아니라 코어 직행 — 저쪽은 getProjectInfo HTTP
+          // 왕복이 붙는데, 캐시된 자격증명으로 소켓만 다시 열면 되는 상황에
+          // 열화된 링크로 요청을 하나 더 얹을 이유가 없다.
+          ref
+              .read(appFitNotifierServiceProvider.notifier)
+              .notifyNetworkRestored();
         }
       }
     });

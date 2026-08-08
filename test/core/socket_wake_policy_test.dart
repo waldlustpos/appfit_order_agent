@@ -4,9 +4,10 @@ import 'package:flutter_test/flutter_test.dart';
 
 /// HTTP 회복 시 소켓을 깨울지 판정하는 정책 고정.
 ///
-/// 이 정책이 존재하는 이유: 코어는 재연결 백오프 5회(93초) 소진 후 정지하고,
-/// 그 뒤 복구는 connectivity 인터페이스 이벤트에만 의존한다. 링크는 살아있고
-/// 상위 경로만 죽는 장애에서는 그 이벤트가 오지 않아 소켓이 영구 침묵한다.
+/// 이 정책이 존재하는 이유: 코어는 빠른 재연결 5회(93초) 실패 후 disconnected 를
+/// 알리고 5분 간격 느린 재시도로 넘어간다. 링크는 살아있고 상위 경로만 죽는
+/// 장애에서는 connectivity 이벤트가 오지 않아 코어가 그 5분 대기를 스스로
+/// 앞당길 수 없다 — HTTP 회복이 앱만 아는 단축 신호다.
 void main() {
   const all = appfit_core.ConnectionStatus.values;
 
@@ -22,7 +23,7 @@ void main() {
       }
     });
 
-    test('reconnecting 은 건드리지 않는다 (코어가 백오프 진행 중)', () {
+    test('reconnecting 은 건드리지 않는다 (코어가 빠른 백오프 진행 중)', () {
       expect(
         shouldWakeSocket(
           status: appfit_core.ConnectionStatus.reconnecting,
