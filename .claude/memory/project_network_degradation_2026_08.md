@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 278d02e2-d30f-4005-8858-95a5214b5761
-  modified: 2026-08-07T16:24:14.631Z
+  modified: 2026-08-08T12:46:18.011Z
 ---
 
 2026-08-07 매장 장애(15:06~15:20, 16:22~16:37 두 구간 각 14분) 대응 작업. **전부 미커밋** (main, 테스트 332개 통과).
@@ -19,6 +19,12 @@ metadata:
 **에뮬레이터 검증 완료(2026-08-08, staging MHST01073)**: P4 전체 사이클(실패1 배너X→실패2 저하+배너→성공 회복+배너소멸+리스너 refreshOrders가 in-flight 가드에 흡수) 시각+로그 이중 확인. P2 slowOnly 25s(스피너 유지·폴링 스킵 흡수·배너 오탐 0) 확인. P3 실주문(#0001)으로 확인: 20초 스피너(핑크 유지)·elapsed=20001ms 계측·실패 후 카드 진행탭 잔존·해제 후 재시도 104ms 성공·픽업탭 이동. 리본 실시간 잔여·탭 해제 확인. [API진단] kind=connectionError cause=SocketException — 실장애 로그와 동일 문자열. **미검증 잔여: P5·실네트워크(DNS/SYN)·4-D(소켓 백오프 소진).**
 
 **★P3 중 신규 버그 발견→수정 완료 — KdsAsyncButton 재탭 관통**: 스피너 중 재탭에 확인 다이얼로그가 다시 떴다. 원인은 **가드를 State 수명에 묶은 설계** — `_busy` 가 State 로컬인데 kds_order_card 가 isDetailLoaded/kdsOrderType 로 Simple↔Scrollable 트리를 통째 교체 + 하단버튼도 `if (isDetailLoaded)` 조건부라, 20초 대기 중 폴링이 주문을 갱신하면 State 재생성으로 _busy 리셋. key 는 orderId 기반이라 무관했음. **수정**: private Set → `statusUpdateInFlightProvider` 승격(tryAcquire/release), KdsAsyncButton 에 `externalBusy` 추가(`_locked = _busy || externalBusy`), 버튼이 orderId select 구독. 위젯테스트 4개(관통 재현 케이스를 "로컬 가드만으론 못 막는다" 문서화로 보존) + 에뮬레이터 재검증(5연타 전부 차단·실패 다이얼로그 정상·해제 후 120ms 성공) 완료.
+
+**2차 보강(Sentry 실데이터 기반, 커밋 a5448df·32ac65c)**: PAIK00002 조회로 확인 — 코어가 transient 를 breadcrumb 으로만 남겨 매장 열화가 원격에서 **구조적으로 안 보임**(14분 장애 = Sentry 0건). R1 api_health 전역태그(전이 **3곳** — 4xx 리셋 회복을 빠뜨리면 태그 sticky) / R2 NetworkDegradedException captureError(fingerprint 고정+cooldownKey) / R3 HTTP 회복 시 disconnected 소켓 깨우기(Auth.reconnect, 코어 notifyNetworkRestored 는 래퍼가 private 이라 도달 불가) / R4 비네트워크 예외만 파일 승격.
+
+**E2E 검증 완료(에뮬레이터 staging)**: 장애주입→degraded→Sentry 이슈(APPFIT-ORDER-AGENT-5J, api_health=degraded + store_id 태그)→**Slack #appfit-alert-test 도달까지 실확인**. 회복 시 이슈 추가생성 없음(breadcrumb만). R3 는 iptables DROP 으로 소켓 백오프 5회 소진(21:37:51→21:41:04, 93초)→"최대 재연결 횟수 초과"→차단해제→**15초 만에 `소켓 영구 정지 감지 → HTTP 회복 신호로 재연결 시도` → 연결 성공**.
+
+**★실측: SYN 드롭 = `kind=connectionTimeout elapsed≈30000ms`** (iptables DROP 재현). 보류했던 타임아웃 전략의 방향 근거 — 실장애 20~27초가 이 계열이면 앱 레이어 receiveTimeout 으로는 못 줄이고 **코어 C1(connectTimeout) 필수**. 단 iptables DROP 은 기존 세션도 죽여 소켓이 45초에 사망 — 실장애의 "기존 세션 생존" 비대칭(NAT 고갈)은 재현 못 함.
 
 **How to apply**:
 - 검증은 debug 빌드 + 개발자 옵션(버전 5연타) 프리셋. P2(slowOnly)에서 배너 뜨면 버그. 4-D(DNS 차단+앱 재시작→소켓 93초 후 영구정지)는 영업 외 시간에만.
