@@ -7,6 +7,8 @@ import 'package:appfit_order_agent/models/order_model.dart';
 import 'package:appfit_order_agent/models/enums/order_cancel_reason.dart';
 import 'package:appfit_order_agent/exceptions/api_exceptions.dart';
 
+import 'package:appfit_order_agent/core/net/socket_wake_policy.dart';
+import 'package:appfit_order_agent/core/net/transient_error.dart';
 import 'package:appfit_order_agent/providers/api_health_provider.dart';
 import 'package:appfit_order_agent/providers/order/order_cache_manager.dart';
 import 'package:appfit_order_agent/providers/order/order_settings_manager.dart';
@@ -218,6 +220,27 @@ class Order extends _$Order {
         // fire-and-forget. 회복을 만든 요청이 refreshOrders 자신이었다면
         // _isRefreshing 가드가 이 호출을 흡수한다.
         refreshOrders();
+
+        // 백오프를 소진하고 정지한 소켓 깨우기.
+        //
+        // 코어는 재연결 5회(누적 93초) 실패 후 disconnected 로 정지하고,
+        // 그 뒤 복구는 connectivity 인터페이스 이벤트에만 의존한다. 링크는
+        // 살아있고 상위 경로만 죽는 장애에서는 그 이벤트가 오지 않아 앱
+        // 재시작 전까지 실시간 수신이 영구히 멈춘다(PAIK00002 실발생).
+        // "HTTP 가 다시 성공한다"는 사실을 복원 신호로 삼아 한 번 깨운다.
+        //
+        // 전이 에지 1회라 루프가 아니다. 반복 재시도는 코어 몫이고, 이건
+        // 앱 레이어 완화책이다.
+        if (shouldWakeSocket(
+          status: ref.read(appFitNotifierServiceProvider),
+          isLoggedOut: _isLoggedOut,
+        )) {
+          logToFile(
+            tag: LogTag.SYSTEM,
+            message: '소켓 영구 정지 감지 → HTTP 회복 신호로 재연결 시도',
+          );
+          unawaited(ref.read(authProvider.notifier).reconnect());
+        }
       }
     });
 
@@ -1090,6 +1113,25 @@ class Order extends _$Order {
         stopBlinking();
       }
     } catch (e, s) {
+      // 아래 logger.e 는 **파일에 남지 않는다** — logger.dart 의 파일 화이트리스트
+      // 블랙리스트가 '[refreshOrders]' 를 포함한 라인을 제외하기 때문이다.
+      // (그 블랙리스트는 서버 상태 다운그레이드 차단 로그가 replication lag
+      //  구간에 주문마다 반복돼 파일이 폭증하는 것을 막는 장치라 유지한다)
+      //
+      // transient 네트워크 실패는 [API진단] 이 kind/elapsed 까지 이미 파일에
+      // 남기므로 여기서 또 남기면 장애 중 수십 줄이 중복된다. 그래서 그 밖의
+      // 예외(파싱 오류·상태 버그 등)만 파일로 승격한다.
+      //
+      // "승격은 추가가 아니라 치환" 규칙의 예외 케이스다 — 블랙리스트 때문에
+      // logger.e 의 파일행이 애초에 0이라, 이 logToFile 이 중복이 아니라
+      // 유일한 파일행이 된다. (logToFile 은 PlatformService 직행이라
+      //  logger 파이프라인의 블랙리스트를 타지 않는다)
+      if (!isTransientNetworkError(e)) {
+        logToFile(
+          tag: LogTag.SYSTEM,
+          message: '주문목록 새로고침 비네트워크 오류: ${e.runtimeType}: $e',
+        );
+      }
       logger.e('[refreshOrders] 오류 발생', error: e, stackTrace: s);
       state = state.copyWith(isLoading: false, error: e.toString());
     } finally {
