@@ -330,13 +330,13 @@ class _Translations$order_detail$en extends Translations$order_detail$ko {
 	@override String dialog_cancel_confirm_content({required Object n}) => 'Do you want to cancel order #${n}?';
 	@override String get dialog_cancel_reason_title => 'Select Cancellation Reason';
 	@override String dialog_cancel_reason_content({required Object n}) => 'Please select a reason for cancelling order #${n}.';
-	@override String get cancel_reason_shop_request => 'Shop\'s Request';
-	@override String get cancel_reason_shop_closed => 'Shop Closed';
+	@override String get cancel_reason_shop_request => 'Store Operations';
+	@override String get cancel_reason_shop_closed => 'Closed for the Day';
 	@override String get cancel_reason_customer_request => 'Customer\'s Request';
 	@override String get cancel_reason_sold_out => 'Sold Out';
 	@override String get cancel_reason_ingredient_shortage => 'Ingredient Shortage';
 	@override String get cancel_reason_system_error => 'System Error';
-	@override String get cancel_reason_other => 'Other';
+	@override String get cancel_reason_order_surge => 'High Order Volume';
 	@override String get dialog_repickup_confirm_title => 'Pickup Re-request';
 	@override String dialog_repickup_confirm_content({required Object n}) => 'Do you want to re-request pickup for order #${n}?';
 	@override String get dialog_not_picked_up_confirm_title => 'Not Picked Up';

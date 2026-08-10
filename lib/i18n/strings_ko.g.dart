@@ -585,11 +585,11 @@ class Translations$order_detail$ko {
 	/// ko: '{n}번 주문의 취소 사유를 선택해주세요.'
 	String dialog_cancel_reason_content({required Object n}) => '${n}번 주문의 취소 사유를 선택해주세요.';
 
-	/// ko: '매장 사정'
-	String get cancel_reason_shop_request => '매장 사정';
+	/// ko: '매장운영'
+	String get cancel_reason_shop_request => '매장운영';
 
-	/// ko: '매장 마감/휴무'
-	String get cancel_reason_shop_closed => '매장 마감/휴무';
+	/// ko: '영업종료'
+	String get cancel_reason_shop_closed => '영업종료';
 
 	/// ko: '고객 요청'
 	String get cancel_reason_customer_request => '고객 요청';
@@ -603,8 +603,8 @@ class Translations$order_detail$ko {
 	/// ko: '시스템 오류'
 	String get cancel_reason_system_error => '시스템 오류';
 
-	/// ko: '기타'
-	String get cancel_reason_other => '기타';
+	/// ko: '주문량 폭증'
+	String get cancel_reason_order_surge => '주문량 폭증';
 
 	/// ko: '픽업 재요청'
 	String get dialog_repickup_confirm_title => '픽업 재요청';

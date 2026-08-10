@@ -423,19 +423,20 @@ class ApiService {
   String _cancelReasonMessage(OrderCancelReason reason) {
     switch (reason) {
       case OrderCancelReason.SHOP_REQUEST:
-        return '매장 사정으로 취소되었습니다.';
+        return '매장 사정으로 인해 취소되었습니다.';
       case OrderCancelReason.SHOP_CLOSED:
-        return '매장 마감/휴무로 취소되었습니다.';
+        return '금일 영업 종료로 인해 주문이 취소되었습니다.';
       case OrderCancelReason.CUSTOMER_REQUEST:
         return '고객 요청으로 취소되었습니다.';
       case OrderCancelReason.SOLD_OUT:
-        return '품절로 취소되었습니다.';
+        return '원재료 소진으로 인한 메뉴 일시 품절';
       case OrderCancelReason.INGREDIENT_SHORTAGE:
         return '재료 소진으로 취소되었습니다.';
       case OrderCancelReason.SYSTEM_ERROR:
         return '시스템 오류로 취소되었습니다.';
+      // '주문량 폭증' 선택지가 OTHER 코드로 전송된다 (common_dialog 의 _selectableCancelReasons 참고).
       case OrderCancelReason.OTHER:
-        return '기타 사유로 취소되었습니다.';
+        return '주문량 폭증으로 인한 주문 취소';
     }
   }
 
