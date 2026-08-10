@@ -57,4 +57,6 @@
 - [동시 세션 git 상태 재확인](feedback_concurrent_session_git_state.md) — 다른 세션의 git commit -a 가 내 미스테이징 변경분을 함께 커밋할 수 있음. 커밋 직전 항상 git status/log 재확인 (2026-08-05)
 - [T2mini LCD 텍스트/이미지 비교 + 이진화 수정](project_t2mini_lcd_binarize.md) — 실기기 검증상 이미지가 더 적합. O/C 곡선 튐 도트는 안티에일리어싱 회색픽셀 원인, 하드 스레숄드로 해결 (2026-08-06)
 - [매장 네트워크 열화 장애 대응](project_network_degradation_2026_08.md) — NAT고갈 유력(비대칭 증거). ApiHealth+배너+NetFaultInjector, **코어 C4(무한 재시도) 완료·E2E 검증**. 남은 것: C1은 실기기 kind= 대기 (2026-08-09)
+- [라벨 복구대기 8분 데드락](project_label_recovery_deadlock.md) — 용지 갈아도 안 풀림. 원인=info 0x10은 error 해제와 별개. 루트는 떼기대기 루프. 수정 완료·검증 대기 (2026-08-10)
+- [부팅 후 첫 라벨 연결오류 → Android warm-up](project_android_label_warmup.md) — 원인=USB 권한 승인 사이클을 첫 주문이 지불. warmup으로 시작 창에 이관, 실기기 검증 완료. 검증기는 Android 11 (2026-08-10)
 - [SNI 문자열로 선택적 차단](reference_tls_sni_selective_block.md) — 같은 IP 공유 서비스를 iptables `-m string` 으로 분리. 교란 변수 제거용 검증 기법.
