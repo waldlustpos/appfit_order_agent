@@ -551,6 +551,14 @@ class Translations$order$ko {
 
 	late final Translations$order$payment_method$ko payment_method = Translations$order$payment_method$ko.internal(_root);
 	late final Translations$order$discount_type$ko discount_type = Translations$order$discount_type$ko.internal(_root);
+
+	/// ko: '결제수단'
+	String get payment_breakdown => '결제수단';
+
+	/// ko: '(other) {{n}건}'
+	String payment_count({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ko'))(n,
+		other: '${n}건',
+	);
 }
 
 // Path: order_detail
@@ -1647,8 +1655,8 @@ class Translations$order$payment_method$ko {
 	/// ko: '페이코'
 	String get payco => '페이코';
 
-	/// ko: '교통카드'
-	String get easy_card => '교통카드';
+	/// ko: '간편카드'
+	String get easy_card => '간편카드';
 
 	/// ko: '모바일 결제'
 	String get mobile_payment => '모바일 결제';
@@ -1670,6 +1678,48 @@ class Translations$order$payment_method$ko {
 
 	/// ko: '서비스'
 	String get service => '서비스';
+
+	/// ko: '무료'
+	String get free => '무료';
+
+	/// ko: '토스페이 다이렉트'
+	String get toss_pay_direct => '토스페이 다이렉트';
+
+	/// ko: 'KB페이'
+	String get kb_pay => 'KB페이';
+
+	/// ko: '하나페이'
+	String get hana_pay => '하나페이';
+
+	/// ko: '우리페이'
+	String get woori_pay => '우리페이';
+
+	/// ko: '선물하기'
+	String get gift => '선물하기';
+
+	/// ko: '앱카드'
+	String get app_card => '앱카드';
+
+	/// ko: '제로페이'
+	String get zero_pay => '제로페이';
+
+	/// ko: '당근페이'
+	String get karrot_pay => '당근페이';
+
+	/// ko: '계좌이체'
+	String get bank_transfer => '계좌이체';
+
+	/// ko: '지역화폐'
+	String get local_currency => '지역화폐';
+
+	/// ko: '간편결제'
+	String get easy_payment => '간편결제';
+
+	/// ko: '복합결제'
+	String get multi => '복합결제';
+
+	/// ko: '기타'
+	String get other => '기타';
 }
 
 // Path: order.discount_type
@@ -1694,6 +1744,15 @@ class Translations$order$discount_type$ko {
 
 	/// ko: '멤버십'
 	String get membership => '멤버십';
+
+	/// ko: '임직원'
+	String get employee => '임직원';
+
+	/// ko: '선결제'
+	String get pre_payment => '선결제';
+
+	/// ko: '매장할인'
+	String get shop => '매장할인';
 }
 
 // Path: dialog.status_change

@@ -398,14 +398,35 @@
             "felica_id": "Felica iD",
             "felica_quicpay": "Felica QUICPay",
             "cash": "現金",
-            "service": "サービス"
+            "service": "サービス",
+            "free": "無料",
+            "toss_pay_direct": "Toss Pay ダイレクト",
+            "kb_pay": "KB Pay",
+            "hana_pay": "Hana Pay",
+            "woori_pay": "Woori Pay",
+            "gift": "ギフト",
+            "app_card": "アプリカード",
+            "zero_pay": "Zero Pay",
+            "karrot_pay": "Karrot Pay",
+            "bank_transfer": "銀行振込",
+            "local_currency": "地域通貨",
+            "easy_payment": "キャッシュレス決済",
+            "multi": "複合決済",
+            "other": "その他"
         },
         "discount_type": {
             "coupon": "クーポン",
             "point": "ポイント",
             "gift": "ギフト",
             "partner": "提携",
-            "membership": "メンバーシップ"
+            "membership": "メンバーシップ",
+            "employee": "従業員",
+            "pre_payment": "前払い",
+            "shop": "店舗割引"
+        },
+        "payment_breakdown": "支払方法",
+        "payment_count(plural, arg=n)": {
+            "other": "{n}件"
         }
     },
     "order_detail": {

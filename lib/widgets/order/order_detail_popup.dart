@@ -124,6 +124,7 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
   // _fetchOrderDetailIfNeeded 에서 메뉴가 확정된 뒤에만 호출한다.
   void _logOrderDetail(OrderModel order) {
     final buffer = StringBuffer();
+
     buffer.writeln('===== 주문 상세 정보 =====');
     buffer.writeln(
         '주문번호: ${order.displayNum} (orderNo=${order.orderNo}, simpleNum=${order.shopOrderNo})');
@@ -140,6 +141,21 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
     buffer.writeln('결제: ${order.paymentType} / 총액 ${order.totalAmount.toInt()}원'
         ' - 할인 ${order.discountAmount.toInt()}원'
         ' = 결제액 ${order.paymentAmount.toInt()}원');
+    buffer.writeln('결제수단 (${order.payments.length}건):');
+    for (final p in order.payments) {
+      buffer.writeln('- ${p.paymentMethod} ${p.amount.toInt()}원 [${p.status}]'
+          '${p.cardName != null ? ' ${p.cardName}' : ''}'
+          '${p.cardNo != null ? ' ${p.cardNo}' : ''}'
+          '${p.installment != null ? ' ${p.installment}개월' : ''}'
+          '${p.balance != null ? ' 잔액${p.balance!.toInt()}' : ''}'
+          '${p.vendor != null ? ' vendor=${p.vendor}' : ''}');
+    }
+    buffer.writeln(
+        '할인 (${order.discounts.length}건): ${order.discounts.map((d) => '${d.discountType}/${d.discountScope} ${d.discountAmount.toInt()}'
+            '${d.couponName != null ? '(${d.couponName})' : ''}').join(', ')}');
+    // 서버 paymentAmount 채택 여부 판단용 계측(현재는 totalAmount-discount 로 계산 중).
+    buffer.writeln('결제액 계산값 검증: ${order.paymentAmount.toInt()}'
+        ' vs 총액-할인 ${(order.totalAmount - order.discountAmount).toInt()}');
     buffer.writeln('메뉴 (${order.menus.length}건):');
     for (final menu in order.menus) {
       buffer.writeln(
@@ -152,6 +168,7 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
     buffer.write('==========================');
 
     logToFile(tag: LogTag.UI_ACTION, message: '\n${buffer.toString()}');
+    logToFile(tag: LogTag.UI_ACTION, message: '\n${order.discounts}');
   }
 
   Future<bool> _updateOrderStatus(OrderStatus newStatus,
@@ -361,9 +378,7 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
               Expanded(
                 flex: 2,
                 child: OrderPaymentInfoWidget(
-                  totalAmount: order.totalAmount,
-                  discountAmount: order.discountAmount,
-                  paymentAmount: order.paymentAmount,
+                  order: order,
                   currencySymbol: currencyUnit,
                 ),
               ),

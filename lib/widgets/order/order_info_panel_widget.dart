@@ -35,8 +35,6 @@ class _OrderInfoPanelWidgetState extends State<OrderInfoPanelWidget> {
   Widget build(BuildContext context) {
     final t = Translations.of(context);
     final hasNickname = order.userName != null && order.userName!.isNotEmpty;
-    final paymentLabel = _paymentLabel(t, order.paymentType);
-    final discountLabel = _discountLabel(t, order.discountTypes);
 
     return Container(
       width: double.infinity,
@@ -63,20 +61,8 @@ class _OrderInfoPanelWidgetState extends State<OrderInfoPanelWidget> {
               time: DateFormat('HH:mm').format(order.orderedAt),
             ),
           ),
-          if (paymentLabel != null) ...[
-            const SizedBox(height: AppSpacing.s8),
-            _InfoRow(
-              icon: Icons.credit_card,
-              label: paymentLabel,
-            ),
-          ],
-          if (discountLabel != null) ...[
-            const SizedBox(height: AppSpacing.s8),
-            _InfoRow(
-              icon: Icons.local_offer,
-              label: discountLabel,
-            ),
-          ],
+          // 결제수단·할인종류 행은 가운데 금액 카드로 이관했다. 거기서는 수단별
+          // 금액·할인 종류별 금액까지 보여주므로 여기 한 줄짜리는 열등한 중복이다.
           const Padding(
             padding: EdgeInsets.symmetric(vertical: AppSpacing.s16),
             child: Divider(height: 1, color: AppStyles.gray2),
@@ -130,73 +116,6 @@ class _OrderInfoPanelWidgetState extends State<OrderInfoPanelWidget> {
   String _editNote(String? note) {
     if (note == null) return '';
     return note.replaceAll('\\n', ' ');
-  }
-
-  // paymentType 코드를 i18n 라벨로 매핑. FREE / 빈 값은 null 반환하여 정보 카드에서
-  // 행 자체를 숨김 (FREE 는 쿠폰/포인트로 100% 할인된 케이스 -> 할인 행에서 이미 노출).
-  String? _paymentLabel(Translations t, String paymentType) {
-    switch (paymentType.toUpperCase()) {
-      case 'CREDIT_CARD':
-      case 'CARD':
-        return t.order.payment_method.credit_card;
-      case 'PREPAID_CARD':
-        return t.order.payment_method.prepaid_card;
-      case 'NAVER_PAY':
-        return t.order.payment_method.naver_pay;
-      case 'KAKAO_PAY':
-        return t.order.payment_method.kakao_pay;
-      case 'TOSS_PAY':
-        return t.order.payment_method.toss_pay;
-      case 'APPLE_PAY':
-        return t.order.payment_method.apple_pay;
-      case 'PAYCO':
-        return t.order.payment_method.payco;
-      case 'EASY_CARD':
-        return t.order.payment_method.easy_card;
-      case 'MOBILE_PAYMENT':
-        return t.order.payment_method.mobile_payment;
-      case 'QR_PAYMENT':
-        return t.order.payment_method.qr_payment;
-      case 'FELICA_TRANSPORTATION':
-        return t.order.payment_method.felica_transportation;
-      case 'FELICA_ID':
-        return t.order.payment_method.felica_id;
-      case 'FELICA_QUICPAY':
-        return t.order.payment_method.felica_quicpay;
-      case 'CASH':
-        return t.order.payment_method.cash;
-      case 'SERVICE':
-        return t.order.payment_method.service;
-      case 'FREE':
-      case '':
-        return null;
-      default:
-        return paymentType;
-    }
-  }
-
-  // orderDiscounts 의 distinct discountType 목록을 i18n 라벨 한 줄로 합침.
-  // 비어 있으면 null -> 행 자체 숨김.
-  String? _discountLabel(Translations t, List<String> types) {
-    if (types.isEmpty) return null;
-    String mapOne(String type) {
-      switch (type.toUpperCase()) {
-        case 'COUPON':
-          return t.order.discount_type.coupon;
-        case 'POINT':
-          return t.order.discount_type.point;
-        case 'GIFT':
-          return t.order.discount_type.gift;
-        case 'PARTNER':
-          return t.order.discount_type.partner;
-        case 'MEMBERSHIP':
-          return t.order.discount_type.membership;
-        default:
-          return type;
-      }
-    }
-
-    return types.map(mapOne).join(', ');
   }
 }
 

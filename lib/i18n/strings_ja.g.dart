@@ -307,6 +307,10 @@ class _Translations$order$ja extends Translations$order$ko {
 	@override String ordered_time_short({required Object time}) => '${time} 注文';
 	@override late final _Translations$order$payment_method$ja payment_method = _Translations$order$payment_method$ja._(_root);
 	@override late final _Translations$order$discount_type$ja discount_type = _Translations$order$discount_type$ja._(_root);
+	@override String get payment_breakdown => '支払方法';
+	@override String payment_count({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ja'))(n,
+		other: '${n}件',
+	);
 }
 
 // Path: order_detail
@@ -942,6 +946,20 @@ class _Translations$order$payment_method$ja extends Translations$order$payment_m
 	@override String get felica_quicpay => 'Felica QUICPay';
 	@override String get cash => '現金';
 	@override String get service => 'サービス';
+	@override String get free => '無料';
+	@override String get toss_pay_direct => 'Toss Pay ダイレクト';
+	@override String get kb_pay => 'KB Pay';
+	@override String get hana_pay => 'Hana Pay';
+	@override String get woori_pay => 'Woori Pay';
+	@override String get gift => 'ギフト';
+	@override String get app_card => 'アプリカード';
+	@override String get zero_pay => 'Zero Pay';
+	@override String get karrot_pay => 'Karrot Pay';
+	@override String get bank_transfer => '銀行振込';
+	@override String get local_currency => '地域通貨';
+	@override String get easy_payment => 'キャッシュレス決済';
+	@override String get multi => '複合決済';
+	@override String get other => 'その他';
 }
 
 // Path: order.discount_type
@@ -956,6 +974,9 @@ class _Translations$order$discount_type$ja extends Translations$order$discount_t
 	@override String get gift => 'ギフト';
 	@override String get partner => '提携';
 	@override String get membership => 'メンバーシップ';
+	@override String get employee => '従業員';
+	@override String get pre_payment => '前払い';
+	@override String get shop => '店舗割引';
 }
 
 // Path: dialog.status_change

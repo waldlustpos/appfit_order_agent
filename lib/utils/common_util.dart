@@ -17,4 +17,16 @@ class CommonUtil {
     if (value.length <= visible) return '*******';
     return '*******${value.substring(value.length - visible)}';
   }
+
+  /// 카드번호 표시용 마스킹. 앞 4자리(BIN 일부)만 남긴다: `5327111122223333` → `5327-****`.
+  ///
+  /// 서버가 이미 마스킹해 보내면(`*` 포함) 원문을 그대로 둔다. 자릿수가 4 이하면
+  /// 마스킹할 게 없으므로 원문 유지. 결제 응답을 모델에 담는 시점에 적용해서
+  /// 원본 PAN 이 앱 메모리·프린터 페이로드·로그 어디에도 남지 않게 한다.
+  static String maskCardNo(String value) {
+    if (value.contains('*')) return value;
+    final digits = value.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.length <= 4) return value;
+    return '${digits.substring(0, 4)}-****';
+  }
 }

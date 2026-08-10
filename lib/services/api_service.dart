@@ -377,15 +377,11 @@ class ApiService {
           kdsOrderType: 0,
           kioskId: '',
           source: data['orderSource'] as String? ?? '',
+          // ── 상세 전용 필드 (목록 응답에는 없다) ──────────────────────────
+          payments: _parsePayments(data, totalAmount - totalDiscount),
           // 할인 배열 키도 버전마다 다르다(v0: orderDiscounts, v1: discounts).
-          discountTypes: ((data['orderDiscounts'] ?? data['discounts'])
-                      as List? ??
-                  const [])
-              .map((e) =>
-                  (e as Map<String, dynamic>)['discountType']?.toString() ?? '')
-              .where((t) => t.isNotEmpty)
-              .toSet()
-              .toList(),
+          discounts: _mapList(data['orderDiscounts'] ?? data['discounts'],
+              OrderDiscountModel.fromJson),
         );
 
         _recordApiSuccess();
@@ -399,6 +395,47 @@ class ApiService {
       _recordApiFailure(e);
       rethrow;
     }
+  }
+
+  /// 상세 응답의 리스트 필드 공통 파서. List 가 아니거나 원소가 Map 이 아니면
+  /// 조용히 스킵한다 — 메뉴 파싱과 같은 "항목별 격리" 정책으로, 결제/할인 1건이
+  /// 손상됐다고 주문 전체 조회가 실패하면 안 된다.
+  static List<T> _mapList<T>(
+      dynamic raw, T Function(Map<String, dynamic>) fromJson) {
+    if (raw is! List) return const [];
+    final out = <T>[];
+    for (final e in raw) {
+      if (e is! Map) continue;
+      try {
+        out.add(fromJson(Map<String, dynamic>.from(e)));
+      } catch (err, s) {
+        logger.e('주문 상세 배열 항목 파싱 실패 (스킵): $e', error: err, stackTrace: s);
+      }
+    }
+    return out;
+  }
+
+  /// `payments[]` 파싱 + 폴백.
+  ///
+  /// 스키마상 required 필드지만 서버 버전·주문 경로에 따라 비어 올 수 있다.
+  /// 그 경우 상위 스칼라 `paymentMethod`/`paymentStatus` 로 1건을 합성해서,
+  /// 최소한 기존(결제수단 1줄) 수준의 정보는 항상 보이도록 회귀를 막는다.
+  /// `paymentMethod` 마저 없으면 빈 리스트 — 위젯이 섹션 자체를 숨긴다.
+  static List<OrderPaymentModel> _parsePayments(
+      Map<String, dynamic> data, double paymentAmount) {
+    final parsed = _mapList(data['payments'], OrderPaymentModel.fromJson);
+    if (parsed.isNotEmpty) return parsed;
+
+    final method = data['paymentMethod']?.toString() ?? '';
+    if (method.isEmpty) return const [];
+    logger.d('[getOrder] payments 미제공 — 상위 paymentMethod($method)로 1건 합성');
+    return [
+      OrderPaymentModel(
+        paymentMethod: method,
+        amount: paymentAmount,
+        status: data['paymentStatus']?.toString() ?? 'DONE',
+      ),
+    ];
   }
 
   Future<bool> cancelOrder(String orderId,

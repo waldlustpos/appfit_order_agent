@@ -3,9 +3,13 @@ import 'package:intl/intl.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:appfit_order_agent/utils/kds_utils.dart' as kds_utils;
 import 'package:appfit_order_agent/models/enums/order_status.dart';
+import 'package:appfit_order_agent/models/order_discount_model.dart';
 import 'package:appfit_order_agent/models/order_menu_model.dart';
+import 'package:appfit_order_agent/models/order_payment_model.dart';
 
 export 'package:appfit_order_agent/models/enums/order_status.dart';
+export 'package:appfit_order_agent/models/order_discount_model.dart';
+export 'package:appfit_order_agent/models/order_payment_model.dart';
 
 class OrderModel {
   final String orderNo; // ordrId -> orderNo
@@ -40,8 +44,16 @@ class OrderModel {
   final String orderType; // 키오스크 주문 타입 (T, H, C)
   final int kdsOrderType; // KDS에서 사용하는 주문 타입 (1: 간단, 2: 복잡)
   final bool isDetailLoaded; // 상세 정보 로딩 여부
-  final List<String>
-      discountTypes; // orderDiscounts[].discountType distinct (단건 조회에서만 채움)
+
+  // ── 상세 조회(`/v1/orders/{orderNo}`) 에서만 채워지는 필드 ──────────────
+  // 목록/소켓 응답에는 없다. 이 필드들을 늘릴 때는 반드시 [withDetailsFrom] 에도
+  // 추가해야 상태 변경 이벤트가 도착해도 유실되지 않는다.
+
+  /// 결제수단별 사용 내역. 복합결제면 여러 건. 상위 [paymentType] 은 이때 `MULTI`.
+  final List<OrderPaymentModel> payments;
+
+  /// 할인 종류별 내역(금액·쿠폰명 포함).
+  final List<OrderDiscountModel> discounts;
 
   OrderModel({
     required this.orderNo,
@@ -72,7 +84,8 @@ class OrderModel {
     required this.kioskId,
     String source = '',
     bool? isDetailLoaded,
-    this.discountTypes = const [],
+    this.payments = const [],
+    this.discounts = const [],
   })  : source = source,
         displayOrderNo = displayOrderNo,
         updateTime = updateTime ?? DateTime.now(),
@@ -90,6 +103,29 @@ class OrderModel {
 
   String get orderId => orderNo;
   List<OrderMenuModel> get orderMenuList => menus;
+
+  /// [discounts] 의 discountType distinct 목록. 과거에는 독립 필드였으나
+  /// 금액까지 담는 [discounts] 가 생기면서 파생값으로 강등했다(이중 진실 방지).
+  List<String> get discountTypes => discounts
+      .map((d) => d.discountType)
+      .where((t) => t.isNotEmpty)
+      .toSet()
+      .toList();
+
+  /// 목록/소켓이 준 주문(this)에 [detail] 의 **상세 전용 필드만** 이식한다.
+  /// 상태(status/orderStatus/updateTime)는 this 를 유지한다 — 소켓 쪽이 최신이라서다.
+  ///
+  /// 상세 전용 필드를 새로 추가할 때는 **여기 한 곳만** 고치면 된다. 과거에는
+  /// `order_provider` 4곳에 `copyWith(menus:…, isDetailLoaded: true, …)` 가 흩어져
+  /// 있어서, 상태 변경 이벤트가 한 번만 도착해도 상세 전용 필드가 기본값으로
+  /// 리셋되면서 `isDetailLoaded` 만 true 로 남았다(→ 재조회도 안 되고 값도 없음).
+  OrderModel withDetailsFrom(OrderModel detail) => copyWith(
+        menus: detail.menus,
+        isDetailLoaded: true,
+        kdsOrderType: detail.kdsOrderType,
+        payments: detail.payments,
+        discounts: detail.discounts,
+      );
   // Getter for backward compatibility alias if needed, though we should change all usages
   // String? get memo => note; // Let's try to remove this alias and fix usages
 
@@ -214,9 +250,8 @@ class OrderModel {
       isDetailLoaded: json['isDetailLoaded'] != null
           ? json['isDetailLoaded'] == true
           : (menus.isNotEmpty),
-      discountTypes:
-          (json['discountTypes'] as List?)?.map((e) => e.toString()).toList() ??
-              const [],
+      payments: _mapJsonList(json['payments'], OrderPaymentModel.fromJson),
+      discounts: _mapJsonList(json['discounts'], OrderDiscountModel.fromJson),
     );
 
     // KDS 주문 타입 계산
@@ -270,8 +305,28 @@ class OrderModel {
       'orderType': orderType,
       'kdsOrderType': kdsOrderType,
       'isDetailLoaded': isDetailLoaded,
+      // 파생값이지만 캐시 왕복(fromJson)·Sunmi 페이로드 shape 호환을 위해 유지.
       'discountTypes': discountTypes,
+      'payments': payments.map((p) => p.toJson()).toList(),
+      'discounts': discounts.map((d) => d.toJson()).toList(),
     };
+  }
+
+  /// JSON 리스트 필드 공통 파서. List 가 아니거나 원소가 Map 이 아니면 스킵한다
+  /// (메뉴 파싱과 같은 "항목별 격리" 정책 — 1건 손상이 주문 전체를 죽이지 않게).
+  static List<T> _mapJsonList<T>(
+      dynamic raw, T Function(Map<String, dynamic>) fromJson) {
+    if (raw is! List) return const [];
+    final out = <T>[];
+    for (final e in raw) {
+      if (e is! Map) continue;
+      try {
+        out.add(fromJson(Map<String, dynamic>.from(e)));
+      } catch (err, s) {
+        logger.e('주문 상세 배열 항목 파싱 실패 (스킵): $e', error: err, stackTrace: s);
+      }
+    }
+    return out;
   }
 
   /// 사운드그래프 전송 페이로드. [brandId]는 호출자(브랜드별 hook)가 주입한다
@@ -356,7 +411,8 @@ class OrderModel {
     String? orderType,
     int? kdsOrderType,
     bool? isDetailLoaded,
-    List<String>? discountTypes,
+    List<OrderPaymentModel>? payments,
+    List<OrderDiscountModel>? discounts,
   }) {
     // menus가 변경되면 캐시 초기화
     if (menus != null) {
@@ -392,7 +448,8 @@ class OrderModel {
         orderType: orderType ?? this.orderType,
         kdsOrderType: kdsOrderType ?? this.kdsOrderType,
         isDetailLoaded: isDetailLoaded ?? this.isDetailLoaded,
-        discountTypes: discountTypes ?? this.discountTypes);
+        payments: payments ?? this.payments,
+        discounts: discounts ?? this.discounts);
   }
 
   // 두 주문의 최신 여부 비교
@@ -576,7 +633,8 @@ class OrderModel {
         userId == other.userId &&
         customerName == other.customerName &&
         tel == other.tel &&
-        listEquals(discountTypes, other.discountTypes) &&
+        listEquals(payments, other.payments) &&
+        listEquals(discounts, other.discounts) &&
         listEquals(menus, other.menus);
   }
 
@@ -602,7 +660,12 @@ class OrderModel {
           storeId,
           userId,
           Object.hashAll(menus),
-          Object.hashAll(discountTypes),
+          // Object.hash 는 인자 20개가 상한이고 바깥/안쪽 모두 10개로 만석이라
+          // 상세 전용 필드는 한 단계 더 중첩해서 넣는다.
+          Object.hash(
+            Object.hashAll(payments),
+            Object.hashAll(discounts),
+          ),
         ),
       );
 }

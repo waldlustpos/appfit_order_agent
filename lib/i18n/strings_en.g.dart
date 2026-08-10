@@ -313,6 +313,11 @@ class _Translations$order$en extends Translations$order$ko {
 	@override String ordered_time_short({required Object time}) => 'Ordered at ${time}';
 	@override late final _Translations$order$payment_method$en payment_method = _Translations$order$payment_method$en._(_root);
 	@override late final _Translations$order$discount_type$en discount_type = _Translations$order$discount_type$en._(_root);
+	@override String get payment_breakdown => 'Payment';
+	@override String payment_count({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: '${n} payment',
+		other: '${n} payments',
+	);
 }
 
 // Path: order_detail
@@ -950,6 +955,20 @@ class _Translations$order$payment_method$en extends Translations$order$payment_m
 	@override String get felica_quicpay => 'Felica QUICPay';
 	@override String get cash => 'Cash';
 	@override String get service => 'Service';
+	@override String get free => 'Free';
+	@override String get toss_pay_direct => 'Toss Pay Direct';
+	@override String get kb_pay => 'KB Pay';
+	@override String get hana_pay => 'Hana Pay';
+	@override String get woori_pay => 'Woori Pay';
+	@override String get gift => 'Gift';
+	@override String get app_card => 'App Card';
+	@override String get zero_pay => 'Zero Pay';
+	@override String get karrot_pay => 'Karrot Pay';
+	@override String get bank_transfer => 'Bank Transfer';
+	@override String get local_currency => 'Local Currency';
+	@override String get easy_payment => 'Easy Payment';
+	@override String get multi => 'Split Payment';
+	@override String get other => 'Other';
 }
 
 // Path: order.discount_type
@@ -964,6 +983,9 @@ class _Translations$order$discount_type$en extends Translations$order$discount_t
 	@override String get gift => 'Gift';
 	@override String get partner => 'Partner';
 	@override String get membership => 'Membership';
+	@override String get employee => 'Employee';
+	@override String get pre_payment => 'Prepayment';
+	@override String get shop => 'Shop Discount';
 }
 
 // Path: dialog.status_change

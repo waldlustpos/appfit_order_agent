@@ -442,11 +442,7 @@ class Order extends _$Order {
           if (!order.isDetailLoaded &&
               cached != null &&
               cached.isDetailLoaded) {
-            orderToAdd = order.copyWith(
-              menus: cached.menus,
-              isDetailLoaded: true,
-              kdsOrderType: cached.kdsOrderType,
-            );
+            orderToAdd = order.withDetailsFrom(cached);
           }
           updatedOrders.add(orderToAdd);
           changed = true;
@@ -462,11 +458,7 @@ class Order extends _$Order {
 
       OrderModel mergedOrder = order;
       if (!order.isDetailLoaded && existingOrder.isDetailLoaded) {
-        mergedOrder = order.copyWith(
-          menus: existingOrder.menus,
-          isDetailLoaded: true,
-          kdsOrderType: existingOrder.kdsOrderType,
-        );
+        mergedOrder = order.withDetailsFrom(existingOrder);
         _orderDetailCache.put(mergedOrder.orderId, mergedOrder);
       }
       updatedOrders[existingIndex] = mergedOrder;
@@ -517,11 +509,7 @@ class Order extends _$Order {
           if (!order.isDetailLoaded &&
               cached != null &&
               cached.isDetailLoaded) {
-            orderToAdd = order.copyWith(
-              menus: cached.menus,
-              isDetailLoaded: true,
-              kdsOrderType: cached.kdsOrderType,
-            );
+            orderToAdd = order.withDetailsFrom(cached);
           }
 
           // 새 주문이면 목록에 추가
@@ -555,14 +543,11 @@ class Order extends _$Order {
           logger.d(
               '주문 상태/정보 변경됨: ${order.orderId}, ${existingOrder.status} -> ${order.status}');
 
-          // [FIX] 기존 주문의 상세 정보(메뉴 등)가 있으면 소켓 이벤트 등에 의해 유실되지 않도록 병합
+          // [FIX] 기존 주문의 상세 정보(메뉴·결제수단 등)가 있으면 소켓 이벤트 등에
+          // 의해 유실되지 않도록 병합
           OrderModel mergedOrder = order;
           if (!order.isDetailLoaded && existingOrder.isDetailLoaded) {
-            mergedOrder = order.copyWith(
-              menus: existingOrder.menus,
-              isDetailLoaded: true,
-              kdsOrderType: existingOrder.kdsOrderType,
-            );
+            mergedOrder = order.withDetailsFrom(existingOrder);
             // 캐시와도 상태 동기화
             _orderDetailCache.put(mergedOrder.orderId, mergedOrder);
           }

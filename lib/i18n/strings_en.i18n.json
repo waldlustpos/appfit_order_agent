@@ -404,14 +404,36 @@
             "felica_id": "Felica iD",
             "felica_quicpay": "Felica QUICPay",
             "cash": "Cash",
-            "service": "Service"
+            "service": "Service",
+            "free": "Free",
+            "toss_pay_direct": "Toss Pay Direct",
+            "kb_pay": "KB Pay",
+            "hana_pay": "Hana Pay",
+            "woori_pay": "Woori Pay",
+            "gift": "Gift",
+            "app_card": "App Card",
+            "zero_pay": "Zero Pay",
+            "karrot_pay": "Karrot Pay",
+            "bank_transfer": "Bank Transfer",
+            "local_currency": "Local Currency",
+            "easy_payment": "Easy Payment",
+            "multi": "Split Payment",
+            "other": "Other"
         },
         "discount_type": {
             "coupon": "Coupon",
             "point": "Point",
             "gift": "Gift",
             "partner": "Partner",
-            "membership": "Membership"
+            "membership": "Membership",
+            "employee": "Employee",
+            "pre_payment": "Prepayment",
+            "shop": "Shop Discount"
+        },
+        "payment_breakdown": "Payment",
+        "payment_count(plural, arg=n)": {
+            "one": "{n} payment",
+            "other": "{n} payments"
         }
     },
     "order_detail": {

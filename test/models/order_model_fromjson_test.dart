@@ -32,7 +32,24 @@ Map<String, dynamic> _fullOrderJson() => {
       'kioskId': 'kiosk-1',
       'orderSource': 'WALD_KIOSK',
       'orderType': 'T',
-      'discountTypes': ['COUPON', 1],
+      'discounts': [
+        {
+          'discountType': 'COUPON',
+          'discountAmount': 500,
+          'discountScope': 'ORDER',
+          'couponName': '500원 할인권',
+        },
+      ],
+      'payments': [
+        {
+          'paymentMethod': 'CREDIT_CARD',
+          'amount': 9000,
+          'status': 'DONE',
+          'cardName': '신한',
+          'cardNo': '5327111122223333',
+          'installment': 0,
+        },
+      ],
       'menus': [
         {
           'orderNo': 'ORD-1001',
@@ -85,7 +102,17 @@ void main() {
       expect(o.kioskId, 'kiosk-1');
       expect(o.source, 'WALD_KIOSK'); // orderSource 우선 매핑
       expect(o.orderType, 'T');
-      expect(o.discountTypes, ['COUPON', '1']); // 원소 toString
+      // 상세 전용 필드 (discountTypes 는 discounts 파생 getter)
+      expect(o.discountTypes, ['COUPON']);
+      expect(o.discounts, hasLength(1));
+      expect(o.discounts.first.discountAmount, 500.0);
+      expect(o.discounts.first.couponName, '500원 할인권');
+      expect(o.payments, hasLength(1));
+      expect(o.payments.first.paymentMethod, 'CREDIT_CARD');
+      expect(o.payments.first.amount, 9000.0);
+      expect(o.payments.first.cardNo, '5327-****'); // 파싱 시점 마스킹
+      expect(o.payments.first.status, 'DONE');
+      expect(o.payments.first.installment, 0);
 
       // 메뉴/옵션 파싱
       expect(o.menus, hasLength(1));
@@ -152,6 +179,8 @@ void main() {
       expect(o.kdsOrderType, 0); // 메뉴 없음 → 0
       expect(o.isDetailLoaded, isFalse); // 메뉴 없음 → false
       expect(o.discountTypes, isEmpty);
+      expect(o.payments, isEmpty);
+      expect(o.discounts, isEmpty);
       // orderedAt/updateTime 누락 → DateTime.now() fallback
       expect(
           DateTime.now().difference(o.orderedAt).inSeconds.abs(), lessThan(5));

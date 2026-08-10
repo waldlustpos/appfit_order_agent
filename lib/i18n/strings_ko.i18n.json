@@ -391,21 +391,42 @@
             "toss_pay": "토스페이",
             "apple_pay": "애플페이",
             "payco": "페이코",
-            "easy_card": "교통카드",
+            "easy_card": "간편카드",
             "mobile_payment": "모바일 결제",
             "qr_payment": "QR 결제",
             "felica_transportation": "Felica 교통",
             "felica_id": "Felica iD",
             "felica_quicpay": "Felica QUICPay",
             "cash": "현금",
-            "service": "서비스"
+            "service": "서비스",
+            "free": "무료",
+            "toss_pay_direct": "토스페이 다이렉트",
+            "kb_pay": "KB페이",
+            "hana_pay": "하나페이",
+            "woori_pay": "우리페이",
+            "gift": "선물하기",
+            "app_card": "앱카드",
+            "zero_pay": "제로페이",
+            "karrot_pay": "당근페이",
+            "bank_transfer": "계좌이체",
+            "local_currency": "지역화폐",
+            "easy_payment": "간편결제",
+            "multi": "복합결제",
+            "other": "기타"
         },
         "discount_type": {
             "coupon": "쿠폰",
             "point": "포인트",
             "gift": "기프트",
             "partner": "제휴",
-            "membership": "멤버십"
+            "membership": "멤버십",
+            "employee": "임직원",
+            "pre_payment": "선결제",
+            "shop": "매장할인"
+        },
+        "payment_breakdown": "결제수단",
+        "payment_count(plural, arg=n)": {
+            "other": "{n}건"
         }
     },
     "order_detail": {
