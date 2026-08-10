@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:appfit_order_agent/services/external_receipt_printer.dart';
 import 'package:appfit_order_agent/services/label_printer/label_print_outcome.dart';
 import 'package:appfit_order_agent/services/label_printer/label_printer_options.dart';
+import 'package:appfit_order_agent/services/label_printer/label_warmup_starter.dart';
 import 'package:appfit_order_agent/services/label_printer/windows/windows_label_router.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/services/printer_job_queue.dart';
@@ -110,6 +112,13 @@ class PrintService {
   /// 시작 재확인 스케줄러. 첫 확인이 실패한 경우에만 생성된다 (성공 시 null 유지).
   StartupProbeScheduler? _startupProbe;
 
+  /// 라벨 warm-up 재확인 스케줄러. 초기 warm-up 이 실패한 경우에만 생성된다.
+  StartupProbeScheduler? _labelWarmupProbe;
+
+  /// dispose 됐는지. warm-up 이 백그라운드로 도는 사이 컨테이너가 정리되면
+  /// 뒤늦게 도착한 스케줄러가 타이머를 남기지 않도록 즉시 stop 하기 위한 플래그.
+  bool _disposed = false;
+
   var tag = '프린트';
 
   PrintService(this.ref)
@@ -130,7 +139,11 @@ class PrintService {
     Future.microtask(_probeBuiltinPrinter);
     // keepAlive provider 라 실제로는 세션당 1회 생성되지만, 컨테이너가 정리될 때
     // 예약된 재시도 타이머가 남지 않도록 방어.
-    ref.onDispose(() => _startupProbe?.stop());
+    ref.onDispose(() {
+      _disposed = true;
+      _startupProbe?.stop();
+      _labelWarmupProbe?.stop();
+    });
   }
 
   /// 앱 시작 시 연결 확인 1회 + (Windows 외부 프린터 한정) 실패 시 백오프 재시도.
@@ -157,6 +170,39 @@ class PrintService {
               'COM=${comPort ?? "(미설정)"} '
               'baud=${_preferenceService.getComPortBaudRate()} '
               '가용포트=$availablePorts');
+    }
+
+    // Android 라벨: 시작 시점에 USB 포트를 미리 연다 (Windows 의 main.dart 에서
+    // WindowsLabelRouter.warmupOpen 을 부르는 것과 대칭). 이것이 없으면 세션 최초
+    // open 을 첫 주문의 라벨이 대신 지불해, 실패 시 `실패 [연결오류]` 후 1.5초 뒤
+    // 재시도에서야 인쇄된다.
+    //
+    // ★ 인쇄 경로에는 아무 재시도도 추가하지 않는다 — 시작 창만 손댄다
+    //   (label_print_retry.dart 의 "retryable 일 때 정확히 1회" 불변식 불변).
+    //
+    // await 하지 않는 이유: BIXOLON 경로의 연결은 USB 권한 승인을 최대 30초 폴링
+    // 대기할 수 있고, 그동안 아래 checkConnection 이 막히면 설정 화면의 연결 배지가
+    // 그만큼 늦게 뜬다. Android 의 checkConnection 은 USB enumerate 만 읽고 포트를
+    // 열지 않으므로 warm-up 과 순서를 다툴 이유도 없다.
+    if (Platform.isAndroid) {
+      unawaited(startLabelWarmup(
+        useLabelPrinter: _cachedLabelPrinter == true,
+        autoReplyMode: _preferenceService.getLabelAutoReplyMode,
+        warmup: (mode) =>
+            PlatformService.warmupLabelPrinter(autoReplyMode: mode),
+        shouldContinue: () => _cachedLabelPrinter == true,
+        onInfo: (m) =>
+            logToFile(tag: LogTag.PLATFORM, message: '[PrintService] $m'),
+        onWarning: (m) =>
+            logToFile(tag: LogTag.WARNING, message: '[PrintService] $m'),
+      ).then((scheduler) {
+        // warm-up 이 도는 사이 dispose 됐으면 뒤늦은 스케줄러가 타이머를 남긴다.
+        if (_disposed) {
+          scheduler?.stop();
+          return;
+        }
+        _labelWarmupProbe = scheduler;
+      }));
     }
 
     await checkConnection();

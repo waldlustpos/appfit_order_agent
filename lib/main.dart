@@ -179,6 +179,9 @@ void main() async {
     // Windows: 라벨 프린터 사용 ON 이면 시작 시점에 USB 포트를 미리 연다.
     // 첫 인쇄 지연 제거 + 설정 화면 연결 상태가 즉시 정확히 표시되도록 함.
     // 실패해도 polling/lazy fallback 이 살아있어 앱 시작을 차단하지 않는다.
+    //
+    // (Android 대응물은 PrintService._runStartupConnectionCheck 에 있다 —
+    //  라벨 토글 캐시와 warm-up 재시도 스케줄러가 그쪽에 있어서다.)
     if (Platform.isWindows && preferenceService.getUseLabelPrinter()) {
       final mode = preferenceService.getLabelAutoReplyMode();
       unawaited(WindowsLabelRouter.instance.warmupOpen(autoReplyMode: mode));

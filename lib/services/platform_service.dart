@@ -462,6 +462,31 @@ class PlatformService {
     }
   }
 
+  /// Android 라벨 프린터 USB 포트를 시작 시점에 미리 연다 (warm-up).
+  ///
+  /// Windows 의 `WindowsLabelRouter.warmupOpen` 과 같은 역할이다. 이것이 없으면
+  /// 세션 최초 open 을 첫 주문의 라벨이 대신 지불하고, 실패 시 `실패 [연결오류]`
+  /// 후 1.5초 뒤 재시도에서야 인쇄된다. 네이티브는 벤더(BIXOLON / Caysn)를
+  /// 인쇄 경로와 **같은 규칙**으로 라우팅한다.
+  ///
+  /// ★ [autoReplyMode] 는 실제 인쇄가 넘기는 값과 반드시 같아야 한다
+  /// (`PrintService.printLabelDetailed` 의 `getLabelAutoReplyMode()`). 다르면 첫
+  /// 인쇄가 모드 불일치로 포트를 닫고 다시 열어 warm-up 이 무효가 된다.
+  ///
+  /// 실패해도 예외를 던지지 않는다 — 앱 시작을 막지 않고, 기존 lazy 연결이
+  /// 그대로 폴백으로 남는다.
+  static Future<bool> warmupLabelPrinter({required int autoReplyMode}) async {
+    if (!Platform.isAndroid) return false;
+    try {
+      return await platform.invokeMethod<bool>(
+              'warmupLabelPrinter', {'autoReplyMode': autoReplyMode}) ??
+          false;
+    } catch (e, s) {
+      logger.w('[PlatformService] 라벨 warm-up 호출 실패', error: e, stackTrace: s);
+      return false;
+    }
+  }
+
   /// 앱 재시작.
   /// - Android: 네이티브에서 새 Activity로 재부팅(AlarmManager + killProcess).
   ///   기존 동작 그대로이며 별도 정리(cleanup) 없이 즉시 종료된다.

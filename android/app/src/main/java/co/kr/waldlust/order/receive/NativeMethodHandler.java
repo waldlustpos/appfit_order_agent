@@ -143,6 +143,37 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
                         .consumeLastAckDiagnostic());
                 break;
 
+            // 시작 시점 라벨 포트 warm-up. 포트만 열고 인쇄는 하지 않는다.
+            //
+            // labelPrintExecutor(단일 스레드)에 태워 첫 인쇄와 FIFO 로 직렬화한다 —
+            // warmup 이 먼저 접수되면 첫 인쇄는 열린 핸들을 그대로 재사용하고, 순서가
+            // 뒤집혀도 인쇄 쪽 lazy 연결이 살아 있어 무해하다. 메인 스레드에서 열면
+            // CP_Port_OpenUsb 블로킹이 ANR 이 된다.
+            //
+            // 벤더 분기는 printLabel 과 동일 규칙 — "warmup 도는 기종/안 도는 기종"
+            // 이라는 비대칭을 남기지 않는다.
+            case "warmupLabelPrinter": {
+                Integer warmupMode = call.argument("autoReplyMode");
+                // ★ printLabel 의 기본값과 반드시 같아야 한다. 다르면 첫 인쇄가 모드
+                //   불일치로 포트를 닫고 다시 열어 warm-up 이 통째로 무효가 된다.
+                final int finalWarmupMode = warmupMode != null ? warmupMode : 1;
+                labelPrintExecutor.submit(() -> {
+                    boolean ok;
+                    if (co.kr.waldlust.order.receive.util.print.BixolonLabelDriver
+                            .isBixolonAttached(activity)) {
+                        ok = co.kr.waldlust.order.receive.util.print.BixolonLabelDriver
+                                .warmup();
+                    } else {
+                        ok = co.kr.waldlust.order.receive.util.print.LabelPrinter
+                                .warmup(finalWarmupMode);
+                    }
+                    final boolean finalOk = ok;
+                    new android.os.Handler(android.os.Looper.getMainLooper())
+                            .post(() -> result.success(finalOk));
+                });
+                break;
+            }
+
             case "reconnectExternalPrinter": {
                 try {
                     if (MainActivity.receiptPrinter != null) {

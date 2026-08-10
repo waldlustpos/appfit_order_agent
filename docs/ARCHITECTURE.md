@@ -178,7 +178,7 @@ ACCEPTED 진입 시 메뉴별 `ordrCnt` 만큼 라벨을 자동 출력. 진입�
 | **라벨 transport** | Caysn AutoReplyPrint Java SDK (`autoreplyprint.aar`) | `autoreplyprint.dll` Dart FFI (`AutoReplyPrintBindings`) |
 | **라벨 디바이스 open** | `LabelPrinter.printBitmap()` 안에서 SDK 가 enumerate + open 일임 | `CP_Port_EnumUsb` + `CP_Port_OpenUsb` (VID:PID 4종 화이트리스트, OS 디바이스 경로 `\\?\usb#...` 우선 정렬) |
 | **라벨 ACK / 비콘 신호** | `statusCallback` (PrintedEvent + InfoStatus 통합) | `printerAddOnStatus` + `printerAddOnPrinted` 별개 등록, paperFetch 비콘이 주 신호 (ACK race 안전망) |
-| **라벨 stuck 자동 복구** | 펌웨어가 비트 자동 해제 (active clear 불필요) | `printerClearError` + `printerClearBuffer` + `posResetPrinter` 3종 active clear (Windows Caysn 펌웨어 한계 대응, `noPaperCanceled` stuck 케이스) |
+| **라벨 stuck 자동 복구** | `CP_Printer_ClearPrinterError` + `ClearPrinterBuffer` + `CP_Pos_ResetPrinter` 3종 active clear — Windows 와 동일 (2026-08-10 REXOD RXLA-561 에서 `noPaperCanceled`(info 0x10) 미해제로 복구대기 8분 정지. 그전까지 "펌웨어가 자동 해제" 로 적혀 있었으나 실매장 로그가 반증) | `printerClearError` + `printerClearBuffer` + `posResetPrinter` 3종 active clear (Windows Caysn 펌웨어 한계 대응, `noPaperCanceled` stuck 케이스) |
 | **라벨 떼기(PAPERNOFETCH) 안전망** | 펌웨어가 자동 해제 | `portIsConnectionValid==0` 시 wait 종료 → 다음 호출에서 reconnect (status 비콘 stream 끊긴 USB 케이블/허브 이상 시그널) |
 | **라벨 FFI block 회피** | N/A — MethodChannel 이 native 별도 thread (`receiptPrintExecutor`) 에서 처리 | `Isolate.run` boxing (`_enumerateUsbPortsAsync` / `_tryOpenUsbAsync`) — handle raw `address` 만 cross-isolate 로 받아 main isolate 의 instance state 갱신 |
 | **deferred import** | N/A | `external_receipt_printer_windows.dart` 를 `deferred as win_transport` 로 import — Android 런타임이 `win32` / `serial_port_win32` 패키지의 native static initializer (`kernel32.dll` lookup) 를 트리거하지 않도록 격리 |

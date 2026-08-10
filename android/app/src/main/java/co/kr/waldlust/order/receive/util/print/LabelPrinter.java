@@ -1,6 +1,9 @@
 package co.kr.waldlust.order.receive.util.print;
 
+import android.content.Context;
 import android.graphics.Bitmap;
+import android.hardware.usb.UsbDevice;
+import android.hardware.usb.UsbManager;
 import android.util.Log;
 
 import com.caysn.autoreplyprint.AutoReplyPrint;
@@ -52,6 +55,23 @@ public class LabelPrinter {
 
     /** RECVIDLE/PRINTIDLE 동기화 timeout — 직전 라벨 처리 완료 대기. */
     private static final long IDLE_WAIT_MS = 5_000L;
+
+    /**
+     * 복구대기 중 운영자 조치가 확인된 뒤 active clear 까지의 최소 대기.
+     *
+     * <p>비트가 자연스럽게 내려갈 시간을 조금 준다 — 정상 단말에서는 이 시간 안에
+     * 해제되므로 clear 를 호출할 일이 없다. Windows 경로와 같은 값.
+     */
+    private static final long RECOVERY_CLEAR_MIN_MS = 200L;
+
+    /**
+     * active clear 후에도 비트가 안 내려갈 때 강제로 진행하기까지의 대기.
+     *
+     * <p>펌웨어가 host 호출로도 비트를 안 풀어주는 케이스의 최종 안전망. 이 지점은
+     * PagePrint 발사 전이라 강제 진행에 중복 인쇄 위험이 없다. Windows 경로와 같은 값.
+     */
+    private static final long RECOVERY_CLEAR_GIVEUP_MS = 1_500L;
+
 
     /**
      * 자발적 STATUS 비콘 콜백.
@@ -114,16 +134,47 @@ public class LabelPrinter {
      */
     private static volatile String currentOrderTag = null;
 
+    /**
+     * 마지막으로 남긴 {@code [CONNECT]} 실패 진단. 같은 내용이 반복되면 억제한다.
+     *
+     * <p>프린터가 뽑혀 있으면 인쇄마다 재연결을 시도하므로, dedup 없이는 실패 줄이
+     * 주문 수만큼 쌓인다. 성공은 항상 남기고(드물고 의미가 크다) 실패는 진단 내용이
+     * 바뀌었을 때만 남긴다 — {@link #lastLoggedPhase} 와 같은 방식.
+     */
+    private static volatile String lastLoggedConnectDiag = null;
+
+    /**
+     * USB 권한 다이얼로그를 이미 띄웠는지. 프로세스당 1회로 제한한다.
+     *
+     * <p>warm-up 백오프 재시도가 매 회차마다 다이얼로그를 다시 띄우면 매장에서
+     * 팝업이 반복 노출된다. 승인 여부와 무관하게 "요청은 한 번" 이 규칙이다.
+     */
+    private static volatile boolean permissionRequested = false;
+
     public static void init(MainActivity activity) {
         sActivity = activity;
         ensureStatusCallbackRegistered();
     }
 
-    // Supported VID:PID pairs
-    // VID:0x4B43,PID:0x3538
-    // VID:0x4B43,PID:0x3830
-    // VID:0x0FE6,PID:0x811E
-    // VID:0x067B,PID:0x2303
+    // ── 포트 후보 ────────────────────────────────────────────────────────────
+    // 라벨 전용 고정 모델만. 범용 USB-Serial 칩(PL2303 0x067B:0x2303 등) 은 넣지
+    // 말 것 — 외부 ESC/POS 영수증 프린터를 라벨로 오인 점유한다.
+    // 아래 세 배열은 index 로 동기된다.
+
+    /** {@code CP_Port_OpenUsb} 에 넘기는 포트 문자열. */
+    private static final String[] PORT_CANDIDATES = {
+            "VID:0x4B43,PID:0x3538", // Caysn D2
+            "VID:0x4B43,PID:0x3830", // Caysn D3
+            "VID:0x0FE6,PID:0x811E"  // REXOD RXLA-561 (운영 모델)
+    };
+
+    /** 로그 가독성 전용 축약명. */
+    private static final String[] PORT_LABELS = {"D2", "D3", "REXOD"};
+
+    /** {@code UsbManager} 조회용 {VID, PID}. */
+    private static final int[][] PORT_IDS = {
+            {0x4B43, 0x3538}, {0x4B43, 0x3830}, {0x0FE6, 0x811E}
+    };
 
     /**
      * 라벨 한 장을 인쇄한다. samplelabel 의 표준 흐름과 동일하게
@@ -171,36 +222,14 @@ public class LabelPrinter {
         try {
             // autoReplyMode 가 변경됐거나 포트가 죽었으면 재연결.
             // QueryPrintResult timeout 으로 USB 가 손상된 케이스도 이 분기가 자동 회복한다.
-            boolean needReconnect = (autoReplyMode != currentAutoReplyMode);
-            if (needReconnect || !AutoReplyPrint.INSTANCE.CP_Port_IsConnectionValid(hPrinter)) {
-                if (hPrinter != Pointer.NULL) {
-                    AutoReplyPrint.INSTANCE.CP_Port_Close(hPrinter);
-                    hPrinter = Pointer.NULL;
-                }
-
-                // 라벨 전용 고정 모델만. 범용 USB-Serial 칩(PL2303 0x067B:0x2303 등)
-                // 은 넣지 말 것 — 외부 ESC/POS 영수증 프린터를 라벨로 오인 점유한다.
-                String[] ports = {
-                        "VID:0x4B43,PID:0x3538", // Caysn D2
-                        "VID:0x4B43,PID:0x3830", // Caysn D3
-                        "VID:0x0FE6,PID:0x811E"  // REXOD RXLA-561 (운영 모델)
-                };
-
-                for (String port : ports) {
-                    if (!AutoReplyPrint.INSTANCE.CP_Port_IsOpened(hPrinter)) {
-                        hPrinter = AutoReplyPrint.INSTANCE.CP_Port_OpenUsb(port, autoReplyMode);
-                        if (AutoReplyPrint.INSTANCE.CP_Port_IsOpened(hPrinter)) {
-                            currentAutoReplyMode = autoReplyMode;
-                            break;
-                        }
-                    }
-                }
-
-                if (!AutoReplyPrint.INSTANCE.CP_Port_IsOpened(hPrinter)) {
-                    long elapsed = System.currentTimeMillis() - startTime;
-                    log("#" + seq + " " + orderTag + " 실패 [연결오류] (" + elapsed + "ms)");
-                    return RESULT_RETRYABLE;
-                }
+            //
+            // ★ 여기에 재시도·대기를 추가하지 말 것. 상위 runLabelPrintWithRetry 가 이미
+            //   1.5초 후 1회 재시도를 갖고 있고, 하위에 대기를 더하면 인쇄 큐가 막힌다.
+            //   시작 시점의 선제 연결은 warmup() 이 담당한다.
+            if (!ensureConnected(autoReplyMode, "인쇄")) {
+                long elapsed = System.currentTimeMillis() - startTime;
+                log("#" + seq + " " + orderTag + " 실패 [연결오류] (" + elapsed + "ms)");
+                return RESULT_RETRYABLE;
             }
 
             // 1-B-① ERROR 게이트 분기:
@@ -221,9 +250,25 @@ public class LabelPrinter {
                     else if (lastErrorIsCoverUp)               entryPhase = "커버열림";
                     else if (lastInfoNoPaperCanceled)          entryPhase = "용지없음취소";
                     else                                       entryPhase = "복구대기";
+                    // lastErrorStatusBits 는 에러 발생 시에만 갱신되므로 마지막 에러의
+                    // 잔상일 수 있다. 판정에 실제로 쓰이는 현재 비트를 함께 남긴다.
                     log("#" + seq + " " + orderTag + " 복구대기 진입 [" + entryPhase
-                            + "] status=0x" + String.format("%04X", lastErrorStatusBits));
+                            + "] lastError=0x" + String.format("%04X", lastErrorStatusBits)
+                            + " " + recoveryBits());
                     boolean interrupted = false;
+                    // 운영자 조치(커버 개폐 / 용지 교체) 감지용 진입 스냅샷.
+                    final boolean entryCover = lastErrorIsCoverUp;
+                    final boolean entryNoPaper = lastErrorIsNoPaper;
+                    // 취소 비트만으로 진입한 경우(용지·커버는 멀쩡). 이때는 감시할
+                    // error 비트가 없어 sawUserAction 이 영영 참이 되지 않으므로, 조치
+                    // 관측을 기다리지 않고 곧바로 해제를 시도해야 한다. 그러지 않으면
+                    // 이 진입 경로만 여전히 무한 대기로 남는다.
+                    final boolean canceledOnlyEntry =
+                            !entryCover && !entryNoPaper && lastInfoNoPaperCanceled;
+                    boolean sawUserAction = false;
+                    boolean clearTried = false;
+                    boolean forcedBreak = false;
+                    long clearTime = 0L;
                     while (lastErrorIsNoPaper || lastErrorIsCoverUp
                             || lastInfoNoPaperCanceled) {
                         try {
@@ -234,9 +279,50 @@ public class LabelPrinter {
                             break;
                         }
                         long now = System.currentTimeMillis();
+                        long elapsed = now - waitStart;
+
+                        // 진입 시점과 비트가 달라졌다 = 운영자가 뭔가 조치했다.
+                        if (lastErrorIsCoverUp != entryCover
+                                || lastErrorIsNoPaper != entryNoPaper) {
+                            sawUserAction = true;
+                        }
+
+                        // 조치가 끝나 ERROR 는 해제됐는데 NoPaperCanceled(info 0x10) 만
+                        // 남은 stuck. 이 비트는 error status 가 아니라서 용지를 갈아도
+                        // 내려가지 않는 단말이 있고(REXOD RXLA-561), 그것을 내릴 유일한
+                        // 계기인 다음 인쇄 명령은 이 루프 뒤에 있다 — 대기가 자신을 깨울
+                        // 사건을 스스로 막는 구조였다. host 측에서 능동 해제한다.
+                        //
+                        // ★ canceled 를 조건에 넣는 이유: 세 비트가 모두 내려간 정상 복구
+                        // 에서도 while 조건 재평가는 다음 iteration 이라, 이 검사가 한 발
+                        // 먼저 실행된다. canceled 를 안 보면 잔류 비트가 없는데도 clear 를
+                        // 부르게 되고(2026-08-10 실기기 재현 로그에서 실제로 관측),
+                        // ClearPrinterBuffer 가 멀쩡한 보류 페이지를 날릴 수 있다.
+                        if (!clearTried && (sawUserAction || canceledOnlyEntry)
+                                && !lastErrorIsCoverUp && !lastErrorIsNoPaper
+                                && lastInfoNoPaperCanceled
+                                && elapsed >= RECOVERY_CLEAR_MIN_MS) {
+                            log("#" + seq + " " + orderTag + " stuck 감지 (조치 완료·비트 잔류) "
+                                    + recoveryBits() + " — active clear");
+                            clearPrinterErrorState("복구대기-stuck");
+                            clearTried = true;
+                            clearTime = now;
+                        }
+
+                        // active clear 로도 비트가 안 내려가는 펌웨어 대비 안전망.
+                        // 운영자가 이미 용지를 갈아 시각적으로 정상이고, 이 지점은 PagePrint
+                        // 발사 전(submitted=false)이라 강제 진행에 중복 인쇄 위험이 없다.
+                        if (clearTried && now - clearTime >= RECOVERY_CLEAR_GIVEUP_MS) {
+                            forcedBreak = true;
+                            break;
+                        }
+
                         if (now - lastNotice >= 60_000L) {
+                            // 비트를 함께 찍는다 — 이 로그가 비트를 빼먹은 탓에 2026-08-10
+                            // 실매장 8분 정지의 원인을 현장 로그로 판별할 수 없었다.
                             log("#" + seq + " " + orderTag + " 복구대기중 elapsed="
-                                    + ((now - waitStart) / 1000) + "s");
+                                    + (elapsed / 1000) + "s " + recoveryBits()
+                                    + " action=" + sawUserAction);
                             lastNotice = now;
                         }
                     }
@@ -247,8 +333,14 @@ public class LabelPrinter {
                         return RESULT_RETRYABLE;
                     }
                     long waited = System.currentTimeMillis() - waitStart;
-                    log("#" + seq + " " + orderTag + " 복구감지 [" + entryPhase
-                            + " → OK] wait=" + waited + "ms — 인쇄재개");
+                    if (forcedBreak) {
+                        log("#" + seq + " " + orderTag + " 복구 강제진행 [" + entryPhase
+                                + "] wait=" + waited + "ms " + recoveryBits()
+                                + " — active clear 후에도 비트 잔류, 인쇄 시도");
+                    } else {
+                        log("#" + seq + " " + orderTag + " 복구감지 [" + entryPhase
+                                + " → OK] wait=" + waited + "ms — 인쇄재개");
+                    }
                 } else {
                     long erStart = System.currentTimeMillis();
                     while (lastErrorOccurred
@@ -399,7 +491,14 @@ public class LabelPrinter {
                 long fetchStart = System.currentTimeMillis();
                 long lastNotice = fetchStart;
                 boolean interrupted = false;
-                while (lastInfoPaperNoFetch) {
+                // ★ NoPaperCanceled(0x10) 를 함께 감시한다. 떼기대기 중 용지가 떨어지면
+                // 펌웨어가 보류 페이지를 취소하면서 PAPERNOFETCH(0x20) 를 내리는데, 0x20 만
+                // 보면 그 하강을 "운영자가 뗐다" 로 오독한다. 그 오독의 대가가 두 가지다:
+                //   ① 나오지도 않은 라벨을 성공으로 처리해 조용히 누락시킨다.
+                //   ② 0x10 을 리셋 없이 다음 라벨에 물려줘, 그 라벨이 복구대기에서 영원히
+                //      빠져나오지 못한다 (2026-08-10 실매장 8분 정지 → 앱 강제 종료).
+                // 완료 대기 루프에는 이 가드가 이미 있었고 여기에만 빠져 있었다.
+                while (lastInfoPaperNoFetch && !lastInfoNoPaperCanceled) {
                     try {
                         Thread.sleep(100);
                     } catch (InterruptedException e) {
@@ -421,6 +520,16 @@ public class LabelPrinter {
                     return RESULT_SUBMITTED_NO_ACK;
                 }
                 long fetchWait = System.currentTimeMillis() - fetchStart;
+                // 떼어진 게 아니라 용지 소진으로 취소된 경우. 종이가 나가지 않았으므로
+                // 재시도가 안전하며, 이는 완료 대기 루프의 같은 신호 판정과 동일한 결론이다
+                // ("용지없어 취소 = 중복 위험이 없는 유일한 케이스").
+                // 0x10 을 여기서 내려 다음 라벨이 이 상태를 물려받지 않게 한다.
+                if (lastInfoNoPaperCanceled) {
+                    log("#" + seq + " " + orderTag + " 떼기대기 중 용지소진 [보류페이지 취소] "
+                            + "wait=" + fetchWait + "ms — 재시도 위임");
+                    clearPrinterErrorState("떼기대기-용지소진");
+                    return RESULT_RETRYABLE;
+                }
                 boolean portOk = AutoReplyPrint.INSTANCE.CP_Port_IsOpened(hPrinter);
                 long elapsed2 = System.currentTimeMillis() - startTime;
                 log("#" + seq + " " + orderTag + " 떼어짐 wait=" + fetchWait
@@ -489,6 +598,238 @@ public class LabelPrinter {
         }
 
         return result;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 연결 관리
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * 앱 시작 시점의 warm-up. <b>포트만 열고 인쇄는 하지 않는다.</b>
+     *
+     * <p>{@link #printBitmap} 이 세션 첫 호출에서 lazy 로 하던 USB open 을 시작 창으로
+     * 앞당긴다. 그 lazy open 이 실패하면 첫 주문의 라벨이 {@code 실패 [연결오류]} 로
+     * 끝나고 1.5초 뒤 재시도에서야 인쇄됐다 — open 비용과 실패 확률을 첫 주문이
+     * 대신 지불하는 구조였다. Windows 는 {@code WindowsLabelRouter.warmupOpen} 으로
+     * 이미 같은 일을 하고 있고(main.dart), 이 메서드가 그 Android 대응물이다.
+     *
+     * <p>{@link #hPrinter} 와 {@link #currentAutoReplyMode} 가 프로세스 전역 static 이고
+     * open 경로가 {@link #ensureConnected} 로 동일하므로, 첫 인쇄는 재연결 없이 이
+     * 핸들을 그대로 재사용한다.
+     *
+     * <p>지켜야 할 제약 3가지:
+     * <ul>
+     *   <li>{@code printCount} 를 건드리지 않는다 — 첫 인쇄가 계속 {@code #1} 이어야
+     *       기존 운영 로그의 시퀀스 해석이 바뀌지 않는다.</li>
+     *   <li>{@code autoReplyMode} 는 실제 인쇄가 넘길 값과 <b>반드시 같아야 한다.</b>
+     *       다르면 {@link #ensureConnected} 의 모드 비교가 첫 인쇄에서 재연결을
+     *       유발해 warm-up 이 통째로 무효가 된다. 그래서 이 값은 Dart 의
+     *       {@code getLabelAutoReplyMode()} 에서만 온다.</li>
+     *   <li>USB 권한 선요청은 <b>여기서만</b> 한다. 인쇄 경로에 사람 손을 기다리는
+     *       대기를 넣으면 인쇄 큐 전체가 다이얼로그에 묶인다.</li>
+     * </ul>
+     *
+     * @return 포트가 열렸으면 true. 실패해도 기존 lazy 연결이 폴백으로 살아 있다.
+     */
+    public static synchronized boolean warmup(int autoReplyMode) {
+        try {
+            // init() 이 먼저 도는 것이 정상이지만, 등록 여부와 무관하게 no-op 이라 방어적으로 호출.
+            ensureStatusCallbackRegistered();
+            requestUsbPermissionOnce();
+            return ensureConnected(autoReplyMode, "warmup");
+        } catch (Throwable t) {
+            log("[CONNECT] warmup 예외: " + t.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * 포트가 열려 있고 모드가 일치하면 아무것도 하지 않고 true. 아니면 재연결한다.
+     *
+     * <p><b>진단 로그는 재연결이 실제로 일어난 경우에만 남는다</b> — 조건문이 아니라
+     * 함수 구조로 보장한다(early-return 뒤에만 로깅). 이 메서드는 라벨 한 장마다
+     * 호출되지만 정상 흐름은 첫 분기에서 끝나므로 운영 로그가 두꺼워지지 않는다.
+     *
+     * <p>남기는 값의 목적: 콜드스타트 1회 실패의 원인이 (A) USB 권한 미보유 인지
+     * (B) 권한과 무관한 커널/디바이스 준비 지연 인지를 <b>로그 한 줄로</b> 가르기 위함.
+     * 그래서 장치 enumerate 여부 · 권한 보유 · 포트별 소요 ms 를 함께 찍는다.
+     *
+     * @param caller {@code "인쇄"} 또는 {@code "warmup"} — 어느 경로가 포트를 열었는지 구분.
+     */
+    private static boolean ensureConnected(int autoReplyMode, String caller) {
+        final boolean modeChanged = (autoReplyMode != currentAutoReplyMode);
+        if (!modeChanged && AutoReplyPrint.INSTANCE.CP_Port_IsConnectionValid(hPrinter)) {
+            return true; // ← 정상 흐름은 여기서 끝. 아래 로깅에 도달하지 않는다.
+        }
+
+        final long t0 = System.currentTimeMillis();
+        // ★ 판정 순서 주의: 세션 첫 연결은 hPrinter 가 NULL 이면서 동시에
+        //   currentAutoReplyMode(초기값 0) != autoReplyMode(보통 1) 라 modeChanged 도
+        //   참이다. 모드변경을 먼저 보면 최초 연결이 "모드변경 0→1" 로 찍혀
+        //   "왜 시작하자마자 모드가 바뀌지?" 라는 오독을 부른다. 핸들 유무가 우선.
+        final String reason = (hPrinter == Pointer.NULL)
+                ? "최초연결"
+                : modeChanged
+                        ? ("모드변경 " + currentAutoReplyMode + "→" + autoReplyMode)
+                        : "포트무효";
+
+        if (hPrinter != Pointer.NULL) {
+            AutoReplyPrint.INSTANCE.CP_Port_Close(hPrinter);
+            hPrinter = Pointer.NULL;
+        }
+
+        // 커널이 장치를 이미 enumerate 했는가 + 앱이 권한을 갖고 있는가.
+        // 이 한 값이 위 (A)/(B) 를 가르는 판정 기준이다. OpenUsb 시도 **전에** 읽어야
+        // 한다 — SDK 내부가 권한 상태를 바꿀 여지를 남기지 않기 위함.
+        final String usbDiag = describeUsbState();
+
+        final StringBuilder tried = new StringBuilder();
+        boolean opened = false;
+        for (int i = 0; i < PORT_CANDIDATES.length; i++) {
+            final long tp = System.currentTimeMillis();
+            hPrinter = AutoReplyPrint.INSTANCE.CP_Port_OpenUsb(
+                    PORT_CANDIDATES[i], autoReplyMode);
+            final boolean ok = AutoReplyPrint.INSTANCE.CP_Port_IsOpened(hPrinter);
+            if (tried.length() > 0) {
+                tried.append(' ');
+            }
+            tried.append(PORT_LABELS[i]).append(ok ? ":o/" : ":x/")
+                    .append(System.currentTimeMillis() - tp).append("ms");
+            if (ok) {
+                currentAutoReplyMode = autoReplyMode;
+                opened = true;
+                break;
+            }
+        }
+
+        final String diag = "[CONNECT] " + caller + " " + (opened ? "성공" : "실패")
+                + " 사유=" + reason + " " + usbDiag
+                + " 시도=[" + tried + "] (" + (System.currentTimeMillis() - t0) + "ms)";
+        if (opened || !diag.equals(lastLoggedConnectDiag)) {
+            log(diag);
+        }
+        lastLoggedConnectDiag = opened ? null : diag;
+        return opened;
+    }
+
+    /**
+     * 복구 판정에 실제로 쓰이는 세 비트의 현재값. 로그 전용.
+     *
+     * <p>앞의 둘은 error status(0x04/0x80), {@code canceled} 는 <b>info status(0x10)</b> 다.
+     * 이 비대칭이 사고의 핵심이었다 — {@code ERROR 해제} 로그는 error status 만 보므로
+     * "해제됐다고 찍혔는데 대기는 계속되는" 상태가 성립한다.
+     */
+    private static String recoveryBits() {
+        return "noPaper=" + lastErrorIsNoPaper
+                + " cover=" + lastErrorIsCoverUp
+                + " canceled=" + lastInfoNoPaperCanceled;
+    }
+
+    /**
+     * 펌웨어의 에러/취소 상태를 host 측에서 능동 해제한다.
+     *
+     * <p><b>왜 필요한가</b>: INFO_NOPAPERCANCELED(0x10) 는 error status 가 아니라 info
+     * status 라, 운영자가 용지를 갈아 ERROR 가 해제돼도 함께 내려가지 않는 단말이 있다
+     * (REXOD RXLA-561, 2026-08-10 실매장). 그 비트 하나 때문에 복구대기 루프가 8분간
+     * 빠져나오지 못했고 앱 강제 종료가 유일한 탈출구였다. Windows 경로는 같은 현상을
+     * 이미 겪고 active clear 로 처리하고 있다(windows_label_printer_backend.dart).
+     *
+     * <p>★ {@code ClearPrinterBuffer} 는 펌웨어 큐에 보류 중인 페이지도 함께 날린다.
+     * 그럼에도 쓰는 이유는 이 함수가 불리는 시점이 이미 "큐가 멈춘" 상황이라 잃을 페이지가
+     * 없거나, 있어도 그것이 곧 정지의 원인이기 때문이다.
+     * <b>정상 흐름에서는 절대 호출하지 말 것.</b>
+     */
+    private static void clearPrinterErrorState(String reason) {
+        if (hPrinter == Pointer.NULL) {
+            return;
+        }
+        boolean err = false;
+        boolean buf = false;
+        boolean rst = false;
+        try {
+            err = AutoReplyPrint.INSTANCE.CP_Printer_ClearPrinterError(hPrinter);
+        } catch (Throwable t) {
+            Log.w(TAG, "ClearPrinterError 예외", t);
+        }
+        try {
+            buf = AutoReplyPrint.INSTANCE.CP_Printer_ClearPrinterBuffer(hPrinter);
+        } catch (Throwable t) {
+            Log.w(TAG, "ClearPrinterBuffer 예외", t);
+        }
+        try {
+            rst = AutoReplyPrint.INSTANCE.CP_Pos_ResetPrinter(hPrinter);
+        } catch (Throwable t) {
+            Log.w(TAG, "ResetPrinter 예외", t);
+        }
+        log("[CLEAR] " + reason + " — ClearError=" + err + " ClearBuffer=" + buf
+                + " Reset=" + rst);
+    }
+
+    /**
+     * 라벨 프린터 USB 장치의 커널 enumerate 여부와 앱의 권한 보유 여부.
+     *
+     * <p>{@link #PORT_IDS} 화이트리스트에 있는 장치만 본다 — 영수증 프린터 등 무관한
+     * 장치를 로그에 노출하면 현장에서 오독을 부른다.
+     */
+    private static String describeUsbState() {
+        if (sActivity == null) {
+            return "장치=미초기화";
+        }
+        try {
+            UsbManager um = (UsbManager) sActivity.getSystemService(Context.USB_SERVICE);
+            if (um == null) {
+                return "장치=USB서비스없음";
+            }
+            for (UsbDevice d : um.getDeviceList().values()) {
+                for (int[] id : PORT_IDS) {
+                    if (d.getVendorId() == id[0] && d.getProductId() == id[1]) {
+                        return String.format("장치=VID:0x%04X,PID:0x%04X 권한=%s",
+                                d.getVendorId(), d.getProductId(),
+                                um.hasPermission(d) ? "있음" : "없음");
+                    }
+                }
+            }
+            return "장치=없음(enumerate안됨)";
+        } catch (Throwable t) {
+            return "장치=조회실패(" + t.getMessage() + ")";
+        }
+    }
+
+    /**
+     * 권한이 없으면 다이얼로그를 <b>한 번만</b> 띄운다 (승인 대기는 하지 않는다).
+     *
+     * <p>대기하지 않는 이유: 승인까지의 시간은 Dart 측 warm-up 백오프가 이미 덮는다.
+     * 여기서 블로킹하면 그 백오프의 probe 가 멈춰 두 겹의 대기가 중첩된다.
+     *
+     * <p>Caysn SDK(nzio) 도 내부에서 requestPermission 을 부르지만 <b>결과를 기다리지
+     * 않고 즉시 openDevice 로 진행</b>한다 — 그래서 권한이 없는 세션의 첫 open 은
+     * 반드시 실패하고, 승인이 붙은 다음 시도에서야 열린다(2026-08-10 D2s_KDS 실측:
+     * {@code 권한=없음} 실패 → 3.3초 뒤 {@code 권한=있음} 성공). 게다가 그 요청은
+     * PendingIntent 를 flags=0 으로 만들어 <b>Android 12+ 단말에서는</b> 예외가 난 뒤
+     * 삼켜진다 — 그 단말에서는 요청 자체가 없는 것과 같다. 여기서 같은 요청을 미리
+     * 해 두면 두 경우 모두 승인 사이클이 첫 주문보다 앞서 시작된다.
+     */
+    private static void requestUsbPermissionOnce() {
+        if (permissionRequested || sActivity == null) {
+            return;
+        }
+        UsbManager um = (UsbManager) sActivity.getSystemService(Context.USB_SERVICE);
+        if (um == null) {
+            return;
+        }
+        for (UsbDevice d : um.getDeviceList().values()) {
+            for (int[] id : PORT_IDS) {
+                if (d.getVendorId() == id[0] && d.getProductId() == id[1]) {
+                    if (!um.hasPermission(d)) {
+                        log("[CONNECT] USB 권한 요청 " + String.format(
+                                "VID:0x%04X PID:0x%04X", d.getVendorId(), d.getProductId()));
+                        UsbPermissionHelper.request(sActivity, um, d);
+                    }
+                    permissionRequested = true;
+                    return;
+                }
+            }
+        }
     }
 
     /**
@@ -757,6 +1098,7 @@ public class LabelPrinter {
         // dedup 캐시 리셋 — 재오픈 시 첫 비콘부터 다시 로그
         lastLoggedPhase = null;
         lastLoggedPaperNoFetch = null;
+        lastLoggedConnectDiag = null;
         currentOrderTag = null;
         lastAckDiagnostic = null;
     }

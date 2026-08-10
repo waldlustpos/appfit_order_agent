@@ -155,7 +155,16 @@ class OutputQueueService {
   /// 동일 orderId 의 ReprintJob 이 이미 대기 중이거나 처리 중이면 중복 추가를 무시한다.
   void addReprint(OrderModel order) {
     final id = order.orderId;
-    if (_inFlightReprints.contains(id)) return;
+    if (_inFlightReprints.contains(id)) {
+      // 무음으로 버리지 않는다. 2026-08-10 실매장에서 큐가 복구대기로 멈춰 있는 동안
+      // 운영자가 같은 주문의 재출력을 7번 눌렀는데, dedup 이 아무 흔적도 남기지 않아
+      // 로그만 봐서는 "클릭이 있었는데 인쇄진입이 없다" 는 사실이 설명되지 않았다.
+      logToFile(
+          tag: LogTag.PLATFORM,
+          message: '[LabelQueue] ${order.displayNum} REPRINT 중복요청 무시 '
+              '(이미 대기/진행 중)');
+      return;
+    }
     _inFlightReprints.add(id);
     _labelQueue.add(ReprintJob(order));
   }

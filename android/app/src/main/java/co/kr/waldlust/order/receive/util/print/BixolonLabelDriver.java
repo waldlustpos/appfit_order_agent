@@ -1,12 +1,9 @@
 package co.kr.waldlust.order.receive.util.print;
 
-import android.app.PendingIntent;
 import android.content.Context;
-import android.content.Intent;
 import android.graphics.Bitmap;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbManager;
-import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Message;
@@ -69,9 +66,6 @@ public class BixolonLabelDriver {
 
     /** BIXOLON vendor id (0x1504 = 5380). device_filter.xml 과 동기 유지. */
     public static final int BIXOLON_VENDOR_ID = 0x1504;
-
-    private static final String ACTION_USB_PERMISSION =
-            "co.kr.waldlust.order.receive.BIXOLON_USB_PERMISSION";
 
     // ── 라벨 미디어: RXLA-561 과 동일 규격 (이미지 490x600 dots ≈ 61x75mm @203dpi, 갭 용지) ──
     private static final int LABEL_WIDTH_DOTS = 490;
@@ -310,6 +304,28 @@ public class BixolonLabelDriver {
     // 연결 관리
     // ─────────────────────────────────────────────────────────────────────────
 
+    /**
+     * 앱 시작 시점의 warm-up — 연결(+연결당 1회 미디어 설정)만 수행. 인쇄는 하지 않는다.
+     *
+     * <p>{@link LabelPrinter#warmup(int)} 의 BIXOLON 대응물이다. 이 경로는 인쇄 안에서
+     * 이미 권한 요청과 폴링 대기({@link #ensureConnectedLocked})를 하므로 Caysn 만큼
+     * 콜드스타트 실패에 취약하지 않지만, 두 가지 이유로 함께 둔다:
+     * ① SDK {@code connect()} 자체의 지연(인스턴스 생성 + enumerate + interface claim)을
+     * 첫 주문에서 빼기 위함, ② 벤더 분기를 인쇄 경로와 동일하게 유지해 "warm-up 이
+     * 도는 기종과 안 도는 기종" 이라는 비대칭을 만들지 않기 위함.
+     *
+     * <p>{@code seq=0} / {@code orderTag="[warmup]"} 로 남기므로 {@code printCount} 는
+     * 건드리지 않는다 — 첫 인쇄가 계속 {@code #1} 이어야 운영 로그 해석이 유지된다.
+     */
+    public static synchronized boolean warmup() {
+        try {
+            return ensureConnectedLocked(0, "[warmup]");
+        } catch (Exception e) {
+            log("[warmup] 예외: " + e.getMessage());
+            return false;
+        }
+    }
+
     /** 연결 보장 + 연결 직후 1회 미디어 설정. 실패 시 false. 클래스 lock 하에서만 호출. */
     private static boolean ensureConnectedLocked(int seq, String orderTag) {
         if (sDetachRequested) {
@@ -389,18 +405,12 @@ public class BixolonLabelDriver {
         return true;
     }
 
+    /**
+     * 권한 요청은 {@link UsbPermissionHelper} 로 위임한다 — Caysn 경로와 같은 규칙
+     * (Android 12+ FLAG_MUTABLE)을 쓰기 위해 공용화했다.
+     */
     private static void requestUsbPermission(UsbManager usbManager, UsbDevice device) {
-        int flags;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            // Android 12+ 는 권한 승인 extra 를 시스템이 채워 넣기 위해 FLAG_MUTABLE 필요.
-            flags = PendingIntent.FLAG_MUTABLE | PendingIntent.FLAG_UPDATE_CURRENT;
-        } else {
-            flags = PendingIntent.FLAG_UPDATE_CURRENT;
-        }
-        PendingIntent permissionIntent = PendingIntent.getBroadcast(
-                sActivity.getApplicationContext(), 0,
-                new Intent(ACTION_USB_PERMISSION), flags);
-        usbManager.requestPermission(device, permissionIntent);
+        UsbPermissionHelper.request(sActivity, usbManager, device);
     }
 
     /** SDK 이벤트 수신용 HandlerThread (프로세스 생애 재사용, lazy 생성). */
