@@ -29,4 +29,36 @@ class CommonUtil {
     if (digits.length <= 4) return value;
     return '${digits.substring(0, 4)}-****';
   }
+
+  /// 리터럴 백슬래시+n (이스케이프가 안 풀린 채 문자 그대로 오는 케이스).
+  /// `\r\n` 을 먼저 소비해야 공백 2칸이 되지 않는다.
+  static final RegExp _literalNewline = RegExp(r'\\r\\n|\\n|\\r');
+
+  /// 실제 제어문자 개행(LF/CR/CRLF). 연속 개행도 공백 1칸으로 접는다.
+  static final RegExp _realNewline = RegExp(r'[\r\n]+');
+
+  /// 공백/탭 런 축약. 전각공백(U+3000)은 일본어 메뉴명의 시각 간격이므로
+  /// 의도적으로 대상에서 제외한다.
+  static final RegExp _spaceRun = RegExp(r'[ \t]+');
+
+  /// 한 줄 표시용 텍스트 정규화.
+  ///
+  /// 메뉴명/옵션명에 섞여 오는 개행(실제 LF/CR 및 리터럴 `\n` 문자열)을 공백
+  /// 1칸으로 접고, 매체(KDS 카드 232px / 라벨 340dot)가 알아서 줄바꿈하게 한다.
+  /// 매체마다 폭이 달라 원본 개행 위치를 따르면 한 줄에 두어 글자만 남는 식으로
+  /// 오히려 깨진다.
+  ///
+  /// 실제 LF 를 남겨두면 `maxLines: 1` 위젯/TextPainter 가 하드 라인브레이크로
+  /// 처리해 **개행 뒤 내용이 통째로 사라진다**. 표시·인쇄 경계에서 반드시 접을 것.
+  ///
+  /// 주의: `DateFormat('MM/dd\nHH:mm:ss')` 로 만드는 라벨 주문시각처럼 **의도적으로
+  /// 삽입한 개행에는 절대 쓰지 말 것** (label_print_data.dart 참조).
+  static String normalizeInlineText(String? value) {
+    if (value == null || value.isEmpty) return '';
+    return value
+        .replaceAll(_literalNewline, ' ')
+        .replaceAll(_realNewline, ' ')
+        .replaceAll(_spaceRun, ' ')
+        .trim();
+  }
 }

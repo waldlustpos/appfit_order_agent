@@ -164,8 +164,11 @@ class BrandRegistry {
       storeIdPrefix: 'PAIK',
       assetFolder: 'paik',
       hasReceiptLogo: true,
-      hasLabelLogo: false, // TODO(paik): 적절한 라벨 로고 이미지 작업 후 true로 복구
-      labelLogoWidth: 70,
+      // TODO(paik): 적절한 라벨 로고 이미지 작업 후 true로 복구.
+      // labelLogoWidth 는 기본값(50) — 종전엔 70 이었으나 로고를 켜는 순간
+      // 헤더가 20px 더 내려가 하단 여백이 타 브랜드보다 20px 부족해진다
+      // (LabelPainter.v2BottomMargin 참고). 폭은 전 브랜드 통일.
+      hasLabelLogo: false,
       theme: BrandTheme.paik,
       currency: CurrencyUnit.jpy,
       serverEnvironment: 'japanLive',
@@ -175,6 +178,7 @@ class BrandRegistry {
       key: BrandKey.tljp,
       storeIdPrefix: 'TLJP',
       assetFolder: 'theliterjp',
+      hasLabelLogo: false, // TODO(tljp): 라벨 로고 BMP 준비되면 true로 복구
       theme: BrandTheme.tljp,
       currency: CurrencyUnit.jpy,
       serverEnvironment: 'japanLive',

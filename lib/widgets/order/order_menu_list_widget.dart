@@ -69,7 +69,7 @@ class OrderMenuListWidget extends StatelessWidget {
                               Expanded(
                                 flex: 5,
                                 child: Text(
-                                  menu.itemName.replaceAll('\\n', ''),
+                                  CommonUtil.normalizeInlineText(menu.itemName),
                                   style: AppTextStyles.body.copyWith(
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -120,7 +120,8 @@ class OrderMenuListWidget extends StatelessWidget {
                                       const SizedBox(width: AppSpacing.s4),
                                       Expanded(
                                         child: Text(
-                                          option.optionName,
+                                          CommonUtil.normalizeInlineText(
+                                              option.optionName),
                                           style: AppTextStyles.bodySm.copyWith(
                                             color: AppStyles.gray6,
                                           ),

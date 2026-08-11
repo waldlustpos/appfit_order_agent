@@ -19,6 +19,7 @@ import 'package:appfit_order_agent/models/order_model.dart';
 import 'package:appfit_order_agent/models/product_model.dart';
 import 'package:appfit_order_agent/services/label_printer/label_filter_strategy.dart';
 import 'package:appfit_order_agent/services/label_printer/qr_payload_strategy.dart';
+import 'package:appfit_order_agent/utils/common_util.dart';
 
 /// 라벨에 동봉되는 주문 식별 정보. 같은 주문의 모든 라벨에서 동일.
 class LabelOrderInfo {
@@ -202,6 +203,8 @@ class LabelPrintData {
       runningIndex += menu.qty;
     }
 
+    // 의도적 개행(라벨 헤더 2줄). CommonUtil.normalizeInlineText 적용 금지 —
+    // LabelPainter._drawHeader 가 maxLines:2 / maxWidth:120 으로 받는다.
     final timeStr = DateFormat('MM/dd\nHH:mm:ss').format(order.orderedAt);
     final shopOrderNo =
         order.displayNum.isNotEmpty ? order.displayNum : order.shopOrderNo;
@@ -222,9 +225,13 @@ class LabelPrintData {
       final remainingOptions =
           menu.options.where((opt) => !cats.classified.contains(opt));
 
+      // 표시용 정규화(개행→공백)는 여기서만. QR/menuInfo 는 아래에서 원문을
+      // 보존하므로 서버값 대조가 계속 가능하다.
       final flatOptions = remainingOptions
-          .map((opt) =>
-              opt.qty > 1 ? '${opt.qty} ${opt.optionName}' : opt.optionName)
+          .map((opt) {
+            final name = CommonUtil.normalizeInlineText(opt.optionName);
+            return opt.qty > 1 ? '${opt.qty} $name' : name;
+          })
           .where((name) => name.isNotEmpty)
           .toList();
 
@@ -244,7 +251,7 @@ class LabelPrintData {
         );
 
         result.add(LabelPrintData(
-          menuName: menu.itemName,
+          menuName: CommonUtil.normalizeInlineText(menu.itemName),
           options: flatOptions,
           shopOrderNo: shopOrderNo.isNotEmpty ? shopOrderNo : null,
           orderTime: timeStr,

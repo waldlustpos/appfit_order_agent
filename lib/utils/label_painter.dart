@@ -78,12 +78,40 @@ class LabelPainter extends CustomPainter {
   static const double fsHeaderTime = 16;
   static const double fsSubInfo = 22;
   static const double fsMenuName = 28;
+
+  /// 메뉴명 자동 축소 하한.
+  ///
+  /// 기본 크기(28)로 [menuNameMaxLines] 줄까지 먼저 쓰고, 그래도 넘칠 때만
+  /// 여기까지 축소한다. 더 내리면 subInfo(22)/옵션(21)보다 작아져 시각 위계가
+  /// 역전되고, 490dot ≈ 61mm(≈8.0 dot/mm) 기준 20dot ≈ 2.5mm 로 감열 번짐
+  /// 한계에 근접한다. 하한 도달 후 초과분은 `_drawText` 의 ellipsis 가 처리한다.
+  static const double fsMenuNameMin = 20;
+
+  /// 메뉴명 최대 줄 수. 수용력(Pretendard 한글 advance ≈ 1.0em, maxWidth 340):
+  /// 28px 1줄 12자 → 2줄 24자, 하한 20px 2줄이면 34자.
+  static const int menuNameMaxLines = 2;
+
+  /// 메뉴명 줄 높이. **예약 슬롯을 폰트 메트릭에 의존하지 않고 정확히 계산하려면
+  /// 반드시 명시해야 한다** — 미지정이면 실제 높이가 예약과 어긋나 2줄째가
+  /// 옵션 구분선을 침범한다.
+  static const double menuNameLineHeight = 1.2;
+
+  /// 메뉴명 슬롯 높이. 실제 줄 수와 무관하게 항상 [menuNameMaxLines] 줄분을
+  /// 예약해 하단 섹션 Y 를 라벨 간 고정한다(1줄짜리 메뉴는 슬롯 하단에 붙인다).
+  static const double menuSlotHeight =
+      fsMenuName * menuNameLineHeight * menuNameMaxLines; // 67.2
   static const double fsOrderNo = 85; //주문번호사이즈 (QR 없을 때)
   static const double fsOrderNoWithQr =
       57; //주문번호사이즈 (V1, QR 동반 시 — 겹침 방지용 조정 노브)
   static const double fsOrderNoWithQrV2 = 40; //주문번호사이즈 (V2, QR 동반 시)
   static const double fsSectionTitle = 22;
   static const double fsOptionItem = 21;
+
+  /// 옵션 셀 자동 축소 하한. 메뉴명 하한(20)보다 낮게 잡는다 — 옵션은 보조
+  /// 정보라 위계상 아래가 맞고, 좁은 셀에서 축소 이득이 상대적으로 크다.
+  /// 수용력: 1열(340) 21→16자 / 18→19자, 2열(164) 21→7.8자 / 18→9자.
+  /// 16 까지 내리면 일본어 한자 획이 뭉치므로 실출력 검증 없이 내리지 말 것.
+  static const double fsOptionItemMin = 18;
   static const double fsDetailContent = 22;
 
   // Dimensions & Spacings
@@ -91,6 +119,17 @@ class LabelPainter extends CustomPainter {
   static const double qrSizeDefault = 120; // QR 크기 (기본 90 → 120 확대)
   static const double spacingSectionSmall = 15;
   static const double spacingSectionLarge = 30;
+
+  /// 구분선 주변 여백 (V2 하단 섹션 전용).
+  ///
+  /// 옵션 3행(84)을 넣으려면 28px 이 필요한데, 검증받은 간격 — 헤더↔QR(21),
+  /// QR↔subinfo(16), subinfo↔상품명(6) — 은 건드릴 수 없다. 대신 이 값이 쓰이는
+  /// 4곳(상품명↔옵션구분선, 옵션구분선↔첫 행, 마지막 행↔DETAIL 구분선,
+  /// DETAIL 구분선↔메모)을 15 → 8 로 줄여 **정확히 28px** 을 만든다.
+  ///
+  /// 8dot ≈ 1mm(203dpi). 1px 두께 구분선 주변이라 QR 같은 검은 덩어리 옆과 달리
+  /// 이 정도로도 섹션 구분이 읽힌다.
+  static const double sectionGapTight = 8;
 
   // ── 실주문 QR 정책(레이아웃 버전별) ─────────────────────────────────
   // V2 는 헤더 축소로 확보한 세로 공간에 QR 을 크게 키우고(+50%), 모듈 밀도를
@@ -107,10 +146,121 @@ class LabelPainter extends CustomPainter {
   static int qrErrorCorrectLevelForLayout(int layoutVersion) =>
       layoutVersion == 1 ? QrErrorCorrectLevel.L : QrErrorCorrectLevel.M;
   // V2 Body 간격 노브 (실측 후 미세조정)
-  static const double bodyV2SubInfoGap = 8; // QR 하단 ↔ subinfo
-  static const double bodyV2MenuGap = 6; // subinfo ↔ 상품명
+  //
+  // ⚠ 이 값들은 TPCP 실출력 검증으로 확정됐다. **여기서 깎지 말 것** —
+  // 메뉴명 2줄 슬롯의 재원은 헤더 로고 예약 정상화(PAIK)와 옵션 행 수(3→2)에서
+  // 확보한다.
+  //
+  // **subinfo 자리(fsSubInfo=22)는 값이 없어도 그대로 예약한다** — 현재는 TPCP
+  // 전용이지만 PAIK 등에서 추후 활용할 여지가 있어 공간을 비워 둔다.
+
+  /// QR 하단 ↔ subinfo **최소** 간격.
+  ///
+  /// subinfo 는 QR 에 고정되지 않고 상품명 바로 위에 붙어 다닌다(아래
+  /// [bodyV2MenuGap] 참고). 따라서 이 값은 상품명이 슬롯을 꽉 채운 2줄일 때만
+  /// 실제로 나타나고, 1줄이면 남는 한 줄(33.6)만큼 더 벌어진다.
+  ///
+  /// QR 은 검은 덩어리라 바로 아래 텍스트가 붙어 보이기 쉽다. 8 일 때
+  /// "너무 가깝다" 피드백을 받아 16 으로 올렸다.
+  static const double bodyV2SubInfoGap = 16;
+
+  /// subinfo ↔ 상품명. 둘은 같은 상품을 설명하는 한 덩어리라 **붙여 둔다**.
+  /// 슬롯에 남는 공간은 이 사이가 아니라 QR 쪽(위)으로 몰아준다.
+  static const double bodyV2MenuGap = 6;
+
+  /// 메뉴명 슬롯 하단 ↔ 옵션 구분선.
+  static const double bodyV2MenuBottomGap = sectionGapTight;
+
+  // ── 헤더 높이 ─────────────────────────────────────────────────────────
+  // 종전엔 로고를 그리든 말든 무조건 labelLogoWidth 만큼 예약했다. PAIK 는
+  // hasLabelLogo=false(로고 미표시)인데 labelLogoWidth=70 이라 **그리지도 않는
+  // 로고 자리를 70px 잡아먹고** 있었다. 이제 실제 콘텐츠 높이로 예약한다.
+
+  /// 헤더 좌측 텍스트 블록(주문시각 2줄)이 차지하는 높이 + 상단 오프셋 5.
+  /// 우측 순번(fsSubInfo 1줄 ≈ 29)보다 크므로 텍스트 블록의 대표값이 된다.
+  static const double headerTextBlockHeight =
+      5 + fsHeaderTime * 1.2 * 2; // 43.4
+
+  /// V2 헤더 아래 여백 (= 종전 구분선 클리어런스 6 + spacingSectionSmall 15).
+  ///
+  /// ⚠ 한때 "V2 는 구분선을 안 그리니 6 은 불필요" 라고 8 까지 줄였다가 TPCP
+  /// 실출력에서 "로고와 QR 이 너무 가깝다" 피드백을 받고 원복했다. 구분선이
+  /// 없어도 로고 하단과 QR 상단 사이에는 이만큼의 시각적 분리가 필요하다.
+  static const double headerV2BottomGap = 6 + spacingSectionSmall;
+
+  /// 헤더가 실제로 차지하는 높이. 로고를 그릴 때만 로고 폭을 예약에 반영한다.
+  @visibleForTesting
+  static double headerContentHeight({
+    required bool hasLogo,
+    required double logoWidth,
+  }) {
+    if (!hasLogo) return headerTextBlockHeight;
+    return logoWidth > headerTextBlockHeight
+        ? logoWidth
+        : headerTextBlockHeight;
+  }
 
   static const double optionRowHeight = 28; // 옵션 한 줄 높이
+
+  // ── 옵션 영역 배치 ─────────────────────────────────────────────────────
+  // 세로 예약은 옵션 개수와 무관하게 고정한다. 이 값을 넘기면 DETAIL 구분선/
+  // 메모가 아래로 밀려 하단 여백이 잘린다.
+  //
+  // 3행 = 1열 모드에서 긴 옵션명 3개를 폭 340 으로 온전히(ellipsis 없이) 싣거나,
+  // 2열 모드에서 6개까지 담기 위한 값. 이 28px 은 [sectionGapTight] 로 확보했다.
+  static const int optionMaxRows = 3;
+  static const double optionReservedHeight = optionRowHeight * optionMaxRows;
+
+  /// 2열 모드의 열 사이 간격. 이 값을 빼서 셀 폭을 정해야 col1 우측 끝이
+  /// 구분선 끝(width - defaultMargin)과 정확히 일치한다(종전 5px 침범 버그).
+  static const double optionColGutter = 12;
+
+  /// 1열 전환 임계. 이하면 full-width 1열(폭 340), 초과면 2열(폭 164).
+  ///
+  /// 사이즈/온도/원두는 `LabelFilterStrategy.classifyOptions` 가 sub-info 로
+  /// 빼가므로(TPCP 한정) 여기 남는 옵션은 실무상 0~2개가 압도적이다. 그 구간을
+  /// 1열로 처리하면 셀 폭이 2배가 되어 7.8자 → 16자로 늘어난다.
+  static const int optionSingleColumnMax = optionMaxRows;
+
+  /// 2열 모드 최대 표시 개수. 초과분은 마지막 셀을 `+N` 으로 대체한다.
+  static const int optionMaxShown = optionMaxRows * 2;
+
+  /// 자동 축소 시 원래 폰트 슬롯의 세로 중앙으로 내리는 계수 (line-height 1.2 / 2).
+  static const double _fitVerticalCenterFactor = 0.6;
+
+  /// V2 콘텐츠 하단과 캔버스 하단 사이 여백 (offsetY 적용 후).
+  ///
+  /// 라벨은 CI 에서 눈으로 비교할 수 없어 "브랜드 X 에서 메모가 잘렸다" 를
+  /// 인쇄한 뒤에야 알게 된다. 그래서 세로 체인을 여기서 한 번 더 계산해
+  /// 테스트로 하한을 고정한다.
+  ///
+  /// **`_drawHeader`/`_drawBodyV2`/`_drawOptions`/`_drawDetail` 의 Y 계산을
+  /// 바꾸면 이 함수도 같이 고쳐야 한다.** 체인이 전부 상수 기반이라(메모는
+  /// `height: 1.3`, 메뉴명은 [menuNameLineHeight] 를 명시) 폰트 메트릭에
+  /// 흔들리지 않고 결정적으로 재현된다.
+  @visibleForTesting
+  static double v2BottomMargin({
+    required bool hasLogo,
+    required double logoWidth,
+    double canvasHeight = height,
+  }) {
+    final double bodyTop = defaultMargin +
+        headerContentHeight(hasLogo: hasLogo, logoWidth: logoWidth) +
+        headerV2BottomGap;
+    // 슬롯 상단 = subinfo 자리(값이 없어도 예약). subinfo 실제 Y 는 상품명 줄
+    // 수에 따라 이보다 아래로 내려가지만, 슬롯 하단은 고정이라 여기 영향 없다.
+    final double slotTop = bodyTop + qrSizeForLayout(1) + bodyV2SubInfoGap;
+    final double menuSlotTop = slotTop + fsSubInfo + bodyV2MenuGap;
+    final double optionDividerY =
+        menuSlotTop + menuSlotHeight + bodyV2MenuBottomGap;
+    final double optionStartY = optionDividerY + sectionGapTight;
+    final double detailDividerY =
+        optionStartY + optionReservedHeight + sectionGapTight;
+    // V2 는 DETAIL 타이틀을 그리지 않아 메모가 바로 온다 (최악 = 2줄).
+    final double memoBottom =
+        detailDividerY + sectionGapTight + fsDetailContent * 1.3 * 2;
+    return canvasHeight - (memoBottom + offsetY);
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -156,12 +306,10 @@ class LabelPainter extends CustomPainter {
       );
     }
 
-    double logoHeight = 0;
     if (logoImage != null) {
-      // Logo (centered)
-      logoHeight = logoW;
+      // Logo (centered) — 정사각 배치라 높이 = 폭.
       final Rect dstRect =
-          Rect.fromLTWH(size.width / 2 - logoW / 2, startY, logoW, logoHeight);
+          Rect.fromLTWH(size.width / 2 - logoW / 2, startY, logoW, logoW);
 
       canvas.drawImageRect(
         logoImage!,
@@ -184,16 +332,23 @@ class LabelPainter extends CustomPainter {
       );
     }
 
-    // Header Divider (로고 유무와 무관하게 동일 Y 로 레이아웃 안정화).
-    // V2 는 라인이 인쇄 시 잘려 보여 라인만 제거(여백 위치는 유지). V1 은 종전대로 표시.
-    final double dividerY = startY + logoW + 6;
-    if (layoutVersion != 1) {
-      canvas.drawLine(
-        Offset(defaultMargin, dividerY),
-        Offset(size.width - defaultMargin, dividerY),
-        paint..strokeWidth = 1,
-      );
-    }
+    // 헤더 높이는 실제 콘텐츠 기준 — 로고를 그리지 않는 브랜드(PAIK)는 로고 폭을
+    // 예약하지 않는다. 브랜드가 달라도 콘텐츠가 같으면 같은 Y 라 레이아웃은 안정적.
+    final double contentHeight = headerContentHeight(
+      hasLogo: logoImage != null,
+      logoWidth: logoW,
+    );
+
+    // V2 는 구분선을 그리지 않으므로(인쇄 시 잘려 보임) 여백만 두고 본문을 올린다.
+    // 여기서 아낀 세로 공간이 메뉴명 2줄 슬롯으로 간다.
+    if (layoutVersion == 1) return startY + contentHeight + headerV2BottomGap;
+
+    final double dividerY = startY + contentHeight + 6;
+    canvas.drawLine(
+      Offset(defaultMargin, dividerY),
+      Offset(size.width - defaultMargin, dividerY),
+      paint..strokeWidth = 1,
+    );
     return dividerY + spacingSectionSmall;
   }
 
@@ -210,16 +365,18 @@ class LabelPainter extends CustomPainter {
     // 1. Sub Info (with Reverse effect)
     _drawSubInfo(canvas, size, currentY);
 
-    // 2. Menu Name
-    _drawText(
+    // 2. Menu Name — V1 은 **1줄 고정**. 아래 qrTopOffset(70) 지점에서 QR 이
+    //    시작하는데 28px 2줄은 67.2 라 currentY+30 에서 그리면 QR 을 침범한다.
+    //    2줄 슬롯은 헤더를 압축해 공간을 만든 V2 에서만 쓴다.
+    _drawAutoFitText(
       canvas,
       menuName,
       Offset(size.width - defaultMargin, currentY + 30),
-      fontSize: fsMenuName,
+      baseFontSize: fsMenuName,
+      minFontSize: fsMenuNameMin,
       isBold: true,
       align: TextAlign.right,
       maxWidth: size.width - (defaultMargin * 2),
-      maxLines: 1,
     );
 
     // 3. QR Code & Order Number
@@ -233,32 +390,46 @@ class LabelPainter extends CustomPainter {
     return currentY + qrTopOffset + qrSize + spacingSectionSmall;
   }
 
-  /// V2: QR(우측 상단) + 주문번호(좌측, QR 세로중앙) → subinfo(QR 아래 우측) → 상품명(맨 아래 우측).
+  /// V2: QR(우측 상단) + 주문번호(좌측, QR 세로중앙) → [subinfo + 상품명] 덩어리
+  /// (슬롯 하단 정렬, 우측).
+  ///
+  /// subinfo 와 상품명은 같은 상품을 설명하므로 **붙여서 한 덩어리로** 다루고,
+  /// 상품명이 1줄이라 슬롯에 남는 공간은 둘 사이가 아니라 **QR 쪽(위)** 으로
+  /// 몰아준다. 종전처럼 subinfo 를 QR 바로 아래에 고정하면 1줄 상품명일 때
+  /// subinfo 가 상품명에서 떨어져 나와 QR 에 붙어 보였다.
   double _drawBodyV2(Canvas canvas, Size size, double startY) {
     // 1. QR(우측 상단) + 주문번호(좌측, QR 세로중앙)
     _drawQrAndOrderNo(canvas, size, startY,
         qrOnLeft: false, centerOrderNoToQr: true);
 
-    // 2. subinfo: QR 바로 아래, 우측정렬. 부재해도 fsSubInfo 만큼 자리를 예약해
-    //    상품명 위치를 라벨 간 고정한다(위로 당기지 않음).
-    final double subInfoY = startY + qrSize + bodyV2SubInfoGap;
-    _drawSubInfo(canvas, size, subInfoY);
+    // 2. [subinfo + 상품명] 슬롯. 높이는 실제 줄 수·폰트 크기와 무관하게 상수로
+    //    예약해 하단 섹션 Y 를 라벨 간 고정한다 — 레이아웃 회귀를 0 으로 만드는
+    //    핵심. subinfo 는 값이 없어도 fsSubInfo 만큼 자리를 남긴다.
+    final double slotTop = startY + qrSize + bodyV2SubInfoGap;
+    final double menuSlotTop = slotTop + fsSubInfo + bodyV2MenuGap;
 
-    // 3. 상품명: 맨 아래, 우측정렬. V1 메뉴명과 동일 패턴(Y만 하단으로 이동).
-    final double menuY = subInfoY + fsSubInfo + bodyV2MenuGap;
-    _drawText(
+    // 3. 상품명: 기본 크기(28)로 menuNameMaxLines 줄까지 쓰고, 그래도 넘칠 때만
+    //    fsMenuNameMin 까지 축소. 슬롯 하단 정렬이라 실제 상단 Y 는 줄 수에 따라
+    //    달라진다 — 그 값을 받아 subinfo 를 바로 위에 붙인다.
+    final double menuTop = _drawAutoFitText(
       canvas,
       menuName,
-      Offset(size.width - defaultMargin, menuY),
-      fontSize: fsMenuName,
+      Offset(size.width - defaultMargin, menuSlotTop),
+      baseFontSize: fsMenuName,
+      minFontSize: fsMenuNameMin,
       isBold: true,
       align: TextAlign.right,
       maxWidth: size.width - (defaultMargin * 2),
-      maxLines: 1,
+      maxLines: menuNameMaxLines,
+      lineHeight: menuNameLineHeight,
+      slotHeight: menuSlotHeight,
     );
 
-    // 4. 다음 섹션(옵션 구분선) 시작 Y
-    return menuY + fsMenuName + spacingSectionSmall;
+    // 4. subinfo: 상품명 바로 위. QR 에 고정하지 않는다.
+    _drawSubInfo(canvas, size, menuTop - bodyV2MenuGap - fsSubInfo);
+
+    // 5. 다음 섹션(옵션 구분선) 시작 Y — 슬롯 하단 고정.
+    return menuSlotTop + menuSlotHeight + bodyV2MenuBottomGap;
   }
 
   void _drawSubInfo(Canvas canvas, Size size, double y) {
@@ -501,7 +672,7 @@ class LabelPainter extends CustomPainter {
     // 'option' 타이틀 — V1 만 표시, V2 는 제거 후 리스트를 위로 당김.
     final double optionStartY;
     if (layoutVersion == 1) {
-      optionStartY = startY + spacingSectionSmall;
+      optionStartY = startY + sectionGapTight;
     } else {
       _drawText(canvas, optionTitleOverride ?? t.receipt.section_option,
           Offset(size.width / 2, startY + spacingSectionSmall),
@@ -509,27 +680,71 @@ class LabelPainter extends CustomPainter {
       optionStartY =
           startY + spacingSectionSmall + fsSectionTitle + spacingSectionSmall;
     }
-    double colWidth = (size.width - (defaultMargin * 2)) / 2;
+    final cells = optionCells(options.length, canvasWidth: size.width);
+    final bool overflowed = options.length > optionMaxShown;
 
-    const int maxOptionsShown = 4; // 옵션은 최대 4개까지만 표시
-    final int shown =
-        options.length > maxOptionsShown ? maxOptionsShown : options.length;
-    for (int i = 0; i < shown; i++) {
-      int row = i ~/ 2;
-      int col = i % 2;
-      double x = defaultMargin + (col * colWidth) + (col == 1 ? 10 : 0);
-      double y = optionStartY + (row * optionRowHeight);
+    for (int i = 0; i < cells.length; i++) {
+      final cell = cells[i];
+      // 초과 시 마지막 셀을 `+N` 으로 대체 — 종전엔 5번째부터 조용히 사라졌다.
+      // 로캘 무관 기호라 i18n 키를 만들지 않는다(문자 표기는 164px 셀에서 다시 잘림).
+      final bool isMoreCell = overflowed && i == cells.length - 1;
+      final String text =
+          isMoreCell ? '+${options.length - (optionMaxShown - 1)}' : options[i];
 
-      _drawText(
+      _drawAutoFitText(
         canvas,
-        options[i],
-        Offset(x, y),
-        fontSize: fsOptionItem,
-        maxWidth: colWidth - 5,
+        text,
+        Offset(cell.x, optionStartY + cell.y),
+        baseFontSize: fsOptionItem,
+        minFontSize: fsOptionItemMin,
+        maxWidth: cell.maxWidth,
       );
     }
 
-    return optionStartY + 84 + spacingSectionSmall;
+    // 예약 높이는 옵션 개수와 무관하게 고정 — 하단 섹션 Y 를 라벨 간 불변으로
+    // 유지해야 브랜드별 하단 여백이 보장된다.
+    return optionStartY + optionReservedHeight + sectionGapTight;
+  }
+
+  /// 옵션 개수에 따른 셀 배치를 계산한다 (렌더 없는 순수 함수).
+  ///
+  /// - `count <= optionSingleColumnMax`: **1열 n행**, 셀 폭 = 콘텐츠 폭(340).
+  ///   사이즈/온도/원두가 sub-info 로 빠져 실무상 옵션은 0~2개라 이 경로가
+  ///   대부분이다. 폭이 2배가 되어 수용력이 7.8자 → 16자로 늘어난다.
+  /// - 그 외: **2열 3행**, 셀 폭 164. col1 우측 끝이 구분선 끝과 정확히 일치한다.
+  ///
+  /// 반환 y 는 `optionStartY` 기준 상대값이며, `max(y) + optionRowHeight` 는
+  /// 항상 [optionReservedHeight] 이하다(하단 섹션 침범 불가).
+  @visibleForTesting
+  static List<LabelOptionCell> optionCells(
+    int count, {
+    double canvasWidth = width,
+  }) {
+    if (count <= 0) return const [];
+    final double contentWidth = canvasWidth - (defaultMargin * 2);
+
+    if (count <= optionSingleColumnMax) {
+      return List.generate(
+        count,
+        (i) => LabelOptionCell(
+          defaultMargin,
+          i * optionRowHeight,
+          contentWidth,
+        ),
+      );
+    }
+
+    final double cellWidth = (contentWidth - optionColGutter) / 2;
+    final int shown = count > optionMaxShown ? optionMaxShown : count;
+    return List.generate(shown, (i) {
+      final int row = i ~/ 2;
+      final int col = i % 2;
+      return LabelOptionCell(
+        defaultMargin + col * (cellWidth + optionColGutter),
+        row * optionRowHeight,
+        cellWidth,
+      );
+    });
   }
 
   void _drawDetail(Canvas canvas, Size size, double startY) {
@@ -545,7 +760,7 @@ class LabelPainter extends CustomPainter {
     // 'detail' 타이틀 — V1 만 표시, V2 는 제거 후 메모를 위로 당김.
     final double contentY;
     if (layoutVersion == 1) {
-      contentY = startY + spacingSectionSmall;
+      contentY = startY + sectionGapTight;
     } else {
       _drawText(
         canvas,
@@ -623,6 +838,129 @@ class LabelPainter extends CustomPainter {
     }
 
     textPainter.paint(canvas, drawOffset);
+  }
+
+  /// [maxWidth] × [maxLines] 안에 들어가는 최대 폰트 크기를 찾는다.
+  ///
+  /// **기본 크기를 먼저 쓰고, 줄 수를 다 소진한 뒤에야 축소한다.** 즉 메뉴명은
+  /// 28px 2줄까지 원본 크기로 가고 그래도 넘칠 때만 작아진다.
+  ///
+  /// base 에서 1px 씩 내리는 단순 하향 스캔이다. 탐색 범위가
+  /// `baseFontSize - minFontSize` (메뉴 8, 옵션 3) 로 좁아 최악 9회 layout 이며,
+  /// 같은 라벨의 QR 래스터화·PNG 인코딩(수십 ms)에 비하면 무시할 수준이다.
+  /// 비례 추정을 쓰지 않는 이유는 [maxLines] > 1 일 때 줄바꿈 낭비 때문에
+  /// 추정이 빗나가기 때문 — 정확성을 택했다.
+  ///
+  /// flutter test 에서는 Pretendard 가 로드되지 않아 반환값의 절대치가 폰트에
+  /// 의존한다. 테스트는 `[minFontSize, baseFontSize]` 범위·단조성만 검증할 것.
+  @visibleForTesting
+  static double fitFontSize(
+    String text, {
+    required double maxWidth,
+    required double baseFontSize,
+    required double minFontSize,
+    bool isBold = false,
+    int maxLines = 1,
+    double? lineHeight,
+  }) {
+    if (text.isEmpty || maxWidth <= 0) return baseFontSize;
+
+    bool fits(double fs) {
+      final tp = TextPainter(
+        text: TextSpan(
+          text: text,
+          style: TextStyle(
+            fontSize: fs,
+            fontWeight: isBold ? FontWeight.w600 : FontWeight.normal,
+            fontFamily: 'Pretendard',
+            height: lineHeight,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+        maxLines: maxLines,
+      )..layout(maxWidth: maxWidth);
+      // ellipsis 를 주지 않았으므로 초과 시 didExceedMaxLines 가 선다.
+      return !tp.didExceedMaxLines;
+    }
+
+    for (double fs = baseFontSize; fs > minFontSize; fs -= 1) {
+      if (fits(fs)) return fs;
+    }
+    return minFontSize;
+  }
+
+  /// 폰트 자동 축소 후 그린다. 오버플로 wrap 이 구조적으로 불가능하도록
+  /// [maxLines] 를 항상 전달한다(하한까지 줄여도 넘치면 ellipsis).
+  ///
+  /// [slotHeight] 를 주면 **슬롯 하단 정렬**. 2줄 슬롯에 1줄짜리가 오면 남는
+  /// 한 줄이 위쪽으로 몰린다 — 호출부가 그 위에 subinfo 를 붙여 [상품명+subinfo]
+  /// 한 덩어리를 슬롯 아래쪽에 정렬하기 위한 것이다(중앙 정렬은 subinfo 와
+  /// 상품명 사이가 벌어져 subinfo 가 QR 에 붙어 보였다).
+  /// 주지 않으면 축소분의 절반만큼 내려 원래 폰트 슬롯의 세로 중앙에 맞춘다
+  /// (`_drawText` 가 dy 를 텍스트 박스 top 으로 쓰기 때문에 필요한 보정 —
+  /// `centerOrderNoToQr` 와 같은 패턴).
+  ///
+  /// 실제로 텍스트를 그린 상단 Y 를 반환한다 — 호출부가 그 위에 다른 요소를
+  /// 붙일 수 있도록.
+  double _drawAutoFitText(
+    Canvas canvas,
+    String text,
+    Offset offset, {
+    required double baseFontSize,
+    required double minFontSize,
+    required double maxWidth,
+    bool isBold = false,
+    TextAlign align = TextAlign.left,
+    int maxLines = 1,
+    double? lineHeight,
+    double? slotHeight,
+  }) {
+    final double fs = fitFontSize(
+      text,
+      maxWidth: maxWidth,
+      baseFontSize: baseFontSize,
+      minFontSize: minFontSize,
+      isBold: isBold,
+      maxLines: maxLines,
+      lineHeight: lineHeight,
+    );
+
+    final double dy;
+    if (slotHeight != null) {
+      // 실제 렌더 높이를 재서 슬롯 중앙에 놓는다. lineHeight 를 명시한 경우
+      // 높이가 fontSize × lineHeight × 줄수로 결정돼 폰트 메트릭에 흔들리지 않는다.
+      final probe = TextPainter(
+        text: TextSpan(
+          text: text,
+          style: TextStyle(
+            fontSize: fs,
+            fontWeight: isBold ? FontWeight.w600 : FontWeight.normal,
+            fontFamily: 'Pretendard',
+            height: lineHeight,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+        textAlign: align,
+        maxLines: maxLines,
+        ellipsis: '...',
+      )..layout(maxWidth: maxWidth);
+      dy = offset.dy + (slotHeight - probe.height);
+    } else {
+      dy = offset.dy + (baseFontSize - fs) * _fitVerticalCenterFactor;
+    }
+
+    _drawText(
+      canvas,
+      text,
+      Offset(offset.dx, dy),
+      fontSize: fs,
+      isBold: isBold,
+      align: align,
+      maxWidth: maxWidth,
+      maxLines: maxLines,
+      height: lineHeight,
+    );
+    return dy;
   }
 
   @override
@@ -724,4 +1062,17 @@ class _SubInfoItem {
   final bool isHighlighted;
 
   _SubInfoItem({required this.text, required this.isHighlighted});
+}
+
+/// 라벨 옵션 셀 1개의 배치 — 좌상단 좌표 + 허용 폭.
+///
+/// [y] 는 옵션 영역 시작(`optionStartY`) 기준 상대값이다.
+/// `LabelPainter.optionCells` 가 생성하며, 렌더와 분리된 순수 값이라
+/// 폰트 로딩 없이 단위 테스트로 기하학을 고정할 수 있다.
+class LabelOptionCell {
+  final double x;
+  final double y;
+  final double maxWidth;
+
+  const LabelOptionCell(this.x, this.y, this.maxWidth);
 }

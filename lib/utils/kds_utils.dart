@@ -17,7 +17,7 @@ bool _isSimpleOrder(int menuCount, int totalOptions) {
 double _calculateComplexityScore(int menuCount, int totalOptions) {
   // 가중치 설정
   const double menuWeight = 25.0; // 메뉴 1개당 25점
-  const double optionWeight = 25.0; // 옵션 1개당 8점
+  const double optionWeight = 25.0; // 옵션 1개당 25점
   const double dividerWeight = 5.0; // 메뉴 구분선 1개당 5점
   // 기본 점수 계산
   double baseScore = (menuCount * menuWeight) + (totalOptions * optionWeight);

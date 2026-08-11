@@ -7,6 +7,7 @@ import 'package:appfit_order_agent/i18n/strings.g.dart';
 import 'package:appfit_order_agent/models/order_menu_model.dart';
 import 'package:appfit_order_agent/models/order_model.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
+import 'package:appfit_order_agent/utils/common_util.dart';
 import 'package:appfit_order_agent/widgets/kds/kds_card_metrics.dart';
 
 /// 단일 메뉴 줄 + 옵션 목록 표시.
@@ -26,11 +27,6 @@ class KdsMenuItemWidget extends StatelessWidget {
     required this.menuIndex,
   });
 
-  static String _truncate(String name) {
-    if (name.length <= KdsCardMetrics.maxMenuNameLength) return name;
-    return '${name.substring(0, KdsCardMetrics.maxMenuNameLength)}...';
-  }
-
   @override
   Widget build(BuildContext context) {
     // 색상/취소선은 한 번만 계산해 모든 텍스트가 공유한다.
@@ -38,10 +34,35 @@ class KdsMenuItemWidget extends StatelessWidget {
     final textColor = muted ? AppStyles.gray6 : Colors.black;
     final textDecoration =
         muted ? TextDecoration.lineThrough : TextDecoration.none;
-    final baseStyle = TextStyle(
-      fontSize: AppStyles.kOrderCardTimeSize,
+
+    // 메뉴명: 검정 (muted 시 gray6 + 취소선). 굵기는 종전대로 normal —
+    // 옵션명이 한 단계 작고 gray6 이라 위계는 그것만으로 충분하다.
+    final menuStyle = TextStyle(
+      fontSize: KdsCardMetrics.menuFontSize,
+      fontWeight: FontWeight.normal,
       color: textColor,
       decoration: textDecoration,
+      height: 1.25, // 2줄 wrap 행간
+    );
+    // 수량: 메뉴명과 같은 크기·굵기 + 브랜드 컬러.
+    // 긴 메뉴명이 2줄로 늘어나 수량과 맞닿으면 같은 검정끼리 뭉쳐 읽기 어렵다.
+    // 색으로 경계를 만들되, muted(체크/취소)일 땐 gray6 으로 내려
+    // '처리됨' 신호(회색 + 취소선)를 흐리지 않는다.
+    final qtyStyle = menuStyle.copyWith(
+      color: muted ? AppStyles.gray6 : AppStyles.kMainColor,
+    );
+    // 옵션: 한 단계 작게 + 항상 gray6 (주문 상세와 동일). muted 신호는
+    // 취소선이 전담한다 — 메뉴명 색 변화가 이미 상태를 알리고 있다.
+    final optionStyle = TextStyle(
+      fontSize: KdsCardMetrics.optionFontSize,
+      fontWeight: FontWeight.normal,
+      color: AppStyles.gray6,
+      decoration: textDecoration,
+      height: 1.2,
+    );
+    // 옵션 수량도 메뉴 수량과 같은 규칙 (옵션명과 수량이 둘 다 gray6 이라 동일 문제).
+    final optionQtyStyle = optionStyle.copyWith(
+      color: muted ? AppStyles.gray6 : AppStyles.kMainColor,
     );
 
     return GestureDetector(
@@ -56,16 +77,23 @@ class KdsMenuItemWidget extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              // 메뉴명이 2줄일 때 수량이 세로 중앙에 뜨지 않고 첫 줄에 붙게 한다.
+              // 메뉴/수량 fontSize 가 같아 start 가 곧 첫 줄 baseline 정렬이다.
+              // (CrossAxisAlignment.baseline 은 textBaseline 미지정 시 assert 로
+              //  카드가 통째로 사라지므로 쓰지 않는다.)
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
                   child: Text(
-                    _truncate(menu.itemName.replaceAll('\\n', '')),
-                    style: baseStyle,
-                    maxLines: 1,
+                    CommonUtil.normalizeInlineText(menu.itemName),
+                    style: menuStyle,
+                    maxLines: KdsCardMetrics.menuNameMaxLines,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                Text(t.kds.item_qty(n: menu.qty), style: baseStyle),
+                // 색만으로는 2줄 메뉴명의 끝 글자와 바로 붙어 보여 간격도 함께 넓힌다.
+                const SizedBox(width: AppSpacing.s8),
+                Text(t.kds.item_qty(n: menu.qty), style: qtyStyle),
               ],
             ),
             if (menu.options.isNotEmpty)
@@ -80,22 +108,36 @@ class KdsMenuItemWidget extends StatelessWidget {
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 2),
                       child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(
-                            child: Text(
-                              '- ${option.optionName}',
-                              style: baseStyle,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                          const Padding(
+                            padding: EdgeInsets.only(
+                              top: KdsCardMetrics.optionIconTopNudge,
+                            ),
+                            child: Icon(
+                              Icons.subdirectory_arrow_right,
+                              size: KdsCardMetrics.optionIconSize,
+                              color: AppStyles.gray6,
                             ),
                           ),
                           const SizedBox(width: AppSpacing.s4),
-                          Text(
-                            option.qty == 1
-                                ? ''
-                                : t.kds.item_qty(n: option.qty),
-                            style: baseStyle,
+                          Expanded(
+                            child: Text(
+                              CommonUtil.normalizeInlineText(option.optionName),
+                              style: optionStyle,
+                              maxLines: KdsCardMetrics.optionNameMaxLines,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
+                          // qty 가 1 이면 빈 Text + SizedBox 를 아예 만들지 않아
+                          // 옵션 가용폭을 되찾는다(종전엔 항상 생성했다).
+                          if (option.qty > 1) ...[
+                            const SizedBox(width: AppSpacing.s8),
+                            Text(
+                              t.kds.item_qty(n: option.qty),
+                              style: optionQtyStyle,
+                            ),
+                          ],
                         ],
                       ),
                     );
