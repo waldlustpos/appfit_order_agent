@@ -61,3 +61,4 @@
 - [부팅 후 첫 라벨 연결오류 → Android warm-up](project_android_label_warmup.md) — 원인=USB 권한 승인 사이클을 첫 주문이 지불. warmup으로 시작 창에 이관, 실기기 검증 완료. 검증기는 Android 11 (2026-08-10)
 - [SNI 문자열로 선택적 차단](reference_tls_sni_selective_block.md) — 같은 IP 공유 서비스를 iptables `-m string` 으로 분리. 교란 변수 제거용 검증 기법.
 - [주문 상세 결제수단별 금액 표시](project_order_payment_breakdown.md) — 서버가 이미 주던 payments[] 등 파싱 + 상세필드 유실 버그(withDetailsFrom) 수정. 실기기 검증 대기 (2026-08-10)
+- [설치 가이드 기기별 트랙](project_install_guide_device_tracks.md) — T2mini/D3mini 권한 순서 상이. .hl % 좌표는 부모 기준 → 캡션 추가 시 밀림 (2026-08-11)
