@@ -109,6 +109,7 @@ class _Translations$login$ja extends Translations$login$ko {
 	@override String get auto_login_no_id => '保存された店舗IDがないため、自動ログインをスキップします。';
 	@override String get auto_login_fail_no_pw => '自動ログイン失敗：保存されたパスワードがないか空です。(初回は手動ログインが必要です)';
 	@override late final _Translations$login$tabs$ja tabs = _Translations$login$tabs$ja._(_root);
+	@override late final _Translations$login$kds_notice$ja kds_notice = _Translations$login$kds_notice$ja._(_root);
 	@override late final _Translations$login$overlay_permission$ja overlay_permission = _Translations$login$overlay_permission$ja._(_root);
 }
 
@@ -492,6 +493,17 @@ class _Translations$login$tabs$ja extends Translations$login$tabs$ko {
 	// Translations
 	@override String get order => '注文受付';
 	@override String get kitchen => 'キッチン(KDS)';
+}
+
+// Path: login.kds_notice
+class _Translations$login$kds_notice$ja extends Translations$login$kds_notice$ko {
+	_Translations$login$kds_notice$ja._(TranslationsJa root) : this._root = root, super.internal(root);
+
+	final TranslationsJa _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'キッチン(KDS)単独運用のご案内';
+	@override String get content => 'キッチン(KDS)は既定では新規注文を直接受信せず、表示のみを行います。\nレジ受付端末なしでKDSのみで運用する場合は、ログイン後に設定 > モード設定で「注文受付」をONにしてください。\n他の注文受付プログラムと重複して使用しないようご確認ください。';
 }
 
 // Path: login.overlay_permission

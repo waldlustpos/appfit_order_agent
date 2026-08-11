@@ -415,6 +415,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     });
   }
 
+  /// 주방모니터 탭 선택 시 '주문 접수' 설정 안내.
+  ///
+  /// KDS 모드는 KEY_KDS_ACCEPT_ORDERS 가 OFF(기본값)면 신규 주문을 직접 수신하지
+  /// 않으므로, 주방모니터 단독 운영 매장은 로그인 후 설정에서 이 토글을 켜야 한다.
+  /// 안내만 하고 모드 선택은 되돌리지 않는다.
+  Future<void> _showKdsModeNotice() async {
+    if (!mounted) return;
+    logger.i('[LoginScreen] 주방모니터 모드 선택 - 주문 접수 설정 안내 표시');
+    await CommonDialog.showInfoDialog(
+      context: context,
+      title: t.login.kds_notice.title,
+      content: t.login.kds_notice.content,
+    );
+  }
+
   Future<void> _login({bool isAutoAttempt = false}) async {
     logToFile(tag: LogTag.API, message: '로그인시도');
 
@@ -804,6 +819,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                 isKdsMode: _isKdsMode,
                 onChanged: (isKds) {
                   setState(() => _isKdsMode = isKds);
+                  if (isKds) {
+                    _showKdsModeNotice();
+                  }
                 },
               ),
             ],

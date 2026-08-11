@@ -52,6 +52,10 @@
             "order": "Reception",
             "kitchen": "KDS"
         },
+        "kds_notice": {
+            "title": "KDS Standalone Operation",
+            "content": "By default, the KDS only displays orders and does not receive new orders directly.\nTo run the store with the KDS alone (without a separate reception device), turn on 'Accept Orders' in Settings > Mode Settings after logging in.\nMake sure it is not used together with another order reception program."
+        },
         "overlay_permission": {
             "title": "Permission Required",
             "content": "\"Display over other apps\" permission is required for minimize feature.\nSettings now?",

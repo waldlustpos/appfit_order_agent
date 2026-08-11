@@ -109,6 +109,7 @@ class _Translations$login$en extends Translations$login$ko {
 	@override String get auto_login_no_id => 'No saved Store ID, skipping auto login.';
 	@override String get auto_login_fail_no_pw => 'Auto login failed: No saved password. (Manual login required once)';
 	@override late final _Translations$login$tabs$en tabs = _Translations$login$tabs$en._(_root);
+	@override late final _Translations$login$kds_notice$en kds_notice = _Translations$login$kds_notice$en._(_root);
 	@override late final _Translations$login$overlay_permission$en overlay_permission = _Translations$login$overlay_permission$en._(_root);
 }
 
@@ -501,6 +502,17 @@ class _Translations$login$tabs$en extends Translations$login$tabs$ko {
 	// Translations
 	@override String get order => 'Reception';
 	@override String get kitchen => 'KDS';
+}
+
+// Path: login.kds_notice
+class _Translations$login$kds_notice$en extends Translations$login$kds_notice$ko {
+	_Translations$login$kds_notice$en._(TranslationsEn root) : this._root = root, super.internal(root);
+
+	final TranslationsEn _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'KDS Standalone Operation';
+	@override String get content => 'By default, the KDS only displays orders and does not receive new orders directly.\nTo run the store with the KDS alone (without a separate reception device), turn on \'Accept Orders\' in Settings > Mode Settings after logging in.\nMake sure it is not used together with another order reception program.';
 }
 
 // Path: login.overlay_permission

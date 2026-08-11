@@ -173,6 +173,7 @@ class Translations$login$ko {
 	String get auto_login_fail_no_pw => '자동 로그인 실패: 저장된 비밀번호가 없습니다. (최초 1회 수동 로그인 필요)';
 
 	late final Translations$login$tabs$ko tabs = Translations$login$tabs$ko.internal(_root);
+	late final Translations$login$kds_notice$ko kds_notice = Translations$login$kds_notice$ko.internal(_root);
 	late final Translations$login$overlay_permission$ko overlay_permission = Translations$login$overlay_permission$ko.internal(_root);
 }
 
@@ -912,6 +913,21 @@ class Translations$login$tabs$ko {
 
 	/// ko: '주방모니터'
 	String get kitchen => '주방모니터';
+}
+
+// Path: login.kds_notice
+class Translations$login$kds_notice$ko {
+	Translations$login$kds_notice$ko.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// ko: '주방모니터 단독 운영 안내'
+	String get title => '주방모니터 단독 운영 안내';
+
+	/// ko: '주방모니터(KDS)는 기본적으로 신규 주문을 직접 수신하지 않고 보기만 합니다. 카운터 접수 기기 없이 주방모니터만으로 운영하려면, 로그인 후 설정 > 모드 설정에서 '주문 접수'를 ON 해야 합니다. 다른 주문 접수 프로그램과 중복 사용되지 않도록 확인해주세요.'
+	String get content => '주방모니터(KDS)는 기본적으로 신규 주문을 직접 수신하지 않고 보기만 합니다.\n카운터 접수 기기 없이 주방모니터만으로 운영하려면, 로그인 후 설정 > 모드 설정에서 \'주문 접수\'를 ON 해야 합니다.\n다른 주문 접수 프로그램과 중복 사용되지 않도록 확인해주세요.';
 }
 
 // Path: login.overlay_permission
