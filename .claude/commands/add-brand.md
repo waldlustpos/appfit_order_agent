@@ -191,6 +191,9 @@ catch-all(appfit-alert-test)로 흡수되므로 **스킵**한다. 전용 채널�
 ```
    - 브랜드 전체를 한 채널로(권장): `match: "sw"` + 4자 prefix.
    - 특정 매장만: `match: "eq"` + 정확한 store_id.
+   - 운영 서버 이벤트만 받고 싶으면 `"environment": "<브랜드 serverEnvironment>"`(선택) 추가.
+     스크립트가 `[auto] <PREFIX>(non-<env>) -> #<catchall 채널>` spillover 규칙을 함께 만들어
+     나머지 환경(staging 등)을 흘려보낸다. 사내 QA 매장이 많은 브랜드에 유용(MHST 선례).
 2. 적용(멱등):
 ```bash
 python3 sentry_alerts/sentry_alerts.py apply --dry-run   # payload 확인(토큰 불필요)

@@ -8,9 +8,15 @@ Issue Alert 규칙을 routes.json 대로 **멱등** 생성/갱신한다. Claude 
 ## 라우팅 모델 (routes.json)
 - branded[]  : 각 항목이 규칙 1개. `IF store_id <match> <value>` 를 만족하는
                이벤트를 전용 채널로 보낸다. (예: TPCP00001 -> appfit-alert-tpc)
+               선택 필드 `environment` 를 주면 그 서버 환경(live/japanLive/staging)
+               으로만 좁힌다. (예: MHST 는 KR live 만 브랜드 채널로)
 - catchall    : branded 어디에도 안 걸린 나머지 전부를 받는 규칙 1개.
                branded 각 항목의 **부정 필터**(eq→ne, sw→nsw ...)를 `all` 로
                누적해 "branded 제외 전부" 를 표현한다. (예: -> appfit-alert-test)
+- spillover   : `environment` 로 좁힌 branded 항목의 **나머지 환경**을 catchall
+               채널로 보내는 파생 규칙(스크립트가 자동 생성). catchall 은 브랜드를
+               store_id 로 통째 제외하므로, 이게 없으면 그 이벤트들이 어느 규칙에도
+               안 걸려 무음 폐기된다.
 - legacy      : 정리 대상 구(舊) 규칙 id (delete-legacy 로 제거).
 
 각 규칙 이름은 `"[auto] <label> -> #<channel>"` 규약으로, 재실행 시 이름으로
@@ -124,6 +130,10 @@ def load_routes():
         if r["match"] not in NEGATE_MATCH:
             die(f"branded[{i}] match '{r['match']}' 미지원 "
                 f"(허용: {sorted(NEGATE_MATCH)}).")
+        env = r.get("environment")
+        if env is not None and (not isinstance(env, str) or not env.strip()):
+            die(f"branded[{i}] environment 는 비어있지 않은 문자열이어야 합니다 "
+                "(생략하면 전체 환경).")
     return cfg
 
 
@@ -228,19 +238,50 @@ def slack_action(cfg, route):
 
 
 def branded_payload(cfg, route):
-    """전용 채널 규칙: store_id <match> value 를 만족하면 해당 채널로."""
+    """전용 채널 규칙: store_id <match> value 를 만족하면 해당 채널로.
+
+    route 에 `environment` 가 있으면 그 서버 환경으로만 좁힌다(나머지 환경은
+    spillover_payload 가 받는다). 없으면 전체 환경.
+    """
     return {
         "name": f"{NAME_PREFIX} {route['label']} -> #{route['channel']}",
         "actionMatch": "any",
         "filterMatch": "all",
         "frequency": int(cfg["frequency"]),
-        "environment": None,
+        "environment": route.get("environment"),   # None = 전체 환경
         "conditions": when_conditions(cfg),
         "filters": [{
             "id": TAGGED_FILTER, "key": "store_id",
             "match": route["match"], "value": route["value"],
         }],
         "actions": [slack_action(cfg, route)],
+    }
+
+
+def spillover_payload(cfg, route):
+    """environment 로 좁힌 branded 규칙의 '나머지 환경' 을 catchall 채널로 보낸다.
+
+    catch-all 은 store_id 부정 필터로 브랜드를 **통째** 제외하므로, 이 규칙이 없으면
+    다른 환경의 이벤트가 branded 에도 catch-all 에도 안 걸려 무음 폐기된다.
+    규칙 레벨 environment 는 부정을 표현할 수 없어 environment **태그** 필터(ne)를 쓴다
+    (appfit_core MonitoringService 가 options.environment 와 동명 태그를 함께 심는다).
+    """
+    ca = cfg["catchall"]
+    env = route["environment"]
+    return {
+        "name": f"{NAME_PREFIX} {route['label']}(non-{env}) -> #{ca['channel']}",
+        "actionMatch": "any",
+        "filterMatch": "all",
+        "frequency": int(cfg["frequency"]),
+        "environment": None,
+        "conditions": when_conditions(cfg),
+        "filters": [
+            {"id": TAGGED_FILTER, "key": "store_id",
+             "match": route["match"], "value": route["value"]},
+            {"id": TAGGED_FILTER, "key": "environment", "match": "ne",
+             "value": env},
+        ],
+        "actions": [slack_action(cfg, ca)],
     }
 
 
@@ -265,8 +306,13 @@ def catchall_payload(cfg):
 
 
 def desired_payloads(cfg):
-    return [branded_payload(cfg, r) for r in cfg["branded"]] + \
-        [catchall_payload(cfg)]
+    out = []
+    for r in cfg["branded"]:
+        out.append(branded_payload(cfg, r))
+        if r.get("environment"):
+            out.append(spillover_payload(cfg, r))
+    out.append(catchall_payload(cfg))
+    return out
 
 
 # ---------------------------------------------------------------- 연결
@@ -354,21 +400,26 @@ def _apply_one(api, payload, by_name, dry):
     return False
 
 
+def _breakdown(cfg):
+    spill = sum(1 for r in cfg["branded"] if r.get("environment"))
+    return (f"branded {len(cfg['branded'])}"
+            + (f" + spillover {spill}" if spill else "")
+            + " + catch-all 1")
+
+
 def cmd_apply(args):
     if args.dry_run:
         # DRY RUN 은 토큰/네트워크 없이 routes.json -> payload 만 검증한다.
         cfg = load_routes()
         payloads = desired_payloads(cfg)
-        info(f"{len(payloads)}개 규칙 (branded {len(cfg['branded'])} "
-             f"+ catch-all 1) — DRY RUN")
+        info(f"{len(payloads)}개 규칙 ({_breakdown(cfg)}) — DRY RUN")
         for p in payloads:
             _apply_one(None, p, {}, True)
         return
     api, cfg = connect(check=True)
     by_name = _index_by_name(api.list_rules())
     payloads = desired_payloads(cfg)
-    info(f"{len(payloads)}개 규칙 적용 "
-         f"(branded {len(cfg['branded'])} + catch-all 1)")
+    info(f"{len(payloads)}개 규칙 적용 ({_breakdown(cfg)})")
     ok = sum(_apply_one(api, p, by_name, False) for p in payloads)
     info(f"완료 — 성공 {ok}/{len(payloads)}")
     if ok != len(payloads):

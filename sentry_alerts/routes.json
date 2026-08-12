@@ -27,6 +27,14 @@
       "value": "TLJP",
       "channel": "appfit-alert-tljp",
       "channel_id": "C0BMQCJMB62"
+    },
+    {
+      "label": "MHST",
+      "match": "sw",
+      "value": "MHST",
+      "environment": "live",
+      "channel": "appfit-alert-mhst",
+      "channel_id": "C0BPSFVEM9S"
     }
   ],
   "catchall": {

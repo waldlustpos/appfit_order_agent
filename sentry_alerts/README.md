@@ -13,8 +13,12 @@ API 로 재현 가능하게 만든다. `add-brand` 스킬이 이 스크립트를
 ## 라우팅 모델
 
 - **branded[]** — 각 항목 = 규칙 1개. `IF store_id <match> <value>` 이면 전용 채널로.
+  선택 필드 `environment`(`live`/`japanLive`/`staging`)로 그 서버 환경만 좁힐 수 있다.
 - **catchall** — branded 어디에도 안 걸린 나머지 전부. 스크립트가 branded 각 항목의
   **부정 필터**(`eq→ne`, `sw→nsw`, `ew→new`, `co→nc`)를 `all` 로 누적해 자동 구성.
+- **spillover**(자동) — `environment` 로 좁힌 branded 항목의 **나머지 환경**을 catchall
+  채널로 보내는 파생 규칙. catchall 은 `store_id` 로 브랜드를 통째 제외하므로, 이게
+  없으면 그 이벤트가 어느 규칙에도 안 걸려 **무음 폐기**된다. 규칙명 `<LABEL>(non-<env>)`.
 - **legacy** — 정리 대상 구 규칙 id(`delete-legacy` 로 제거).
 
 규칙 이름은 `"[auto] <label> -> #<channel>"` 규약. 재실행 시 이름으로 기존 규칙을
@@ -23,10 +27,14 @@ API 로 재현 가능하게 만든다. `add-brand` 스킬이 이 스크립트를
 
 현재 정본(`routes.json`) 요약:
 
-| 규칙 | 필터 | 채널 |
-|---|---|---|
-| branded | `store_id == TPCP00001` | appfit-alert-tpc (C0B02RCJSJ0) |
-| catch-all | `store_id != TPCP00001` | appfit-alert-test (C0AV9RDTTT7) |
+| 규칙 | 필터 | 환경 | 채널 |
+|---|---|---|---|
+| branded | `store_id == TPCP00001` | 전체 | appfit-alert-tpc (C0B02RCJSJ0) |
+| branded | `store_id sw PAIK` | 전체 | appfit-alert-paik (C0BM48A7PUP) |
+| branded | `store_id sw TLJP` | 전체 | appfit-alert-tljp (C0BMQCJMB62) |
+| branded | `store_id sw MHST` | **live** | appfit-alert-mhst (C0BPSFVEM9S) |
+| spillover(자동) | `store_id sw MHST` + `environment ne live` | 전체 | appfit-alert-test (C0AV9RDTTT7) |
+| catch-all | 위 branded 4개를 `store_id` 로 전부 제외 | 전체 | appfit-alert-test (C0AV9RDTTT7) |
 
 > WHEN(트리거)=`when: "every"`(빈 conditions = **모든 이벤트마다 발화**, Sentry 사양),
 > 모든 환경, 액션 간격 5분.
@@ -50,14 +58,14 @@ API 로 재현 가능하게 만든다. `add-brand` 스킬이 이 스크립트를
 | 키 | 값 | 예 |
 |---|---|---|
 | `store_id` | 매장코드(태그) | `MHST00084` |
-| `user.username` | 매장명(user context) | `익스프레스 본사 테스트` |
-| `user.id` | 매장코드(user context) | `MHST00084` |
+| `store_name` | 매장명(태그) | `익스프레스 본사 테스트` |
+| `user.username` / `user.id` | 매장명 / 매장코드(user context) | 〃 |
 | `environment` / `level` | 서버 / 심각도 | `staging` / `error` |
 
-기본값 `"store_id, user.username, environment, level"` → 매장코드+매장명이 바로 노출.
-**앱 변경 불필요**(기존/미래 모든 이벤트에 이미 존재). 매장명을 `store_name` 이라는
-깔끔한 라벨로 바꾸려면 appfit_core `MonitoringService` 에 `scope.setTag('store_name', ...)`
-추가가 필요하나(코어 릴리즈+앱 재배포 필요), `user.username` 로 충분하면 불필요.
+현재 정본 `"store_id, store_name, environment, level"` → 매장코드+매장명이 바로 노출.
+**앱 변경 불필요** — `store_name` 태그는 appfit_core v1.0.16 `MonitoringService`
+(`_applyScope` / `updateStoreInfo`)에서 이미 심는다. 태그가 없던 시절 이벤트는
+`user.username` 으로만 보이므로, 과거 이벤트를 볼 땐 그쪽을 참고.
 
 ## 준비 (1회) — Sentry Auth Token
 
@@ -109,14 +117,19 @@ python3 sentry_alerts/sentry_alerts.py delete-legacy    # legacy 규칙 삭제
 수동으로 추가하려면 `routes.json` 의 `branded[]` 에 항목을 넣고 `apply`:
 
 ```jsonc
-{ "label": "MHST", "match": "sw", "value": "MHST",   // 브랜드 전체(prefix)
-  "channel": "appfit-alert-mammoth", "channel_id": "C0XXXXXXXXX" }
+{ "label": "MATA", "match": "sw", "value": "MATA",   // 브랜드 전체(prefix)
+  "environment": "live",                             // 선택 — 생략하면 전체 환경
+  "channel": "appfit-alert-mata", "channel_id": "C0XXXXXXXXX" }
 ```
 
 - 단일 매장이면 `"match": "eq"` + 정확한 store_id.
 - 브랜드 전체면 `"match": "sw"` + 4자 prefix(TPCP/MHST/MATA/PAIK...).
+- `environment` 를 주면 운영 서버 이벤트만 브랜드 채널로 가고, 나머지 환경은
+  spillover 규칙이 catchall 채널로 보낸다. staging 노이즈가 큰 브랜드에 유용
+  (MHST 실측: 30일 staging 404 / live 40).
 
-`apply` 가 새 branded 규칙을 만들고 **catch-all 의 제외 필터를 자동 갱신**한다.
+`apply` 가 새 branded 규칙(+필요 시 spillover)을 만들고
+**catch-all 의 제외 필터를 자동 갱신**한다.
 
 ## 주의
 

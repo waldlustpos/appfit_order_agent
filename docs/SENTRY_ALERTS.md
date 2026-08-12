@@ -17,12 +17,21 @@ Sentry Issue Alert 라우팅. 규칙은 대시보드 수동이 아니라
 
 ## 현재 라우팅 (routes.json)
 
-| 규칙 | 필터 | 채널 |
-|---|---|---|
-| `[auto] TPCP00001 -> #appfit-alert-tpc` | `store_id == TPCP00001` | appfit-alert-tpc (C0B02RCJSJ0) |
-| `[auto] PAIK -> #appfit-alert-paik` | `store_id sw PAIK` | appfit-alert-paik (C0BM48A7PUP) |
-| `[auto] TLJP -> #appfit-alert-tljp` | `store_id sw TLJP` | appfit-alert-tljp (C0BMQCJMB62) |
-| `[auto] catch-all -> #appfit-alert-test` | `store_id != TPCP00001` (+ PAIK, TLJP 제외) | appfit-alert-test (C0AV9RDTTT7) |
+| 규칙 | 필터 | 환경 | 채널 |
+|---|---|---|---|
+| `[auto] TPCP00001 -> #appfit-alert-tpc` | `store_id == TPCP00001` | 전체 | appfit-alert-tpc (C0B02RCJSJ0) |
+| `[auto] PAIK -> #appfit-alert-paik` | `store_id sw PAIK` | 전체 | appfit-alert-paik (C0BM48A7PUP) |
+| `[auto] TLJP -> #appfit-alert-tljp` | `store_id sw TLJP` | 전체 | appfit-alert-tljp (C0BMQCJMB62) |
+| `[auto] MHST -> #appfit-alert-mhst` | `store_id sw MHST` | **live** | appfit-alert-mhst (C0BPSFVEM9S) |
+| `[auto] MHST(non-live) -> #appfit-alert-test` | `store_id sw MHST` + `environment ne live` | 전체 | appfit-alert-test (C0AV9RDTTT7) |
+| `[auto] catch-all -> #appfit-alert-test` | `store_id != TPCP00001` (+ PAIK, TLJP, MHST 제외) | 전체 | appfit-alert-test (C0AV9RDTTT7) |
+
+**MHST 만 `environment: "live"` 로 좁힌 이유** — MHST 는 사내 QA 브랜드(`MHST00084` 본사 테스트,
+`MHST01070~` 온보딩)라 실측상 staging 이 압도적이다(30일 기준 staging 404 / live 40 / japanLive 19).
+전체 환경으로 열면 브랜드 채널의 90% 이상이 개발·테스트 노이즈가 된다.
+`[auto] MHST(non-live)` 는 그 **잔여 환경을 받아주는 spillover** — catch-all 은 `store_id` 로 브랜드를
+통째 제외하므로 이 규칙이 없으면 MHST staging/japanLive 이벤트가 어느 규칙에도 안 걸려 **무음 폐기**된다.
+스크립트가 `environment` 가 있는 branded 항목마다 자동 생성한다.
 
 - WHEN(트리거): `when: "every"` — 빈 conditions = **모든 이벤트마다 발화**(Sentry 사양상
   트리거 미지정 = 모든 이벤트 충족). `actionMatch=any`. 모든 환경. 액션 간격 5분.
@@ -30,9 +39,10 @@ Sentry Issue Alert 라우팅. 규칙은 대시보드 수동이 아니라
   전부 알림. (반대로 스팸을 줄이려면 `when: "new"` = 새 이슈+재발만.)
 - catch-all 은 branded 각 항목의 **부정 필터**(`eq→ne`, `sw→nsw`...)를 `all` 로 누적해
   "branded 제외 전부"를 표현 — 스크립트가 자동 구성한다.
-- Slack 메시지 표시 태그(`slack_tags`): 기본 `store_id, user.username, environment, level`
-  → **매장코드(`store_id`=MHST00084) + 매장명(`user.username`=익스프레스 본사 테스트)**
-  이 메시지에 바로 노출. 앱은 이미 이 값들을 심으므로 **앱 변경 불필요**.
+- Slack 메시지 표시 태그(`slack_tags`): 현재 `store_id, store_name, environment, level`
+  → **매장코드(`store_id`=MHST00084) + 매장명(`store_name`=익스프레스 본사 테스트)**
+  이 메시지에 바로 노출. 두 태그 모두 appfit_core `MonitoringService` 가 심으므로
+  **앱 변경 불필요**(`store_name` 태그는 v1.0.16 에서 추가됨).
 
 ## 운영 방법
 
@@ -53,6 +63,10 @@ python3 sentry_alerts/sentry_alerts.py delete-legacy # 구 규칙 정리
 `add-brand` 스킬 STEP 5(선택)가 "브랜드 전용 채널 ID" 입력을 받으면
 `routes.json` 의 `branded[]` 에 `{match:"sw", value:"<PREFIX>", channel_id}` 를 추가하고
 `apply` 를 실행한다. 새 branded 규칙이 생기고 catch-all 제외 필터가 자동 갱신된다.
+
+특정 서버 환경만 브랜드 채널로 받고 싶으면 `"environment": "live"`(선택)를 함께 넣는다.
+그러면 스크립트가 `[auto] <LABEL>(non-live) -> #<catchall 채널>` spillover 규칙을 자동으로
+같이 만들어 나머지 환경을 흘려보낸다(무음 폐기 방지). 생략하면 전체 환경.
 
 ## 주의
 
