@@ -163,7 +163,10 @@ void main() {
       final s = e.toString();
       expect(s, contains('A1'));
       expect(s, contains('ORDER_CREATED'));
-      expect(s, contains('socket'));
+      // source 는 슬랙 제목용으로 우리말로 옮겨진다 — 원문 'socket' 이 아니라
+      // 매핑된 표기가 나와야 한다. 문구 전체 고정은
+      // test/exceptions/label_and_detail_titles_test.dart 참고.
+      expect(s, contains('실시간 수신'));
     });
   });
 }

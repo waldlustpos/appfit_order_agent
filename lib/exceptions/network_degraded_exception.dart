@@ -1,3 +1,5 @@
+import 'package:appfit_order_agent/core/net/net_report_format.dart';
+
 /// 매장 HTTP 열화(degraded) 진입을 Sentry 로 알리기 위한 전용 예외.
 ///
 /// **throw 되지 않는다** — `MonitoringService.captureError` 의 인자로만 쓰인다.
@@ -30,7 +32,22 @@ class NetworkDegradedException implements Exception {
   /// 타임스탬프의 차로 계산한다(클라이언트에서 계산해 싣지 않는다).
   final DateTime? lastSuccessAt;
 
+  /// Sentry 이슈 제목이자 슬랙 알림 제목.
+  ///
+  /// **마지막 정상 통신 시각을 반드시 넣는다.** 이 이벤트는 네트워크가 죽은
+  /// 상태에서 만들어져 앱이 재시작돼야 서버에 도착한다 — 2026-08-11
+  /// PAIK00002 는 21:09 발생분이 다음 날 07:00 에 알림으로 왔고, 제목에 시각이
+  /// 없어서 "오늘 아침 장애"로 오독됐다. 제목의 시각이 그 오독을 막는다.
+  ///
+  /// 예: `인터넷 연결 끊김 — 서버 응답 없음 2회 연속, 마지막 정상 통신
+  /// 08-11 21:07 (connectionError)`
   @override
-  String toString() => 'NetworkDegradedException(fails=$consecutiveFailures, '
-      'kind=$lastFailureKind, lastSuccess=$lastSuccessAt)';
+  String toString() {
+    final last = lastSuccessAt == null
+        ? '마지막 정상 통신 기록 없음'
+        : '마지막 정상 통신 ${formatStamp(lastSuccessAt!)}';
+    final kind = lastFailureKind == null ? '' : ' ($lastFailureKind)';
+    return '인터넷 연결 끊김 — 서버 응답 없음 $consecutiveFailures회 연속, '
+        '$last$kind';
+  }
 }

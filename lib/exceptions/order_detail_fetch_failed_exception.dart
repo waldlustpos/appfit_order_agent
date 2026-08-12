@@ -26,7 +26,26 @@ class OrderDetailFetchFailedException implements Exception {
   final String source;
   final String? lastError;
 
+  /// [source] 를 사람이 읽는 말로. 매핑에 없는 값은 원문 그대로 흘린다 —
+  /// 새 source 가 추가됐을 때 조용히 '알 수 없음' 으로 뭉개지는 것보다,
+  /// 낯선 원문이 제목에 보이는 편이 낫다.
+  static const Map<String, String> _sourceLabels = {
+    'socket': '실시간 수신',
+    'socket_fallback': '실시간 수신(재시도)',
+    'receipt': '영수증 출력',
+    'polling': '주기 조회',
+    'receipt_queue': '영수증 대기열',
+    'label_queue': '라벨 대기열',
+  };
+
+  /// Sentry 이슈 제목이자 슬랙 알림 제목.
+  ///
+  /// 예: `주문 정보 조회 실패 — 주문 874987496599613426, 실시간 수신 중
+  /// (ORDER_CREATED)`
+  ///
+  /// [lastError] 는 길어서 제목에서 뺀다 — 호출자가 extras 에 `lastError` 로
+  /// 실어 보낸다. 제목에서 빼면서 extras 에도 없으면 진단이 사라진다.
   @override
-  String toString() => 'OrderDetailFetchFailedException(orderNo=$orderNo,'
-      ' eventType=$eventType, source=$source, lastError=$lastError)';
+  String toString() => '주문 정보 조회 실패 — 주문 $orderNo, '
+      '${_sourceLabels[source] ?? source} 중 ($eventType)';
 }

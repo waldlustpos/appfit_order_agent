@@ -93,6 +93,8 @@ class OutputService {
             extras: {
               'orderNo': order.orderNo,
               'displayNum': order.displayNum,
+              // 제목에서 뺀 원본 오류 — 여기에 없으면 진단이 사라진다.
+              'lastError': e.toString(),
             },
           );
           // 출력 누락 등록 → 메뉴 복구 시 자동 재발행. 마킹 실패가 세션 정리 중

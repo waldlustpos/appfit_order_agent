@@ -19,7 +19,14 @@ class LabelPrintMissingException implements Exception {
   final int totalLabels;
   final List<int> failedIndices;
 
+  /// Sentry 이슈 제목이자 슬랙 알림 제목.
+  ///
+  /// 예: `라벨 출력 안 됨 — 주문 0916번, 1장 중 1장 실패 (재출력 필요)`
+  ///
+  /// `failedIndices` 는 제목에서 뺀다 — 이미 captureError 의 extras
+  /// (`failedIndices`)에 실려 있고, 제목에 넣으면 14장짜리 주문에서 한 줄을
+  /// 다 잡아먹는다.
   @override
-  String toString() => 'LabelPrintMissingException(displayNum=$displayNum,'
-      ' failed=$failedCount/$totalLabels, indices=$failedIndices)';
+  String toString() => '라벨 출력 안 됨 — 주문 $displayNum번, '
+      '$totalLabels장 중 $failedCount장 실패 (재출력 필요)';
 }

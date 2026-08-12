@@ -422,6 +422,8 @@ class OrderSocketManager {
         'orderId': orderId,
         'eventType': eventType,
         'shopCode': shopCode,
+        // 제목에서 뺀 원본 오류 — 여기에 없으면 진단이 사라진다.
+        'lastError': error.toString(),
       },
     );
     // 다음 정기 폴링(최대 60s)을 기다리지 않고 즉시 복구를 시도한다.

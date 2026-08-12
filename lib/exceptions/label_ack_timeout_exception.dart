@@ -29,7 +29,15 @@ class LabelAckTimeoutException implements Exception {
   /// 몇 번째 시도에서 발생했는지 (1 = 첫 시도, 2 = 재시도).
   final int attempt;
 
+  /// Sentry 이슈 제목이자 슬랙 알림 제목.
+  ///
+  /// 예: `라벨 프린터 응답 없음 — 주문 0624번 1/2장째, 1차 시도
+  /// (인쇄된 것으로 간주)`
+  ///
+  /// "인쇄된 것으로 간주"를 제목에 박아 둔다 — 이 이벤트를 처음 보는 사람은
+  /// 라벨이 안 나온 [LabelPrintMissingException] 과 헷갈리고, 재출력을
+  /// 안내했다가 중복 인쇄를 만든다(2026-08-03 아오야마점에서 실제로 그랬다).
   @override
-  String toString() => 'LabelAckTimeoutException(displayNum=$displayNum,'
-      ' label=$labelIndex/$totalLabels, attempt=$attempt)';
+  String toString() => '라벨 프린터 응답 없음 — 주문 $displayNum번 '
+      '$labelIndex/$totalLabels장째, $attempt차 시도 (인쇄된 것으로 간주)';
 }

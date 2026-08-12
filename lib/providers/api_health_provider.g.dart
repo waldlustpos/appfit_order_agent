@@ -6,7 +6,7 @@ part of 'api_health_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$apiHealthNotifierHash() => r'244420c9c511a133ee8d321a9b015f880dd38398';
+String _$apiHealthNotifierHash() => r'3eba5779ad94b1c3e74c600caec819db159ef682';
 
 /// HTTP 계층 건강도. [ApiService] 가 요청 결과마다 기록하고,
 /// UI(동기화 배너)와 복구 트리거가 구독한다.
