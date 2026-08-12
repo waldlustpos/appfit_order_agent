@@ -130,6 +130,7 @@ ACCEPTED 진입 시 메뉴별 `ordrCnt` 만큼 라벨을 자동 출력. 진입�
 
 - **`OutputQueueService` 단일 진입점**: 4종 sealed `OutputJob` (`NewOrderJob` / `LabelOnlyJob` / `ReprintJob` / `ReceiptReprintJob`) 모두 `add*()` 경유. `lib/widgets/settings/settings_label_test_section.dart` 의 라벨 테스트 위젯만 의도적 우회 (자동접수 흐름 영향 차단).
 - **이중 큐 진짜 병렬화**: `_receiptQueue` / `_labelQueue` 가 별개 `SerialAsyncQueue<OutputJob>` worker 로 돌고, `NewOrderJob` 의 라벨 부분(`_NewOrderLabelTail`) 은 **영수증 await 보다 먼저** 라벨 큐로 enqueue. 이게 깨지면 외부 영수증 backoff 137s 동안 라벨 출력이 막히는 사고 직행. 로그 prefix `[ReceiptQueue]` / `[LabelQueue]` 로 큐별 추적.
+- **라벨 큐 투입 단일 지점**: 자동 흐름의 라벨 enqueue(`LabelOnlyJob` / `_NewOrderLabelTail`)는 모두 `OutputQueueService._enqueueLabel()` 을 지난다. 빠른 메뉴 우선 판정(`addPriority` vs `add`)이 여기 한 곳에만 있어야 "왜 뒷 주문이 먼저 나왔나" 를 로그(`PRIORITY enqueue`) 한 줄로 설명할 수 있다. 재출력은 이 경로를 쓰지 않는다.
 - **3-set in-flight 락**: `_inFlightNewOrders` / `_inFlightLabelOnly` / `_inFlightReprints` 양 플랫폼 공통. 짝(`add` ↔ `whenComplete(remove)`) 깨지면 동일 주문 영구 enqueue 차단 또는 다중 enqueue.
 - **`autoReplyMode=1` + 인쇄 완료 ACK/비콘 우선**: Android 는 ACK 콜백 정상 동작, Windows 는 일부 펌웨어/SDK 조합에서 ACK 미발화 -> paperFetch 비콘이 주 신호. 두 신호 모두 등록은 race 안전망으로 필수.
 - **paper-out / cover-up = 무한 대기** (운영자 개입 신뢰), **그 외 ERROR = 짧은 게이트 후 retry** (호출자 위임). Windows ERROR 게이트는 0.5초, Android 와 동등.
@@ -306,6 +307,19 @@ WebSocket 푸시 / 폴링 / 자정 새로고침으로 주문 상태가 빈번히
   4. **복구 큐** — 스킵된 주문을 `Order._pendingDetailReprint` Set 에 `markPendingReprint` 로 마킹했다가, `fetchOrderDetail` 의 **API 성공 분기**(캐시 히트 분기 제외)에서 메뉴 확보 시 `_outputQueueService.add(playSound:false)` 로 영수증+라벨을 **1회** 자동 재발행. 중복 출력 0 = `_pendingDetailReprint.remove()` 동기 원자성(첫 remove 만 true) + `_inFlightNewOrders` 가드 + `menus.isNotEmpty`(빈 메뉴 재발행 차단). stale 정리는 `cleanupOnLogout` 의 `_pendingDetailReprint.clear()` + `refreshOrders` 의 `retainWhere`. 개발 재현: 개발자 옵션 "상세조회 강제 실패"(`lib/dev/order_detail_fault_injector.dart`, `kDebugMode` 게이트로 release 무해).
 - **라벨 backend FFI Isolate boxing**: Windows `WindowsLabelPrinterBackend` 의 `portEnumUsb` / `portOpenUsb` 같은 동기 SDK 호출은 USB 미연결 환경에서 main thread 를 수백ms~수초 block 한다. `_enumerateUsbPortsAsync` / `_tryOpenUsbAsync` 가 `Isolate.run` 으로 boxing 하고 handle 의 raw `address` 만 cross-isolate 로 받아 main isolate 의 instance state(`_hPrinter` / 콜백 플래그 / status beacon) 를 갱신. autoreplyprint SDK 가 cross-isolate handle 을 받아주는 점은 `_doPrintPng` 의 `posQueryPrintResult` Isolate.run 패턴이 운영에서 검증.
 - **모니터링**: `OrderAgentMonitoringContext`가 `appfit_core`의 `MonitoringContext`를 구현하여 Sentry 초기화·오류 캡처·breadcrumb를 단일 진입점에서 처리. `MonitoringSyncProvider`가 사용자/스토어 변경 시 컨텍스트를 동기화.
-- **순차 비동기 큐**: `lib/utils/serial_async_queue.dart`의 `SerialAsyncQueue<T>`로 USB 프린터·TTS 등 공유 자원 경쟁을 방지. `appfit_core`의 동일 클래스(v1.0.6 deprecated)에서 자체 구현으로 이전됨. `OutputQueueService`가 대표 사용처.
+- **순차 비동기 큐**: `lib/utils/serial_async_queue.dart`의 `SerialAsyncQueue<T>`로 USB 프린터·TTS 등 공유 자원 경쟁을 방지. `appfit_core`의 동일 클래스(v1.0.6 deprecated)에서 자체 구현으로 이전됨. `OutputQueueService`가 대표 사용처. `add()` 는 엄격 FIFO, `addPriority()` 만 대기 항목을 추월한다(아래 빠른 메뉴 우선 출력 참조).
+
+- **빠른 제조 메뉴 우선 출력**: 제조시간이 짧은 메뉴의 라벨을 먼저 내보내는 매장 운영 기능. 판정 정본은 [`FastMenuPolicy`](../lib/services/label_printer/fast_menu_policy.dart) (`fastMenuPolicyProvider`), 설정은 `PreferenceService` 의 `KEY_FAST_MENU_MODE`(0=끔/1=주문 내 정렬/2=주문 간 추월) · `KEY_FAST_MENU_MARKER`(표시) · `KEY_FAST_MENU_IDS_<storeId>`(대상 상품). **기본 전부 OFF** 라 켜기 전까지 종전 동작과 동일하다.
+  - **판정이 동기인 이유**: 라벨 큐 enqueue(`OutputQueueService.addLabelOnly` 등)가 동기 `void` 라 `FutureProvider` 인 `productProvider` 를 await 할 수 없다. 그래서 설정 저장 시 상품의 `productId` **와** `internalId` 를 둘 다 담아, 주문의 `shopItemId` 를 카탈로그 조회 없이 집합 멤버십으로 판정한다.
+  - **주문 내 정렬**(mode≥1): 정렬은 `LabelPrintData.fromOrder` 의 **순회(=인쇄) 순서만** 바꾼다. `menuStartIndex` 채번은 **반드시 원본 메뉴 순서** 기준이어야 한다 — 여기서 나오는 `orderIndex` 는 인쇄 카운터가 아니라 **컵의 고유 식별자(cup index)** 로, QR 스캔 후 서버 데이터 대조에 쓰인다. 운영 기본 QR 포맷(`DisplayNumIndexQrPayloadStrategy`, `getLabelQrPayloadFormat()` 기본값 **1**)이 `cupIdx = labelIndex - 1` 로 이 값을 직접 쓰므로, 정렬된 순서로 채번하면 페이로드가 바뀐다.
+    - 그 대가로 **인쇄되는 순번은 단조 증가하지 않는다**(예: 2/3 → 3/3 → 1/3). 의도된 동작 — 순번은 컵의 이름이지 인쇄 차례가 아니다.
+    - 회귀 고정: `test/services/label_print_data_sort_test.dart` 가 두 QR 전략 모두에서 (메뉴, labelSeq) → 페이로드 매핑이 정렬 전후 동일함을 검증한다.
+  - **주문 간 추월**(mode=2): 주문 **전체가** 빠른 메뉴일 때만 `_labelQueue.addPriority()`. 혼합 주문은 제외 — 느린 메뉴가 어차피 그 주문을 막으므로 추월 이득 없이 주문번호 역전 비용만 치른다.
+  - **굶주림 가드**: 일반 항목은 `SerialAsyncQueue.maxSkips`(기본 3)회까지만 추월당하고 이후 잠긴다. **시각이 아니라 횟수** 기준 — 가상 시계 없이 결정론적으로 테스트된다.
+    - **추월 횟수는 그 항목이 대기열에 들어온 시점부터 센다.** 자기보다 먼저 큐에 있던 우선 항목은 추월이 아니라 FIFO 선착순이다. 그래서 느린 주문이 빠른 주문 1건 뒤에 도착하면 빠른 주문이 최대 **4건**(선착 1 + 한도 3) 연속으로 나올 수 있다 — 가드 고장이 아니다. 2026-08-12 현장 테스트에서 "3회 한도가 안 먹는다" 로 보고된 실체가 이것. 회귀 고정: `test/services/output_queue_manual_accept_test.dart`.
+    - 수동 접수(`add()`) 경로는 라벨 tail 이 **영수증 큐를 거쳐** 하나씩 들어오므로, 접수 클릭 순서와 라벨 큐 진입 순서가 항상 같지는 않다. 순서를 따질 땐 `[LabelQueue] … enqueue` 로그 순서를 근거로 삼을 것.
+  - **추월 면역**: `ReprintJob` 은 `add(protectedFromPriority: true)` 로 들어가 FIFO 자리를 지키면서 절대 밀리지 않는다. 운영자가 프린터 앞에서 결과를 기다리는 요청이기 때문.
+  - **fail-safe**: 우선 판정(`_isPriorityOrder`)의 예외는 전부 '일반'으로 흡수한다. 부가 기능의 설정 조회 실패가 라벨 enqueue 자체를 죽여 주문 라벨을 통째로 날리면 안 된다.
+  - **한계(점주 안내서에 명시)**: ① 큐에 대기가 쌓였을 때만 효과 ② 이미 dispatch 된 라벨(PAPERNOFETCH 대기)은 추월 불가 ③ 외부 영수증 프린터 매장은 label tail enqueue 가 직전 영수증에 묶여 큐 깊이가 얕음.
 - **인증/세션 정리**: `Auth.logout()`(`lib/providers/auth_provider.dart`)이 credentials/JWT/SecureStorage(projectId·apiKey)/SharedPreferences/WebSocket을 정리하는 **단일 진입점**. UI 계층(예: `HomeScreen`)은 이 메서드만 호출하고 영업 상태 변경·`OrderProvider` cleanup·네비게이션을 담당. `disconnect()` 후 dependency가 outdated되므로 모든 `ref.read()`는 disconnect 호출 전에 미리 캐시. `unauthenticate()`는 환경 변경 시 WebSocket만 끊고 로그인 화면으로 복귀.
 - **라우팅**: 세 개의 명명된 라우트: `/login`, `/home`, `/settings`.

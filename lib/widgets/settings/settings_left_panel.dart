@@ -6,8 +6,11 @@ import 'package:appfit_order_agent/constants/app_styles.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
 import 'package:appfit_order_agent/providers/brand_provider.dart';
 import 'package:appfit_order_agent/providers/locale_provider.dart';
+import 'package:appfit_order_agent/providers/product_provider.dart';
 import 'package:appfit_order_agent/providers/currency_provider.dart';
 import 'package:appfit_order_agent/providers/rotation_provider.dart';
+import 'package:appfit_order_agent/screens/fast_menu_selection_screen.dart';
+import 'package:appfit_order_agent/services/label_printer/fast_menu_policy.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/services/print_service.dart';
 import 'package:appfit_order_agent/utils/brand_registry.dart';
@@ -66,6 +69,10 @@ class SettingsLeftPanel extends ConsumerStatefulWidget {
     required this.onExternalPrintCallChanged,
     required this.onLabelFilterModeChanged,
     required this.onLabelQrPayloadFormatChanged,
+    required this.fastMenuMode,
+    required this.fastMenuMarker,
+    required this.onFastMenuModeChanged,
+    required this.onFastMenuMarkerChanged,
     required this.onShowOrderTypeBadgeChanged,
     required this.onOrderSourceColorChanged,
     required this.isSoundGraphEnabled,
@@ -93,6 +100,12 @@ class SettingsLeftPanel extends ConsumerStatefulWidget {
   final bool externalPrintCall;
   final int labelFilterMode;
   final int labelQrPayloadFormat;
+
+  /// 빠른 제조 메뉴 우선 모드 (0: 끔, 1: 주문 내 정렬, 2: 주문 간 추월).
+  final int fastMenuMode;
+
+  /// 빠른 메뉴 표시(라벨 마커 + KDS 뱃지). 모드와 독립 축.
+  final bool fastMenuMarker;
   final bool isShowOrderTypeBadge;
   final bool isOrderSourceColor;
 
@@ -115,6 +128,8 @@ class SettingsLeftPanel extends ConsumerStatefulWidget {
   final void Function(bool) onExternalPrintCallChanged;
   final void Function(int) onLabelFilterModeChanged;
   final void Function(int) onLabelQrPayloadFormatChanged;
+  final void Function(int) onFastMenuModeChanged;
+  final void Function(bool) onFastMenuMarkerChanged;
   final void Function(bool) onShowOrderTypeBadgeChanged;
   final void Function(bool) onOrderSourceColorChanged;
   final bool isSoundGraphEnabled;
@@ -234,6 +249,48 @@ class _SettingsLeftPanelState extends ConsumerState<SettingsLeftPanel> {
     );
   }
 
+  // 빠른 제조 메뉴 우선 모드 선택 버튼 (filterMode 버튼과 동일 스타일)
+  Widget _buildFastMenuModeButton(String label, int mode) {
+    final isSelected = widget.fastMenuMode == mode;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          widget.onFastMenuModeChanged(mode);
+          logToFile(tag: LogTag.UI_ACTION, message: '빠른 메뉴 우선 모드 변경 -> $mode');
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.s12),
+          decoration: BoxDecoration(
+            color: isSelected ? AppStyles.kMainColor : AppStyles.gray2,
+            borderRadius: AppRadius.bSm,
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: AppTextStyles.bodySm.copyWith(
+              color: isSelected ? Colors.white : AppStyles.gray9,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openFastMenuSelection() async {
+    logToFile(tag: LogTag.UI_ACTION, message: '빠른 메뉴 지정 화면 진입');
+    await Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => const FastMenuSelectionScreen(),
+      ),
+    );
+    // 지정 화면이 저장 후 provider 를 invalidate 하므로, 돌아온 뒤 개수 표시를
+    // 갱신하려면 이 패널도 리빌드해야 한다.
+    if (mounted) setState(() {});
+  }
+
   Widget _buildFilterModeButton(String label, int mode) {
     final isSelected = widget.labelFilterMode == mode;
     return Expanded(
@@ -312,6 +369,7 @@ class _SettingsLeftPanelState extends ConsumerState<SettingsLeftPanel> {
     final showFilterItem = widget.isUseLabelPrinter && canLabelFilter;
     final showQrItem = widget.isUseLabelPrinter;
     final showQrPayloadItem = widget.isUseLabelPrinter;
+    final showFastMenuItem = widget.isUseLabelPrinter;
 
     return Scrollbar(
       controller: _scrollController,
@@ -625,8 +683,10 @@ class _SettingsLeftPanelState extends ConsumerState<SettingsLeftPanel> {
                   additionalContent: LabelPrinterSubSettings(
                     isUseLabelPrinter: widget.isUseLabelPrinter,
                   ),
-                  showDivider:
-                      !(showFilterItem || showQrItem || showQrPayloadItem),
+                  showDivider: !(showFilterItem ||
+                      showQrItem ||
+                      showQrPayloadItem ||
+                      showFastMenuItem),
                 ),
                 if (showFilterItem)
                   SettingsItemWidget(
@@ -689,6 +749,51 @@ class _SettingsLeftPanelState extends ConsumerState<SettingsLeftPanel> {
                       ],
                     ),
                   ),
+                if (showFastMenuItem) ...[
+                  // 대상 메뉴 지정 — 모드보다 먼저 놓는다. 지정이 없으면
+                  // 모드를 켜도 아무 일도 일어나지 않기 때문.
+                  _FastMenuSelectRow(onTap: _openFastMenuSelection),
+                  SettingsItemWidget(
+                    title: t.settings.fast_menu.title,
+                    description: switch (widget.fastMenuMode) {
+                      1 => t.settings.fast_menu.desc_within,
+                      2 => t.settings.fast_menu.desc_across,
+                      _ => t.settings.fast_menu.desc_off,
+                    },
+                    isVertical: true,
+                    showDivider: false,
+                    trailing: Row(
+                      children: [
+                        _buildFastMenuModeButton(
+                            t.settings.fast_menu.btn_off, 0),
+                        const SizedBox(width: AppSpacing.s8),
+                        _buildFastMenuModeButton(
+                            t.settings.fast_menu.btn_within, 1),
+                        const SizedBox(width: AppSpacing.s8),
+                        _buildFastMenuModeButton(
+                            t.settings.fast_menu.btn_across, 2),
+                      ],
+                    ),
+                  ),
+                  SettingsItemWidget(
+                    title: t.settings.fast_menu.marker_title,
+                    description: t.settings.fast_menu.marker_desc,
+                    showDivider: false,
+                    trailing: CustomSwitch(
+                      value: widget.fastMenuMarker,
+                      activeColor: AppStyles.kMainColor,
+                      inactiveColor: AppStyles.gray4,
+                      activeText: t.settings.auto_start.on,
+                      inactiveText: t.settings.auto_start.off,
+                      onChanged: (v) {
+                        logToFile(
+                            tag: LogTag.UI_ACTION,
+                            message: '빠른 메뉴 표시 변경 -> $v');
+                        widget.onFastMenuMarkerChanged(v);
+                      },
+                    ),
+                  ),
+                ],
               ],
             ),
             const SizedBox(height: AppSpacing.s16),
@@ -774,5 +879,44 @@ class _SettingsLeftPanelState extends ConsumerState<SettingsLeftPanel> {
     if (result != null) {
       widget.onSoundGraphMarketIdChanged(result);
     }
+  }
+}
+
+/// "빠른 제조 메뉴 지정" 행. 지정 개수 표시를 위해 상품 카탈로그가 필요하므로
+/// 별도 위젯으로 분리한다 — 좌측 패널 본체에서 watch 하면 라벨 프린터를 쓰지
+/// 않는 매장까지 설정 화면 진입만으로 카탈로그를 조회하게 된다.
+class _FastMenuSelectRow extends ConsumerWidget {
+  const _FastMenuSelectRow({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // 저장 집합은 상품당 ID 2개(productId + internalId)라 그대로 세면 두 배로
+    // 보인다. 카탈로그와 대조해 실제 상품 수로 환산하되, 카탈로그 자체도 한
+    // 상품을 카테고리 수만큼 갖고 있으므로 접은 뒤에 센다.
+    final fastMenuIds = ref.watch(fastMenuPolicyProvider).fastIds;
+    final count = ref.watch(productProvider).maybeWhen(
+          data: (products) => dedupeProductsByIdentity(products.where((p) =>
+              fastMenuIds.contains(p.productId) ||
+              (p.internalId.isNotEmpty &&
+                  fastMenuIds.contains(p.internalId)))).length,
+          // 카탈로그 로딩 전에는 환산 불가. 0 으로 보여 "지정 없음" 으로
+          // 오해시키지 않도록 ID 개수의 하한(절반 올림)을 쓴다.
+          orElse: () => (fastMenuIds.length + 1) ~/ 2,
+        );
+
+    return SettingsItemWidget(
+      title: t.settings.fast_menu.select_title,
+      description: count > 0
+          ? t.settings.fast_menu.selected_count(n: count)
+          : t.settings.fast_menu.none_selected,
+      showDivider: false,
+      trailing: ElevatedButton.icon(
+        onPressed: onTap,
+        icon: const Icon(Icons.playlist_add_check, size: 18),
+        label: Text(t.settings.fast_menu.select_desc),
+      ),
+    );
   }
 }

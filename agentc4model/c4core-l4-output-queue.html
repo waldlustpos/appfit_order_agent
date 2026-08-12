@@ -40,7 +40,7 @@
 </div>
 
 <div class="l4main">
-  <div class="l4lead">출력 작업의 <b>이중 직렬 큐</b>. 영수증/사운드(<code>_receiptQueue</code>)와 라벨(<code>_labelQueue</code>)을 별도 <code>SerialAsyncQueue</code>로 분리 — 라벨떼기(PAPERNOFETCH) 무한 대기와 영수증 backoff(최대 137s)가 <b>서로를 막지 않는다</b>. 두 프린터가 별개 본체이므로 출력 순서는 보장하지 않음(라벨이 영수증보다 먼저 나올 수 있음).</div>
+  <div class="l4lead">출력 작업의 <b>이중 직렬 큐</b>. 영수증/사운드(<code>_receiptQueue</code>)와 라벨(<code>_labelQueue</code>)을 별도 <code>SerialAsyncQueue</code>로 분리 — 라벨떼기(PAPERNOFETCH) 무한 대기와 영수증 backoff(최대 137s)가 <b>서로를 막지 않는다</b>. 두 프린터가 별개 본체이므로 출력 순서는 보장하지 않음(라벨이 영수증보다 먼저 나올 수 있음).<br><b>빠른 메뉴 우선 출력</b>: 자동 흐름의 라벨 enqueue는 모두 <code>_enqueueLabel()</code> 단일 지점을 지나며, 전량 빠른 메뉴 주문(<code>FastMenuPolicy.isFastOrder</code>, 설정 mode=2)만 <code>addPriority()</code>로 대기 항목을 추월한다. 일반 항목은 <code>maxSkips</code>(3)회까지만 밀리고(굶주림 가드), 판정 예외는 전부 '일반'으로 흡수한다(fail-safe). 기본값은 전부 OFF.</div>
 
   <!-- 클래스 구조 -->
   <div class="sec"><span class="sd" style="background:#3b82f6;"></span>클래스 구조</div>
@@ -79,7 +79,7 @@
         <div class="m-badge mb-w">W</div>
         <div class="m-head"><span class="m-name">addLabelOnly()</span><span class="m-sig">(order)</span></div>
         <div class="m-detail">
-          <div class="md-row"><div class="md-l">용도</div><div class="md-v">KDS PREPARING 자동접수 / 일반 모드 수동접수 등 라벨만 필요한 자동 흐름. <code>_inFlightLabelOnly</code> dedup 후 <code>_labelQueue.add(LabelOnlyJob)</code></div></div>
+          <div class="md-row"><div class="md-l">용도</div><div class="md-v">KDS PREPARING 자동접수 / 일반 모드 수동접수 등 라벨만 필요한 자동 흐름. <code>_inFlightLabelOnly</code> dedup 후 <code>_enqueueLabel(LabelOnlyJob)</code></div></div>
         </div>
       </div>
 
@@ -87,7 +87,7 @@
         <div class="m-badge mb-w">W</div>
         <div class="m-head"><span class="m-name">addReprint()</span><span class="m-sig">(order)</span></div>
         <div class="m-detail">
-          <div class="md-row"><div class="md-l">용도</div><div class="md-v">사용자 요청 라벨 재출력(영수증/사운드 없음). <code>_inFlightReprints</code> dedup 후 <code>_labelQueue.add(ReprintJob)</code> — 라벨 프린터 USB 경쟁 방지 직렬화</div></div>
+          <div class="md-row"><div class="md-l">용도</div><div class="md-v">사용자 요청 라벨 재출력(영수증/사운드 없음). <code>_inFlightReprints</code> dedup 후 <code>_labelQueue.add(ReprintJob, protectedFromPriority: true)</code> — 라벨 프린터 USB 경쟁 방지 직렬화 + <b>추월 면역</b>(운영자가 프린터 앞에서 대기 중인 명시 요청)</div></div>
         </div>
       </div>
 
@@ -105,7 +105,7 @@
         <div class="m-detail">
           <div class="md-row"><div class="md-l">핵심</div><div class="md-v"><b>라벨 선-enqueue</b> — NewOrderJob의 라벨 부분(<code>_NewOrderLabelTail</code>)을 영수증 <code>await</code> <b>이전에</b> 라벨 큐로 enqueue. 이전 구현(영수증 await 후 enqueue)은 큐 분리에도 사실상 직렬화되어 외부 영수증 오프라인 시 라벨이 137s 동안 안 나오는 사고 발생</div></div>
           <div class="md-row"><div class="md-l">흐름</div><div class="md-flow">
-            <span class="md-step">printLabel이면 _labelQueue.add(_NewOrderLabelTail)</span><span class="md-arr">→</span>
+            <span class="md-step">printLabel이면 _enqueueLabel(_NewOrderLabelTail)</span><span class="md-arr">→</span>
             <span class="md-step cross">outputService.notifyNewOrder(printLabel: false)</span><span class="md-arr">→</span>
             <span class="md-step">finally: _inFlightNewOrders.remove</span>
           </div></div>

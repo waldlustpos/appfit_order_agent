@@ -42,6 +42,7 @@ class TranslationsEn extends Translations with BaseTranslations<AppLocale, Trans
 	@override late final _Translations$order_status$en order_status = _Translations$order_status$en._(_root);
 	@override late final _Translations$order_history$en order_history = _Translations$order_history$en._(_root);
 	@override late final _Translations$product_mgmt$en product_mgmt = _Translations$product_mgmt$en._(_root);
+	@override late final _Translations$fast_menu_select$en fast_menu_select = _Translations$fast_menu_select$en._(_root);
 	@override late final _Translations$order$en order = _Translations$order$en._(_root);
 	@override late final _Translations$order_detail$en order_detail = _Translations$order_detail$en._(_root);
 	@override late final _Translations$dialog$en dialog = _Translations$dialog$en._(_root);
@@ -81,6 +82,7 @@ class _Translations$common$en extends Translations$common$ko {
 	@override String get no => 'No';
 	@override String get unknown => 'Unknown';
 	@override String get later => 'Later';
+	@override String get fast_menu => 'FAST';
 	@override late final _Translations$common$api_error$en api_error = _Translations$common$api_error$en._(_root);
 	@override late final _Translations$common$sync$en sync = _Translations$common$sync$en._(_root);
 }
@@ -155,6 +157,7 @@ class _Translations$settings$en extends Translations$settings$ko {
 	@override late final _Translations$settings$kds_accept_orders$en kds_accept_orders = _Translations$settings$kds_accept_orders$en._(_root);
 	@override late final _Translations$settings$label_filter$en label_filter = _Translations$settings$label_filter$en._(_root);
 	@override late final _Translations$settings$label_qr_payload$en label_qr_payload = _Translations$settings$label_qr_payload$en._(_root);
+	@override late final _Translations$settings$fast_menu$en fast_menu = _Translations$settings$fast_menu$en._(_root);
 	@override late final _Translations$settings$developer_options$en developer_options = _Translations$settings$developer_options$en._(_root);
 	@override late final _Translations$settings$kiosk$en kiosk = _Translations$settings$kiosk$en._(_root);
 	@override late final _Translations$settings$local_server$en local_server = _Translations$settings$local_server$en._(_root);
@@ -279,6 +282,27 @@ class _Translations$product_mgmt$en extends Translations$product_mgmt$ko {
 	@override String get dialog_hidden_title => 'Set to Hidden';
 	@override String dialog_hidden_content({required Object name}) => 'Do you want to set [ ${name} ] to hidden?';
 	@override String get btn_hidden => 'Hidden';
+}
+
+// Path: fast_menu_select
+class _Translations$fast_menu_select$en extends Translations$fast_menu_select$ko {
+	_Translations$fast_menu_select$en._(TranslationsEn root) : this._root = root, super.internal(root);
+
+	final TranslationsEn _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'Choose fast-prep menus';
+	@override String get guide => 'Pick the menus that take little time to make. Their labels print first.';
+	@override String get search_placeholder => 'Search product name';
+	@override String get all => 'All';
+	@override String selected_count({required Object n}) => '${n} selected';
+	@override String get empty => 'No products to show.';
+	@override String error_load({required Object error}) => 'An error occurred while loading products.\n${error}';
+	@override String get clear_all => 'Clear all';
+	@override String saved({required Object n}) => 'Saved ${n} fast-prep menus.';
+	@override String get save_failed => 'Could not save. Check that you are signed in and try again.';
+	@override String get selected_section => 'Chosen menus';
+	@override String get selected_empty => 'Nothing chosen yet. Pick menus from the list below.';
 }
 
 // Path: order
@@ -815,6 +839,28 @@ class _Translations$settings$label_qr_payload$en extends Translations$settings$l
 	@override String get desc_new => 'Generate the QR with the new (test) format. (displayNo-cupIndex)';
 	@override String get btn_legacy => 'Legacy';
 	@override String get btn_new => 'New';
+}
+
+// Path: settings.fast_menu
+class _Translations$settings$fast_menu$en extends Translations$settings$fast_menu$ko {
+	_Translations$settings$fast_menu$en._(TranslationsEn root) : this._root = root, super.internal(root);
+
+	final TranslationsEn _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'Fast-Prep Menu Priority';
+	@override String get desc_off => 'Labels print in the order the orders arrive.';
+	@override String get desc_within => 'Within a single order, fast-prep items print first. Order numbers keep their sequence.';
+	@override String get desc_across => 'Orders made up only of fast-prep items jump ahead of earlier orders. Order numbers may print out of sequence.';
+	@override String get btn_off => 'Off';
+	@override String get btn_within => 'Within order';
+	@override String get btn_across => 'Across orders';
+	@override String get marker_title => 'Show fast-prep mark';
+	@override String get marker_desc => 'Prints a \'FAST\' mark on labels and shows a badge on the kitchen display. When off, only the order changes — no mark appears.';
+	@override String get select_title => 'Choose fast-prep menus';
+	@override String get select_desc => 'Pick the menus to print first.';
+	@override String selected_count({required Object n}) => '${n} selected';
+	@override String get none_selected => 'None selected';
 }
 
 // Path: settings.developer_options

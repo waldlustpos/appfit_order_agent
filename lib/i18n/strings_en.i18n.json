@@ -16,6 +16,7 @@
         "no": "No",
         "unknown": "Unknown",
         "later": "Later",
+        "fast_menu": "FAST",
         "api_error": {
             "network": "Please check your network connection.",
             "timeout": "The server is taking too long to respond. Please try again later.",
@@ -210,6 +211,21 @@
             "btn_legacy": "Legacy",
             "btn_new": "New"
         },
+        "fast_menu": {
+            "title": "Fast-Prep Menu Priority",
+            "desc_off": "Labels print in the order the orders arrive.",
+            "desc_within": "Within a single order, fast-prep items print first. Order numbers keep their sequence.",
+            "desc_across": "Orders made up only of fast-prep items jump ahead of earlier orders. Order numbers may print out of sequence.",
+            "btn_off": "Off",
+            "btn_within": "Within order",
+            "btn_across": "Across orders",
+            "marker_title": "Show fast-prep mark",
+            "marker_desc": "Prints a 'FAST' mark on labels and shows a badge on the kitchen display. When off, only the order changes — no mark appears.",
+            "select_title": "Choose fast-prep menus",
+            "select_desc": "Pick the menus to print first.",
+            "selected_count": "{n} selected",
+            "none_selected": "None selected"
+        },
         "developer_options": {
             "title": "Developer Options",
             "appfit_test": {
@@ -367,6 +383,20 @@
         "dialog_hidden_title": "Set to Hidden",
         "dialog_hidden_content": "Do you want to set [ {name} ] to hidden?",
         "btn_hidden": "Hidden"
+    },
+    "fast_menu_select": {
+        "title": "Choose fast-prep menus",
+        "guide": "Pick the menus that take little time to make. Their labels print first.",
+        "search_placeholder": "Search product name",
+        "all": "All",
+        "selected_count": "{n} selected",
+        "empty": "No products to show.",
+        "error_load": "An error occurred while loading products.\n{error}",
+        "clear_all": "Clear all",
+        "saved": "Saved {n} fast-prep menus.",
+        "save_failed": "Could not save. Check that you are signed in and try again.",
+        "selected_section": "Chosen menus",
+        "selected_empty": "Nothing chosen yet. Pick menus from the list below."
     },
     "order": {
         "new_order": "New",

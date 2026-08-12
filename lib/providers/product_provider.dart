@@ -110,6 +110,28 @@ Future<({List<ProductModel> products, List<ShopCategoryModel> categories})>
   }
 }
 
+/// 같은 상품이 여러 번 나오지 않도록 상품 식별자 기준으로 접는다 (앞 항목 우선).
+///
+/// 카탈로그는 서버 `categories[].items` 를 평탄화해 만들어지므로
+/// ([ApiService.getShopCatalog]), **한 상품이 N개 카테고리에 속하면 N개 항목**으로
+/// 들어온다 — `productId`/`internalId` 는 같고 `categoryName` 만 다르다.
+/// 카테고리별 진열이 목적인 화면(상품관리)은 그대로 써야 하지만, "상품을 고르고
+/// 개수를 세는" 화면은 반드시 접어야 한다. 접지 않으면 한 번 고른 상품이
+/// 카테고리 수만큼 선택된 것으로 계산된다.
+///
+/// 필터링 **후에** 호출할 것 — 그래야 남는 항목의 `categoryName` 이 현재 필터와
+/// 일치한다.
+List<ProductModel> dedupeProductsByIdentity(Iterable<ProductModel> products) {
+  final seen = <String>{};
+  final result = <ProductModel>[];
+  for (final product in products) {
+    final key =
+        product.internalId.isNotEmpty ? product.internalId : product.productId;
+    if (key.isEmpty || seen.add(key)) result.add(product);
+  }
+  return result;
+}
+
 /// 상품관리 좌측 목록의 카테고리 정본 — **상품 0개 카테고리를 포함**한다.
 ///
 /// 상품에서 역산하면 빈 카테고리가 표현되지 않으므로 서버 목록을 그대로 쓴다.

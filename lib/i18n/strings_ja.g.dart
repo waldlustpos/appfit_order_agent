@@ -42,6 +42,7 @@ class TranslationsJa extends Translations with BaseTranslations<AppLocale, Trans
 	@override late final _Translations$order_status$ja order_status = _Translations$order_status$ja._(_root);
 	@override late final _Translations$order_history$ja order_history = _Translations$order_history$ja._(_root);
 	@override late final _Translations$product_mgmt$ja product_mgmt = _Translations$product_mgmt$ja._(_root);
+	@override late final _Translations$fast_menu_select$ja fast_menu_select = _Translations$fast_menu_select$ja._(_root);
 	@override late final _Translations$order$ja order = _Translations$order$ja._(_root);
 	@override late final _Translations$order_detail$ja order_detail = _Translations$order_detail$ja._(_root);
 	@override late final _Translations$dialog$ja dialog = _Translations$dialog$ja._(_root);
@@ -81,6 +82,7 @@ class _Translations$common$ja extends Translations$common$ko {
 	@override String get no => 'いいえ';
 	@override String get unknown => '不明';
 	@override String get later => '後で';
+	@override String get fast_menu => 'はやい';
 	@override late final _Translations$common$api_error$ja api_error = _Translations$common$api_error$ja._(_root);
 	@override late final _Translations$common$sync$ja sync = _Translations$common$sync$ja._(_root);
 }
@@ -155,6 +157,7 @@ class _Translations$settings$ja extends Translations$settings$ko {
 	@override late final _Translations$settings$kds_accept_orders$ja kds_accept_orders = _Translations$settings$kds_accept_orders$ja._(_root);
 	@override late final _Translations$settings$label_filter$ja label_filter = _Translations$settings$label_filter$ja._(_root);
 	@override late final _Translations$settings$label_qr_payload$ja label_qr_payload = _Translations$settings$label_qr_payload$ja._(_root);
+	@override late final _Translations$settings$fast_menu$ja fast_menu = _Translations$settings$fast_menu$ja._(_root);
 	@override late final _Translations$settings$developer_options$ja developer_options = _Translations$settings$developer_options$ja._(_root);
 	@override late final _Translations$settings$kiosk$ja kiosk = _Translations$settings$kiosk$ja._(_root);
 	@override late final _Translations$settings$local_server$ja local_server = _Translations$settings$local_server$ja._(_root);
@@ -275,6 +278,27 @@ class _Translations$product_mgmt$ja extends Translations$product_mgmt$ko {
 	@override String get dialog_hidden_title => '非表示処理';
 	@override String dialog_hidden_content({required Object name}) => '[ ${name} ] を非表示(キー削除)にしますか？';
 	@override String get btn_hidden => '非表示(キー削除)';
+}
+
+// Path: fast_menu_select
+class _Translations$fast_menu_select$ja extends Translations$fast_menu_select$ko {
+	_Translations$fast_menu_select$ja._(TranslationsJa root) : this._root = root, super.internal(root);
+
+	final TranslationsJa _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => '短時間メニューの指定';
+	@override String get guide => '調理時間が短く先に作るメニューを選択してください。選んだメニューのラベルが先に出力されます。';
+	@override String get search_placeholder => 'メニュー名で検索';
+	@override String get all => '全体';
+	@override String selected_count({required Object n}) => '${n}件 指定済み';
+	@override String get empty => '表示する商品がありません。';
+	@override String error_load({required Object error}) => '商品リストの読み込み中にエラーが発生しました。\n${error}';
+	@override String get clear_all => 'すべて解除';
+	@override String saved({required Object n}) => '短時間メニュー${n}件を保存しました。';
+	@override String get save_failed => '保存できませんでした。ログイン状態を確認して、もう一度お試しください。';
+	@override String get selected_section => '指定したメニュー';
+	@override String get selected_empty => 'まだ指定したメニューがありません。下のリストから選んでください。';
 }
 
 // Path: order
@@ -806,6 +830,28 @@ class _Translations$settings$label_qr_payload$ja extends Translations$settings$l
 	@override String get desc_new => '新規(テスト)フォーマットでQRを生成します。(表示番号-カップ順番)';
 	@override String get btn_legacy => '従来';
 	@override String get btn_new => '新規';
+}
+
+// Path: settings.fast_menu
+class _Translations$settings$fast_menu$ja extends Translations$settings$fast_menu$ko {
+	_Translations$settings$fast_menu$ja._(TranslationsJa root) : this._root = root, super.internal(root);
+
+	final TranslationsJa _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => '短時間メニュー優先';
+	@override String get desc_off => '注文の受付順にラベルを出力します。';
+	@override String get desc_within => '同じ注文の中で、短時間メニューのラベルを先に出力します。注文番号の順序は変わりません。';
+	@override String get desc_across => '短時間メニューだけの注文が先の注文を追い越して出力されます。注文番号の順序が入れ替わることがあります。';
+	@override String get btn_off => '使用しない';
+	@override String get btn_within => '注文内で並べ替え';
+	@override String get btn_across => '注文をまたいで優先';
+	@override String get marker_title => '短時間メニュー表示';
+	@override String get marker_desc => 'ラベルとキッチン画面に「はやい」表示を出します。オフにすると順序だけが変わり、表示は出ません。';
+	@override String get select_title => '短時間メニューの指定';
+	@override String get select_desc => '先に出力するメニューを選択します。';
+	@override String selected_count({required Object n}) => '${n}件 指定済み';
+	@override String get none_selected => '指定なし';
 }
 
 // Path: settings.developer_options

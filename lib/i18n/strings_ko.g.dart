@@ -44,6 +44,7 @@ class Translations with BaseTranslations<AppLocale, Translations> {
 	late final Translations$order_status$ko order_status = Translations$order_status$ko.internal(_root);
 	late final Translations$order_history$ko order_history = Translations$order_history$ko.internal(_root);
 	late final Translations$product_mgmt$ko product_mgmt = Translations$product_mgmt$ko.internal(_root);
+	late final Translations$fast_menu_select$ko fast_menu_select = Translations$fast_menu_select$ko.internal(_root);
 	late final Translations$order$ko order = Translations$order$ko.internal(_root);
 	late final Translations$order_detail$ko order_detail = Translations$order_detail$ko.internal(_root);
 	late final Translations$dialog$ko dialog = Translations$dialog$ko.internal(_root);
@@ -111,6 +112,9 @@ class Translations$common$ko {
 
 	/// ko: '나중에'
 	String get later => '나중에';
+
+	/// ko: '빠름'
+	String get fast_menu => '빠름';
 
 	late final Translations$common$api_error$ko api_error = Translations$common$api_error$ko.internal(_root);
 	late final Translations$common$sync$ko sync = Translations$common$sync$ko.internal(_root);
@@ -244,6 +248,7 @@ class Translations$settings$ko {
 	late final Translations$settings$kds_accept_orders$ko kds_accept_orders = Translations$settings$kds_accept_orders$ko.internal(_root);
 	late final Translations$settings$label_filter$ko label_filter = Translations$settings$label_filter$ko.internal(_root);
 	late final Translations$settings$label_qr_payload$ko label_qr_payload = Translations$settings$label_qr_payload$ko.internal(_root);
+	late final Translations$settings$fast_menu$ko fast_menu = Translations$settings$fast_menu$ko.internal(_root);
 	late final Translations$settings$developer_options$ko developer_options = Translations$settings$developer_options$ko.internal(_root);
 	late final Translations$settings$kiosk$ko kiosk = Translations$settings$kiosk$ko.internal(_root);
 	late final Translations$settings$local_server$ko local_server = Translations$settings$local_server$ko.internal(_root);
@@ -482,6 +487,51 @@ class Translations$product_mgmt$ko {
 
 	/// ko: '미노출(키삭제)'
 	String get btn_hidden => '미노출(키삭제)';
+}
+
+// Path: fast_menu_select
+class Translations$fast_menu_select$ko {
+	Translations$fast_menu_select$ko.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// ko: '빠른 제조 메뉴 지정'
+	String get title => '빠른 제조 메뉴 지정';
+
+	/// ko: '제조시간이 짧아 먼저 만들 메뉴를 선택하세요. 선택한 메뉴의 라벨이 먼저 출력됩니다.'
+	String get guide => '제조시간이 짧아 먼저 만들 메뉴를 선택하세요. 선택한 메뉴의 라벨이 먼저 출력됩니다.';
+
+	/// ko: '메뉴명 검색'
+	String get search_placeholder => '메뉴명 검색';
+
+	/// ko: '전체'
+	String get all => '전체';
+
+	/// ko: '{n}개 지정됨'
+	String selected_count({required Object n}) => '${n}개 지정됨';
+
+	/// ko: '표시할 상품이 없습니다.'
+	String get empty => '표시할 상품이 없습니다.';
+
+	/// ko: '상품 목록을 불러오는 중 오류가 발생했습니다. {error}'
+	String error_load({required Object error}) => '상품 목록을 불러오는 중 오류가 발생했습니다.\n${error}';
+
+	/// ko: '전체 해제'
+	String get clear_all => '전체 해제';
+
+	/// ko: '빠른 메뉴 {n}개를 저장했습니다.'
+	String saved({required Object n}) => '빠른 메뉴 ${n}개를 저장했습니다.';
+
+	/// ko: '저장하지 못했습니다. 로그인 상태를 확인한 뒤 다시 시도해 주세요.'
+	String get save_failed => '저장하지 못했습니다. 로그인 상태를 확인한 뒤 다시 시도해 주세요.';
+
+	/// ko: '지정한 메뉴'
+	String get selected_section => '지정한 메뉴';
+
+	/// ko: '아직 지정한 메뉴가 없습니다. 아래에서 선택하세요.'
+	String get selected_empty => '아직 지정한 메뉴가 없습니다. 아래에서 선택하세요.';
 }
 
 // Path: order
@@ -1401,6 +1451,54 @@ class Translations$settings$label_qr_payload$ko {
 
 	/// ko: '신규'
 	String get btn_new => '신규';
+}
+
+// Path: settings.fast_menu
+class Translations$settings$fast_menu$ko {
+	Translations$settings$fast_menu$ko.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// ko: '빠른 제조 메뉴 우선'
+	String get title => '빠른 제조 메뉴 우선';
+
+	/// ko: '주문 접수 순서대로 라벨을 출력합니다.'
+	String get desc_off => '주문 접수 순서대로 라벨을 출력합니다.';
+
+	/// ko: '한 주문 안에서 빠른 메뉴 라벨을 먼저 출력합니다. 주문번호 순서는 그대로입니다.'
+	String get desc_within => '한 주문 안에서 빠른 메뉴 라벨을 먼저 출력합니다. 주문번호 순서는 그대로입니다.';
+
+	/// ko: '빠른 메뉴만 있는 주문이 앞 주문을 추월해 먼저 출력됩니다. 주문번호 순서가 바뀔 수 있습니다.'
+	String get desc_across => '빠른 메뉴만 있는 주문이 앞 주문을 추월해 먼저 출력됩니다. 주문번호 순서가 바뀔 수 있습니다.';
+
+	/// ko: '사용 안 함'
+	String get btn_off => '사용 안 함';
+
+	/// ko: '주문 내 정렬'
+	String get btn_within => '주문 내 정렬';
+
+	/// ko: '주문 간 우선'
+	String get btn_across => '주문 간 우선';
+
+	/// ko: '빠른 메뉴 표시'
+	String get marker_title => '빠른 메뉴 표시';
+
+	/// ko: '라벨과 주방 화면에 '빠름' 표시를 함께 출력합니다. 꺼두면 순서만 바뀌고 표시는 나타나지 않습니다.'
+	String get marker_desc => '라벨과 주방 화면에 \'빠름\' 표시를 함께 출력합니다. 꺼두면 순서만 바뀌고 표시는 나타나지 않습니다.';
+
+	/// ko: '빠른 제조 메뉴 지정'
+	String get select_title => '빠른 제조 메뉴 지정';
+
+	/// ko: '우선 출력할 메뉴를 선택합니다.'
+	String get select_desc => '우선 출력할 메뉴를 선택합니다.';
+
+	/// ko: '{n}개 지정됨'
+	String selected_count({required Object n}) => '${n}개 지정됨';
+
+	/// ko: '지정된 메뉴 없음'
+	String get none_selected => '지정된 메뉴 없음';
 }
 
 // Path: settings.developer_options

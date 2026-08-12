@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:appfit_order_agent/models/order_model.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
 import 'package:appfit_order_agent/providers/product_provider.dart';
+import 'package:appfit_order_agent/services/label_printer/fast_menu_policy.dart';
 import 'package:appfit_order_agent/services/label_printer/label_filter_strategy.dart';
 import 'package:appfit_order_agent/services/label_printer/label_print_data.dart';
 import 'package:appfit_order_agent/services/label_printer/qr_payload_strategy.dart';
@@ -188,6 +189,9 @@ class OutputService {
       final qrStrategy = prefService.getLabelQrPayloadFormat() == 1
           ? const DisplayNumIndexQrPayloadStrategy()
           : ref.read(qrPayloadStrategyProvider);
+      // 빠른 제조 메뉴 정책 — 주문 내 라벨 정렬(mode>=1)과 마커 표시를 담당.
+      // 기본값(mode=0, 지정 상품 없음)이면 정렬도 마커도 없이 종전과 동일하다.
+      final fastMenuPolicy = ref.read(fastMenuPolicyProvider);
       final labels = LabelPrintData.fromOrder(
         orderToPrint,
         products: allProducts,
@@ -195,6 +199,7 @@ class OutputService {
         strategy: ref.read(labelFilterStrategyProvider),
         qrStrategy: qrStrategy,
         isReprint: isReprint,
+        fastMenuPolicy: fastMenuPolicy,
       );
 
       if (labels.isEmpty) return;
@@ -242,6 +247,9 @@ class OutputService {
           qrSize: LabelPainter.qrSizeForLayout(layoutVersion),
           qrErrorCorrectLevel:
               LabelPainter.qrErrorCorrectLevelForLayout(layoutVersion),
+          // 표시는 우선순위 동작과 독립 축 — 순서만 바꾸고 인쇄물에는
+          // 흔적을 남기지 않는 "조용한 운용"이 기본값(showMarker=false)이다.
+          isFastMenu: data.isFastMenu && fastMenuPolicy.showMarker,
         );
         final genMs = DateTime.now().difference(genStart).inMilliseconds;
 

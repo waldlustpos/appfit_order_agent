@@ -99,6 +99,17 @@ class PreferenceService {
   static const String KEY_LABEL_QR_PAYLOAD_FORMAT =
       "KOKONUT_LABEL_QR_PAYLOAD_FORMAT"; // int (0: 기존 {orderNo}-{shopItemId}-{cupIdx}, 1: 신규 {displayNum}-{cupIdx}, 기본값 1)
 
+  // ── 빠른 제조 메뉴 우선 출력 ────────────────────────────────────────────────
+  // 서버 상품 응답에 제조시간 필드가 없어(ProductModel 참조) 매장이 직접 지정한다.
+  static const String KEY_FAST_MENU_MODE =
+      "APPFIT_FAST_MENU_MODE"; // int (0: 끔, 1: 주문 내 정렬만, 2: 주문 내 + 주문 간 추월)
+  static const String KEY_FAST_MENU_MARKER =
+      "APPFIT_FAST_MENU_MARKER"; // bool (라벨 마커 + KDS 뱃지 표시. 기본 false = 조용히 동작)
+  /// 선택된 빠른 메뉴 ID 집합의 키 **접두사**. 실제 키는 매장별로
+  /// `<prefix><storeId>` — 매장을 바꿨을 때 이전 매장의 상품 ID 가 새 매장
+  /// 상품에 우연히 매칭되는 사고를 구조적으로 막는다. 값은 JSON 문자열 배열.
+  static const String KEY_FAST_MENU_IDS_PREFIX = "APPFIT_FAST_MENU_IDS_";
+
   static const String KEY_IS_SOCKET_ENABLED =
       "KEY_IS_SOCKET_ENABLED"; // 소켓 사용 여부
   static const String KEY_FORCE_SOCKET_RECONNECT =
@@ -652,6 +663,88 @@ class PreferenceService {
   /// 라벨 QR 페이로드 포맷 (0: 기존, 1: 신규 displayNum-cupIdx 테스트 포맷)
   int getLabelQrPayloadFormat() =>
       _prefs.getInt(KEY_LABEL_QR_PAYLOAD_FORMAT) ?? 1;
+
+  // ── 빠른 제조 메뉴 우선 출력 ────────────────────────────────────────────────
+
+  /// 빠른 메뉴 우선 모드. 0=끔(기본), 1=주문 내 정렬만, 2=주문 내 + 주문 간 추월.
+  ///
+  /// 모드 2 만 라벨 큐의 FIFO 를 깨고 주문번호 역전을 만든다. 기본값 0 이라
+  /// 매장이 명시적으로 켜기 전까지 종전 동작과 완전히 동일하다.
+  int getFastMenuMode() => _prefs.getInt(KEY_FAST_MENU_MODE) ?? 0;
+
+  /// 빠른 메뉴 표시(라벨 마커 + KDS 뱃지) 사용 여부. 기본 false.
+  ///
+  /// 우선순위 동작([getFastMenuMode])과 **독립 축**이다. 순서만 바꾸고
+  /// 인쇄물/화면에는 흔적을 남기지 않는 "조용한 운용"이 기본이다.
+  bool getFastMenuMarker() => _prefs.getBool(KEY_FAST_MENU_MARKER) ?? false;
+
+  /// 현재 매장의 빠른 메뉴 ID 집합 키. 매장 미확정이면 null.
+  ///
+  /// 매장 ID 는 [getId] (`KOKONUT_M_ID`) 가 정본이다 — 브랜드 해석
+  /// (`BrandRegistry.resolveOrNull`) 도 같은 값을 쓴다.
+  /// [getStoreId] (`KOKONUT_STORE_ID`) 를 쓰면 안 된다: 그 키는 **쓰는 코드가
+  /// 없어 항상 null** 이라, 저장이 조용히 스킵된다.
+  String? _fastMenuIdsKey() {
+    final storeId = getId();
+    if (storeId == null || storeId.isEmpty) return null;
+    return '$KEY_FAST_MENU_IDS_PREFIX$storeId';
+  }
+
+  /// 현재 매장에 지정된 빠른 메뉴 ID 집합.
+  ///
+  /// 한 상품당 `productId` 와 `internalId` 를 **둘 다** 담는다. 주문 응답의
+  /// [OrderMenuModel.shopItemId] 가 둘 중 어느 쪽으로도 올 수 있어서
+  /// (label_filter_strategy.dart `_findProduct` 참조), 양쪽을 저장해두면
+  /// 판정이 상품 카탈로그 조회 없이 동기 멤버십 테스트로 끝난다.
+  Set<String> getFastMenuIds() {
+    final key = _fastMenuIdsKey();
+    if (key == null) return <String>{};
+    final raw = _prefs.getString(key);
+    if (raw == null || raw.isEmpty) return <String>{};
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return <String>{};
+      return decoded
+          .map((e) => e?.toString() ?? '')
+          .where((e) => e.isNotEmpty)
+          .toSet();
+    } catch (e) {
+      // 손상된 값은 조용히 빈 집합으로 흡수한다 — 이 설정 하나 때문에
+      // 라벨 출력 전체가 막히면 안 된다.
+      logger.w('[PreferenceService] 빠른 메뉴 ID 파싱 실패 — 빈 집합으로 처리: $e');
+      return <String>{};
+    }
+  }
+
+  Future<void> setFastMenuMode(int value) async {
+    await _prefs.setInt(KEY_FAST_MENU_MODE, value);
+  }
+
+  Future<void> setFastMenuMarker(bool value) async {
+    await _prefs.setBool(KEY_FAST_MENU_MARKER, value);
+  }
+
+  /// 현재 매장의 빠른 메뉴 ID 집합 저장. 성공하면 true.
+  ///
+  /// 매장 미확정이면 **false 를 돌려준다** — 호출부(설정 화면)가 사용자에게
+  /// 알릴 수 있어야 한다. 조용히 return 하면 "저장 눌렀는데 안 남는다" 가
+  /// 화면에도 로그에도 드러나지 않는다.
+  Future<bool> setFastMenuIds(Set<String> ids) async {
+    final key = _fastMenuIdsKey();
+    if (key == null) {
+      logger.w('[PreferenceService] 매장 ID 미확정 — 빠른 메뉴 저장 실패');
+      logToFile(
+          tag: LogTag.WARNING, message: '[FastMenu] 매장 ID 미확정 — 빠른 메뉴 저장 실패');
+      return false;
+    }
+    // 정렬해서 저장하면 같은 선택이 항상 같은 문자열이 되어 diff/로그가 안정적이다.
+    final sorted = ids.where((e) => e.isNotEmpty).toList()..sort();
+    await _prefs.setString(key, jsonEncode(sorted));
+    logToFile(
+        tag: LogTag.PLATFORM,
+        message: '[FastMenu] 지정 저장 ${sorted.length}개 ID (key=$key)');
+    return true;
+  }
 
   // 영업 상태 저장
   Future<void> setOrderOn(bool value) async {

@@ -7,6 +7,7 @@ import 'package:appfit_order_agent/i18n/strings.g.dart';
 import 'package:appfit_order_agent/models/order_menu_model.dart';
 import 'package:appfit_order_agent/models/order_model.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
+import 'package:appfit_order_agent/services/label_printer/fast_menu_policy.dart';
 import 'package:appfit_order_agent/utils/common_util.dart';
 import 'package:appfit_order_agent/widgets/kds/kds_card_metrics.dart';
 
@@ -18,6 +19,10 @@ class KdsMenuItemWidget extends StatelessWidget {
   final VoidCallback? onTap;
   final int menuIndex;
 
+  /// 빠른 제조 메뉴 뱃지 표시 여부. 호출부에서 "지정된 메뉴 && 표시 설정 ON"
+  /// 을 이미 판정해 넘긴다 (표시 OFF 면 순서만 조용히 바뀐다).
+  final bool isFastMenu;
+
   const KdsMenuItemWidget({
     super.key,
     required this.menu,
@@ -25,6 +30,7 @@ class KdsMenuItemWidget extends StatelessWidget {
     required this.isCancelled,
     this.onTap,
     required this.menuIndex,
+    this.isFastMenu = false,
   });
 
   @override
@@ -83,6 +89,12 @@ class KdsMenuItemWidget extends StatelessWidget {
               //  카드가 통째로 사라지므로 쓰지 않는다.)
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // 뱃지는 메뉴명 앞. muted(체크/취소)일 땐 회색으로 내려
+                // '처리됨' 신호를 흐리지 않는다 (수량 텍스트와 같은 규칙).
+                if (isFastMenu) ...[
+                  _FastMenuBadge(muted: muted),
+                  const SizedBox(width: AppSpacing.s4),
+                ],
                 Expanded(
                   child: Text(
                     CommonUtil.normalizeInlineText(menu.itemName),
@@ -151,6 +163,41 @@ class KdsMenuItemWidget extends StatelessWidget {
   }
 }
 
+/// 빠른 제조 메뉴 뱃지. 라벨의 반전 칩과 같은 문구([t.common.fast_menu])를 써서
+/// 화면과 인쇄물이 같은 언어로 말하게 한다.
+class _FastMenuBadge extends StatelessWidget {
+  const _FastMenuBadge({required this.muted});
+
+  final bool muted;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = muted ? AppStyles.gray6 : AppStyles.kMainColor;
+    return Padding(
+      // 메뉴명 첫 줄 baseline 에 맞추는 미세 보정 (옵션 아이콘과 같은 방식).
+      padding: const EdgeInsets.only(top: 2),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: AppRadius.bSm,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s4),
+          child: Text(
+            t.common.fast_menu,
+            style: TextStyle(
+              fontSize: KdsCardMetrics.optionFontSize,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+              height: 1.25,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// 메뉴 리스트.
 ///
 /// 진행(`OrderStatus.PREPARING`) 탭에서만 체크 토글이 활성화되며,
@@ -178,6 +225,9 @@ class KdsMenuListWidget extends ConsumerWidget {
     );
     final isCancelledTab = cardType == CardType.cancelled;
     final isProgressTab = order.status == OrderStatus.PREPARING;
+    // 표시 설정이 꺼져 있으면 판정 자체를 건너뛴다 (조용한 운용이 기본).
+    final fastMenuPolicy = ref.watch(fastMenuPolicyProvider);
+    final showFastBadge = fastMenuPolicy.showMarker;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -193,6 +243,7 @@ class KdsMenuListWidget extends ConsumerWidget {
               isChecked: isChecked,
               isCancelled: isCancelledTab,
               menuIndex: i,
+              isFastMenu: showFastBadge && fastMenuPolicy.isFast(menu),
               onTap: () {
                 ref.read(orderProvider.notifier).stopBlinking();
                 if (order.status != OrderStatus.PREPARING) return;

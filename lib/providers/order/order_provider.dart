@@ -610,7 +610,7 @@ class Order extends _$Order {
               // forceOrderReceipt=true: KDS 자동접수 OFF 라도 외부 접수 시점에 주문서 인쇄.
               // 라벨/주문서 각각의 출력 여부는 PrintService 내부 매트릭스 게이트가 결정.
               _outputQueueService.add(
-                order,
+                _withCachedMenus(order),
                 playSound: false,
                 forceOrderReceipt: true,
               );
@@ -725,7 +725,7 @@ class Order extends _$Order {
           if (_shouldNotifyForOrder(order)) {
             logger
                 .d('$modeText: processOrderOutput 큐 투입 - 주문: ${order.orderId}');
-            _outputQueueService.add(order, playSound: false);
+            _outputQueueService.add(_withCachedMenus(order), playSound: false);
           } else {
             logger.d(
                 '$modeText: 키오스크 출력/알람 OFF로 주문서 출력 스킵 - 주문: ${order.orderId}');
@@ -779,7 +779,7 @@ class Order extends _$Order {
 
       // 수동 접수 모드에서도 신규 주문 수신 시 라벨 자동 출력 — 큐 경유로 직렬화.
       if (ref.read(preferenceServiceProvider).getUseLabelPrinter()) {
-        _outputQueueService.addLabelOnly(order);
+        _outputQueueService.addLabelOnly(_withCachedMenus(order));
       }
     }
   }
@@ -868,7 +868,8 @@ class Order extends _$Order {
             logger.d(
                 '[Order Processing] NEW 주문 자동접수 성공 — 출력/알림 트리거: ${order.orderId}');
             // 라벨/주문서 출력 (큐 직렬화) — 폴링 경로(L1825)와 동일 패턴.
-            _outputQueueService.add(acceptedOrder, playSound: true);
+            _outputQueueService.add(_withCachedMenus(acceptedOrder),
+                playSound: true);
             // KDS 자동접수 ON 환경에서도 사용자 인지를 위해 알람/오버레이 발생.
             // (L555 라벨 핸들러는 PREPARING 캐시 등록으로 이미 차단되므로 중복 없음)
             ref.read(alertManagerProvider).triggerNewOrderAlert(
@@ -1783,7 +1784,7 @@ class Order extends _$Order {
   Future<void> processOrderOutput(OrderModel order,
       {bool playSound = true}) async {
     // [NEW] 출력 작업을 메인 UI 스레드와 분리된 큐로 위임 (즉시 리턴)
-    _outputQueueService.add(order, playSound: playSound);
+    _outputQueueService.add(_withCachedMenus(order), playSound: playSound);
   }
 
   /// 외부에서 라벨 출력을 직접 요청할 때 호출 (영수증 재출력 등)
@@ -1820,6 +1821,22 @@ class Order extends _$Order {
   // 캐시에서 주문 상세 정보 동기적으로 가져오기
   OrderModel? getCachedOrderDetail(String orderId) {
     return _orderDetailCache.get(orderId);
+  }
+
+  /// 메뉴가 비어 있으면 상세 캐시로 보강해서 돌려준다. 캐시에도 없으면 원본.
+  ///
+  /// 출력 큐 투입 직전에 쓴다. 자동접수 경로는 부분 데이터(메뉴 없음)로
+  /// [OutputQueueService.add] 가 호출될 수 있는데, 큐가 메뉴를 못 보면
+  /// **빠른 제조 메뉴 판정이 조용히 실패**해 우선 출력이 걸리지 않는다
+  /// (2026-08-12 D2s 테스트에서 빠른 메뉴 주문 5건 중 1건이 이 경로로 누락).
+  ///
+  /// 보강은 여기(캐시 소유자)에서 한다. 큐가 직접 `orderProvider` 를 읽으면
+  /// 출력 경로가 이 notifier 의 생명주기에 묶여버린다.
+  OrderModel _withCachedMenus(OrderModel order) {
+    if (order.menus.isNotEmpty) return order;
+    final cached = _orderDetailCache.get(order.orderId);
+    if (cached != null && cached.menus.isNotEmpty) return cached;
+    return order;
   }
 
   // state.orders에서 주문을 ID로 찾아 반환 (소켓 매니저용)

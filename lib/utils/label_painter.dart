@@ -39,6 +39,11 @@ class LabelPainter extends CustomPainter {
   final String? optionTitleOverride;
   final String? detailTitleOverride;
 
+  /// 빠른 제조 메뉴 마커 표시 여부. true 면 sub-info 행 맨 앞(=가장 우측)에
+  /// 반전 칩(흰 글씨 + 검정 배경)이 붙는다. 호출부에서 "지정된 메뉴 && 표시 설정 ON"
+  /// 을 이미 판정해 넘긴다.
+  final bool isFastMenu;
+
   LabelPainter({
     required this.menuName,
     required this.options,
@@ -57,6 +62,7 @@ class LabelPainter extends CustomPainter {
     this.layoutVersion = 0,
     this.qrErrorCorrectLevel = QrErrorCorrectLevel.M,
     this.qrSize = qrSizeDefault,
+    this.isFastMenu = false,
   });
 
   // --- Logo Cache ---
@@ -436,6 +442,12 @@ class LabelPainter extends CustomPainter {
     double currentRightX = size.width - defaultMargin;
 
     final items = <_SubInfoItem>[];
+    // sub-info 는 우측 정렬로 그려지므로(currentRightX 가 오른쪽에서 왼쪽으로
+    // 이동) 리스트 첫 항목이 가장 오른쪽에 온다. 마커를 맨 앞에 넣어 라벨
+    // 우측 상단, 즉 시선이 먼저 닿는 자리에 오게 한다.
+    if (isFastMenu) {
+      items.add(_SubInfoItem(text: t.common.fast_menu, isHighlighted: true));
+    }
     if (sizeOption != null && sizeOption!.isNotEmpty) {
       items.add(_SubInfoItem(text: sizeOption!, isHighlighted: false));
     }
@@ -996,6 +1008,7 @@ class LabelPainter extends CustomPainter {
     int layoutVersion = 0,
     int qrErrorCorrectLevel = QrErrorCorrectLevel.M,
     double qrSize = qrSizeDefault,
+    bool isFastMenu = false,
   }) async {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
@@ -1042,6 +1055,7 @@ class LabelPainter extends CustomPainter {
       layoutVersion: layoutVersion,
       qrErrorCorrectLevel: qrErrorCorrectLevel,
       qrSize: qrSize,
+      isFastMenu: isFastMenu,
     );
 
     painter.paint(canvas, const Size(width, height));

@@ -17,6 +17,7 @@ import 'package:intl/intl.dart';
 import 'package:appfit_order_agent/models/menu_option_model.dart';
 import 'package:appfit_order_agent/models/order_model.dart';
 import 'package:appfit_order_agent/models/product_model.dart';
+import 'package:appfit_order_agent/services/label_printer/fast_menu_policy.dart';
 import 'package:appfit_order_agent/services/label_printer/label_filter_strategy.dart';
 import 'package:appfit_order_agent/services/label_printer/qr_payload_strategy.dart';
 import 'package:appfit_order_agent/utils/common_util.dart';
@@ -131,10 +132,15 @@ class LabelPrintData {
     this.qrData,
     this.orderInfo,
     this.menuInfo,
+    this.isFastMenu = false,
   });
 
   final String menuName;
   final List<String> options;
+
+  /// 빠른 제조 메뉴로 지정된 상품인지. 라벨 마커 표시 여부를 [LabelPainter] 에
+  /// 넘길 때만 쓰인다 — 인쇄 순서는 이미 [fromOrder] 에서 결정된 뒤다.
+  final bool isFastMenu;
 
   /// 주문번호 (예: "0795"). 라벨에 큼지막하게 출력.
   final String? shopOrderNo;
@@ -173,6 +179,8 @@ class LabelPrintData {
   /// [qrStrategy]: 브랜드별 QR 페이로드 포맷. 기본 [DefaultQrPayloadStrategy]
   ///              는 "{OrderNo}-{ShopItemId}-{CupIdx}" (현재 코드 포맷).
   /// [isReprint]: true 면 카테고리 필터링 우회 (재출력은 전체 라벨 인쇄).
+  /// [fastMenuPolicy]: 빠른 제조 메뉴 우선 정렬. 기본 [FastMenuPolicy.disabled]
+  ///              는 아무 것도 하지 않아 종전 동작과 동일하다.
   static List<LabelPrintData> fromOrder(
     OrderModel order, {
     List<ProductModel> products = const [],
@@ -180,14 +188,19 @@ class LabelPrintData {
     LabelFilterStrategy strategy = const NoOpLabelFilterStrategy(),
     QrPayloadStrategy qrStrategy = const DefaultQrPayloadStrategy(),
     bool isReprint = false,
+    FastMenuPolicy fastMenuPolicy = FastMenuPolicy.disabled,
   }) {
     // 1) 메뉴 카테고리 필터링 — 브랜드 전략에 위임 (기본 NoOp = 전체).
-    final menusToPrint = strategy.selectMenus(
+    //    그 결과에 빠른 메뉴 우선 정렬을 얹는다. 필터 → 정렬 순서가 중요하다:
+    //    반대로 하면 필터가 정렬을 되돌린다.
+    //    이 정렬은 **순회(=인쇄) 순서만** 바꾼다. 라벨 순번 채번은 아래 3)에서
+    //    원본 순서 기준으로 따로 수행하므로 cupIdx/QR 은 정렬과 무관하다.
+    final menusToPrint = fastMenuPolicy.sortFastFirst(strategy.selectMenus(
       order,
       products: products,
       filterMode: filterMode,
       isReprint: isReprint,
-    );
+    ));
 
     if (menusToPrint.isEmpty) return const [];
 
@@ -195,7 +208,17 @@ class LabelPrintData {
     final totalLabels = order.menus.fold<int>(0, (sum, m) => sum + m.qty);
     if (totalLabels == 0) return const [];
 
-    // 3) 메뉴별 시작 인덱스 미리 계산 (전체 메뉴 기준)
+    // 3) 메뉴별 시작 인덱스 미리 계산 — 반드시 **원본 메뉴 순서** 기준.
+    //
+    //    여기서 나오는 orderIndex 는 인쇄 카운터가 아니라 **컵의 고유 식별자
+    //    (cup index)** 다. QR 로 스캔해 서버 데이터와 대조하는 용도이므로,
+    //    빠른 메뉴 정렬 같은 출력 편의 때문에 값이 흔들리면 안 된다.
+    //    운영 기본 QR 포맷(`DisplayNumIndexQrPayloadStrategy`,
+    //    `getLabelQrPayloadFormat()` 기본값 1)이 `cupIdx = labelIndex - 1` 로
+    //    이 값을 직접 쓴다 — 정렬된 순서로 채번하면 페이로드가 바뀐다.
+    //
+    //    그 대가로 **인쇄되는 순번은 단조 증가하지 않는다**(예: 2/3 → 3/3 → 1/3).
+    //    의도된 동작이다: 순번은 컵의 이름이지 인쇄 차례가 아니다.
     final menuStartIndex = <int, int>{};
     var runningIndex = 0;
     for (final menu in order.menus) {
@@ -213,6 +236,10 @@ class LabelPrintData {
     final result = <LabelPrintData>[];
 
     for (final menu in menusToPrint) {
+      // 마커 표시용 플래그. 순수 멤버십이라 mode 와 독립 — 매장이 순서는 그대로
+      // 두고 표시만 켜는 운용이 가능하다.
+      final isFastMenu = fastMenuPolicy.isFast(menu);
+
       // 옵션 카테고리 분류 — 브랜드 전략에 위임 (기본 NoOp = 분류 없음).
       final cats = strategy.classifyOptions(menu, products: products);
       final String? beanType = cats.beanType;
@@ -263,6 +290,7 @@ class LabelPrintData {
           orderTotal: totalLabels,
           orderInfo: orderInfo,
           menuInfo: menuInfo,
+          isFastMenu: isFastMenu,
           qrData: qrStrategy.buildPayload(
               orderInfo, menuInfo, labelIndex, totalLabels),
         ));

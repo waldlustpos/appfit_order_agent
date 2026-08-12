@@ -16,6 +16,7 @@
         "no": "아니요",
         "unknown": "알 수 없음",
         "later": "나중에",
+        "fast_menu": "빠름",
         "api_error": {
             "network": "네트워크 연결 상태를 확인해주세요.",
             "timeout": "서버 응답이 지연되고 있습니다. 잠시 후 다시 시도해주세요.",
@@ -210,6 +211,21 @@
             "btn_legacy": "기존",
             "btn_new": "신규"
         },
+        "fast_menu": {
+            "title": "빠른 제조 메뉴 우선",
+            "desc_off": "주문 접수 순서대로 라벨을 출력합니다.",
+            "desc_within": "한 주문 안에서 빠른 메뉴 라벨을 먼저 출력합니다. 주문번호 순서는 그대로입니다.",
+            "desc_across": "빠른 메뉴만 있는 주문이 앞 주문을 추월해 먼저 출력됩니다. 주문번호 순서가 바뀔 수 있습니다.",
+            "btn_off": "사용 안 함",
+            "btn_within": "주문 내 정렬",
+            "btn_across": "주문 간 우선",
+            "marker_title": "빠른 메뉴 표시",
+            "marker_desc": "라벨과 주방 화면에 '빠름' 표시를 함께 출력합니다. 꺼두면 순서만 바뀌고 표시는 나타나지 않습니다.",
+            "select_title": "빠른 제조 메뉴 지정",
+            "select_desc": "우선 출력할 메뉴를 선택합니다.",
+            "selected_count": "{n}개 지정됨",
+            "none_selected": "지정된 메뉴 없음"
+        },
         "developer_options": {
             "title": "개발자 옵션",
             "appfit_test": {
@@ -363,6 +379,20 @@
         "dialog_hidden_title": "미노출 처리",
         "dialog_hidden_content": "[ {name} ] 미노출(키삭제) 처리하시겠습니까?",
         "btn_hidden": "미노출(키삭제)"
+    },
+    "fast_menu_select": {
+        "title": "빠른 제조 메뉴 지정",
+        "guide": "제조시간이 짧아 먼저 만들 메뉴를 선택하세요. 선택한 메뉴의 라벨이 먼저 출력됩니다.",
+        "search_placeholder": "메뉴명 검색",
+        "all": "전체",
+        "selected_count": "{n}개 지정됨",
+        "empty": "표시할 상품이 없습니다.",
+        "error_load": "상품 목록을 불러오는 중 오류가 발생했습니다.\n{error}",
+        "clear_all": "전체 해제",
+        "saved": "빠른 메뉴 {n}개를 저장했습니다.",
+        "save_failed": "저장하지 못했습니다. 로그인 상태를 확인한 뒤 다시 시도해 주세요.",
+        "selected_section": "지정한 메뉴",
+        "selected_empty": "아직 지정한 메뉴가 없습니다. 아래에서 선택하세요."
     },
     "order": {
         "new_order": "신규",

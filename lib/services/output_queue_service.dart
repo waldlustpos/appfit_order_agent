@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:appfit_core/appfit_core.dart' show MonitoringService;
 import 'package:appfit_order_agent/models/order_model.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
+import 'package:appfit_order_agent/services/label_printer/fast_menu_policy.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:appfit_order_agent/utils/serial_async_queue.dart';
@@ -145,7 +146,69 @@ class OutputQueueService {
     final id = order.orderId;
     if (_inFlightLabelOnly.contains(id)) return;
     _inFlightLabelOnly.add(id);
-    _labelQueue.add(LabelOnlyJob(order));
+    _enqueueLabel(LabelOnlyJob(order), order, 'LABEL_ONLY');
+  }
+
+  /// 라벨 큐 투입 단일 지점. 전량 빠른 메뉴 주문이면 대기 중인 일반 작업을
+  /// 추월시킨다 (설정 mode=2 일 때만. [FastMenuPolicy.isFastOrder] 가 게이팅).
+  ///
+  /// 재출력(`ReprintJob`/`ReceiptReprintJob`)은 이 경로를 쓰지 않는다 —
+  /// 운영자가 방금 누른 명시 요청이라 재정렬 대상이 아니다.
+  void _enqueueLabel(OutputJob job, OrderModel order, String kind) {
+    final num = order.displayNum;
+    if (_isPriorityOrder(order)) {
+      _labelQueue.addPriority(job);
+      // 우선 판정은 파일에 남긴다. 순서가 뒤집힌 사유를 나중에 로그만으로
+      // 설명할 수 있어야 "왜 뒷 주문이 먼저 나왔나" 문의에 답할 수 있다.
+      logToFile(
+          tag: LogTag.PLATFORM,
+          message: '[LabelQueue] $num $kind PRIORITY enqueue (빠른 메뉴 주문)');
+      return;
+    }
+    _labelQueue.add(job);
+    // 일반 enqueue 도 파일에 남긴다. PRIORITY 줄만 파일에 있으면 "왜 이 순서로
+    // 나왔나" 를 파일 로그만으로 재구성할 수 없다 — 추월당한 쪽이 언제 큐에
+    // 들어왔는지가 없으면 굶주림 가드가 정상인지 판정 자체가 불가능하다.
+    // (2026-08-12 현장 테스트에서 실제로 막힌 지점.)
+    logToFile(
+        tag: LogTag.PLATFORM, message: '[LabelQueue] $num $kind enqueue (일반)');
+  }
+
+  /// 우선 투입 대상인지. **설정 조회 실패는 전부 '일반'으로 흡수한다.**
+  ///
+  /// 이 판정은 부가 기능(출력 순서 조정)일 뿐인데, 예외가 그대로 올라가면
+  /// enqueue 자체가 죽어 그 주문의 라벨이 통째로 사라진다. 기능이 기본 OFF 인
+  /// 것을 감안하면 "판정 못 하면 종전 순서" 가 유일하게 안전한 실패 방향이다.
+  bool _isPriorityOrder(OrderModel order) {
+    try {
+      final policy = ref.read(fastMenuPolicyProvider);
+      // 메뉴가 비어 있으면 판정 자체가 불가능하다. 여기서 상세 캐시를 뒤지지는
+      // 않는다 — 그러려면 `orderProvider.notifier` 를 읽어야 하고, 그러면 출력
+      // 큐가 주문 프로바이더 생명주기(AudioPlayer·소켓·타이머)에 묶인다.
+      // 상세 보강은 **호출부**(order_provider 의 `_withCachedMenus`)가 담당한다.
+      final judged = order;
+      final isFast = policy.isFastOrder(judged);
+      // 기능을 켜 둔 매장에서만, **우선 처리가 안 된 이유**를 남긴다.
+      // "모드 2 켰는데 순서가 그대로" 문의는 대부분 여기서 끝난다:
+      // 상세가 아직 없거나(자동접수 경로), 지정하지 않은 상품이 섞여 있거나.
+      if (!isFast && policy.mode.overtakesQueue && policy.isConfigured) {
+        // 캐시 대체 후에도 메뉴가 없으면 진짜로 판정 불가다.
+        final reason = judged.menus.isEmpty
+            ? '메뉴 미로드 (캐시에도 없음)'
+            : '미지정 상품 포함: '
+                '${judged.menus.where((m) => !policy.isFast(m)).map((m) => m.shopItemId).join(",")}';
+        logToFile(
+            tag: LogTag.PLATFORM,
+            message: '[LabelQueue] ${order.displayNum} 빠른 메뉴 아님 ($reason)');
+      }
+      return isFast;
+    } catch (e) {
+      logToFile(
+          tag: LogTag.WARNING,
+          message:
+              '[LabelQueue] ${order.displayNum} 빠른 메뉴 판정 실패 — 일반 순서로 처리: $e');
+      return false;
+    }
   }
 
   // 진행 중/대기 중 LabelOnlyJob 의 orderId 추적.
@@ -166,7 +229,16 @@ class OutputQueueService {
       return;
     }
     _inFlightReprints.add(id);
-    _labelQueue.add(ReprintJob(order));
+    // 운영자가 방금 누른 명시 요청 — 프린터 앞에서 결과를 기다리고 있으므로
+    // 뒤에 도착한 '빠른 메뉴' 주문에게 밀리면 안 된다. FIFO 자리는 지키되
+    // 추월 면역으로 넣는다.
+    _labelQueue.add(ReprintJob(order), protectedFromPriority: true);
+    // 큐 진입을 파일에 남긴다. 이 줄이 없으면 재출력이 어느 시점에 대기열에
+    // 들어갔는지를 [UI_ACTION] 클릭 줄로 유추해야 해서, 우선 삽입과의 선후를
+    // 로그만으로 확정할 수 없다.
+    logToFile(
+        tag: LogTag.PLATFORM,
+        message: '[LabelQueue] ${order.displayNum} REPRINT enqueue (추월 면역)');
   }
 
   // 진행 중/대기 중 ReprintJob 의 orderId 추적. _processLabelItem 종료 시 제거.
@@ -201,8 +273,7 @@ class OutputQueueService {
           final tailId = order.orderId;
           if (!_inFlightLabelTail.contains(tailId)) {
             _inFlightLabelTail.add(tailId);
-            _labelQueue.add(_NewOrderLabelTail(order));
-            _life('[LabelQueue] $num NEW_LABEL tail enqueue');
+            _enqueueLabel(_NewOrderLabelTail(order), order, 'NEW_LABEL tail');
           }
         }
 

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:appfit_order_agent/config/app_env.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/services/label_printer/fast_menu_policy.dart';
 import 'package:appfit_order_agent/utils/label_painter.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
 import 'package:appfit_order_agent/providers/product_provider.dart';
@@ -59,6 +60,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _labelUseQrPrint = false;
   int _labelFilterMode = 0;
   int _labelQrPayloadFormat = 1;
+  int _fastMenuMode = 0;
+  bool _fastMenuMarker = false;
 
   bool _isKioskOrderVisible = false;
   bool _isKioskOrderSoundEnabled = false;
@@ -129,6 +132,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _labelUseQrPrint = _preferenceService.getLabelUseQrPrint();
       _labelFilterMode = _preferenceService.getLabelFilterMode();
       _labelQrPayloadFormat = _preferenceService.getLabelQrPayloadFormat();
+      _fastMenuMode = _preferenceService.getFastMenuMode();
+      _fastMenuMarker = _preferenceService.getFastMenuMarker();
 
       _isKioskOrderVisible = _preferenceService.getShowKioskOrder();
       _isKioskOrderSoundEnabled = _preferenceService.getKioskPrintAndSound();
@@ -174,6 +179,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await _preferenceService.setLabelUseQrPrint(_labelUseQrPrint);
       await _preferenceService.setLabelFilterMode(_labelFilterMode);
       await _preferenceService.setLabelQrPayloadFormat(_labelQrPayloadFormat);
+      await _preferenceService.setFastMenuMode(_fastMenuMode);
+      await _preferenceService.setFastMenuMarker(_fastMenuMarker);
+      // SharedPreferences 는 변경 알림이 없어 판정 캐시를 명시 갱신해야 한다.
+      // (라벨 출력/KDS 뱃지가 이 provider 를 읽는다.)
+      ref.invalidate(fastMenuPolicyProvider);
       await _preferenceService.setShowKioskOrder(_isKioskOrderVisible);
       await _preferenceService.setKioskPrintAndSound(_isKioskOrderSoundEnabled);
       await _preferenceService
@@ -611,6 +621,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   _setAndSave(() => _labelFilterMode = v),
               onLabelQrPayloadFormatChanged: (v) =>
                   _setAndSave(() => _labelQrPayloadFormat = v),
+              fastMenuMode: _fastMenuMode,
+              fastMenuMarker: _fastMenuMarker,
+              onFastMenuModeChanged: (v) =>
+                  _setAndSave(() => _fastMenuMode = v),
+              onFastMenuMarkerChanged: (v) =>
+                  _setAndSave(() => _fastMenuMarker = v),
               onShowOrderTypeBadgeChanged: (v) =>
                   _setAndSave(() => _isShowOrderTypeBadge = v),
               onOrderSourceColorChanged: (v) =>

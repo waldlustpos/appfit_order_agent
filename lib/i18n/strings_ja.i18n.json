@@ -16,6 +16,7 @@
         "no": "いいえ",
         "unknown": "不明",
         "later": "後で",
+        "fast_menu": "はやい",
         "api_error": {
             "network": "ネットワーク接続を確認してください。",
             "timeout": "サーバーの応答が遅れています。しばらくしてからもう一度お試しください。",
@@ -210,6 +211,21 @@
             "btn_legacy": "従来",
             "btn_new": "新規"
         },
+        "fast_menu": {
+            "title": "短時間メニュー優先",
+            "desc_off": "注文の受付順にラベルを出力します。",
+            "desc_within": "同じ注文の中で、短時間メニューのラベルを先に出力します。注文番号の順序は変わりません。",
+            "desc_across": "短時間メニューだけの注文が先の注文を追い越して出力されます。注文番号の順序が入れ替わることがあります。",
+            "btn_off": "使用しない",
+            "btn_within": "注文内で並べ替え",
+            "btn_across": "注文をまたいで優先",
+            "marker_title": "短時間メニュー表示",
+            "marker_desc": "ラベルとキッチン画面に「はやい」表示を出します。オフにすると順序だけが変わり、表示は出ません。",
+            "select_title": "短時間メニューの指定",
+            "select_desc": "先に出力するメニューを選択します。",
+            "selected_count": "{n}件 指定済み",
+            "none_selected": "指定なし"
+        },
         "developer_options": {
             "title": "開発者オプション",
             "appfit_test": {
@@ -363,6 +379,20 @@
         "dialog_hidden_title": "非表示処理",
         "dialog_hidden_content": "[ {name} ] を非表示(キー削除)にしますか？",
         "btn_hidden": "非表示(キー削除)"
+    },
+    "fast_menu_select": {
+        "title": "短時間メニューの指定",
+        "guide": "調理時間が短く先に作るメニューを選択してください。選んだメニューのラベルが先に出力されます。",
+        "search_placeholder": "メニュー名で検索",
+        "all": "全体",
+        "selected_count": "{n}件 指定済み",
+        "empty": "表示する商品がありません。",
+        "error_load": "商品リストの読み込み中にエラーが発生しました。\n{error}",
+        "clear_all": "すべて解除",
+        "saved": "短時間メニュー{n}件を保存しました。",
+        "save_failed": "保存できませんでした。ログイン状態を確認して、もう一度お試しください。",
+        "selected_section": "指定したメニュー",
+        "selected_empty": "まだ指定したメニューがありません。下のリストから選んでください。"
     },
     "order": {
         "new_order": "新規",
