@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 278d02e2-d30f-4005-8858-95a5214b5761
-  modified: 2026-08-08T15:19:37.339Z
+  modified: 2026-08-12T04:13:01.880Z
 ---
 
 2026-08-07 매장 장애(15:06~15:20, 16:22~16:37 두 구간 각 14분) 대응 작업. **전부 미커밋** (main, 테스트 332개 통과).
@@ -29,6 +29,16 @@ metadata:
 **★코어 C4 완료(2026-08-09, 코어 v1.2.0 = f27fb03 / 앱 34fd34b)**: `_maxReconnectAttempts=5` 영구 정지를 **2단계 백오프**로 교체 — 빠른 5회(3·6·12·24·48초)는 그대로 `reconnecting`, 소진 시 `disconnected` **1회** emit + error 로그, 이후 300초 간격 **무한** 재시도(추가 emit 없음). 설계 제약이 관측 계약이었다: `disconnected` 는 앱바 빨강 + **탭하면 수동 재연결** 어포던스라 없애면 안 되고, 느린 구간에서 상태를 반복 emit 하면 UI 깜빡임 + flapping 감지(5분 6회) 오탐. 힌트는 코드에 이미 있었다 — `_maxDelaySeconds=300` 이 5회 상한 때문에 **도달 불가능한 죽은 상수**였음(원래 의도가 상한 무한재시도). `_isInSlowRetry` 리셋 4곳(연결성공/notifyNetworkRestored/connect/disconnect) 필수 — 앱 R1 "전이 3곳"과 같은 계열 함정. **느린 구간은 pow 금지**: 무한 재시도면 `pow(2,1024)=infinity` → `toInt()` 가 던짐(300초 간격 ≈3.5일에 도달). 분기로 지수를 ≤4 로 묶어 구조적 차단. 앱 R3 는 역할이 "영구 침묵 탈출"→"5분 대기 단축"으로 바뀌고 수단도 `Auth.reconnect()`(getProjectInfo HTTP 왕복) → 코어 `notifyNetworkRestored()`(v1.2.0 passthrough 신설) 로 경량화. 판정 로직·테스트 단언은 무변, doc 주석만 갱신.
 
 **E2E 3건(에뮬레이터 staging MHST01073)**: ① 느린 재시도 진입 — 빠른 5회 실패 후 전환 로그 **1회**, 6·7번째가 정확히 300초 간격 발화(예전엔 완전 정지), 상태 추가 emit 0 ② **코어 단독 자력 복구** — [[reference-tls-sni-selective-block]] 로 소켓만 차단해 HTTP 무결 유지(건강도·API진단 로그 **0줄** = R3 발화 불가) → 해제 후 무개입으로 예약된 7번째가 스스로 성공(`연결 성공 (느린 재시도 7번째 시도에서 복구)`) ③ 회복 신호 단축 — 전체 443 해제 7초 만에 재연결(예정 대비 4분 단축). 실측: 소켓 사망은 차단 후 46초, 빠른 구간 wall-clock 은 93초가 아니라 **193초**(각 시도에 wsConnectTimeout 20초가 더해짐).
+
+**★실매장 첫 발화 + 자력 회복 실증(2026-08-11 PAIK00002, 3.0.3+182)**: 21:08:29 사망 → 21:09:49 degraded(Sentry 5J) → 60초 폴링마다 실패 **11회**(매번 `elapsed≈20030ms`) → 21:18:56 소켓이 **10분 늦게** 끊김 감지 → 21:18:59/21:19:05 DNS 실패 2회(Sentry 3, 2번째는 5분 쿨다운에 먹힘) → 21:19:20 3차 시도 성공 → 21:19:30 회복 + refreshOrders. **총 10분 51초, 무개입 자력 회복.** 그 뒤 21:30까지 주문 4건 정상 처리(폐점은 21:30 이후). 주문 #696 접수·라벨이 11분 38초 지연됐으나 유실 0.
+
+**보류였던 실기기 `kind=` 확보 → `connectionError`** (connectionTimeout 아님). 20초는 connectTimeout 만료. 같은 기기·같은 장애에서 소켓 DNS 실패는 **50ms**인데 HTTP 는 20초 — 비대칭이 실장애에서도 재확인됐다. 21:13:49 `Online: true, Types:[ethernet]` 로 링크 계층은 내내 정상.
+
+**착오 기록(추론 함정)**: "SocketException 이 Sentry 에 1건뿐 → 앱이 꺼진 것(폐점)" 으로 오판했다. 실제로는 소켓 실패 구간이 24초뿐이고 2번째가 쿨다운에 먹힌 것. **쿨다운이 있는 신호의 '건수'로 지속시간을 추론하면 안 된다.** 로그 파일이 정정해줬다. 관련: [[reference-sentry-delayed-ingest]]
+
+**★회복 이벤트 계측 E2E 완료(2026-08-12, IM-H092W debug, MHST00084)**: P1 무장 → 60초 폴링마다 `elapsed≈25000ms` 실패 6회 → 리본 탭 해제 → 회복. Sentry `APPFIT-ORDER-AGENT-5P` 생성: 제목 `인터넷 연결 회복 — 08-12 13:05~13:10 총 4분 35초 끊김 (최대 6회 연속 실패, connectionError)`, level=info, api_health=healthy, extras `outage_seconds=275 / peak_failures=6 / recovery_reason=success`. **핵심: peak 이 진입값 2가 아니라 6으로 찍혔다.** 슬랙 catch-all 규칙 `lastTriggered` 가 이벤트 발생 **16초 뒤** — 회복 이벤트는 실시간 도달이 실증됐다(진입 이벤트 9시간 41분과 대비). 진입 이벤트도 새 문구로 정상(`인터넷 연결 끊김 — …`), fingerprint 고정이라 5J 그룹 유지.
+
+**★부수 발견(기존 버그, 미수정)**: 기기는 staging 인데 Sentry `environment` 가 `live` 로 찍힌다. 코어 `_applyScope` 는 `environment` 를 **scope 태그**로만 세팅하는데, Sentry 의 environment 는 `SentryFlutter.init` 의 `options.environment` 로 고정되는 필드라 사후 변경이 안 된다. 즉 **부팅 후 서버를 바꾸거나 부팅 시각과 다른 서버로 로그인하면 그 세션 내내 환경 태그가 틀린다.** `updateContext` 추가만으로는 안 고쳐진다 — 재init 또는 `beforeSend` 에서 event.environment 덮어쓰기가 필요.
 
 **How to apply**:
 - 검증은 debug 빌드 + 개발자 옵션(버전 5연타) 프리셋. P2(slowOnly)에서 배너 뜨면 버그. 4-D(DNS 차단+앱 재시작→소켓 93초 후 영구정지)는 영업 외 시간에만.
