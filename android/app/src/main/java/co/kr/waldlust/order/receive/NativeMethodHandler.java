@@ -197,6 +197,25 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
                 break;
             }
 
+            // USB Host API 직접 제어로 라벨 프린터 2대를 독립 지목할 수 있는지 진단.
+            // 개발자 옵션 전용. Caysn 포트를 먼저 닫으므로 진단 후에는 다음 인쇄의
+            // ensureConnected 가 재연결한다.
+            case "probeDirectUsbLabel": {
+                labelPrintExecutor.submit(() -> {
+                    String report;
+                    try {
+                        report = co.kr.waldlust.order.receive.util.print.UsbLabelDriver
+                                .probeDirectTwoDevices(activity);
+                    } catch (Throwable t) {
+                        report = "USB Direct 진단 예외: " + t;
+                    }
+                    final String finalReport = report;
+                    new android.os.Handler(android.os.Looper.getMainLooper())
+                            .post(() -> result.success(finalReport));
+                });
+                break;
+            }
+
             case "reconnectExternalPrinter": {
                 try {
                     if (MainActivity.receiptPrinter != null) {

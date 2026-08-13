@@ -1326,6 +1326,31 @@ public class LabelPrinter {
             return out.append("운영 핸들 미연결 — 재연결 후 다시 시도").toString();
         }
 
+        // ── D-1) 펌웨어 내부 SYSTEM NAME / SERIAL 조회 ──
+        //
+        // 벤더 설정 유틸(및 SDK 의 CP_Proto_SetSystemNameAndSerialNumber)이 쓰는 값은
+        // **USB 문자열 디스크립터가 아니다** — 전원 재인가 후에도 디스크립터는
+        // `Virtual PRN`/`null` 그대로였다(실측 2026-08-13). 즉 포트를 열기 전에는
+        // 읽을 수 없어 **장치 지목에는 못 쓴다.**
+        //
+        // 그래도 조회하는 이유: USB Direct 경로에서 **재연결에도 안 변하는 식별자**가
+        // 필요하다. `/dev/bus/usb/BBB/DDD` 는 재열거마다 device 번호가 바뀌므로
+        // (002→003 실측) 매핑 키로 쓸 수 없다.
+        try {
+            byte[] sn = new byte[64];
+            IntByReference snLen = new IntByReference();
+            int rc = AutoReplyPrint.INSTANCE
+                    .CP_Proto_QuerySerialNumber(hPrinter, sn, sn.length, 1000);
+            int n = 0;
+            while (n < sn.length && sn[n] != 0) n++;
+            log("[DUAL] CP_Proto_QuerySerialNumber rc=" + rc + " len=" + n
+                    + " value='" + new String(sn, 0, n) + "'"
+                    + "  (unused=" + snLen.getValue() + ")");
+            out.append("내부 serial='").append(new String(sn, 0, n)).append("'\n");
+        } catch (Throwable t) {
+            log("[DUAL] QuerySerialNumber 실패: " + t.getMessage());
+        }
+
         // ── D-2) 대조군 — 2차 open **전에** 운영 핸들로 한 장 뽑는다 ──
         //
         // ★ 이 순서가 핵심이다. 2차 open 뒤에 찍으면 "실패" 가 나와도 그게 장치를

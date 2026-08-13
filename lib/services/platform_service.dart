@@ -505,6 +505,24 @@ class PlatformService {
     }
   }
 
+  /// USB Host API 직접 제어로 라벨 프린터 2대를 독립 지목할 수 있는지 진단.
+  ///
+  /// Caysn SDK 는 포트명이 두 대에서 동일해 2번 장치에 도달할 수 없다(확정).
+  /// USB Host API 는 `UsbDevice` 객체로 지목하므로 그 제약이 없다 — 이 프로브는
+  /// 연결된 각 프린터에 `USB-1` / `USB-2` 텍스트 라벨을 1장씩 뽑아 실증한다.
+  ///
+  /// ⚠️ Caysn 포트를 닫으므로 진단 직후 첫 인쇄는 재연결을 한 번 거친다.
+  static Future<String?> probeDirectUsbLabel() async {
+    if (!Platform.isAndroid) return null;
+    try {
+      return await platform.invokeMethod<String>('probeDirectUsbLabel');
+    } catch (e, s) {
+      logger.w('[PlatformService] USB Direct 진단 호출 실패',
+          error: e, stackTrace: s);
+      return 'USB Direct 진단 호출 실패: $e';
+    }
+  }
+
   /// 앱 재시작.
   /// - Android: 네이티브에서 새 Activity로 재부팅(AlarmManager + killProcess).
   ///   기존 동작 그대로이며 별도 정리(cleanup) 없이 즉시 종료된다.

@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: reference
   originSessionId: d878d032-b8eb-41f1-a0bb-073f3db8a81e
-  modified: 2026-08-13T06:40:13.130Z
+  modified: 2026-08-13T07:06:27.128Z
 ---
 
 2026-08-13 실측 (D2s_KDS_STGL `DK1925AJ40349` + REXOD RXLA-561, `adb shell dumpsys usb`).
@@ -76,6 +76,44 @@ true 를 유지하고 `CP_Printer_GetPrinterStatusInfo` 는 **그 시점 값에 
 **결론: Caysn SDK 로 동일 기종 2대 지목은 불가능하다.** 남은 길은 Android USB Host API
 직접 제어(`UsbDevice` 객체로 지목 → serial 불필요)뿐이다. 프로토콜은 이미 역공학돼 있다
 ([[project_label_ack_patch]] 의 TSPL BITMAP / paper-state machine / buzzer 비트).
+
+## ✅ USB Host API 로는 된다 — 실기기 2대 실증 (2026-08-13)
+
+`UsbLabelDriver.java` 1차 구현으로 **동일 기종 2대를 독립 제어**하는 데 성공했다.
+두 기계가 각각 자기 라벨(`USB-1` / `USB-2`)을 뽑았다.
+
+```
+장치1 open=true bus=3 node=/dev/bus/usb/003/005 if=7 out=2 in=130
+장치2 open=true bus=5 node=/dev/bus/usb/005/005 if=7 out=2 in=130
+```
+
+`if=7`(USB Printer Class) / bulk OUT `0x02` / IN `0x82` — [[project_label_ack_patch]] 의
+2026-05 PoC 값과 정확히 일치. **Gate A 는 하드웨어 한계가 아니라 Caysn 포트명 문법의
+한계였다.**
+
+**TSPL 은 SIZE/GAP 를 먼저 보내야 인쇄한다.** `CLS`+`TEXT`+`PRINT` 만 보내면 모터
+소리만 나고 용지가 안 나온다(실측). 통하는 프리앰블:
+```
+SIZE 61 mm,75 mm      ← LabelPainter 490×600 dot @203dpi(8 dot/mm) 기준
+GAP 2 mm,0 mm
+DIRECTION 0
+CLS
+```
+
+### 장치 매핑 키는 **USB 버스 번호**
+
+`/dev/bus/usb/BBB/DDD` 의 **device 번호(DDD)는 재열거마다 증가**한다(002→003→005 실측).
+버스 번호(BBB)는 물리 포트에 대응해 안정적이다. 단 **이건 "포트" 식별이지 "프린터"
+식별이 아니다** — 케이블을 다른 포트로 옮기면 매핑이 기계가 아니라 포트를 따라간다.
+
+프린터 고유 식별은 현재 불가: 벤더 유틸의 SYSTEM NAME/SERIAL 은 USB 디스크립터에 안
+실리고(전원 재인가 후에도 불변), `CP_Proto_QuerySerialNumber` 는 `rc=-1` 로 실패한다.
+
+### 미해결 — IN 채널 비대칭
+
+장치1 은 status 비콘 응답이 **0건**, 장치2 는 정상 수신(`53 1C 0E 00 00 04 00 45 …`).
+raw USB 에서는 auto-reply 모드를 켜는 명령을 아직 안 보내서로 추정. 완료 판정을 비콘에
+의존하려면 이걸 먼저 풀어야 한다.
 
 ## 콜백 핸들은 유효하다 (다중화 시 쓸 수 있음)
 

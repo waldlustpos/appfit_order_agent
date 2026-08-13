@@ -64,6 +64,25 @@ class _SettingsLabelTestSectionState
   /// 부저가 **운영 핸들 2회 → 3초 → 프로브 핸들 5회** 로 울린다. 두 번 다 같은
   /// 기계에서 나면 같은 장치를 두 번 연 것이고, 서로 다른 기계에서 나면
   /// serial 없이도 2대 제어가 가능하다는 뜻이다. 상세는 logcat `[DUAL]` 줄.
+  /// USB Host API 직접 제어로 2대 독립 지목이 되는지 실증한다.
+  ///
+  /// 각 프린터가 자기 번호(`USB-1` / `USB-2`)를 뽑으면 성공. Caysn 경로가 못 하는
+  /// 일이라, 여기서 성공하면 라벨 파이프라인을 USB Direct 로 옮길 근거가 된다.
+  Future<void> _probeDirectUsb() async {
+    if (_isDualProbing) return;
+    setState(() {
+      _isDualProbing = true;
+      _dualProbeResult = 'USB Direct 진단 중... 각 기계에서 USB-1 / USB-2 라벨을 확인하세요';
+    });
+    logToFile(tag: LogTag.UI_ACTION, message: 'USB Direct 2대 진단 실행');
+    final report = await PlatformService.probeDirectUsbLabel();
+    if (!mounted) return;
+    setState(() {
+      _isDualProbing = false;
+      _dualProbeResult = report ?? 'Android 전용 진단입니다.';
+    });
+  }
+
   Future<void> _probeDualPrinters() async {
     if (_isDualProbing) return;
     setState(() {
@@ -853,6 +872,24 @@ class _SettingsLabelTestSectionState
                           : '라벨 프린터 2대 진단 (SDK 지목 가능 여부 · 부저 판별)'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.indigo,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.s24,
+                          vertical: AppSpacing.s12,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.s8),
+                  Center(
+                    child: ElevatedButton.icon(
+                      onPressed: _isDualProbing ? null : _probeDirectUsb,
+                      icon: const Icon(Icons.cable, size: 18),
+                      label: Text(_isDualProbing
+                          ? '진단 중...'
+                          : 'USB Direct 2대 테스트 (각 기계에 USB-1 / USB-2 인쇄)'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.deepOrange,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(
                           horizontal: AppSpacing.s24,
