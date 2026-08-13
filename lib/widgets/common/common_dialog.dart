@@ -123,17 +123,27 @@ class CommonDialog {
     );
   }
 
-  /// 상태 변경 다이얼로그 (판매/품절/미노출 선택)
-  /// 선택된 상태(`ProductStatus`)를 반환, 닫힘/취소 시 null 반환
-  static Future<ProductStatus?> showStatusChangeDialog({
+  /// 상품 카드(= 동일 상품명 그룹)의 상태 변경 다이얼로그.
+  /// 선택된 상태(`ProductStatus`)를 반환, 닫힘/취소 시 null 반환.
+  ///
+  /// **버튼 구성이 멤버 수로 갈린다.**
+  ///  - 멤버 1개: 기존과 동일하게 현재 상태의 반대편 토글 버튼 1개.
+  ///  - 멤버 2개 이상: '전체 판매'/'전체 품절' 2개를 **항상** 낸다. 일부만 품절인
+  ///    그룹은 표시상 '판매중'이라(all-or-nothing 정책), 반대편 버튼만 내면 남은
+  ///    품절 멤버를 되돌릴 방법이 사라진다.
+  ///
+  /// 가격 목록은 읽기 전용이다 — 가격별 개별 토글은 만들지 않는다.
+  /// [priceLabels] 는 **이미 통화 포맷이 적용된** 문자열이다. 이 클래스는 static 이라
+  /// `currencySymbolProvider` 를 읽을 수 없어 위젯 계층이 포맷해서 넘긴다.
+  static Future<ProductStatus?> showBulkStatusChangeDialog({
     required BuildContext context,
     required String itemName,
     required ProductStatus currentStatus,
-    String? title,
-    List<ProductStatus>? selectableStatuses,
+    required int memberCount,
+    List<String> priceLabels = const [],
+    List<String> categoryNames = const [],
   }) async {
-    final List<ProductStatus> options =
-        selectableStatuses ?? const [ProductStatus.sale, ProductStatus.soldOut];
+    final bool isBulk = memberCount > 1;
 
     return await showDialog<ProductStatus>(
       context: context,
@@ -142,7 +152,9 @@ class CommonDialog {
         return AlertDialog(
           title: _dialogTitleWithClose(
             title: Text(
-              title ?? t.dialog.status_change.title,
+              isBulk
+                  ? t.dialog.status_change.bulk_title
+                  : t.dialog.status_change.title,
               style: AppTextStyles.title,
             ),
             onClose: () => Navigator.of(context).pop(null),
@@ -166,7 +178,10 @@ class CommonDialog {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  t.dialog.status_change.content(item: itemName),
+                  isBulk
+                      ? t.dialog.status_change
+                          .bulk_content(item: itemName, n: memberCount)
+                      : t.dialog.status_change.content(item: itemName),
                   style: AppTextStyles.body.copyWith(fontSize: 17),
                 ),
                 const SizedBox(height: 8),
@@ -182,6 +197,45 @@ class CommonDialog {
                     ),
                   ],
                 ),
+                // 묶인 카드는 가격을 감추고 '동일상품 N개'만 보여주므로, 개별
+                // 가격을 확인할 수 있는 곳이 여기뿐이다 — 가격이 1종이어도 낸다.
+                if (isBulk && priceLabels.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.s16),
+                  Text(
+                    t.dialog.status_change.bulk_prices(n: priceLabels.length),
+                    style:
+                        AppTextStyles.bodySm.copyWith(color: AppStyles.gray6),
+                  ),
+                  const SizedBox(height: AppSpacing.s8),
+                  // 가격 종류가 많아도 다이얼로그가 화면을 넘지 않게 한다.
+                  // Android 가로는 세로가 짧아 고정 px 상한만으로는 부족하다.
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxHeight: (MediaQuery.sizeOf(context).height * 0.30)
+                          .clamp(72.0, 180.0),
+                    ),
+                    child: SingleChildScrollView(
+                      child: Wrap(
+                        spacing: AppSpacing.s8,
+                        runSpacing: AppSpacing.s8,
+                        children: [
+                          for (final label in priceLabels) _priceChip(label),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+                // 카테고리 A 에서 눌렀는데 B 의 카드도 함께 바뀌는 것은 예측하기
+                // 어려운 부작용이다 — 이 한 줄이 유일한 설명 지점이다.
+                if (categoryNames.length > 1) ...[
+                  const SizedBox(height: AppSpacing.s12),
+                  Text(
+                    t.dialog.status_change
+                        .bulk_categories(names: categoryNames.join(', ')),
+                    style:
+                        AppTextStyles.bodySm.copyWith(color: AppStyles.gray6),
+                  ),
+                ],
               ],
             ),
           ),
@@ -190,74 +244,32 @@ class CommonDialog {
             vertical: AppSpacing.s24,
           ),
           actions: <Widget>[
-            // 품절/판매 토글
-            Builder(
-              builder: (context) {
-                final bool showSale = currentStatus != ProductStatus.sale;
-                final String label = showSale
-                    ? t.dialog.status_change.sale
-                    : t.dialog.status_change.sold_out;
-                final ProductStatus target =
-                    showSale ? ProductStatus.sale : ProductStatus.soldOut;
-                final ButtonStyle style = showSale
-                    ? AppStyles.primaryButton(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.s20,
-                          vertical: AppSpacing.s12,
-                        ),
-                        minimumSize: const Size(100, 45),
-                      )
-                    : ElevatedButton.styleFrom(
-                        backgroundColor: AppStyles.kRed,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.s20,
-                          vertical: AppSpacing.s12,
-                        ),
-                        minimumSize: const Size(100, 45),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: AppRadius.bSm,
-                        ),
-                      );
-                return ElevatedButton(
-                  style: style,
-                  onPressed: () => Navigator.of(context).pop(target),
-                  child: Text(
-                    label,
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold),
-                  ),
-                );
-              },
-            ),
-
-            // 미노출
-            if (options.contains(ProductStatus.hidden))
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.grey[700],
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.s20,
-                    vertical: AppSpacing.s12,
-                  ),
-                  minimumSize: const Size(100, 45),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: AppRadius.bSm,
-                  ),
-                ),
-                onPressed: () =>
-                    Navigator.of(context).pop(ProductStatus.hidden),
-                child: Text(
-                  t.dialog.status_change.hidden_delete,
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold),
-                ),
+            if (!isBulk)
+              // 단일 상품: 현재 상태의 반대편 버튼 1개 (기존 동작 유지)
+              _statusActionButton(
+                context: context,
+                target: currentStatus == ProductStatus.sale
+                    ? ProductStatus.soldOut
+                    : ProductStatus.sale,
+                label: currentStatus == ProductStatus.sale
+                    ? t.dialog.status_change.sold_out
+                    : t.dialog.status_change.sale,
+                destructive: currentStatus == ProductStatus.sale,
+              )
+            else ...[
+              _statusActionButton(
+                context: context,
+                target: ProductStatus.sale,
+                label: t.dialog.status_change.bulk_sale,
+                destructive: false,
               ),
+              _statusActionButton(
+                context: context,
+                target: ProductStatus.soldOut,
+                label: t.dialog.status_change.bulk_sold_out,
+                destructive: true,
+              ),
+            ],
           ],
         );
       },
@@ -293,7 +305,7 @@ class CommonDialog {
   }) async {
     confirmText ??= t.common.confirm;
     // 같은 내용의 정보 다이얼로그가 이미 떠 있으면 중복 표시를 막는다.
-    final key = dedupeKey ?? 'info $title $content';
+    final key = dedupeKey ?? 'info\u0000$title\u0000$content';
     if (_activeDialogKeys.contains(key)) return;
     _activeDialogKeys.add(key);
     try {
@@ -535,6 +547,62 @@ String _cancelReasonLabel(OrderCancelReason reason) {
     case OrderCancelReason.OTHER:
       return t.order_detail.cancel_reason_order_surge;
   }
+}
+
+/// 상태 변경 다이얼로그의 액션 버튼.
+/// [destructive] 는 품절 계열(되돌리려면 다시 조작해야 하는 쪽)을 붉게 낸다.
+Widget _statusActionButton({
+  required BuildContext context,
+  required ProductStatus target,
+  required String label,
+  required bool destructive,
+}) {
+  const padding = EdgeInsets.symmetric(
+    horizontal: AppSpacing.s20,
+    vertical: AppSpacing.s12,
+  );
+  // 일괄 버튼은 라벨이 길어 최소 폭을 넉넉히 준다(Android 가로 + Windows 터치).
+  const minimumSize = Size(120, 45);
+
+  return ElevatedButton(
+    style: destructive
+        ? ElevatedButton.styleFrom(
+            backgroundColor: AppStyles.kRed,
+            foregroundColor: Colors.white,
+            padding: padding,
+            minimumSize: minimumSize,
+            shape: RoundedRectangleBorder(borderRadius: AppRadius.bSm),
+          )
+        : AppStyles.primaryButton(
+            padding: padding,
+            minimumSize: minimumSize,
+          ),
+    onPressed: () => Navigator.of(context).pop(target),
+    child: Text(
+      label,
+      style: const TextStyle(
+          color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+    ),
+  );
+}
+
+/// 읽기 전용 가격 표시용 pill. 탭 대상이 아니라 터치 타겟 규격을 적용하지 않는다.
+Widget _priceChip(String label) {
+  return Container(
+    padding: const EdgeInsets.symmetric(
+      horizontal: AppSpacing.s12,
+      vertical: AppSpacing.s4,
+    ),
+    decoration: BoxDecoration(
+      color: AppStyles.gray1,
+      borderRadius: AppRadius.bSm,
+      border: Border.all(color: AppStyles.gray3),
+    ),
+    child: Text(
+      label,
+      style: AppTextStyles.body.copyWith(color: AppStyles.gray9),
+    ),
+  );
 }
 
 String _statusKoreanLabel(ProductStatus status) {

@@ -131,73 +131,85 @@ class Product extends _$Product {
     ref.invalidate(shopCatalogProvider);
   }
 
-  // 상품 상태 업데이트 (기존 로직과 거의 동일, storeId 가져오는 부분만 확인)
-  Future<bool> updateProductStatus(
-      String productId, ProductStatus newStatus) async {
-    // 현재 Product provider의 상태를 먼저 확인
+  /// 동일 상품명 그룹의 일괄 상태 변경.
+  ///
+  /// 서버 API 가 이미 벌크 스키마라 그룹당 PUT 1회로 끝난다.
+  ///
+  /// **낙관적 갱신은 `internalId` 로 매칭한다.** 그룹 멤버는 productId(POS ID)가
+  /// 서로 다르고, 같은 상품이 여러 카테고리에 등록돼 있으면 목록에 사본이 여러 개
+  /// 존재한다 — productId 매칭으로는 사본 일부가 옛 상태로 남아 좌측 카운트와
+  /// 카드 표기가 어긋난다.
+  ///
+  /// UI 파생 타입(`ProductGroup`)에 의존하지 않도록 원시값으로 받는다.
+  Future<bool> updateProductsStatus({
+    required ProductType type,
+    required List<String> internalIds,
+    required ProductStatus newStatus,
+  }) async {
     if (!state.hasValue) {
-      logger.w(
-          'Cannot update product status: Product list not loaded yet (current state: ${state.toString()}).');
+      logger.w('상품 상태 변경 불가: 상품 목록 미로드 (state: $state)');
       return false;
     }
+    final currentProducts = state.value!;
 
-    final currentProducts = state.value!; // 이미 로드된 상품 목록
-
-    // storeId는 storeProvider에서 최신 값을 읽어옴
-    // updateProductStatus는 build와 독립적으로 실행되므로, storeProvider의 현재 값을 읽는 것이 적절
+    // storeId 는 build 와 독립적으로 실행되므로 storeProvider 의 현재 값을 읽는다.
     final storeAsyncValue = ref.read(storeProvider);
-    if (!storeAsyncValue.hasValue ||
-        storeAsyncValue.value == null ||
-        storeAsyncValue.value!.storeId.isEmpty) {
-      logger.e(
-          'Cannot update product status: Store ID not available from storeProvider. StoreState: ${storeAsyncValue.toString()}');
+    final storeId = storeAsyncValue.value?.storeId ?? '';
+    if (!storeAsyncValue.hasValue || storeId.isEmpty) {
+      logger.e('상품 상태 변경 불가: storeId 없음 (state: $storeAsyncValue)');
       return false;
     }
-    final storeId = storeAsyncValue.value!.storeId;
 
-    logger.i(
-        'Updating product status for product $productId to $newStatus in store $storeId');
+    final targets = {...internalIds.where((id) => id.isNotEmpty)};
+    if (targets.isEmpty) {
+      logger.w('상품 상태 변경 불가: 유효한 internalId 없음');
+      return false;
+    }
+
+    logger.i('상품 일괄 상태 변경: ${targets.length}건(${type.code}) '
+        '→ $newStatus / $storeId');
 
     try {
       final apiService = ref.read(apiServiceProvider);
-      final success =
-          await apiService.updateItemStatus(productId, storeId, newStatus);
+      final success = await apiService.updateItemsStatus(
+        storeId: storeId,
+        type: type,
+        internalIds: targets.toList(),
+        status: newStatus,
+      );
 
-      if (success) {
-        logToFile(
-            tag: LogTag.UI_ACTION,
-            message: '상품상태 업데이트 성공: $productId : $newStatus');
-        final updatedProducts = currentProducts.map((product) {
-          if (product.productId == productId) {
-            return product.copyWith(status: newStatus);
-          }
-          return product;
-        }).toList();
-        state = AsyncData(updatedProducts); // 새 데이터로 상태 업데이트
-
-        // LocalServerService 캐시 업데이트
-        try {
-          final localServer = LocalServerService.instance;
-          if (localServer != null) {
-            localServer.updateProductCache(updatedProducts);
-          }
-        } catch (e, s) {
-          logger.w('LocalServerService 캐시 업데이트 실패', error: e);
-        }
-
-        logger.i(
-            'Product status updated successfully locally: $productId to $newStatus');
-        return true;
-      } else {
-        logger.e(
-            'Server failed to update product status for $productId (API call was successful but server returned failure).');
+      if (!success) {
+        logger.e('서버가 일괄 상태 변경을 거부: ${targets.length}건 → $newStatus');
         return false;
       }
+
+      logToFile(
+          tag: LogTag.UI_ACTION,
+          message: '상품상태 일괄 변경 성공: ${targets.length}건(${type.code}) '
+              '→ $newStatus');
+
+      // internalId 매칭 + 타입 확인(UUID 네임스페이스 충돌 방어).
+      // 같은 internalId 를 가진 카테고리 사본도 함께 갱신된다.
+      final updatedProducts = [
+        for (final product in currentProducts)
+          (targets.contains(product.internalId) && product.type == type)
+              ? product.copyWith(status: newStatus)
+              : product,
+      ];
+      state = AsyncData(updatedProducts);
+
+      // LocalServerService 캐시 동기화 — 옛 상태로 남으면 키오스크가 품절 상품을
+      // 계속 판다.
+      try {
+        LocalServerService.instance?.updateProductCache(updatedProducts);
+      } catch (e) {
+        logger.w('LocalServerService 캐시 업데이트 실패', error: e);
+      }
+
+      return true;
     } catch (error, stackTrace) {
-      logger.e('Error calling updateProductStatus API for $productId',
+      logger.e('상품 일괄 상태 변경 API 오류 (${targets.length}건)',
           error: error, stackTrace: stackTrace);
-      // 필요하다면 여기서 state를 이전 상태로 롤백하거나 에러 상태로 만들 수 있습니다.
-      // 예: state = AsyncError(error, stackTrace).copyWithPrevious(AsyncData(currentProducts));
       return false;
     }
   }

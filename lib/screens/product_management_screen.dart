@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:appfit_order_agent/constants/app_styles.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:appfit_order_agent/core/products/product_grouping.dart';
 import 'package:appfit_order_agent/providers/product_provider.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/widgets/product/product_card_widget.dart';
+import 'package:appfit_order_agent/models/product_group.dart';
 import 'package:appfit_order_agent/models/product_model.dart';
 import 'package:appfit_order_agent/models/shop_category_model.dart';
 import 'package:appfit_order_agent/i18n/strings.g.dart';
@@ -21,11 +23,18 @@ class ProductManagementScreen extends ConsumerStatefulWidget {
 class _ProductManagementScreenState
     extends ConsumerState<ProductManagementScreen> {
   final TextEditingController _searchController = TextEditingController();
-  String? _selectedCategory;
+  ProductGroupFilter _filter = const AllGroups();
   String _searchQuery = '';
 
   final ScrollController _categoryScrollController = ScrollController();
   final ScrollController _productScrollController = ScrollController();
+
+  /// 그룹핑 결과 메모 — 좌/우 패널이 각각 Consumer 라 build 당 여러 번 호출된다.
+  /// 입력(상품 목록 인스턴스 + 검색어)이 같으면 재사용한다. setState 를 부르지
+  /// 않는 순수 캐시라 build 중 갱신해도 안전하다.
+  List<ProductModel>? _memoSource;
+  String? _memoQuery;
+  List<ProductGroup>? _memoGroups;
 
   @override
   void dispose() {
@@ -35,16 +44,18 @@ class _ProductManagementScreenState
     super.dispose();
   }
 
-  /// 카테고리별 카운트 — 해당 카테고리를 선택했을 때 그리드에 실제로 표시되는 수.
-  ///
-  /// [_visibleBase] 를 통과시키므로 hidden 제외·검색어 반영이 그리드와 동일하다
-  /// ("N개라고 써 있는데 눌러보면 비어 있음" 방지).
-  Map<String, int> _getCategoryCounts(List<ProductModel> products) {
-    final Map<String, int> counts = {};
-    for (var product in _visibleBase(products)) {
-      counts[product.categoryName] = (counts[product.categoryName] ?? 0) + 1;
+  /// 화면에 표시할 그룹 목록(hidden 제외 + 검색어 적용 후 `(이름, 타입)` 으로 묶음).
+  List<ProductGroup> _groups(List<ProductModel> products) {
+    if (identical(products, _memoSource) &&
+        _memoQuery == _searchQuery &&
+        _memoGroups != null) {
+      return _memoGroups!;
     }
-    return counts;
+    final groups = buildProductGroups(visibleProducts(products, _searchQuery));
+    _memoSource = products;
+    _memoQuery = _searchQuery;
+    _memoGroups = groups;
+    return groups;
   }
 
   /// 좌측 목록에 표시할 카테고리명 정본.
@@ -95,53 +106,16 @@ class _ProductManagementScreenState
         .toList();
   }
 
-  /// 화면에 노출될 수 있는 상품의 공통 base — hidden 제외 + 검색어 적용.
+  /// 좌측 타일 1개. [target] 은 이 타일이 선택하는 필터다.
   ///
-  /// 좌측 카운트와 우측 그리드가 **반드시 같은 base** 를 쓰도록 한 곳에 모았다.
-  Iterable<ProductModel> _visibleBase(List<ProductModel> products) {
-    final query = _searchQuery.toLowerCase();
-    return products.where((product) {
-      if (product.status == ProductStatus.hidden) return false;
-      return product.productName.toLowerCase().contains(query);
-    });
-  }
-
-  /// [category] 를 선택했을 때 그리드에 표시되는 상품 목록.
-  ///
-  /// `null` = 전체, [t.product_mgmt.sold_out] = 품절, 그 외 = 카테고리명.
-  /// 좌측 타일 카운트도 이 결과의 길이와 일치해야 한다(그리드 = 카운트 단일 정본).
-  ///
-  /// 전체만 `internalId` 로 중복을 제거한다 — 같은 상품이 여러 카테고리에 속할 수
-  /// 있어 카테고리별 합계는 전체보다 클 수 있고, 그게 정상이다.
-  ///
-  /// 어느 분기든 서버 `displayOrder` 로 정렬해 반환한다.
-  List<ProductModel> _productsFor(
-    List<ProductModel> products,
-    String? category,
-  ) {
-    final base = _visibleBase(products);
-
-    final List<ProductModel> result;
-    if (category == t.product_mgmt.sold_out) {
-      result = base.where((p) => p.status == ProductStatus.soldOut).toList();
-    } else if (category == null) {
-      final seen = <String>{};
-      result = base.where((p) => seen.add(p.internalId)).toList();
-    } else {
-      result = base.where((p) => p.categoryName == category).toList();
-    }
-    return result..sort((a, b) => a.displayOrder.compareTo(b.displayOrder));
-  }
-
-  List<ProductModel> _getFilteredProducts(List<ProductModel> products) =>
-      _productsFor(products, _selectedCategory);
-
+  /// 선택 상태를 번역 문자열이 아니라 값 타입으로 비교하므로, 로케일을 바꿔도
+  /// 선택이 풀리지 않고 '품절'이라는 이름의 실제 카테고리와도 충돌하지 않는다.
   Widget _buildCategoryTile(
     String title,
     int count,
-    bool isSelected, {
-    bool isAllCategory = false,
-  }) {
+    ProductGroupFilter target,
+  ) {
+    final isSelected = _filter == target;
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.s8,
@@ -156,11 +130,10 @@ class _ProductManagementScreenState
             logToFile(tag: LogTag.UI_ACTION, message: '상품관리 카테고리 선택: $title');
             FocusScope.of(context).unfocus();
             setState(() {
-              if (isAllCategory) {
-                _selectedCategory = null;
-              } else {
-                _selectedCategory = isSelected ? null : title;
-              }
+              // 전체는 항상 전체. 나머지는 다시 누르면 전체로 되돌린다(기존 동작).
+              _filter = (target is AllGroups || !isSelected)
+                  ? target
+                  : const AllGroups();
             });
           },
           child: Container(
@@ -280,22 +253,25 @@ class _ProductManagementScreenState
               builder: (context, ref, child) {
                 final productsAsync = ref.watch(productProvider);
                 // 카테고리명·순서는 서버 목록이 정본이나 상품 0개 카테고리는
-                // 숨긴다. 카운트는 updateProductStatus 의 낙관적 갱신에
+                // 숨긴다. 카운트는 updateProductsStatus 의 낙관적 갱신에
                 // 반응해야 하므로 계속 productProvider 에서 파생한다.
                 final serverCategories =
                     ref.watch(shopCategoryListProvider).valueOrNull;
                 return productsAsync.when(
                   data: (products) {
-                    final categoryCounts = _getCategoryCounts(products);
+                    // 카운트 단위는 상품이 아니라 **카드(그룹)** 다 — 그리드와
+                    // 같은 정본을 써야 "N개인데 눌러보면 다름"이 안 난다.
+                    final groups = _groups(products);
+                    final categoryCounts = productGroupCategoryCounts(groups);
                     final categories = _getCategoryNames(
                       products,
                       serverCategories,
                       categoryCounts,
                     );
                     // 타일마다 재계산하지 않도록 build 당 1회만 집계한다.
-                    final allCount = _productsFor(products, null).length;
+                    final allCount = groups.length;
                     final soldOutCount =
-                        _productsFor(products, t.product_mgmt.sold_out).length;
+                        groups.where((g) => g.isSoldOut).length;
 
                     return RawScrollbar(
                       radius: const Radius.circular(AppRadius.sm),
@@ -307,27 +283,25 @@ class _ProductManagementScreenState
                         itemCount: categories.length + 2,
                         itemBuilder: (context, index) {
                           if (index == 0) {
-                            final isSelected = _selectedCategory == null;
                             return _buildCategoryTile(
                               t.product_mgmt.all,
                               allCount,
-                              isSelected,
-                              isAllCategory: true,
+                              const AllGroups(),
                             );
                           }
                           if (index == 1) {
-                            final isSelected =
-                                _selectedCategory == t.product_mgmt.sold_out;
-                            return _buildCategoryTile(t.product_mgmt.sold_out,
-                                soldOutCount, isSelected);
+                            return _buildCategoryTile(
+                              t.product_mgmt.sold_out,
+                              soldOutCount,
+                              const SoldOutGroups(),
+                            );
                           }
                           final category = categories[index - 2];
                           // 서버에만 있고 상품이 0개인 카테고리는 counts 에 항목이
                           // 없다 — 널 단언 대신 0 으로 표시한다.
                           final count = categoryCounts[category] ?? 0;
-                          final isSelected = category == _selectedCategory;
                           return _buildCategoryTile(
-                              category, count, isSelected);
+                              category, count, CategoryGroups(category));
                         },
                       ),
                     );
@@ -364,7 +338,8 @@ class _ProductManagementScreenState
           final productsAsync = ref.watch(productProvider);
           return productsAsync.when(
             data: (products) {
-              final filteredProducts = _getFilteredProducts(products);
+              final visibleGroups =
+                  filterProductGroups(_groups(products), _filter);
               return Column(
                 children: [
                   // 헤더
@@ -377,8 +352,8 @@ class _ProductManagementScreenState
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          t.product_mgmt
-                              .total_count(n: filteredProducts.length),
+                          // 카드(그룹) 수. 좌측 타일 카운트와 항상 일치한다.
+                          t.product_mgmt.total_count(n: visibleGroups.length),
                           style: AppTextStyles.titleSm
                               .copyWith(color: AppStyles.gray9),
                         ),
@@ -420,9 +395,12 @@ class _ProductManagementScreenState
                           crossAxisSpacing: AppSpacing.s8,
                           mainAxisSpacing: AppSpacing.s8,
                         ),
-                        itemCount: filteredProducts.length,
+                        itemCount: visibleGroups.length,
                         itemBuilder: (context, index) => ProductCardWidget(
-                          product: filteredProducts[index],
+                          // 일괄 변경 후 재정렬돼도 진행 스피너가 다른 카드에
+                          // 붙지 않도록 그룹 고유 키를 고정한다.
+                          key: ValueKey(visibleGroups[index].key),
+                          group: visibleGroups[index],
                         ),
                       ),
                     ),

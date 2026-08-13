@@ -482,6 +482,12 @@ class Translations$product_mgmt$ko {
 
 	/// ko: '미노출(키삭제)'
 	String get btn_hidden => '미노출(키삭제)';
+
+	/// ko: '동일상품 {n}개'
+	String same_product_count({required Object n}) => '동일상품 ${n}개';
+
+	/// ko: '상태 변경에 실패했습니다. 잠시 후 다시 시도해 주세요.'
+	String get error_status_update => '상태 변경에 실패했습니다. 잠시 후 다시 시도해 주세요.';
 }
 
 // Path: order
@@ -1799,6 +1805,24 @@ class Translations$dialog$status_change$ko {
 
 	/// ko: '미노출(키삭제)'
 	String get hidden_delete => '미노출(키삭제)';
+
+	/// ko: '일괄 상태 변경'
+	String get bulk_title => '일괄 상태 변경';
+
+	/// ko: '[ {item} ] 상품 {n}개의 상태를 한 번에 변경합니다.'
+	String bulk_content({required Object item, required Object n}) => '[ ${item} ] 상품 ${n}개의 상태를 한 번에 변경합니다.';
+
+	/// ko: '가격 {n}종 (아래 가격이 모두 함께 변경됩니다)'
+	String bulk_prices({required Object n}) => '가격 ${n}종 (아래 가격이 모두 함께 변경됩니다)';
+
+	/// ko: '이 상품은 {names} 카테고리에 함께 등록되어 있어 모두 변경됩니다.'
+	String bulk_categories({required Object names}) => '이 상품은 ${names} 카테고리에 함께 등록되어 있어 모두 변경됩니다.';
+
+	/// ko: '전체 판매'
+	String get bulk_sale => '전체 판매';
+
+	/// ko: '전체 품절'
+	String get bulk_sold_out => '전체 품절';
 }
 
 // Path: dialog.exit

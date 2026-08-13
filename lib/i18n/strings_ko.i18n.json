@@ -362,7 +362,9 @@
         "error_load": "상품 목록을 불러오는 중 오류가 발생했습니다.\n{error}",
         "dialog_hidden_title": "미노출 처리",
         "dialog_hidden_content": "[ {name} ] 미노출(키삭제) 처리하시겠습니까?",
-        "btn_hidden": "미노출(키삭제)"
+        "btn_hidden": "미노출(키삭제)",
+        "same_product_count": "동일상품 {n}개",
+        "error_status_update": "상태 변경에 실패했습니다. 잠시 후 다시 시도해 주세요."
     },
     "order": {
         "new_order": "신규",
@@ -473,7 +475,13 @@
             "sale": "판매",
             "sold_out": "품절",
             "hidden": "미노출",
-            "hidden_delete": "미노출(키삭제)"
+            "hidden_delete": "미노출(키삭제)",
+            "bulk_title": "일괄 상태 변경",
+            "bulk_content": "[ {item} ] 상품 {n}개의 상태를 한 번에 변경합니다.",
+            "bulk_prices": "가격 {n}종 (아래 가격이 모두 함께 변경됩니다)",
+            "bulk_categories": "이 상품은 {names} 카테고리에 함께 등록되어 있어 모두 변경됩니다.",
+            "bulk_sale": "전체 판매",
+            "bulk_sold_out": "전체 품절"
         },
         "exit": {
             "title": "앱 종료",

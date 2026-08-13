@@ -799,51 +799,60 @@ class ApiService {
     }
   }
 
-  Future<bool> updateItemStatus(
-    String productId,
-    String storeId,
-    ProductStatus status,
-  ) async {
+  /// 같은 타입(ITEM/OPTION) 상품 여러 건의 판매 상태를 **PUT 1회**로 변경한다.
+  ///
+  /// 서버 스키마는 원래 `itemIds`/`optionIds` 배열이라 벌크가 기본형인데, 앱은
+  /// 1건씩 보내면서 매 호출 타입을 알아내려고 카탈로그 전체를 다시 GET 했다.
+  /// 호출부가 이미 들고 있는 [internalIds]/[type] 을 그대로 받아 그 왕복을 없앴다.
+  ///
+  /// 상품관리의 그룹은 `(상품명, 타입)` 으로 묶여 **단일 타입**이 보장되므로
+  /// 엔드포인트가 갈릴 일이 없다 — 이 전제가 깨지면 itemIds/optionIds 를 한
+  /// 요청에 섞어 보내게 된다.
+  ///
+  /// [internalIds] 는 플랫폼 UUID(`shopItemId`/`optionId`)다. POS ID(`productId`)가
+  /// 아니다.
+  Future<bool> updateItemsStatus({
+    required String storeId,
+    required ProductType type,
+    required List<String> internalIds,
+    required ProductStatus status,
+  }) async {
+    // 빈 값은 서버가 거부하고, 중복 UUID 는 보낼 이유가 없다.
+    final ids = {...internalIds.where((id) => id.isNotEmpty)}.toList();
+    if (ids.isEmpty) {
+      logger.w('[AppFit API] updateItemsStatus: 유효한 internalId 가 없어 호출 생략');
+      return false;
+    }
+    if (ids.length > 50) {
+      // 서버측 상한이 문서화돼 있지 않다. 실제 그룹 크기는 2~5라 청크 분할 없이
+      // 로그로 감시만 한다 — 초과 사례가 나오면 그때 분할을 검토한다.
+      logger.w('[AppFit API] updateItemsStatus: 대상 ${ids.length}건 — 상한 확인 필요');
+    }
+
     try {
       final dio = _ref.read(appFitDioProvider);
-
-      // 1. 현재 상품 목록에서 타입을 찾아야 함
-      final products = await getShopCategories(storeId);
-      final product = products.firstWhere(
-        (p) => p.productId == productId,
-        orElse: () => throw Exception('상품을 찾을 수 없습니다: $productId'),
-      );
-
-      final String appFitStatus = _reverseMapAppFitStatus(status);
-      final bool isItem = product.type == ProductType.item;
+      final bool isItem = type == ProductType.item;
       final String endpoint = isItem
           ? ApiRoutes.shopItemStatus(storeId)
           : ApiRoutes.shopOptionStatus(storeId);
 
-      final Map<String, dynamic> body = isItem
-          ? {
-              'itemIds': [
-                product.internalId
-              ], // productId(POS ID) 대신 internalId(UUID) 사용
-              'status': appFitStatus,
-            }
-          : {
-              'optionIds': [
-                product.internalId
-              ], // productId(POS ID) 대신 internalId(UUID) 사용
-              'status': appFitStatus,
-            };
+      final Map<String, dynamic> body = {
+        isItem ? 'itemIds' : 'optionIds': ids,
+        'status': _reverseMapAppFitStatus(status),
+      };
 
       final response = await dio.put(endpoint, data: body);
 
       if (response.statusCode == 200) {
         return true;
       } else {
-        logger.e('[AppFit API] updateProductStatus 실패: ${response.statusCode}');
+        // 벌크는 일부만 반영될 여지가 있어 상태코드뿐 아니라 응답 본문도 남긴다.
+        logger.e('[AppFit API] updateItemsStatus 실패: '
+            '${response.statusCode} / ${response.data}');
         return false;
       }
     } catch (e, s) {
-      logger.e('[AppFit API] updateProductStatus 오류: $e');
+      logger.e('[AppFit API] updateItemsStatus 오류: $e');
       _handleError(e, '상품 상태 업데이트에 실패했습니다.');
     }
   }

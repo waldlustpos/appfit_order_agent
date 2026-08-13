@@ -279,6 +279,8 @@ class _Translations$product_mgmt$en extends Translations$product_mgmt$ko {
 	@override String get dialog_hidden_title => 'Set to Hidden';
 	@override String dialog_hidden_content({required Object name}) => 'Do you want to set [ ${name} ] to hidden?';
 	@override String get btn_hidden => 'Hidden';
+	@override String same_product_count({required Object n}) => 'Same name × ${n}';
+	@override String get error_status_update => 'Failed to change the status. Please try again.';
 }
 
 // Path: order
@@ -1014,6 +1016,12 @@ class _Translations$dialog$status_change$en extends Translations$dialog$status_c
 	@override String get sold_out => 'Sold Out';
 	@override String get hidden => 'Hidden';
 	@override String get hidden_delete => 'Hidden';
+	@override String get bulk_title => 'Change Status (All)';
+	@override String bulk_content({required Object n, required Object item}) => 'Change the status of all ${n} products named [ ${item} ].';
+	@override String bulk_prices({required Object n}) => '${n} prices (all of them will be changed)';
+	@override String bulk_categories({required Object names}) => 'This product is also listed in ${names}; all of them will be updated.';
+	@override String get bulk_sale => 'All On Sale';
+	@override String get bulk_sold_out => 'All Sold Out';
 }
 
 // Path: dialog.exit

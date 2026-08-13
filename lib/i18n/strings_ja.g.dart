@@ -275,6 +275,8 @@ class _Translations$product_mgmt$ja extends Translations$product_mgmt$ko {
 	@override String get dialog_hidden_title => '非表示処理';
 	@override String dialog_hidden_content({required Object name}) => '[ ${name} ] を非表示(キー削除)にしますか？';
 	@override String get btn_hidden => '非表示(キー削除)';
+	@override String same_product_count({required Object n}) => '同一商品 ${n}個';
+	@override String get error_status_update => '状態の変更に失敗しました。しばらくしてからもう一度お試しください。';
 }
 
 // Path: order
@@ -1005,6 +1007,12 @@ class _Translations$dialog$status_change$ja extends Translations$dialog$status_c
 	@override String get sold_out => '品切れ';
 	@override String get hidden => '非表示';
 	@override String get hidden_delete => '非表示(キー削除)';
+	@override String get bulk_title => '一括状態変更';
+	@override String bulk_content({required Object item, required Object n}) => '[ ${item} ] 商品 ${n}件の状態を一括で変更します。';
+	@override String bulk_prices({required Object n}) => '価格 ${n}種（下記の価格がすべて変更されます）';
+	@override String bulk_categories({required Object names}) => 'この商品は ${names} カテゴリーにも登録されているため、すべて変更されます。';
+	@override String get bulk_sale => '全て販売';
+	@override String get bulk_sold_out => '全て品切れ';
 }
 
 // Path: dialog.exit

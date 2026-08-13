@@ -362,7 +362,9 @@
         "error_load": "商品リストの読み込み中にエラーが発生しました。\n{error}",
         "dialog_hidden_title": "非表示処理",
         "dialog_hidden_content": "[ {name} ] を非表示(キー削除)にしますか？",
-        "btn_hidden": "非表示(キー削除)"
+        "btn_hidden": "非表示(キー削除)",
+        "same_product_count": "同一商品 {n}個",
+        "error_status_update": "状態の変更に失敗しました。しばらくしてからもう一度お試しください。"
     },
     "order": {
         "new_order": "新規",
@@ -473,7 +475,13 @@
             "sale": "販売",
             "sold_out": "品切れ",
             "hidden": "非表示",
-            "hidden_delete": "非表示(キー削除)"
+            "hidden_delete": "非表示(キー削除)",
+            "bulk_title": "一括状態変更",
+            "bulk_content": "[ {item} ] 商品 {n}件の状態を一括で変更します。",
+            "bulk_prices": "価格 {n}種（下記の価格がすべて変更されます）",
+            "bulk_categories": "この商品は {names} カテゴリーにも登録されているため、すべて変更されます。",
+            "bulk_sale": "全て販売",
+            "bulk_sold_out": "全て品切れ"
         },
         "exit": {
             "title": "アプリ終了",
