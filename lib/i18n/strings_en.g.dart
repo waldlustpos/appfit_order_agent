@@ -43,6 +43,7 @@ class TranslationsEn extends Translations with BaseTranslations<AppLocale, Trans
 	@override late final _Translations$order_history$en order_history = _Translations$order_history$en._(_root);
 	@override late final _Translations$product_mgmt$en product_mgmt = _Translations$product_mgmt$en._(_root);
 	@override late final _Translations$fast_menu_select$en fast_menu_select = _Translations$fast_menu_select$en._(_root);
+	@override late final _Translations$label_zone_select$en label_zone_select = _Translations$label_zone_select$en._(_root);
 	@override late final _Translations$order$en order = _Translations$order$en._(_root);
 	@override late final _Translations$order_detail$en order_detail = _Translations$order_detail$en._(_root);
 	@override late final _Translations$dialog$en dialog = _Translations$dialog$en._(_root);
@@ -158,6 +159,7 @@ class _Translations$settings$en extends Translations$settings$ko {
 	@override late final _Translations$settings$label_filter$en label_filter = _Translations$settings$label_filter$en._(_root);
 	@override late final _Translations$settings$label_qr_payload$en label_qr_payload = _Translations$settings$label_qr_payload$en._(_root);
 	@override late final _Translations$settings$fast_menu$en fast_menu = _Translations$settings$fast_menu$en._(_root);
+	@override late final _Translations$settings$label_zone$en label_zone = _Translations$settings$label_zone$en._(_root);
 	@override late final _Translations$settings$developer_options$en developer_options = _Translations$settings$developer_options$en._(_root);
 	@override late final _Translations$settings$kiosk$en kiosk = _Translations$settings$kiosk$en._(_root);
 	@override late final _Translations$settings$local_server$en local_server = _Translations$settings$local_server$en._(_root);
@@ -303,6 +305,28 @@ class _Translations$fast_menu_select$en extends Translations$fast_menu_select$ko
 	@override String get save_failed => 'Could not save. Check that you are signed in and try again.';
 	@override String get selected_section => 'Chosen menus';
 	@override String get selected_empty => 'Nothing chosen yet. Pick menus from the list below.';
+}
+
+// Path: label_zone_select
+class _Translations$label_zone_select$en extends Translations$label_zone_select$ko {
+	_Translations$label_zone_select$en._(TranslationsEn root) : this._root = root, super.internal(root);
+
+	final TranslationsEn _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'Label zones';
+	@override String get guide => 'For stores with separate prep areas, choose which device prints which categories. Categories left unassigned print in the \'Default\' zone.';
+	@override String get local_section => 'Zones this device prints';
+	@override String get local_all => 'None selected — this device prints every label (default)';
+	@override String get local_warning => 'This device prints only the selected zones. The rest must be printed by the device handling that zone.';
+	@override String get assign_section => 'Zone per category';
+	@override String get zone_primary => 'Default';
+	@override String get zone_2 => 'Zone 2';
+	@override String get zone_3 => 'Zone 3';
+	@override String get empty => 'No categories to show.';
+	@override String error_load({required Object error}) => 'An error occurred while loading products.\n${error}';
+	@override String get clear_all => 'Reset assignments';
+	@override String get save_failed => 'Could not save. Check that you are signed in and try again.';
 }
 
 // Path: order
@@ -861,6 +885,20 @@ class _Translations$settings$fast_menu$en extends Translations$settings$fast_men
 	@override String get select_desc => 'Pick the menus to print first.';
 	@override String selected_count({required Object n}) => '${n} selected';
 	@override String get none_selected => 'None selected';
+}
+
+// Path: settings.label_zone
+class _Translations$settings$label_zone$en extends Translations$settings$label_zone$ko {
+	_Translations$settings$label_zone$en._(TranslationsEn root) : this._root = root, super.internal(root);
+
+	final TranslationsEn _root; // ignore: unused_field
+
+	// Translations
+	@override String get select_title => 'Label zones';
+	@override String get select_desc => 'Set up zones';
+	@override String get none_selected => 'No zones set — prints every label';
+	@override String summary({required Object n, required Object zones}) => '${n} categories assigned · handles ${zones}';
+	@override String summary_all({required Object n}) => '${n} categories assigned · prints every zone';
 }
 
 // Path: settings.developer_options

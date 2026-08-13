@@ -19,6 +19,7 @@ import 'package:appfit_order_agent/models/order_model.dart';
 import 'package:appfit_order_agent/models/product_model.dart';
 import 'package:appfit_order_agent/services/label_printer/fast_menu_policy.dart';
 import 'package:appfit_order_agent/services/label_printer/label_filter_strategy.dart';
+import 'package:appfit_order_agent/services/label_printer/label_target.dart';
 import 'package:appfit_order_agent/services/label_printer/qr_payload_strategy.dart';
 import 'package:appfit_order_agent/utils/common_util.dart';
 
@@ -133,6 +134,7 @@ class LabelPrintData {
     this.orderInfo,
     this.menuInfo,
     this.isFastMenu = false,
+    this.target = LabelTarget.primary,
   });
 
   final String menuName;
@@ -170,6 +172,12 @@ class LabelPrintData {
   /// 메뉴 식별 정보 (라벨마다 다름). QR 페이로드의 menu 영역에 들어간다.
   final LabelMenuInfo? menuInfo;
 
+  /// 이 라벨이 향할 프린터(= 제조 구역). 미설정 매장은 항상 [LabelTarget.primary].
+  ///
+  /// 담당하지 않는 타깃의 라벨을 걸러내는 것은 소비자([OutputService.printOrderLabels])
+  /// 의 몫이다 — 여기서 빼버리면 `orderTotal` 채번이 흔들린다.
+  final LabelTarget target;
+
   /// appfit [OrderModel] 을 라벨 묶음(메뉴 1개당 qty 장 반복) 으로 변환.
   ///
   /// [products]: 옵션 카테고리 분류용 카탈로그.
@@ -189,6 +197,7 @@ class LabelPrintData {
     QrPayloadStrategy qrStrategy = const DefaultQrPayloadStrategy(),
     bool isReprint = false,
     FastMenuPolicy fastMenuPolicy = FastMenuPolicy.disabled,
+    LabelTargetPolicy targetPolicy = LabelTargetPolicy.disabled,
   }) {
     // 1) 메뉴 카테고리 필터링 — 브랜드 전략에 위임 (기본 NoOp = 전체).
     //    그 결과에 빠른 메뉴 우선 정렬을 얹는다. 필터 → 정렬 순서가 중요하다:
@@ -239,6 +248,11 @@ class LabelPrintData {
       // 마커 표시용 플래그. 순수 멤버십이라 mode 와 독립 — 매장이 순서는 그대로
       // 두고 표시만 켜는 운용이 가능하다.
       final isFastMenu = fastMenuPolicy.isFast(menu);
+
+      // 행선지 배정 — 메뉴 단위로 한 번만. 같은 메뉴의 qty 장은 전부 같은 프린터로
+      // 간다(같은 음료 3잔이 두 구역에 흩어지면 제조가 안 된다).
+      final target =
+          strategy.assignTarget(menu, products: products, policy: targetPolicy);
 
       // 옵션 카테고리 분류 — 브랜드 전략에 위임 (기본 NoOp = 분류 없음).
       final cats = strategy.classifyOptions(menu, products: products);
@@ -291,6 +305,7 @@ class LabelPrintData {
           orderInfo: orderInfo,
           menuInfo: menuInfo,
           isFastMenu: isFastMenu,
+          target: target,
           qrData: qrStrategy.buildPayload(
               orderInfo, menuInfo, labelIndex, totalLabels),
         ));

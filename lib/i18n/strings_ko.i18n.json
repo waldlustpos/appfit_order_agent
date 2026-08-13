@@ -226,6 +226,13 @@
             "selected_count": "{n}개 지정됨",
             "none_selected": "지정된 메뉴 없음"
         },
+        "label_zone": {
+            "select_title": "라벨 구역 지정",
+            "select_desc": "구역 설정",
+            "none_selected": "구역 지정 없음 — 모든 라벨 출력",
+            "summary": "{n}개 카테고리 배정 · 담당 {zones}",
+            "summary_all": "{n}개 카테고리 배정 · 전 구역 출력"
+        },
         "developer_options": {
             "title": "개발자 옵션",
             "appfit_test": {
@@ -393,6 +400,21 @@
         "save_failed": "저장하지 못했습니다. 로그인 상태를 확인한 뒤 다시 시도해 주세요.",
         "selected_section": "지정한 메뉴",
         "selected_empty": "아직 지정한 메뉴가 없습니다. 아래에서 선택하세요."
+    },
+    "label_zone_select": {
+        "title": "라벨 구역 지정",
+        "guide": "제조 구역이 나뉜 매장에서, 어떤 카테고리를 어느 단말이 출력할지 정합니다. 배정하지 않은 카테고리는 '기본' 구역으로 출력됩니다.",
+        "local_section": "이 단말이 출력할 구역",
+        "local_all": "선택 없음 — 이 단말이 모든 라벨을 출력합니다 (기본)",
+        "local_warning": "이 단말은 선택한 구역의 라벨만 출력합니다. 나머지는 해당 구역 단말에서 출력하세요.",
+        "assign_section": "카테고리별 구역",
+        "zone_primary": "기본",
+        "zone_2": "구역 2",
+        "zone_3": "구역 3",
+        "empty": "표시할 카테고리가 없습니다.",
+        "error_load": "상품 목록을 불러오는 중 오류가 발생했습니다.\n{error}",
+        "clear_all": "배정 초기화",
+        "save_failed": "저장하지 못했습니다. 로그인 상태를 확인한 뒤 다시 시도해 주세요."
     },
     "order": {
         "new_order": "신규",

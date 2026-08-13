@@ -6,6 +6,7 @@ import 'package:appfit_order_agent/models/order_menu_model.dart';
 import 'package:appfit_order_agent/models/order_model.dart';
 import 'package:appfit_order_agent/models/product_model.dart';
 import 'package:appfit_order_agent/providers/brand_provider.dart';
+import 'package:appfit_order_agent/services/label_printer/label_target.dart';
 import 'package:appfit_order_agent/utils/brand_registry.dart';
 
 /// 라벨 한 장의 sub-info 영역에 들어가는 옵션 카테고리 분류 결과.
@@ -51,6 +52,42 @@ abstract class LabelFilterStrategy {
     OrderMenuModel menu, {
     required List<ProductModel> products,
   });
+
+  /// 이 메뉴의 라벨이 어느 프린터(= 제조 구역)로 갈지.
+  ///
+  /// 기본 구현은 **상품 카테고리 코드를 [policy] 배정표에 조회**한다. 브랜드
+  /// 하드코딩이 아니라 매장 설정이 정본이므로 필터 전략과 무관하게 모든 브랜드에서
+  /// 동작한다 — [selectMenus] 처럼 capability 로 게이팅하지 않는다.
+  ///
+  /// ## [selectMenus] 와의 관계 — 직교하는 두 축이다
+  /// [selectMenus] 는 **인쇄 여부**(이 라벨을 뽑을 것인가), 여기는 **행선지**
+  /// (어느 프린터로 보낼 것인가)를 정한다. 재출력(`isReprint`)이 필터를 우회해도
+  /// 행선지는 그대로 유지돼야 하므로 이 메서드는 `isReprint` 를 보지 않는다.
+  ///
+  /// ## 메뉴 하나당 정확히 하나
+  /// 반환이 단일 값이라 "한 메뉴가 두 프린터에 배정" 이 **구조적으로 불가능**하다.
+  /// 필터 모드를 두 번 돌려 나누는 방식(프린터A=와플만 / 프린터B=와플제외)을 쓰면
+  /// 안 되는 이유가 이것이다 — [TpcpLabelFilterStrategy.selectMenus] 의 세트 상품은
+  /// 두 모드 모두에서 true 라 양쪽에 중복 인쇄된다.
+  LabelTarget assignTarget(
+    OrderMenuModel menu, {
+    required List<ProductModel> products,
+    required LabelTargetPolicy policy,
+  }) =>
+      policy.targetForCategory(
+          findProduct(products, menu.shopItemId)?.categoryCode);
+
+  /// 상품 카탈로그에서 ID 로 상품을 찾는다.
+  ///
+  /// `productId` 와 `internalId` 를 **둘 다** 보는 이유: 주문 응답의
+  /// [OrderMenuModel.shopItemId] / [MenuOptionModel.shopOptionId] 가 둘 중
+  /// 어느 쪽으로도 올 수 있다.
+  ProductModel? findProduct(List<ProductModel> products, String id) {
+    for (final p in products) {
+      if (p.productId == id || p.internalId == id) return p;
+    }
+    return null;
+  }
 }
 
 /// 필터/분류를 하지 않는 기본 전략 (TPCP 외 모든 브랜드).
@@ -95,7 +132,7 @@ class TpcpLabelFilterStrategy extends LabelFilterStrategy {
     if (isReprint || filterMode == 0) return order.menus;
 
     return order.menus.where((menu) {
-      final product = _findProduct(products, menu.shopItemId);
+      final product = findProduct(products, menu.shopItemId);
       // 세트 상품(TKP0051/52)은 필터 모드 무관 항상 출력.
       if (product != null &&
           OrderCategoryCodes.setItemCodes.contains(product.productId)) {
@@ -123,7 +160,7 @@ class TpcpLabelFilterStrategy extends LabelFilterStrategy {
       final groupCode = opt.optionGroupPosId;
       final categoryCode = (groupCode != null && groupCode.isNotEmpty)
           ? groupCode
-          : _findProduct(products, opt.shopOptionId)?.categoryCode;
+          : findProduct(products, opt.shopOptionId)?.categoryCode;
       if (categoryCode == null) continue;
       if (OrderCategoryCodes.beanTypeCodes.contains(categoryCode)) {
         beanType = opt.optionName;
@@ -142,13 +179,6 @@ class TpcpLabelFilterStrategy extends LabelFilterStrategy {
       sizeOption: sizeOption,
       classified: classified,
     );
-  }
-
-  ProductModel? _findProduct(List<ProductModel> products, String id) {
-    for (final p in products) {
-      if (p.productId == id || p.internalId == id) return p;
-    }
-    return null;
   }
 }
 

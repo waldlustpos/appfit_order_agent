@@ -110,6 +110,17 @@ class PreferenceService {
   /// 상품에 우연히 매칭되는 사고를 구조적으로 막는다. 값은 JSON 문자열 배열.
   static const String KEY_FAST_MENU_IDS_PREFIX = "APPFIT_FAST_MENU_IDS_";
 
+  // ── 라벨 타깃(제조 구역별 프린터 분담) ──────────────────────────────────────
+  // 둘 다 매장별 키(`<prefix><storeId>`) — 이유는 KEY_FAST_MENU_IDS_PREFIX 와 동일.
+  /// 카테고리 코드 → 타깃 id 배정. 값은 JSON 객체. **매장 정책**이라 전 단말 공통.
+  static const String KEY_LABEL_TARGET_ASSIGNMENT_PREFIX =
+      "APPFIT_LABEL_TARGET_ASSIGN_";
+
+  /// 이 단말이 담당하는 타깃 id 집합. 값은 JSON 배열. **단말별 배치**라 기기마다 다름.
+  /// 비어 있으면 전부 담당 = 종전 동작.
+  static const String KEY_LABEL_LOCAL_TARGETS_PREFIX =
+      "APPFIT_LABEL_LOCAL_TARGETS_";
+
   static const String KEY_IS_SOCKET_ENABLED =
       "KEY_IS_SOCKET_ENABLED"; // 소켓 사용 여부
   static const String KEY_FORCE_SOCKET_RECONNECT =
@@ -743,6 +754,112 @@ class PreferenceService {
     logToFile(
         tag: LogTag.PLATFORM,
         message: '[FastMenu] 지정 저장 ${sorted.length}개 ID (key=$key)');
+    return true;
+  }
+
+  // ── 라벨 타깃(제조 구역별 프린터 분담) ──────────────────────────────────────
+
+  /// 현재 매장의 카테고리→타깃 배정 키. 매장 미확정이면 null.
+  ///
+  /// 매장별로 나누는 이유는 [_fastMenuIdsKey] 와 같다 — 매장을 바꿨을 때 이전
+  /// 매장의 카테고리 코드가 새 매장 상품에 우연히 매칭되는 사고를 구조적으로 막는다.
+  /// 매장 ID 정본은 [getId] (`KOKONUT_M_ID`). `getStoreId` 는 쓰는 코드가 없어 항상 null.
+  String? _labelTargetAssignmentKey() {
+    final storeId = getId();
+    if (storeId == null || storeId.isEmpty) return null;
+    return '$KEY_LABEL_TARGET_ASSIGNMENT_PREFIX$storeId';
+  }
+
+  /// 현재 매장의 "이 단말이 담당하는 타깃" 키. 매장 미확정이면 null.
+  String? _labelLocalTargetsKey() {
+    final storeId = getId();
+    if (storeId == null || storeId.isEmpty) return null;
+    return '$KEY_LABEL_LOCAL_TARGETS_PREFIX$storeId';
+  }
+
+  /// 상품 카테고리 코드 → 라벨 타깃 id 배정. 미설정이면 빈 맵.
+  ///
+  /// 빈 맵이면 모든 라벨이 `LabelTarget.primary` 로 가서 종전 동작과 동일하다.
+  Map<String, String> getLabelTargetAssignment() {
+    final key = _labelTargetAssignmentKey();
+    if (key == null) return const <String, String>{};
+    final raw = _prefs.getString(key);
+    if (raw == null || raw.isEmpty) return const <String, String>{};
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return const <String, String>{};
+      final result = <String, String>{};
+      decoded.forEach((k, v) {
+        final code = k?.toString() ?? '';
+        final target = v?.toString() ?? '';
+        if (code.isNotEmpty && target.isNotEmpty) result[code] = target;
+      });
+      return result;
+    } catch (e) {
+      // 손상된 값은 빈 맵으로 흡수 — 이 설정 하나 때문에 라벨이 막히면 안 된다
+      // (getFastMenuIds 와 같은 방침). 빈 맵 = 전부 primary = 인쇄됨.
+      logger.w('[PreferenceService] 라벨 타깃 배정 파싱 실패 — 빈 맵으로 처리: $e');
+      return const <String, String>{};
+    }
+  }
+
+  /// 이 단말이 담당하는 라벨 타깃 id 집합. **비어 있으면 전부 담당**(기본).
+  Set<String> getLabelLocalTargets() {
+    final key = _labelLocalTargetsKey();
+    if (key == null) return <String>{};
+    final raw = _prefs.getString(key);
+    if (raw == null || raw.isEmpty) return <String>{};
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return <String>{};
+      return decoded
+          .map((e) => e?.toString() ?? '')
+          .where((e) => e.isNotEmpty)
+          .toSet();
+    } catch (e) {
+      // 빈 집합 = 전부 담당 = 라벨 소실 없음. 안전한 쪽으로 흡수한다.
+      logger.w('[PreferenceService] 라벨 담당 타깃 파싱 실패 — 전부 담당으로 처리: $e');
+      return <String>{};
+    }
+  }
+
+  /// 카테고리→타깃 배정 저장. 매장 미확정이면 false (호출부가 사용자에게 알릴 것).
+  Future<bool> setLabelTargetAssignment(Map<String, String> assignment) async {
+    final key = _labelTargetAssignmentKey();
+    if (key == null) {
+      logger.w('[PreferenceService] 매장 ID 미확정 — 라벨 타깃 배정 저장 실패');
+      logToFile(
+          tag: LogTag.WARNING, message: '[LabelTarget] 매장 ID 미확정 — 배정 저장 실패');
+      return false;
+    }
+    final cleaned = <String, String>{};
+    for (final entry in assignment.entries) {
+      if (entry.key.isNotEmpty && entry.value.isNotEmpty) {
+        cleaned[entry.key] = entry.value;
+      }
+    }
+    await _prefs.setString(key, jsonEncode(cleaned));
+    logToFile(
+        tag: LogTag.PLATFORM,
+        message: '[LabelTarget] 배정 저장 ${cleaned.length}개 카테고리 (key=$key)');
+    return true;
+  }
+
+  /// 이 단말이 담당할 타깃 저장. 매장 미확정이면 false.
+  Future<bool> setLabelLocalTargets(Set<String> targets) async {
+    final key = _labelLocalTargetsKey();
+    if (key == null) {
+      logger.w('[PreferenceService] 매장 ID 미확정 — 라벨 담당 타깃 저장 실패');
+      logToFile(
+          tag: LogTag.WARNING, message: '[LabelTarget] 매장 ID 미확정 — 담당 저장 실패');
+      return false;
+    }
+    // 정렬 저장 — 같은 선택이 항상 같은 문자열이 되어 diff/로그가 안정적이다.
+    final sorted = targets.where((e) => e.isNotEmpty).toList()..sort();
+    await _prefs.setString(key, jsonEncode(sorted));
+    logToFile(
+        tag: LogTag.PLATFORM,
+        message: '[LabelTarget] 담당 저장 $sorted (key=$key)');
     return true;
   }
 

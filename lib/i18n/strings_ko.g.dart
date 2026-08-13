@@ -45,6 +45,7 @@ class Translations with BaseTranslations<AppLocale, Translations> {
 	late final Translations$order_history$ko order_history = Translations$order_history$ko.internal(_root);
 	late final Translations$product_mgmt$ko product_mgmt = Translations$product_mgmt$ko.internal(_root);
 	late final Translations$fast_menu_select$ko fast_menu_select = Translations$fast_menu_select$ko.internal(_root);
+	late final Translations$label_zone_select$ko label_zone_select = Translations$label_zone_select$ko.internal(_root);
 	late final Translations$order$ko order = Translations$order$ko.internal(_root);
 	late final Translations$order_detail$ko order_detail = Translations$order_detail$ko.internal(_root);
 	late final Translations$dialog$ko dialog = Translations$dialog$ko.internal(_root);
@@ -249,6 +250,7 @@ class Translations$settings$ko {
 	late final Translations$settings$label_filter$ko label_filter = Translations$settings$label_filter$ko.internal(_root);
 	late final Translations$settings$label_qr_payload$ko label_qr_payload = Translations$settings$label_qr_payload$ko.internal(_root);
 	late final Translations$settings$fast_menu$ko fast_menu = Translations$settings$fast_menu$ko.internal(_root);
+	late final Translations$settings$label_zone$ko label_zone = Translations$settings$label_zone$ko.internal(_root);
 	late final Translations$settings$developer_options$ko developer_options = Translations$settings$developer_options$ko.internal(_root);
 	late final Translations$settings$kiosk$ko kiosk = Translations$settings$kiosk$ko.internal(_root);
 	late final Translations$settings$local_server$ko local_server = Translations$settings$local_server$ko.internal(_root);
@@ -532,6 +534,54 @@ class Translations$fast_menu_select$ko {
 
 	/// ko: '아직 지정한 메뉴가 없습니다. 아래에서 선택하세요.'
 	String get selected_empty => '아직 지정한 메뉴가 없습니다. 아래에서 선택하세요.';
+}
+
+// Path: label_zone_select
+class Translations$label_zone_select$ko {
+	Translations$label_zone_select$ko.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// ko: '라벨 구역 지정'
+	String get title => '라벨 구역 지정';
+
+	/// ko: '제조 구역이 나뉜 매장에서, 어떤 카테고리를 어느 단말이 출력할지 정합니다. 배정하지 않은 카테고리는 '기본' 구역으로 출력됩니다.'
+	String get guide => '제조 구역이 나뉜 매장에서, 어떤 카테고리를 어느 단말이 출력할지 정합니다. 배정하지 않은 카테고리는 \'기본\' 구역으로 출력됩니다.';
+
+	/// ko: '이 단말이 출력할 구역'
+	String get local_section => '이 단말이 출력할 구역';
+
+	/// ko: '선택 없음 — 이 단말이 모든 라벨을 출력합니다 (기본)'
+	String get local_all => '선택 없음 — 이 단말이 모든 라벨을 출력합니다 (기본)';
+
+	/// ko: '이 단말은 선택한 구역의 라벨만 출력합니다. 나머지는 해당 구역 단말에서 출력하세요.'
+	String get local_warning => '이 단말은 선택한 구역의 라벨만 출력합니다. 나머지는 해당 구역 단말에서 출력하세요.';
+
+	/// ko: '카테고리별 구역'
+	String get assign_section => '카테고리별 구역';
+
+	/// ko: '기본'
+	String get zone_primary => '기본';
+
+	/// ko: '구역 2'
+	String get zone_2 => '구역 2';
+
+	/// ko: '구역 3'
+	String get zone_3 => '구역 3';
+
+	/// ko: '표시할 카테고리가 없습니다.'
+	String get empty => '표시할 카테고리가 없습니다.';
+
+	/// ko: '상품 목록을 불러오는 중 오류가 발생했습니다. {error}'
+	String error_load({required Object error}) => '상품 목록을 불러오는 중 오류가 발생했습니다.\n${error}';
+
+	/// ko: '배정 초기화'
+	String get clear_all => '배정 초기화';
+
+	/// ko: '저장하지 못했습니다. 로그인 상태를 확인한 뒤 다시 시도해 주세요.'
+	String get save_failed => '저장하지 못했습니다. 로그인 상태를 확인한 뒤 다시 시도해 주세요.';
 }
 
 // Path: order
@@ -1499,6 +1549,30 @@ class Translations$settings$fast_menu$ko {
 
 	/// ko: '지정된 메뉴 없음'
 	String get none_selected => '지정된 메뉴 없음';
+}
+
+// Path: settings.label_zone
+class Translations$settings$label_zone$ko {
+	Translations$settings$label_zone$ko.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// ko: '라벨 구역 지정'
+	String get select_title => '라벨 구역 지정';
+
+	/// ko: '구역 설정'
+	String get select_desc => '구역 설정';
+
+	/// ko: '구역 지정 없음 — 모든 라벨 출력'
+	String get none_selected => '구역 지정 없음 — 모든 라벨 출력';
+
+	/// ko: '{n}개 카테고리 배정 · 담당 {zones}'
+	String summary({required Object n, required Object zones}) => '${n}개 카테고리 배정 · 담당 ${zones}';
+
+	/// ko: '{n}개 카테고리 배정 · 전 구역 출력'
+	String summary_all({required Object n}) => '${n}개 카테고리 배정 · 전 구역 출력';
 }
 
 // Path: settings.developer_options

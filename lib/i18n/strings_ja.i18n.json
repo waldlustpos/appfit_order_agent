@@ -226,6 +226,13 @@
             "selected_count": "{n}件 指定済み",
             "none_selected": "指定なし"
         },
+        "label_zone": {
+            "select_title": "ラベル区域の指定",
+            "select_desc": "区域を設定",
+            "none_selected": "区域の指定なし — すべてのラベルを出力",
+            "summary": "{n}件のカテゴリを割り当て・担当 {zones}",
+            "summary_all": "{n}件のカテゴリを割り当て・全区域を出力"
+        },
         "developer_options": {
             "title": "開発者オプション",
             "appfit_test": {
@@ -393,6 +400,21 @@
         "save_failed": "保存できませんでした。ログイン状態を確認して、もう一度お試しください。",
         "selected_section": "指定したメニュー",
         "selected_empty": "まだ指定したメニューがありません。下のリストから選んでください。"
+    },
+    "label_zone_select": {
+        "title": "ラベル区域の指定",
+        "guide": "製造区域が分かれている店舗で、どのカテゴリをどの端末が出力するかを決めます。割り当てていないカテゴリは「基本」区域で出力されます。",
+        "local_section": "この端末が出力する区域",
+        "local_all": "選択なし — この端末がすべてのラベルを出力します（基本）",
+        "local_warning": "この端末は選択した区域のラベルだけを出力します。残りは担当端末で出力してください。",
+        "assign_section": "カテゴリ別の区域",
+        "zone_primary": "基本",
+        "zone_2": "区域 2",
+        "zone_3": "区域 3",
+        "empty": "表示するカテゴリがありません。",
+        "error_load": "商品リストの読み込み中にエラーが発生しました。\n{error}",
+        "clear_all": "割り当てをリセット",
+        "save_failed": "保存できませんでした。ログイン状態を確認して、もう一度お試しください。"
     },
     "order": {
         "new_order": "新規",

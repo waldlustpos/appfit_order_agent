@@ -43,6 +43,7 @@ class TranslationsJa extends Translations with BaseTranslations<AppLocale, Trans
 	@override late final _Translations$order_history$ja order_history = _Translations$order_history$ja._(_root);
 	@override late final _Translations$product_mgmt$ja product_mgmt = _Translations$product_mgmt$ja._(_root);
 	@override late final _Translations$fast_menu_select$ja fast_menu_select = _Translations$fast_menu_select$ja._(_root);
+	@override late final _Translations$label_zone_select$ja label_zone_select = _Translations$label_zone_select$ja._(_root);
 	@override late final _Translations$order$ja order = _Translations$order$ja._(_root);
 	@override late final _Translations$order_detail$ja order_detail = _Translations$order_detail$ja._(_root);
 	@override late final _Translations$dialog$ja dialog = _Translations$dialog$ja._(_root);
@@ -158,6 +159,7 @@ class _Translations$settings$ja extends Translations$settings$ko {
 	@override late final _Translations$settings$label_filter$ja label_filter = _Translations$settings$label_filter$ja._(_root);
 	@override late final _Translations$settings$label_qr_payload$ja label_qr_payload = _Translations$settings$label_qr_payload$ja._(_root);
 	@override late final _Translations$settings$fast_menu$ja fast_menu = _Translations$settings$fast_menu$ja._(_root);
+	@override late final _Translations$settings$label_zone$ja label_zone = _Translations$settings$label_zone$ja._(_root);
 	@override late final _Translations$settings$developer_options$ja developer_options = _Translations$settings$developer_options$ja._(_root);
 	@override late final _Translations$settings$kiosk$ja kiosk = _Translations$settings$kiosk$ja._(_root);
 	@override late final _Translations$settings$local_server$ja local_server = _Translations$settings$local_server$ja._(_root);
@@ -299,6 +301,28 @@ class _Translations$fast_menu_select$ja extends Translations$fast_menu_select$ko
 	@override String get save_failed => '保存できませんでした。ログイン状態を確認して、もう一度お試しください。';
 	@override String get selected_section => '指定したメニュー';
 	@override String get selected_empty => 'まだ指定したメニューがありません。下のリストから選んでください。';
+}
+
+// Path: label_zone_select
+class _Translations$label_zone_select$ja extends Translations$label_zone_select$ko {
+	_Translations$label_zone_select$ja._(TranslationsJa root) : this._root = root, super.internal(root);
+
+	final TranslationsJa _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'ラベル区域の指定';
+	@override String get guide => '製造区域が分かれている店舗で、どのカテゴリをどの端末が出力するかを決めます。割り当てていないカテゴリは「基本」区域で出力されます。';
+	@override String get local_section => 'この端末が出力する区域';
+	@override String get local_all => '選択なし — この端末がすべてのラベルを出力します（基本）';
+	@override String get local_warning => 'この端末は選択した区域のラベルだけを出力します。残りは担当端末で出力してください。';
+	@override String get assign_section => 'カテゴリ別の区域';
+	@override String get zone_primary => '基本';
+	@override String get zone_2 => '区域 2';
+	@override String get zone_3 => '区域 3';
+	@override String get empty => '表示するカテゴリがありません。';
+	@override String error_load({required Object error}) => '商品リストの読み込み中にエラーが発生しました。\n${error}';
+	@override String get clear_all => '割り当てをリセット';
+	@override String get save_failed => '保存できませんでした。ログイン状態を確認して、もう一度お試しください。';
 }
 
 // Path: order
@@ -852,6 +876,20 @@ class _Translations$settings$fast_menu$ja extends Translations$settings$fast_men
 	@override String get select_desc => '先に出力するメニューを選択します。';
 	@override String selected_count({required Object n}) => '${n}件 指定済み';
 	@override String get none_selected => '指定なし';
+}
+
+// Path: settings.label_zone
+class _Translations$settings$label_zone$ja extends Translations$settings$label_zone$ko {
+	_Translations$settings$label_zone$ja._(TranslationsJa root) : this._root = root, super.internal(root);
+
+	final TranslationsJa _root; // ignore: unused_field
+
+	// Translations
+	@override String get select_title => 'ラベル区域の指定';
+	@override String get select_desc => '区域を設定';
+	@override String get none_selected => '区域の指定なし — すべてのラベルを出力';
+	@override String summary({required Object n, required Object zones}) => '${n}件のカテゴリを割り当て・担当 ${zones}';
+	@override String summary_all({required Object n}) => '${n}件のカテゴリを割り当て・全区域を出力';
 }
 
 // Path: settings.developer_options

@@ -226,6 +226,13 @@
             "selected_count": "{n} selected",
             "none_selected": "None selected"
         },
+        "label_zone": {
+            "select_title": "Label zones",
+            "select_desc": "Set up zones",
+            "none_selected": "No zones set — prints every label",
+            "summary": "{n} categories assigned · handles {zones}",
+            "summary_all": "{n} categories assigned · prints every zone"
+        },
         "developer_options": {
             "title": "Developer Options",
             "appfit_test": {
@@ -397,6 +404,21 @@
         "save_failed": "Could not save. Check that you are signed in and try again.",
         "selected_section": "Chosen menus",
         "selected_empty": "Nothing chosen yet. Pick menus from the list below."
+    },
+    "label_zone_select": {
+        "title": "Label zones",
+        "guide": "For stores with separate prep areas, choose which device prints which categories. Categories left unassigned print in the 'Default' zone.",
+        "local_section": "Zones this device prints",
+        "local_all": "None selected — this device prints every label (default)",
+        "local_warning": "This device prints only the selected zones. The rest must be printed by the device handling that zone.",
+        "assign_section": "Zone per category",
+        "zone_primary": "Default",
+        "zone_2": "Zone 2",
+        "zone_3": "Zone 3",
+        "empty": "No categories to show.",
+        "error_load": "An error occurred while loading products.\n{error}",
+        "clear_all": "Reset assignments",
+        "save_failed": "Could not save. Check that you are signed in and try again."
     },
     "order": {
         "new_order": "New",

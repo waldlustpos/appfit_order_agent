@@ -8,6 +8,7 @@ import 'package:appfit_order_agent/providers/product_provider.dart';
 import 'package:appfit_order_agent/services/label_printer/fast_menu_policy.dart';
 import 'package:appfit_order_agent/services/label_printer/label_filter_strategy.dart';
 import 'package:appfit_order_agent/services/label_printer/label_print_data.dart';
+import 'package:appfit_order_agent/services/label_printer/label_target.dart';
 import 'package:appfit_order_agent/services/label_printer/qr_payload_strategy.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/services/print_service.dart';
@@ -192,6 +193,9 @@ class OutputService {
       // 빠른 제조 메뉴 정책 — 주문 내 라벨 정렬(mode>=1)과 마커 표시를 담당.
       // 기본값(mode=0, 지정 상품 없음)이면 정렬도 마커도 없이 종전과 동일하다.
       final fastMenuPolicy = ref.read(fastMenuPolicyProvider);
+      // 제조 구역별 프린터 분담 정책. 미설정이면 전량 primary + 전량 담당이라
+      // 아래 필터가 no-op 이 되어 종전 동작과 완전히 같다.
+      final targetPolicy = ref.read(labelTargetPolicyProvider);
       final labels = LabelPrintData.fromOrder(
         orderToPrint,
         products: allProducts,
@@ -200,11 +204,32 @@ class OutputService {
         qrStrategy: qrStrategy,
         isReprint: isReprint,
         fastMenuPolicy: fastMenuPolicy,
+        targetPolicy: targetPolicy,
       );
 
       if (labels.isEmpty) return;
 
+      // ★ 전체 주문 기준값 — 담당 구역만 인쇄해도 이 값은 줄어들지 않는다.
+      //   orderIndex/orderTotal 은 인쇄 카운터가 아니라 컵의 고유 식별자라
+      //   (label_print_data.dart 참조) 부분합으로 바꾸면 QR 페이로드가 깨진다.
+      //   즉 담당 구역 라벨에 "2/5", "4/5" 처럼 건너뛴 번호가 찍히는 게 정상이다.
       final totalLabels = labels.first.orderTotal;
+
+      // 이 단말이 담당하지 않는 구역의 라벨은 건너뛴다. **누락이 아니다** —
+      // 그 구역을 맡은 다른 단말이 자기 프린터로 인쇄한다. 그래서 실패 회계
+      // (failedLabels / markPendingReprint / Sentry)에 넣지 않는다.
+      final labelsToPrint =
+          labels.where((d) => targetPolicy.handles(d.target)).toList();
+      final skipped = labels.length - labelsToPrint.length;
+      if (skipped > 0) {
+        // 설정 실수(담당 타깃 오타 등)로 전량이 조용히 사라지는 것을 막는 관찰점.
+        // 스킵은 정상 동작이지만 **보이지 않으면 오설정과 구분할 수 없다.**
+        logToFile(
+            tag: LogTag.PLATFORM,
+            message: '[Label] $num 타깃 스킵 $skipped/${labels.length}장'
+                ' (담당=${targetPolicy.localTargets.join(",")})');
+      }
+      if (labelsToPrint.isEmpty) return;
 
       // QR 코드 출력 토글. ON 이면 ① QR 동반 인쇄 + ② 주문번호 뒤 순번 접미사(-1, -2 ...)
       // 를 함께 적용한다. (예: 0029 → 0029-1, 0029-2). OFF 면 둘 다 미적용.
@@ -216,7 +241,7 @@ class OutputService {
       int failedLabels = 0;
       final List<int> failedIndices = [];
 
-      for (final (index, data) in labels.indexed) {
+      for (final (index, data) in labelsToPrint.indexed) {
         // 동일 주문 내 연속 라벨 사이에 firmware 의 paper-not-fetched 감지가
         // 걸릴 idle 윈도우를 확보한다. index 0(주문 첫 라벨)은 상위 방출
         // throttle(500ms)로 이미 텀이 있어 제외 → 단일메뉴(1장) 주문은 추가

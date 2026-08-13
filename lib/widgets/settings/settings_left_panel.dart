@@ -10,7 +10,9 @@ import 'package:appfit_order_agent/providers/product_provider.dart';
 import 'package:appfit_order_agent/providers/currency_provider.dart';
 import 'package:appfit_order_agent/providers/rotation_provider.dart';
 import 'package:appfit_order_agent/screens/fast_menu_selection_screen.dart';
+import 'package:appfit_order_agent/screens/label_zone_settings_screen.dart';
 import 'package:appfit_order_agent/services/label_printer/fast_menu_policy.dart';
+import 'package:appfit_order_agent/services/label_printer/label_target.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/services/print_service.dart';
 import 'package:appfit_order_agent/utils/brand_registry.dart';
@@ -288,6 +290,17 @@ class _SettingsLeftPanelState extends ConsumerState<SettingsLeftPanel> {
     );
     // 지정 화면이 저장 후 provider 를 invalidate 하므로, 돌아온 뒤 개수 표시를
     // 갱신하려면 이 패널도 리빌드해야 한다.
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _openLabelZoneSettings() async {
+    logToFile(tag: LogTag.UI_ACTION, message: '라벨 구역 지정 화면 진입');
+    await Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => const LabelZoneSettingsScreen(),
+      ),
+    );
     if (mounted) setState(() {});
   }
 
@@ -750,6 +763,8 @@ class _SettingsLeftPanelState extends ConsumerState<SettingsLeftPanel> {
                     ),
                   ),
                 if (showFastMenuItem) ...[
+                  // 제조 구역 분담 — 이 단말이 어떤 카테고리를 출력할지.
+                  _LabelZoneSelectRow(onTap: _openLabelZoneSettings),
                   // 대상 메뉴 지정 — 모드보다 먼저 놓는다. 지정이 없으면
                   // 모드를 켜도 아무 일도 일어나지 않기 때문.
                   _FastMenuSelectRow(onTap: _openFastMenuSelection),
@@ -879,6 +894,51 @@ class _SettingsLeftPanelState extends ConsumerState<SettingsLeftPanel> {
     if (result != null) {
       widget.onSoundGraphMarketIdChanged(result);
     }
+  }
+}
+
+/// "라벨 구역 지정" 행. 현재 배정 현황을 요약해 보여준다.
+///
+/// 카탈로그를 watch 하지 않는다 — 요약에 필요한 값(배정 개수, 담당 구역)이 전부
+/// prefs 에서 나오므로, 라벨 프린터를 쓰지 않는 매장이 설정 진입만으로 상품
+/// 조회를 하게 만들 이유가 없다 ([_FastMenuSelectRow] 와 같은 취지).
+class _LabelZoneSelectRow extends ConsumerWidget {
+  const _LabelZoneSelectRow({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final policy = ref.watch(labelTargetPolicyProvider);
+    final count = policy.assignment.length;
+
+    final String description;
+    if (!policy.isConfigured) {
+      description = t.settings.label_zone.none_selected;
+    } else if (policy.localTargets.isEmpty) {
+      // 배정은 했지만 담당 제한이 없는 상태 — 이 단말은 여전히 전량 출력한다.
+      description = t.settings.label_zone.summary_all(n: count);
+    } else {
+      final zones = policy.localTargets
+          .map((id) => switch (id) {
+                'zone2' => t.label_zone_select.zone_2,
+                'zone3' => t.label_zone_select.zone_3,
+                _ => t.label_zone_select.zone_primary,
+              })
+          .join(', ');
+      description = t.settings.label_zone.summary(n: count, zones: zones);
+    }
+
+    return SettingsItemWidget(
+      title: t.settings.label_zone.select_title,
+      description: description,
+      showDivider: false,
+      trailing: ElevatedButton.icon(
+        onPressed: onTap,
+        icon: const Icon(Icons.alt_route, size: 18),
+        label: Text(t.settings.label_zone.select_desc),
+      ),
+    );
   }
 }
 
