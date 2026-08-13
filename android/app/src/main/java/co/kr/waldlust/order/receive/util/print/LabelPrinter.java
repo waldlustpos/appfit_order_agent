@@ -1049,10 +1049,13 @@ public class LabelPrinter {
                 // ── 핸들 귀속 가능성 진단 (라벨 프린터 2대 운용 선행 검증) ──
                 // 값이 바뀔 때만 남긴다 — 비콘은 초당 여러 번 올 수 있어 무조건 찍으면
                 // 운영 로그가 잠긴다. logcat 전용(파일 로그 제외)도 같은 이유.
-                final String cbHandle = String.valueOf(h);
-                if (!cbHandle.equals(lastLoggedCallbackHandle)) {
-                    lastLoggedCallbackHandle = cbHandle;
-                    Log.i(TAG, "[CALLBACK] 핸들 cb=" + cbHandle + " cur=" + hPrinter
+                // dedup 키에 hPrinter 를 함께 넣어야 한다. cb 만 보면, 첫 비콘이
+                // CP_Port_OpenUsb 반환 전(= hPrinter 미할당)에 도착했을 때 한 번
+                // "불일치" 로 찍히고 이후 같은 cb 가 전부 억제되어 **영구히 오판**한다.
+                final String cbPair = h + "|" + hPrinter;
+                if (!cbPair.equals(lastLoggedCallbackHandle)) {
+                    lastLoggedCallbackHandle = cbPair;
+                    Log.i(TAG, "[CALLBACK] 핸들 cb=" + h + " cur=" + hPrinter
                             + " 일치=" + (h != null && h.equals(hPrinter)));
                 }
 

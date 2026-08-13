@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: reference
   originSessionId: d878d032-b8eb-41f1-a0bb-073f3db8a81e
-  modified: 2026-08-13T02:46:51.171Z
+  modified: 2026-08-13T03:35:01.128Z
 ---
 
 2026-08-13 실측 (D2s_KDS_STGL `DK1925AJ40349` + REXOD RXLA-561, `adb shell dumpsys usb`).
@@ -44,6 +44,20 @@ serial 이 없으면 두 대가 `Virtual PRN/null` 로 **같은 키**가 되어 
 읽기 자체는 되고 있다는 방증.
 
 sysfs `/sys/bus/usb/devices/*/serial` 은 shell 권한 거부라 교차 확인 불가.
+
+**앱 내에서 USB 권한을 쥔 상태로 재확인 완료** (같은 날, warm-up 로그):
+`[CONNECT] warmup 성공 ... 권한=있음 포트명=Virtual PRN/null`. 권한 게이트를 통과한
+읽기에서도 null 이므로 디스크립터 부재가 확정이다. dumpsys 대조군보다 이쪽이 결정적.
+
+## 콜백 핸들은 유효하다 (다중화 시 쓸 수 있음)
+
+`CP_Printer_AddOnPrinterStatusEvent` 는 프로세스 전역 등록이지만, 콜백 첫 인자
+`Pointer h` 에 **실제 포트 핸들이 온다** — 실측 `cb=native@0xa66d2e50
+cur=native@0xa66d2e50 일치=true`. 따라서 프린터가 여러 대가 되면 이 핸들로 비콘을
+프린터별로 귀속시킬 수 있고, 핸들 스코프 폴링 API(`CP_Printer_GetPrinterStatusInfo` /
+`CP_Pos_QueryRTStatus`)로 갈아탈 필요가 없다.
+⚠️ 단 이건 **필요조건만 확인한 것** — 1대 환경이라 `h == hPrinter` 가 자명하다.
+"2대일 때 각자 자기 핸들로 온다" 는 충분조건은 실기기 2대 없이는 검증 불가.
 
 **Why:** 관찰값이 "없음" 일 때 그것이 진짜 부재인지 관찰 수단의 한계인지 먼저 갈라야 한다.
 같은 출력 안의 대조군을 찾는 게 가장 싼 방법이었다
