@@ -89,8 +89,17 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
                 Integer labelIndex = call.argument("labelIndex");
                 Integer totalLabels = call.argument("totalLabels");
 
+                // USB Direct 라우팅. 설정 상태를 네이티브에 두지 않고 매 호출 받는다 —
+                // 설정 변경과 인쇄 사이의 순서 문제를 아예 만들지 않기 위함.
+                Boolean useUsbDirect = call.argument("useUsbDirect");
+                String labelTargetId = call.argument("targetId");
+                java.util.Map<String, Integer> targetBusMap = call.argument("targetBusMap");
+
                 if (imageBytes != null && imageBytes.length > 0) {
                     final Bitmap bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length);
+                    final boolean finalUseDirect = Boolean.TRUE.equals(useUsbDirect);
+                    final String finalTargetId = labelTargetId;
+                    final java.util.Map<String, Integer> finalTargetBusMap = targetBusMap;
                     final int finalAutoReplyMode = autoReplyMode != null ? autoReplyMode : 1;
                     final boolean finalUseFeedToTear = useFeedToTear != null ? useFeedToTear : true;
                     final boolean finalUseBackToPrint = useBackToPrint != null ? useBackToPrint : true;
@@ -108,7 +117,15 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
                         // 2=발사후 무응답). Dart 는 1 일 때만 재시도한다 — 2 에서 재시도하면
                         // 이미 펌웨어에 들어간 페이지가 한 장 더 인쇄된다.
                         int printResult;
-                        if (co.kr.waldlust.order.receive.util.print.BixolonLabelDriver
+                        if (finalUseDirect) {
+                            // USB Direct — 타깃(제조 구역)별로 프린터를 지목한다.
+                            // Caysn 과 혼용하지 않는다: 같은 장치를 두 경로가 claim 하면
+                            // 서로 빼앗아 조용히 인쇄를 잃는다(좀비 핸들 실측).
+                            printResult = co.kr.waldlust.order.receive.util.print.UsbLabelRegistry
+                                    .printLabel(activity, bitmap, finalTargetId,
+                                            finalTargetBusMap, finalOrderNo,
+                                            finalLabelIndex, finalTotalLabels);
+                        } else if (co.kr.waldlust.order.receive.util.print.BixolonLabelDriver
                                 .isBixolonAttached(activity)) {
                             // BIXOLON 드라이버는 아직 bool 만 반환 — 실패는 재시도 가능으로 본다
                             // (기존 동작 유지).
@@ -154,12 +171,20 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
             // 이라는 비대칭을 남기지 않는다.
             case "warmupLabelPrinter": {
                 Integer warmupMode = call.argument("autoReplyMode");
+                Boolean warmupDirect = call.argument("useUsbDirect");
                 // ★ printLabel 의 기본값과 반드시 같아야 한다. 다르면 첫 인쇄가 모드
                 //   불일치로 포트를 닫고 다시 열어 warm-up 이 통째로 무효가 된다.
                 final int finalWarmupMode = warmupMode != null ? warmupMode : 1;
+                final boolean finalWarmupDirect = Boolean.TRUE.equals(warmupDirect);
                 labelPrintExecutor.submit(() -> {
                     boolean ok;
-                    if (co.kr.waldlust.order.receive.util.print.BixolonLabelDriver
+                    if (finalWarmupDirect) {
+                        // Direct 는 연결된 프린터를 <b>전부</b> 미리 연다. 타깃 배정과
+                        // 무관하게 여는 이유: 배정이 바뀌어도 첫 인쇄가 권한 승인
+                        // 사이클을 지불하지 않게 하려는 것이고, 여는 비용은 대당 수십 ms 다.
+                        ok = co.kr.waldlust.order.receive.util.print.UsbLabelRegistry
+                                .warmup(activity) > 0;
+                    } else if (co.kr.waldlust.order.receive.util.print.BixolonLabelDriver
                             .isBixolonAttached(activity)) {
                         ok = co.kr.waldlust.order.receive.util.print.BixolonLabelDriver
                                 .warmup();
@@ -327,6 +352,41 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
                     final String finalReport = report;
                     new android.os.Handler(android.os.Looper.getMainLooper())
                             .post(() -> result.success(finalReport));
+                });
+                break;
+            }
+
+            // 연결된 USB Direct 라벨 프린터의 버스 번호 목록 (설정 UI 용).
+            // 열거만 하므로 메인 스레드에서 즉시 응답해도 된다.
+            case "enumerateUsbLabelPrinters":
+                result.success(co.kr.waldlust.order.receive.util.print.UsbLabelRegistry
+                        .connectedBuses(activity));
+                break;
+
+            // 지정 버스에 테스트 라벨 1장. 동일 기종은 외관으로 구별되지 않으므로
+            // "어느 기계가 이 구역인가" 를 물리로 확인하는 유일한 수단이다.
+            case "testPrintUsbLabel": {
+                final byte[] testPng = call.argument("imageBytes");
+                final Integer testBus = call.argument("bus");
+                if (testPng == null || testPng.length == 0 || testBus == null) {
+                    result.error("INVALID_ARGUMENT", "imageBytes/bus 필요", null);
+                    break;
+                }
+                labelPrintExecutor.submit(() -> {
+                    int rc;
+                    try {
+                        final Bitmap b = BitmapFactory.decodeByteArray(
+                                testPng, 0, testPng.length);
+                        rc = co.kr.waldlust.order.receive.util.print.UsbLabelRegistry
+                                .testPrint(activity, testBus, b);
+                    } catch (Throwable t) {
+                        Log.w(TAG, "USB Direct 테스트 출력 실패", t);
+                        rc = co.kr.waldlust.order.receive.util.print.LabelPrinter
+                                .RESULT_RETRYABLE;
+                    }
+                    final int finalRc = rc;
+                    new android.os.Handler(android.os.Looper.getMainLooper())
+                            .post(() -> result.success(finalRc));
                 });
                 break;
             }

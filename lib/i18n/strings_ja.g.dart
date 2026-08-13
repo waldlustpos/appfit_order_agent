@@ -323,6 +323,18 @@ class _Translations$label_zone_select$ja extends Translations$label_zone_select$
 	@override String error_load({required Object error}) => '商品リストの読み込み中にエラーが発生しました。\n${error}';
 	@override String get clear_all => '割り当てをリセット';
 	@override String get save_failed => '保存できませんでした。ログイン状態を確認して、もう一度お試しください。';
+	@override String get direct_section => 'プリンター接続方式';
+	@override String get direct_toggle => 'USB直接制御';
+	@override String get direct_hint => 'この端末にラベルプリンターを2台以上つなぐ場合にオンにします。オフの場合は従来どおり1台で動作します。';
+	@override String get direct_devices => '接続中のプリンター';
+	@override String get direct_none => '接続されているラベルプリンターがありません。';
+	@override String direct_port({required Object bus}) => 'ポート ${bus}';
+	@override String get direct_unassigned => '未指定';
+	@override String get direct_test => 'テスト印刷';
+	@override String get direct_port_warning => '⚠ プリンターは差し込んだポートで識別します。ケーブルを別のポートに移した場合は割り当ても変更してください。同じ機種は見た目で区別できないため、テスト印刷で確認してください。';
+	@override String direct_test_sent({required Object bus}) => 'ポート ${bus} にテストラベルを送信しました。';
+	@override String direct_test_failed({required Object bus}) => 'ポート ${bus} のテスト印刷に失敗しました。';
+	@override String get direct_refresh => '再検索';
 }
 
 // Path: order

@@ -414,7 +414,19 @@
         "empty": "表示するカテゴリがありません。",
         "error_load": "商品リストの読み込み中にエラーが発生しました。\n{error}",
         "clear_all": "割り当てをリセット",
-        "save_failed": "保存できませんでした。ログイン状態を確認して、もう一度お試しください。"
+        "save_failed": "保存できませんでした。ログイン状態を確認して、もう一度お試しください。",
+        "direct_section": "プリンター接続方式",
+        "direct_toggle": "USB直接制御",
+        "direct_hint": "この端末にラベルプリンターを2台以上つなぐ場合にオンにします。オフの場合は従来どおり1台で動作します。",
+        "direct_devices": "接続中のプリンター",
+        "direct_none": "接続されているラベルプリンターがありません。",
+        "direct_port": "ポート {bus}",
+        "direct_unassigned": "未指定",
+        "direct_test": "テスト印刷",
+        "direct_port_warning": "⚠ プリンターは差し込んだポートで識別します。ケーブルを別のポートに移した場合は割り当ても変更してください。同じ機種は見た目で区別できないため、テスト印刷で確認してください。",
+        "direct_test_sent": "ポート {bus} にテストラベルを送信しました。",
+        "direct_test_failed": "ポート {bus} のテスト印刷に失敗しました。",
+        "direct_refresh": "再検索"
     },
     "order": {
         "new_order": "新規",

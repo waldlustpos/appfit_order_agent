@@ -327,6 +327,18 @@ class _Translations$label_zone_select$en extends Translations$label_zone_select$
 	@override String error_load({required Object error}) => 'An error occurred while loading products.\n${error}';
 	@override String get clear_all => 'Reset assignments';
 	@override String get save_failed => 'Could not save. Check that you are signed in and try again.';
+	@override String get direct_section => 'Printer connection';
+	@override String get direct_toggle => 'Direct USB control';
+	@override String get direct_hint => 'Turn on when this device has two or more label printers. Off keeps the previous single-printer behaviour.';
+	@override String get direct_devices => 'Connected printers';
+	@override String get direct_none => 'No label printer connected.';
+	@override String direct_port({required Object bus}) => 'Port ${bus}';
+	@override String get direct_unassigned => 'Unassigned';
+	@override String get direct_test => 'Test print';
+	@override String get direct_port_warning => 'Warning: printers are identified by the port they are plugged into. If you move a cable to another port, move the assignment too. Identical models look alike, so confirm with a test print.';
+	@override String direct_test_sent({required Object bus}) => 'Test label sent to port ${bus}.';
+	@override String direct_test_failed({required Object bus}) => 'Test print to port ${bus} failed.';
+	@override String get direct_refresh => 'Rescan';
 }
 
 // Path: order

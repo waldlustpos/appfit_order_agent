@@ -418,7 +418,19 @@
         "empty": "No categories to show.",
         "error_load": "An error occurred while loading products.\n{error}",
         "clear_all": "Reset assignments",
-        "save_failed": "Could not save. Check that you are signed in and try again."
+        "save_failed": "Could not save. Check that you are signed in and try again.",
+        "direct_section": "Printer connection",
+        "direct_toggle": "Direct USB control",
+        "direct_hint": "Turn on when this device has two or more label printers. Off keeps the previous single-printer behaviour.",
+        "direct_devices": "Connected printers",
+        "direct_none": "No label printer connected.",
+        "direct_port": "Port {bus}",
+        "direct_unassigned": "Unassigned",
+        "direct_test": "Test print",
+        "direct_port_warning": "Warning: printers are identified by the port they are plugged into. If you move a cable to another port, move the assignment too. Identical models look alike, so confirm with a test print.",
+        "direct_test_sent": "Test label sent to port {bus}.",
+        "direct_test_failed": "Test print to port {bus} failed.",
+        "direct_refresh": "Rescan"
     },
     "order": {
         "new_order": "New",

@@ -582,6 +582,42 @@ class Translations$label_zone_select$ko {
 
 	/// ko: '저장하지 못했습니다. 로그인 상태를 확인한 뒤 다시 시도해 주세요.'
 	String get save_failed => '저장하지 못했습니다. 로그인 상태를 확인한 뒤 다시 시도해 주세요.';
+
+	/// ko: '프린터 연결 방식'
+	String get direct_section => '프린터 연결 방식';
+
+	/// ko: 'USB 직접 제어'
+	String get direct_toggle => 'USB 직접 제어';
+
+	/// ko: '이 단말에 라벨 프린터를 두 대 이상 붙일 때 켭니다. 끄면 종전 방식(한 대)으로 동작합니다.'
+	String get direct_hint => '이 단말에 라벨 프린터를 두 대 이상 붙일 때 켭니다. 끄면 종전 방식(한 대)으로 동작합니다.';
+
+	/// ko: '연결된 프린터'
+	String get direct_devices => '연결된 프린터';
+
+	/// ko: '연결된 라벨 프린터가 없습니다.'
+	String get direct_none => '연결된 라벨 프린터가 없습니다.';
+
+	/// ko: '포트 {bus}'
+	String direct_port({required Object bus}) => '포트 ${bus}';
+
+	/// ko: '미지정'
+	String get direct_unassigned => '미지정';
+
+	/// ko: '테스트 출력'
+	String get direct_test => '테스트 출력';
+
+	/// ko: '⚠ 프린터는 꽂은 포트로 구분합니다. 케이블을 다른 포트로 옮기면 배정도 함께 옮겨야 합니다. 같은 모델은 겉모습으로 구별되지 않으니 테스트 출력으로 확인하세요.'
+	String get direct_port_warning => '⚠ 프린터는 꽂은 포트로 구분합니다. 케이블을 다른 포트로 옮기면 배정도 함께 옮겨야 합니다. 같은 모델은 겉모습으로 구별되지 않으니 테스트 출력으로 확인하세요.';
+
+	/// ko: '포트 {bus} 로 테스트 라벨을 보냈습니다.'
+	String direct_test_sent({required Object bus}) => '포트 ${bus} 로 테스트 라벨을 보냈습니다.';
+
+	/// ko: '포트 {bus} 테스트 출력에 실패했습니다.'
+	String direct_test_failed({required Object bus}) => '포트 ${bus} 테스트 출력에 실패했습니다.';
+
+	/// ko: '다시 검색'
+	String get direct_refresh => '다시 검색';
 }
 
 // Path: order

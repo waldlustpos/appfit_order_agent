@@ -414,7 +414,19 @@
         "empty": "표시할 카테고리가 없습니다.",
         "error_load": "상품 목록을 불러오는 중 오류가 발생했습니다.\n{error}",
         "clear_all": "배정 초기화",
-        "save_failed": "저장하지 못했습니다. 로그인 상태를 확인한 뒤 다시 시도해 주세요."
+        "save_failed": "저장하지 못했습니다. 로그인 상태를 확인한 뒤 다시 시도해 주세요.",
+        "direct_section": "프린터 연결 방식",
+        "direct_toggle": "USB 직접 제어",
+        "direct_hint": "이 단말에 라벨 프린터를 두 대 이상 붙일 때 켭니다. 끄면 종전 방식(한 대)으로 동작합니다.",
+        "direct_devices": "연결된 프린터",
+        "direct_none": "연결된 라벨 프린터가 없습니다.",
+        "direct_port": "포트 {bus}",
+        "direct_unassigned": "미지정",
+        "direct_test": "테스트 출력",
+        "direct_port_warning": "⚠ 프린터는 꽂은 포트로 구분합니다. 케이블을 다른 포트로 옮기면 배정도 함께 옮겨야 합니다. 같은 모델은 겉모습으로 구별되지 않으니 테스트 출력으로 확인하세요.",
+        "direct_test_sent": "포트 {bus} 로 테스트 라벨을 보냈습니다.",
+        "direct_test_failed": "포트 {bus} 테스트 출력에 실패했습니다.",
+        "direct_refresh": "다시 검색"
     },
     "order": {
         "new_order": "신규",

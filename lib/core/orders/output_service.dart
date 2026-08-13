@@ -289,6 +289,9 @@ class OutputService {
           labelIndex: data.orderIndex,
           totalLabels: data.orderTotal,
           reportOrderNo: orderToPrint.orderNo,
+          // 이 라벨이 향할 제조 구역. USB Direct 경로에서 프린터 지목에 쓰인다.
+          // 다른 경로는 프린터가 1대뿐이라 무시한다.
+          target: data.target,
         );
         final printMs = DateTime.now().difference(printStart).inMilliseconds;
         final labelMsg =
@@ -375,6 +378,7 @@ class OutputService {
     required int labelIndex,
     required int totalLabels,
     required String reportOrderNo,
+    LabelTarget target = LabelTarget.primary,
   }) async {
     // 분모. 재시도 여부와 무관하게 "라벨 1장 = 1" 로 센다.
     _labelsAttempted++;
@@ -385,6 +389,7 @@ class OutputService {
         orderNo: orderNo,
         labelIndex: labelIndex,
         totalLabels: totalLabels,
+        target: target,
       ),
       onAckTimeout: (attempt) => _reportAckTimeout(
         printService: printService,
@@ -458,12 +463,14 @@ class OutputService {
     required String orderNo,
     required int labelIndex,
     required int totalLabels,
+    LabelTarget target = LabelTarget.primary,
   }) async {
     return printService.printLabelDetailed(
       imageBytes,
       orderNo: orderNo,
       labelIndex: labelIndex,
       totalLabels: totalLabels,
+      target: target,
     );
   }
 

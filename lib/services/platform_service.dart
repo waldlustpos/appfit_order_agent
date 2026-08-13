@@ -476,11 +476,16 @@ class PlatformService {
   ///
   /// 실패해도 예외를 던지지 않는다 — 앱 시작을 막지 않고, 기존 lazy 연결이
   /// 그대로 폴백으로 남는다.
-  static Future<bool> warmupLabelPrinter({required int autoReplyMode}) async {
+  static Future<bool> warmupLabelPrinter({
+    required int autoReplyMode,
+    bool useUsbDirect = false,
+  }) async {
     if (!Platform.isAndroid) return false;
     try {
-      return await platform.invokeMethod<bool>(
-              'warmupLabelPrinter', {'autoReplyMode': autoReplyMode}) ??
+      return await platform.invokeMethod<bool>('warmupLabelPrinter', {
+            'autoReplyMode': autoReplyMode,
+            'useUsbDirect': useUsbDirect,
+          }) ??
           false;
     } catch (e, s) {
       logger.w('[PlatformService] 라벨 warm-up 호출 실패', error: e, stackTrace: s);
@@ -593,6 +598,40 @@ class PlatformService {
     }
   }
 
+  /// 연결된 USB Direct 라벨 프린터의 버스 번호 목록 (오름차순).
+  ///
+  /// 설정 화면이 "몇 대가 어느 포트에 붙어 있는가" 를 보여주는 데 쓴다.
+  /// 버스 번호는 **포트** 식별이라 케이블을 옮기면 따라간다 — 어느 물리 기계인지는
+  /// [testPrintUsbLabel] 로만 확인할 수 있다(동일 기종은 외관 구별 불가).
+  static Future<List<int>> enumerateUsbLabelPrinters() async {
+    if (!Platform.isAndroid) return const <int>[];
+    try {
+      final buses =
+          await platform.invokeListMethod<int>('enumerateUsbLabelPrinters');
+      return buses ?? const <int>[];
+    } catch (e, s) {
+      logger.w('[PlatformService] 라벨 프린터 열거 실패', error: e, stackTrace: s);
+      return const <int>[];
+    }
+  }
+
+  /// 지정 버스의 프린터에 테스트 라벨 1장. 반환은 네이티브 3분류 코드.
+  static Future<int?> testPrintUsbLabel({
+    required int bus,
+    required Uint8List imageBytes,
+  }) async {
+    if (!Platform.isAndroid) return null;
+    try {
+      return await platform.invokeMethod<int>('testPrintUsbLabel', {
+        'bus': bus,
+        'imageBytes': imageBytes,
+      });
+    } catch (e, s) {
+      logger.w('[PlatformService] 라벨 테스트 출력 실패', error: e, stackTrace: s);
+      return null;
+    }
+  }
+
   /// 조용한 라벨 프린터를 **말하게 만드는 명령**을 찾는 진단.
   ///
   /// Caysn 의 `CP_Port_OpenUsb(name, 1)` 이 auto-reply 를 켠다는 것은 확인됐지만
@@ -638,8 +677,7 @@ class PlatformService {
         {'images': images},
       );
     } catch (e, s) {
-      logger.w('[PlatformService] 2대 동시 인쇄 시험 호출 실패',
-          error: e, stackTrace: s);
+      logger.w('[PlatformService] 2대 동시 인쇄 시험 호출 실패', error: e, stackTrace: s);
       return '2대 동시 인쇄 시험 호출 실패: $e';
     }
   }

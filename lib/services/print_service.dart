@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:appfit_order_agent/services/external_receipt_printer.dart';
 import 'package:appfit_order_agent/services/label_printer/label_print_outcome.dart';
 import 'package:appfit_order_agent/services/label_printer/label_printer_options.dart';
+import 'package:appfit_order_agent/services/label_printer/label_target.dart';
 import 'package:appfit_order_agent/services/label_printer/label_warmup_starter.dart';
 import 'package:appfit_order_agent/services/label_printer/windows/windows_label_router.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
@@ -188,8 +189,13 @@ class PrintService {
       unawaited(startLabelWarmup(
         useLabelPrinter: _cachedLabelPrinter == true,
         autoReplyMode: _preferenceService.getLabelAutoReplyMode,
-        warmup: (mode) =>
-            PlatformService.warmupLabelPrinter(autoReplyMode: mode),
+        // ★ Direct 여부는 warm-up 시점에 읽는다. 인쇄 경로와 다른 경로를 열면
+        //   첫 인쇄가 warm-up 을 통째로 헛되게 하고(다른 드라이버가 여니까),
+        //   최악에는 두 경로가 같은 장치를 두고 claim 을 다툰다.
+        warmup: (mode) => PlatformService.warmupLabelPrinter(
+          autoReplyMode: mode,
+          useUsbDirect: _preferenceService.getLabelUseUsbDirect(),
+        ),
         shouldContinue: () => _cachedLabelPrinter == true,
         onInfo: (m) =>
             logToFile(tag: LogTag.PLATFORM, message: '[PrintService] $m'),
@@ -749,8 +755,13 @@ class PrintService {
   ///
   /// rethrow 대신 결과값으로 처리: 한 라벨 실패가 OutputService 의 catch 블록을
   /// 트리거해 같은 주문의 나머지 라벨까지 막는 것을 방지하기 위함.
+  /// [target] 은 이 라벨이 향할 제조 구역. USB Direct 경로에서만 의미가 있고,
+  /// Caysn/BIXOLON/Windows 경로는 프린터가 1대뿐이라 무시한다.
   Future<LabelPrintOutcome> printLabelDetailed(Uint8List imageBytes,
-      {String orderNo = '-', int labelIndex = 1, int totalLabels = 1}) async {
+      {String orderNo = '-',
+      int labelIndex = 1,
+      int totalLabels = 1,
+      LabelTarget target = LabelTarget.primary}) async {
     try {
       if (_cachedExternalPrinter == null) {
         _loadPrinterSettings();
@@ -788,6 +799,9 @@ class PrintService {
         return ok ? LabelPrintOutcome.success : LabelPrintOutcome.retryable;
       }
 
+      // USB Direct 설정은 매 호출 함께 넘긴다. 네이티브에 설정 상태를 두면
+      // "설정을 바꿨는데 다음 인쇄가 옛 배정으로 나가는" 순서 문제가 생긴다.
+      final useUsbDirect = _preferenceService.getLabelUseUsbDirect();
       final result = await platform.invokeMethod<int>('printLabel', {
         'imageBytes': imageBytes,
         'autoReplyMode': _preferenceService.getLabelAutoReplyMode(),
@@ -797,6 +811,10 @@ class PrintService {
         'orderNo': orderNo,
         'labelIndex': labelIndex,
         'totalLabels': totalLabels,
+        'useUsbDirect': useUsbDirect,
+        'targetId': target.id,
+        'targetBusMap':
+            useUsbDirect ? _preferenceService.getLabelTargetBusMap() : null,
       });
       return LabelPrintOutcome.fromNativeCode(result);
     } on PlatformException catch (e, s) {

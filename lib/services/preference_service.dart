@@ -121,6 +121,25 @@ class PreferenceService {
   static const String KEY_LABEL_LOCAL_TARGETS_PREFIX =
       "APPFIT_LABEL_LOCAL_TARGETS_";
 
+  // ── USB Direct (한 단말에 라벨 프린터 여러 대) ──────────────────────────────
+  // 위 두 키와 달리 **매장별이 아니라 기기별**이다 — 이 단말에 프린터가 몇 대
+  // 어느 포트에 붙어 있는지는 하드웨어 배치라 매장 정책이 아니고, 매장이 바뀌어도
+  // (기기 재배치) 배선은 그대로이기 때문이다.
+
+  /// Caysn SDK 대신 USB Host API 직접 제어를 쓸지.
+  ///
+  /// 동일 기종 2대는 Caysn 으로 지목이 불가능해 이 경로가 필요하다. **혼용하지
+  /// 않는다** — 같은 장치를 두 경로가 claim 하면 서로 빼앗아 조용히 인쇄를 잃는다.
+  static const String KEY_LABEL_USE_USB_DIRECT = "APPFIT_LABEL_USE_USB_DIRECT";
+
+  /// 타깃 id → USB 버스 번호. 값은 JSON 객체(`{"primary":3,"zone2":5}`).
+  ///
+  /// ⚠️ 버스 번호는 **포트** 식별이지 프린터 식별이 아니다. RXLA-561 은 USB serial 도
+  /// IEEE-1284 식별 문자열도 내지 않아(둘 다 실측) 이 이상의 키가 없다. 케이블을
+  /// 다른 포트로 옮기면 배정이 기계가 아니라 포트를 따라간다 — 설정 화면이
+  /// "이 프린터에 테스트 출력" 으로 물리 확인을 제공해야 하는 이유다.
+  static const String KEY_LABEL_TARGET_BUS = "APPFIT_LABEL_TARGET_BUS";
+
   static const String KEY_IS_SOCKET_ENABLED =
       "KEY_IS_SOCKET_ENABLED"; // 소켓 사용 여부
   static const String KEY_FORCE_SOCKET_RECONNECT =
@@ -821,6 +840,46 @@ class PreferenceService {
       logger.w('[PreferenceService] 라벨 담당 타깃 파싱 실패 — 전부 담당으로 처리: $e');
       return <String>{};
     }
+  }
+
+  /// USB Direct 사용 여부. 기본 false = 종전 Caysn 경로.
+  bool getLabelUseUsbDirect() =>
+      _prefs.getBool(KEY_LABEL_USE_USB_DIRECT) ?? false;
+
+  Future<void> setLabelUseUsbDirect(bool value) async {
+    await _prefs.setBool(KEY_LABEL_USE_USB_DIRECT, value);
+    logToFile(
+        tag: LogTag.PLATFORM, message: '[LabelTarget] USB Direct=$value 저장');
+  }
+
+  /// 타깃 id → USB 버스 번호. 미설정이면 빈 맵 = 전부 첫 장치로 폴백.
+  Map<String, int> getLabelTargetBusMap() {
+    final raw = _prefs.getString(KEY_LABEL_TARGET_BUS);
+    if (raw == null || raw.isEmpty) return const <String, int>{};
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return const <String, int>{};
+      final out = <String, int>{};
+      decoded.forEach((k, v) {
+        final key = k?.toString() ?? '';
+        final bus = v is int ? v : int.tryParse(v?.toString() ?? '');
+        if (key.isNotEmpty && bus != null) out[key] = bus;
+      });
+      return out;
+    } catch (e) {
+      // 빈 맵 = 첫 장치로 폴백 = 라벨 소실 없음. 안전한 쪽으로 흡수한다.
+      logger.w('[PreferenceService] 라벨 버스 매핑 파싱 실패 — 폴백으로 처리: $e');
+      return const <String, int>{};
+    }
+  }
+
+  Future<void> setLabelTargetBusMap(Map<String, int> map) async {
+    final cleaned = <String, int>{};
+    for (final e in map.entries) {
+      if (e.key.isNotEmpty) cleaned[e.key] = e.value;
+    }
+    await _prefs.setString(KEY_LABEL_TARGET_BUS, jsonEncode(cleaned));
+    logToFile(tag: LogTag.PLATFORM, message: '[LabelTarget] 버스 매핑 저장 $cleaned');
   }
 
   /// 카테고리→타깃 배정 저장. 매장 미확정이면 false (호출부가 사용자에게 알릴 것).
