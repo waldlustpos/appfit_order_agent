@@ -514,7 +514,7 @@ class _Translations$login$kds_notice$en extends Translations$login$kds_notice$ko
 
 	// Translations
 	@override String get title => 'KDS Standalone Operation';
-	@override String get content => 'By default, the KDS only displays orders and does not receive new orders directly.\nTo run the store with the KDS alone (without a separate reception device), turn on \'Accept Orders\' in Settings > Mode Settings after logging in.\nMake sure it is not used together with another order reception program.';
+	@override String get content => 'By default, the KDS only displays orders and does not receive new orders directly.\nIt is typically used in setups with two or more devices.\nTo run the store with the KDS alone (without a separate reception device), turn on \'Accept Orders\' in Settings > Mode Settings after logging in.\nMake sure it is not used together with another order reception program.';
 }
 
 // Path: login.overlay_permission

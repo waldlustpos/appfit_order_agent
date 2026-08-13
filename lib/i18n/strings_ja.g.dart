@@ -505,7 +505,7 @@ class _Translations$login$kds_notice$ja extends Translations$login$kds_notice$ko
 
 	// Translations
 	@override String get title => 'キッチン(KDS)単独運用のご案内';
-	@override String get content => 'キッチン(KDS)は既定では新規注文を直接受信せず、表示のみを行います。\nレジ受付端末なしでKDSのみで運用する場合は、ログイン後に設定 > モード設定で「注文受付」をONにしてください。\n他の注文受付プログラムと重複して使用しないようご確認ください。';
+	@override String get content => 'キッチン(KDS)は既定では新規注文を直接受信せず、表示のみを行います。\n通常は端末が2台以上ある環境で使用します。\nレジ受付端末なしでKDSのみで運用する場合は、ログイン後に設定 > モード設定で「注文受付」をONにしてください。\n他の注文受付プログラムと重複して使用しないようご確認ください。';
 }
 
 // Path: login.overlay_permission
