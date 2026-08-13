@@ -151,6 +151,23 @@ public class LabelPrinter {
      */
     private static volatile boolean permissionRequested = false;
 
+    /**
+     * 상태 콜백이 넘겨준 마지막 핸들 (문자열화). 값이 바뀔 때만 로깅하기 위한 dedup 키.
+     *
+     * <p><b>왜 찍는가</b>: {@code CP_Printer_AddOnPrinterStatusEvent} 는 포트가 아니라
+     * <b>프로세스 전역</b>에 등록되고, 콜백 첫 인자로 발신 프린터 핸들을 준다. 지금까지
+     * 이 앱은 프린터가 1대뿐이라 그 인자를 쓴 적이 없어 <b>유효한 값이 오는지 아무도
+     * 확인한 적이 없다.</b> 프린터 2대 운용은 이 핸들로 비콘을 프린터별로 귀속시킬 수
+     * 있어야만 성립한다(안 되면 A의 용지없음이 B의 인쇄를 복구대기로 밀어넣고, B의
+     * peel edge 가 A의 완료 신호로 오독된다 → 누락/중복 인쇄).
+     *
+     * <p>판정: 이 로그의 {@code cb=} 가 {@code cur=} 와 일치하면 귀속 가능.
+     * {@code cb=null} 이거나 무관한 값이면 콜백 귀속은 불가이며, 대안은 핸들 인자를
+     * 받는 폴링 API({@code CP_Printer_GetPrinterStatusInfo} / {@code CP_Pos_QueryRTStatus})
+     * 로 상태 판정을 옮기는 것이다.
+     */
+    private static volatile String lastLoggedCallbackHandle = null;
+
     public static void init(MainActivity activity) {
         sActivity = activity;
         ensureStatusCallbackRegistered();
@@ -770,6 +787,18 @@ public class LabelPrinter {
      *
      * <p>{@link #PORT_IDS} 화이트리스트에 있는 장치만 본다 — 영수증 프린터 등 무관한
      * 장치를 로그에 노출하면 현장에서 오독을 부른다.
+     *
+     * <p><b>매칭되는 장치를 전부 나열한다</b> — 첫 매칭에서 멈추면 동일 기종 2대를
+     * 꽂았을 때 2대째의 권한 미보유를 진단으로 발견할 방법이 없다.
+     *
+     * <p>각 장치에 {@code product/serial} 을 함께 찍는 이유: 동일 기종 2대는 VID/PID 가
+     * 같아 이 문자열만이 유일한 구분 수단이다({@code CP_Port_OpenUsb} 가 파싱하는 4가지
+     * 포트명 형식 중 하나). serial 이 비어 있으면 두 대가 같은 키가 되어 지목 자체가
+     * 불가능하므로, <b>2대 운용 가능 여부를 이 로그 한 줄이 판정한다.</b>
+     *
+     * <p>주의: {@code getSerialNumber()} 는 Android 10+ 에서 <b>해당 장치의 USB 권한을
+     * 보유해야</b> 값을 돌려준다. 권한 없는 시점에는 null/예외가 정상이므로 권한 표기와
+     * 함께 읽어야 한다.
      */
     private static String describeUsbState() {
         if (sActivity == null) {
@@ -780,19 +809,64 @@ public class LabelPrinter {
             if (um == null) {
                 return "장치=USB서비스없음";
             }
+            final StringBuilder sb = new StringBuilder();
+            int found = 0;
             for (UsbDevice d : um.getDeviceList().values()) {
-                for (int[] id : PORT_IDS) {
-                    if (d.getVendorId() == id[0] && d.getProductId() == id[1]) {
-                        return String.format("장치=VID:0x%04X,PID:0x%04X 권한=%s",
-                                d.getVendorId(), d.getProductId(),
-                                um.hasPermission(d) ? "있음" : "없음");
-                    }
+                if (!isWhitelistedLabelDevice(d)) {
+                    continue;
                 }
+                found++;
+                if (sb.length() > 0) {
+                    sb.append(' ');
+                }
+                sb.append(String.format("장치%d=VID:0x%04X,PID:0x%04X 권한=%s 포트명=%s",
+                        found, d.getVendorId(), d.getProductId(),
+                        um.hasPermission(d) ? "있음" : "없음",
+                        usbPortName(d)));
             }
-            return "장치=없음(enumerate안됨)";
+            if (found == 0) {
+                return "장치=없음(enumerate안됨)";
+            }
+            return (found > 1 ? "장치수=" + found + " " : "") + sb;
         } catch (Throwable t) {
             return "장치=조회실패(" + t.getMessage() + ")";
         }
+    }
+
+    /** {@link #PORT_IDS} 화이트리스트 매칭. */
+    private static boolean isWhitelistedLabelDevice(UsbDevice d) {
+        for (int[] id : PORT_IDS) {
+            if (d.getVendorId() == id[0] && d.getProductId() == id[1]) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * {@code CP_Port_OpenUsb} 가 이해하는 {@code productName/serialNumber} 포트명.
+     *
+     * <p>조립 규칙은 SDK 내부 {@code NZUsbDeviceEnumerator.EnumUsbProductSerialNumber()}
+     * 와 동일하다(바이트코드 확인). <b>진단 표시 전용</b> — 실제 open 에 쓸 포트명은
+     * 반드시 SDK 열거 결과를 그대로 넘겨야 한다. 문자열이 조금이라도 틀리면
+     * {@code CP_Port_OpenUsb} 는 실패하지 않고 <b>임의의 USB 프린터를 열어버린다</b>
+     * (autoreplyprint.h: "Can use any other strings ... will open directly").
+     */
+    private static String usbPortName(UsbDevice d) {
+        String product;
+        String serial;
+        try {
+            product = d.getProductName();
+        } catch (Throwable t) {
+            product = "?";
+        }
+        try {
+            // Android 10+ 는 장치 권한이 없으면 null 또는 SecurityException.
+            serial = d.getSerialNumber();
+        } catch (Throwable t) {
+            serial = "권한없음";
+        }
+        return product + "/" + serial;
     }
 
     /**
@@ -971,6 +1045,16 @@ public class LabelPrinter {
                                                 long infoStatus, Pointer ctx) {
                 AutoReplyPrint.CP_PrinterStatus s =
                         new AutoReplyPrint.CP_PrinterStatus(errorStatus, infoStatus);
+
+                // ── 핸들 귀속 가능성 진단 (라벨 프린터 2대 운용 선행 검증) ──
+                // 값이 바뀔 때만 남긴다 — 비콘은 초당 여러 번 올 수 있어 무조건 찍으면
+                // 운영 로그가 잠긴다. logcat 전용(파일 로그 제외)도 같은 이유.
+                final String cbHandle = String.valueOf(h);
+                if (!cbHandle.equals(lastLoggedCallbackHandle)) {
+                    lastLoggedCallbackHandle = cbHandle;
+                    Log.i(TAG, "[CALLBACK] 핸들 cb=" + cbHandle + " cur=" + hPrinter
+                            + " 일치=" + (h != null && h.equals(hPrinter)));
+                }
 
                 // 게이팅용 캐시 갱신 (printBitmap 의 게이트가 읽음)
                 lastStatusTime = System.currentTimeMillis();
