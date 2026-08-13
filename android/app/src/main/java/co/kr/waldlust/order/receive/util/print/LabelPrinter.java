@@ -7,10 +7,14 @@ import android.hardware.usb.UsbManager;
 import android.util.Log;
 
 import com.caysn.autoreplyprint.AutoReplyPrint;
+import com.lvrenyang.nzio.NZUsbDeviceEnumerator;
 import com.sun.jna.Pointer;
 import com.sun.jna.ptr.IntByReference;
 import com.sun.jna.ptr.LongByReference;
 
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import co.kr.waldlust.order.receive.MainActivity;
@@ -1165,6 +1169,320 @@ public class LabelPrinter {
         Log.i(TAG, message);
         if (sActivity != null) {
             sActivity.appendLogToFile(logLine);
+        }
+    }
+
+    /**
+     * 동일 기종 라벨 프린터 2대를 Caysn SDK 로 각각 지목할 수 있는지 판정하는 진단.
+     *
+     * <p><b>왜 필요한가</b>: RXLA-561 은 USB serial 을 보고하지 않아
+     * ({@code product_name=Virtual PRN}, {@code serial_number=null}) SDK 포트명 4형식
+     * ({@code VID:..,PID:..} / {@code ..,MI:xx} / {@code product/serial} / 그 MI 변형)
+     * 이 전부 두 대에서 동일한 문자열이 된다. 유일하게 다른 값인
+     * {@code /dev/bus/usb/BBB/DDD} 는 SDK 가 포트명으로 받지 않는다.
+     *
+     * <p><b>실험</b>: 운영 핸들({@link #hPrinter})이 1번 장치의 인터페이스를 claim 한
+     * 상태에서 <b>같은 포트명으로 한 번 더 open</b> 한다. SDK 내부
+     * {@code NZUSBClientIO.Open(vid,pid,mi,ctx)} 가 {@code getDeviceList()} 순회 중 첫
+     * 매칭에서 즉시 반환하고 claim 여부를 보지 않으므로 실패가 예상되지만, 만약 두 번째가
+     * <b>나머지 물리 장치로 떨어진다면</b> serial 없이도 2대 제어가 가능해진다.
+     *
+     * <p><b>물리 판별은 buzzer 로 한다</b> — 동일 기종이라 외관으로 구분이 안 되고,
+     * {@code CP_Pos_Beep} 은 용지를 쓰지 않으면서 어느 기계인지 즉시 알려준다.
+     * 운영 핸들 → 프로브 핸들 순으로 울리므로, <b>두 번 다 같은 기계에서 나면 같은 장치</b>다.
+     *
+     * <p>운영 핸들은 건드리지 않는다. 프로브가 연 핸들만 닫고, 끝나고
+     * {@code CP_Port_IsConnectionValid(hPrinter)} 로 무사한지 확인한다.
+     *
+     * @return 사람이 읽는 결과 요약 (Dart 설정 화면 표시용). 로그에도 같은 내용이 남는다.
+     */
+    public static synchronized String probeDualDevices() {
+        final StringBuilder out = new StringBuilder();
+        log("[DUAL] ===== 2대 진단 시작 =====");
+
+        // ── A) 전 장치 권한 확보 — ★ 실험의 전제조건 ──
+        //
+        // 운영 경로의 requestUsbPermissionOnce() 는 **첫 매칭 1대에만** 요청하고 전역
+        // 플래그를 세우므로 2대째는 권한 없이 남는다(실측: 앱 재시작 후
+        // `장치1=권한=있음 장치2=권한=없음`). 그 상태로 2차 open 을 시도하면 실패해도
+        // "SDK 가 지목을 못 함" 과 "그냥 권한이 없음" 을 **구분할 수 없어** 실험이
+        // 무의미해진다. 그래서 여기서 먼저 전 장치에 요청하고 승인을 기다린다.
+        UsbManager um = (sActivity == null)
+                ? null
+                : (UsbManager) sActivity.getSystemService(Context.USB_SERVICE);
+        if (um == null) {
+            log("[DUAL] UsbManager 없음 — 중단");
+            return "USB 서비스 없음";
+        }
+
+        int requested = 0;
+        for (UsbDevice d : um.getDeviceList().values()) {
+            if (isWhitelistedLabelDevice(d) && !um.hasPermission(d)) {
+                log("[DUAL] 권한 요청 node=" + d.getDeviceName());
+                UsbPermissionHelper.request(sActivity, um, d);
+                requested++;
+            }
+        }
+        if (requested > 0) {
+            // 실측상 승인은 device_filter attach 승계로 무인 ~3.3초. 넉넉히 8초까지
+            // 폴링하고, 그래도 안 붙으면 그 사실을 결과에 남긴다(조용히 진행 금지).
+            log("[DUAL] 권한 요청 " + requested + "건 — 최대 8초 대기");
+            for (int i = 0; i < 16; i++) {
+                boolean allGranted = true;
+                for (UsbDevice d : um.getDeviceList().values()) {
+                    if (isWhitelistedLabelDevice(d) && !um.hasPermission(d)) {
+                        allGranted = false;
+                        break;
+                    }
+                }
+                if (allGranted) break;
+                try {
+                    Thread.sleep(500);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+        }
+
+        // ── B) Android USB 열거 — SDK 와 무관하게 커널이 뭘 보는가 ──
+        int attached = 0;
+        int permitted = 0;
+        String matchedPortName = null;
+        try {
+            for (UsbDevice d : um.getDeviceList().values()) {
+                if (!isWhitelistedLabelDevice(d)) {
+                    continue;
+                }
+                attached++;
+                final boolean has = um.hasPermission(d);
+                if (has) permitted++;
+                log(String.format(
+                        "[DUAL] 장치%d node=%s id=%d VID:0x%04X PID:0x%04X if=%d 권한=%s 포트명=%s",
+                        attached, d.getDeviceName(), d.getDeviceId(),
+                        d.getVendorId(), d.getProductId(), d.getInterfaceCount(),
+                        has ? "있음" : "없음", usbPortName(d)));
+                // 이 장치에 해당하는 후보 포트명(리터럴)을 기억해 둔다. 직접 조립하면
+                // 오타 시 SDK 가 "아무거나 열기" 로 폴백해 조용히 엉뚱한 장치를 연다.
+                for (int i = 0; i < PORT_IDS.length; i++) {
+                    if (d.getVendorId() == PORT_IDS[i][0]
+                            && d.getProductId() == PORT_IDS[i][1]) {
+                        matchedPortName = PORT_CANDIDATES[i];
+                    }
+                }
+            }
+        } catch (Throwable t) {
+            log("[DUAL] USB 열거 실패: " + t.getMessage());
+        }
+        out.append("연결 장치 ").append(attached).append("대")
+                .append(" (권한 ").append(permitted).append("대)\n");
+        log("[DUAL] 화이트리스트 매칭 = " + attached + "대, 권한 보유 = " + permitted + "대");
+        if (attached >= 2 && permitted < attached) {
+            // 이 경우 2차 open 실패는 해석 불가 — 결과에 못 박아 둔다.
+            log("[DUAL] ⚠ 권한 미확보 장치 있음 — 2차 open 실패해도 원인 판별 불가");
+            out.append("⚠ 권한 미확보 — 결과 해석 주의\n");
+        }
+
+        // ── C) SDK 자체 열거기 3종 — 여기서 예상 못 한 구분자가 나올 수도 있다 ──
+        try {
+            String[] enumUsb = AutoReplyPrint.CP_Port_EnumUsb_Helper.EnumUsb();
+            log("[DUAL] CP_Port_EnumUsb -> " + describeArray(enumUsb));
+            out.append("EnumUsb: ").append(describeArray(enumUsb)).append('\n');
+        } catch (Throwable t) {
+            log("[DUAL] CP_Port_EnumUsb 실패: " + t.getMessage());
+        }
+        try {
+            List<String> ps = NZUsbDeviceEnumerator
+                    .EnumUsbProductSerialNumber(sActivity);
+            log("[DUAL] EnumUsbProductSerialNumber -> " + ps);
+            out.append("Product/Serial: ").append(ps).append('\n');
+            // 같은 문자열이 2개면 그 자체가 "SDK 로는 구별 불가" 판정이다.
+            if (ps != null && ps.size() >= 2
+                    && new HashSet<>(ps).size() < ps.size()) {
+                log("[DUAL] ⚠ 중복 포트명 — product/serial 로는 지목 불가 확정");
+                out.append("⚠ 포트명 중복 = 지목 불가\n");
+            }
+        } catch (Throwable t) {
+            log("[DUAL] EnumUsbProductSerialNumber 실패: " + t.getMessage());
+        }
+        try {
+            log("[DUAL] EnumUsbVidPid -> "
+                    + NZUsbDeviceEnumerator.EnumUsbVidPid(sActivity));
+        } catch (Throwable t) {
+            log("[DUAL] EnumUsbVidPid 실패: " + t.getMessage());
+        }
+
+        if (matchedPortName == null) {
+            log("[DUAL] 매칭 포트명 없음 — 이중 open 생략");
+            return out.append("라벨 프린터 미연결").toString();
+        }
+
+        // ── D) 운영 핸들 상태 (이게 1번 장치를 claim 하고 있어야 실험이 성립) ──
+        final boolean primaryOk =
+                AutoReplyPrint.INSTANCE.CP_Port_IsConnectionValid(hPrinter);
+        log("[DUAL] 운영핸들 h=" + hPrinter + " valid=" + primaryOk);
+        if (!primaryOk) {
+            log("[DUAL] 운영핸들 미연결 — warmup 먼저 실행할 것");
+            return out.append("운영 핸들 미연결 — 재연결 후 다시 시도").toString();
+        }
+
+        // ── D-2) 대조군 — 2차 open **전에** 운영 핸들로 한 장 뽑는다 ──
+        //
+        // ★ 이 순서가 핵심이다. 2차 open 뒤에 찍으면 "실패" 가 나와도 그게 장치를
+        //   빼앗겨서인지 원래 안 되는 건지 구분할 수 없다(첫 시도의 실패 원인).
+        //   여기서 나온 라벨이 **1번 기계**임이 확정되므로, 뒤에 프로브 핸들로 뽑은
+        //   라벨이 같은 기계에서 나오면 = 같은 장치를 두 번 연 것이다.
+        final boolean feedBefore =
+                AutoReplyPrint.INSTANCE.CP_Label_FeedLabel(hPrinter);
+        log("[DUAL] [대조군] 2차 open 전 운영핸들 FeedLabel -> " + feedBefore
+                + "  ← 이 라벨이 나온 기계가 '1번 기계'");
+        out.append("대조군 이송(운영): ").append(feedBefore).append('\n');
+        // 펌웨어가 앞 라벨을 안 뗀 상태에서 다음 출력을 보류하므로, 떼는 시간을 준다.
+        try {
+            Thread.sleep(6000);
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+        }
+
+        // ── E) 같은 포트명으로 두 번째 open ──
+        Pointer probe = Pointer.NULL;
+        try {
+            final long t0 = System.currentTimeMillis();
+            probe = AutoReplyPrint.INSTANCE.CP_Port_OpenUsb(
+                    matchedPortName, currentAutoReplyMode);
+            final long ms = System.currentTimeMillis() - t0;
+            final boolean opened = AutoReplyPrint.INSTANCE.CP_Port_IsOpened(probe);
+            final boolean valid =
+                    AutoReplyPrint.INSTANCE.CP_Port_IsConnectionValid(probe);
+            final boolean distinct = (probe != null) && !probe.equals(hPrinter);
+            log("[DUAL] 2차 open name=" + matchedPortName + " -> h=" + probe
+                    + " opened=" + opened + " valid=" + valid
+                    + " 운영핸들과다름=" + distinct + " (" + ms + "ms)");
+            out.append("2차 open: opened=").append(opened)
+                    .append(" valid=").append(valid)
+                    .append(" 다른핸들=").append(distinct).append('\n');
+
+            if (opened && valid && distinct) {
+                // ── F) 물리 판별 ──
+                //
+                // ★ 핸들이 서로 다른 객체인 것과 **서로 다른 물리 장치**인 것은 별개다.
+                //   JNA 는 open 마다 새 포트 객체를 주므로, 같은 장치를 두 번 열어도
+                //   distinct=true 가 나온다. 반드시 물리적으로 확인해야 한다.
+                //
+                // buzzer(CP_Pos_Beep)는 POS 명령이라 이 라벨 기종에서 무반응이었다
+                // (실측 2026-08-13). 그래서 용지 이송으로 바꾼다 — 라벨 1장씩 소비하지만
+                // 어느 기계가 움직이는지 눈으로 100% 확실하다.
+                log("[DUAL] ★ 두 핸들 확보 — 프로브 핸들로 이송");
+                final boolean f2 =
+                        AutoReplyPrint.INSTANCE.CP_Label_FeedLabel(probe);
+                log("[DUAL] 프로브핸들 FeedLabel -> " + f2
+                        + "  ← 대조군과 **같은 기계**면 같은 장치를 두 번 연 것");
+                // 2차 open 이 운영 핸들의 인터페이스를 빼앗았는지 즉시 확인한다.
+                // 빼앗겼다면 = 같은 물리 장치 (force claim).
+                final boolean primaryAfterOpen =
+                        AutoReplyPrint.INSTANCE.CP_Port_IsConnectionValid(hPrinter);
+                log("[DUAL] 2차 open 직후 운영핸들 valid=" + primaryAfterOpen
+                        + (primaryAfterOpen ? "" : "  ← 인터페이스 탈취됨 = 같은 장치"));
+                out.append("2차 open 후 운영핸들 생존=").append(primaryAfterOpen)
+                        .append('\n');
+
+                // ── F-2) 상태 귀속 테스트 — Gate B 충분조건 ──
+                //
+                // 두 핸들의 상태를 30초간 각각 폴링한다. 그동안 사용자가 **한쪽
+                // 프린터에서만** 용지를 빼거나 커버를 열면, 그 이벤트가 한쪽 핸들에만
+                // 잡혀야 한다. 둘 다 같이 변하면 같은 장치이거나 귀속이 깨진 것이다.
+                //
+                // 콜백이 아니라 핸들 인자를 받는 폴링 API 를 쓴다 — 콜백은 전역 등록
+                // 1개라 이 테스트에서 두 핸들을 구분해 관찰할 수 없다.
+                log("[DUAL] 30초 상태 귀속 테스트 시작 — 한쪽 프린터만 용지/커버를 조작하세요");
+                String prev1 = "", prev2 = "";
+                for (int i = 0; i < 30; i++) {
+                    final String s1 = readStatus(hPrinter);
+                    final String s2 = readStatus(probe);
+                    if (!s1.equals(prev1) || !s2.equals(prev2)) {
+                        log("[DUAL] t=" + i + "s  운영{" + s1 + "}  프로브{" + s2 + "}"
+                                + (s1.equals(s2) ? "  <동일>" : "  <★다름>"));
+                        prev1 = s1;
+                        prev2 = s2;
+                    }
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+                }
+                log("[DUAL] 상태 귀속 테스트 끝");
+                out.append("★ 두 핸들 확보 (프로브 이송 ").append(f2).append(")\n")
+                        .append("대조군 라벨과 프로브 라벨이 같은 기계에서 났는가?\n")
+                        .append("30초 상태 관찰 로그는 logcat [DUAL] 참조\n");
+            } else {
+                log("[DUAL] 2차 open 실패 — Caysn 경로로는 2대 지목 불가");
+                out.append("2차 open 실패 = Caysn 경로 불가\n");
+            }
+        } catch (Throwable t) {
+            log("[DUAL] 2차 open 예외: " + t.getMessage());
+            out.append("2차 open 예외: ").append(t.getMessage()).append('\n');
+        } finally {
+            // ── G) 프로브가 연 핸들만 정리. 운영 핸들은 절대 닫지 않는다. ──
+            if (probe != null && probe != Pointer.NULL && !probe.equals(hPrinter)) {
+                try {
+                    AutoReplyPrint.INSTANCE.CP_Port_Close(probe);
+                    log("[DUAL] 프로브 핸들 close 완료");
+                } catch (Throwable t) {
+                    log("[DUAL] 프로브 핸들 close 예외: " + t.getMessage());
+                }
+            }
+        }
+
+        // ── H) 운영 핸들 복구 ──
+        //
+        // ★ 실측(2026-08-13): 같은 장치를 두 번 열면 Android 가 인터페이스를
+        //   force-claim 해 **기존 연결이 죽는다.** 죽은 핸들은 곧바로는
+        //   IsConnectionValid=true 로 보이지만 상태값이 그 시점에 얼어붙고
+        //   (30초 폴링 내내 동일값) 결국 valid=false 가 된다.
+        //   진단이 프린터를 못 쓰게 만들면 안 되므로 여기서 되살린다.
+        boolean stillOk =
+                AutoReplyPrint.INSTANCE.CP_Port_IsConnectionValid(hPrinter);
+        log("[DUAL] 운영핸들 사후 valid=" + stillOk);
+        if (!stillOk) {
+            log("[DUAL] 운영핸들 복구 시도");
+            stillOk = ensureConnected(currentAutoReplyMode, "dual-probe 복구");
+        }
+        out.append("운영 핸들 사후 정상=").append(stillOk);
+        log("[DUAL] ===== 2대 진단 끝 =====");
+        return out.toString();
+    }
+
+    private static String describeArray(String[] arr) {
+        if (arr == null) return "null";
+        return arr.length + "개 " + Arrays.toString(arr);
+    }
+
+    /**
+     * 핸들 하나의 현재 상태를 문자열로. **핸들 스코프 API 만 쓴다** —
+     * 전역 콜백 비콘 캐시({@link #lastErrorStatusBits} 등)를 읽으면 두 핸들이 같은
+     * 값을 보게 되어 귀속 테스트가 성립하지 않는다.
+     */
+    private static String readStatus(Pointer h) {
+        try {
+            LongByReference err = new LongByReference();
+            LongByReference info = new LongByReference();
+            LongByReference sensor = new LongByReference();
+            boolean ok = AutoReplyPrint.INSTANCE
+                    .CP_Printer_GetPrinterStatusInfo(h, err, info, sensor);
+            if (!ok) return "조회실패";
+            AutoReplyPrint.CP_PrinterStatus s = new AutoReplyPrint.CP_PrinterStatus(
+                    err.getValue(), info.getValue());
+            StringBuilder sb = new StringBuilder();
+            sb.append(String.format("err=0x%04X", err.getValue() & 0xFFFFL));
+            if (s.ERROR_NOPAPER()) sb.append("[용지없음]");
+            if (s.ERROR_COVERUP()) sb.append("[커버열림]");
+            if (s.INFO_PAPERNOFETCH()) sb.append("[안뗌]");
+            if (s.INFO_NOPAPERCANCELED()) sb.append("[취소됨]");
+            return sb.toString();
+        } catch (Throwable t) {
+            return "예외:" + t.getMessage();
         }
     }
 

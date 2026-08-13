@@ -174,6 +174,29 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
                 break;
             }
 
+            // 동일 기종 라벨 프린터 2대를 SDK 로 각각 지목할 수 있는지 진단.
+            // 개발자 옵션 전용 — 운영 흐름에서는 호출되지 않는다.
+            //
+            // labelPrintExecutor 에 태우는 이유는 warmupLabelPrinter 와 같다:
+            // 프로브가 CP_Port_OpenUsb + buzzer 로 수 초를 블로킹하므로 메인 스레드에서
+            // 돌리면 ANR 이고, 인쇄와 겹치면 운영 핸들 상태를 오염시킨다. 단일 스레드
+            // FIFO 라 진행 중인 인쇄가 끝난 뒤에 실행된다.
+            case "probeDualLabelPrinters": {
+                labelPrintExecutor.submit(() -> {
+                    String report;
+                    try {
+                        report = co.kr.waldlust.order.receive.util.print.LabelPrinter
+                                .probeDualDevices();
+                    } catch (Throwable t) {
+                        report = "진단 예외: " + t;
+                    }
+                    final String finalReport = report;
+                    new android.os.Handler(android.os.Looper.getMainLooper())
+                            .post(() -> result.success(finalReport));
+                });
+                break;
+            }
+
             case "reconnectExternalPrinter": {
                 try {
                     if (MainActivity.receiptPrinter != null) {

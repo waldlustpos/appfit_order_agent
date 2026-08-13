@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: reference
   originSessionId: d878d032-b8eb-41f1-a0bb-073f3db8a81e
-  modified: 2026-08-13T03:35:01.128Z
+  modified: 2026-08-13T06:40:13.130Z
 ---
 
 2026-08-13 실측 (D2s_KDS_STGL `DK1925AJ40349` + REXOD RXLA-561, `adb shell dumpsys usb`).
@@ -48,6 +48,34 @@ sysfs `/sys/bus/usb/devices/*/serial` 은 shell 권한 거부라 교차 확인 �
 **앱 내에서 USB 권한을 쥔 상태로 재확인 완료** (같은 날, warm-up 로그):
 `[CONNECT] warmup 성공 ... 권한=있음 포트명=Virtual PRN/null`. 권한 게이트를 통과한
 읽기에서도 null 이므로 디스크립터 부재가 확정이다. dumpsys 대조군보다 이쪽이 결정적.
+
+## ❌ 이중 open 우회로도 막혔다 — 실기기 2대로 확정 (2026-08-13)
+
+"첫 번째가 인터페이스를 claim 했으니 두 번째 `CP_Port_OpenUsb` 는 나머지 장치로 떨어지지
+않을까" 를 프린터 2대 실물로 시험했고 **실패**했다. 3중 교차 확인:
+
+1. **물리**: 2차 open 전 운영 핸들로 1장 → 6초 → 2차 open 후 프로브 핸들로 1장.
+   **두 장이 같은 기계에서** 나왔다(사용자 육안 확인).
+2. **상태 귀속**: 30초 폴링 중 사용자가 **2번 기계**의 커버를 열고 닫았는데
+   **두 핸들 어디에도 변화가 없었다.** 1번 기계 커버는 프로브 핸들에 즉시 잡혔다
+   (`err=0x0084[용지없음][커버열림]`).
+3. **탈취**: 2차 open 이 같은 장치를 force-claim 해 **기존 연결이 죽는다.**
+
+⚠️ **죽은 핸들이 곧바로 죽었다고 보이지 않는다** — `CP_Port_IsConnectionValid` 는 한동안
+true 를 유지하고 `CP_Printer_GetPrinterStatusInfo` 는 **그 시점 값에 얼어붙은 채** 정상처럼
+응답한다(30초 내내 `[안뗌]` 고정). 한참 뒤에야 valid=false 가 된다. 즉 **"살아 있어 보이는
+좀비 핸들"** 이 생긴다 — 이중 open 을 시도하는 코드는 조용히 인쇄를 잃는다.
+
+원인은 구조적이다: `NZUSBClientIO.Open(vid,pid,mi,ctx)` 가 `getDeviceList()` 순회 중
+**첫 VID/PID 매칭에서 즉시 return** 하고 claim 여부를 보지 않는다. 2번 장치에 도달할
+코드 경로가 없다.
+
+`/dev/usb/lp0` (SDK 가 받는 또 다른 포트명 형식) 도 막혔다 — 2대를 꽂아도 노드가 **1개**뿐이고
+`crw------- root root` 라 앱이 열 수 없다.
+
+**결론: Caysn SDK 로 동일 기종 2대 지목은 불가능하다.** 남은 길은 Android USB Host API
+직접 제어(`UsbDevice` 객체로 지목 → serial 불필요)뿐이다. 프로토콜은 이미 역공학돼 있다
+([[project_label_ack_patch]] 의 TSPL BITMAP / paper-state machine / buzzer 비트).
 
 ## 콜백 핸들은 유효하다 (다중화 시 쓸 수 있음)
 

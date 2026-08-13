@@ -487,6 +487,24 @@ class PlatformService {
     }
   }
 
+  /// 동일 기종 라벨 프린터 2대를 SDK 로 각각 지목할 수 있는지 진단 (개발자 옵션 전용).
+  ///
+  /// RXLA-561 은 USB serial 을 보고하지 않아 SDK 포트명 4형식이 두 대에서 전부 같은
+  /// 문자열이 된다. 이 프로브는 운영 핸들이 1번 장치를 claim 한 상태에서 같은 포트명으로
+  /// 한 번 더 open 해 보고, 두 번째가 나머지 장치로 떨어지는지 확인한다.
+  /// 두 핸들이 나오면 buzzer 로 물리 판별한다 (동일 기종이라 외관 구분 불가).
+  ///
+  /// 반환값은 사람이 읽는 요약. 상세는 `adb logcat -s LabelPrinter` 의 `[DUAL]` 줄.
+  static Future<String?> probeDualLabelPrinters() async {
+    if (!Platform.isAndroid) return null;
+    try {
+      return await platform.invokeMethod<String>('probeDualLabelPrinters');
+    } catch (e, s) {
+      logger.w('[PlatformService] 라벨 2대 진단 호출 실패', error: e, stackTrace: s);
+      return '진단 호출 실패: $e';
+    }
+  }
+
   /// 앱 재시작.
   /// - Android: 네이티브에서 새 Activity로 재부팅(AlarmManager + killProcess).
   ///   기존 동작 그대로이며 별도 정리(cleanup) 없이 즉시 종료된다.

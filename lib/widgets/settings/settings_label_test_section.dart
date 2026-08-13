@@ -54,6 +54,31 @@ class _SettingsLabelTestSectionState
     extends ConsumerState<SettingsLabelTestSection> {
   bool _isExpanded = false;
 
+  /// 라벨 프린터 2대 진단 진행 중. 프로브가 포트 open + 부저로 수 초 블로킹하므로
+  /// 연타를 막는다 (두 번 겹치면 운영 핸들 상태가 오염된다).
+  bool _isDualProbing = false;
+  String? _dualProbeResult;
+
+  /// 동일 기종 2대를 SDK 로 각각 지목할 수 있는지 진단한다.
+  ///
+  /// 부저가 **운영 핸들 2회 → 3초 → 프로브 핸들 5회** 로 울린다. 두 번 다 같은
+  /// 기계에서 나면 같은 장치를 두 번 연 것이고, 서로 다른 기계에서 나면
+  /// serial 없이도 2대 제어가 가능하다는 뜻이다. 상세는 logcat `[DUAL]` 줄.
+  Future<void> _probeDualPrinters() async {
+    if (_isDualProbing) return;
+    setState(() {
+      _isDualProbing = true;
+      _dualProbeResult = '진단 중... 부저 소리를 들어주세요 (운영 2회 → 프로브 5회)';
+    });
+    logToFile(tag: LogTag.UI_ACTION, message: '라벨 프린터 2대 진단 실행');
+    final report = await PlatformService.probeDualLabelPrinters();
+    if (!mounted) return;
+    setState(() {
+      _isDualProbing = false;
+      _dualProbeResult = report ?? 'Android 전용 진단입니다.';
+    });
+  }
+
   // ── 주문번호 라벨 테스트 데이터 ──────────────────────────────────────
   /// QA 용 고정 주문번호 1개. 뒤에 -1~-20 숫자 접미사를 붙여 20장 출력(QR 없음).
   static const List<String> _orderNoTestNumbers = [
@@ -818,6 +843,40 @@ class _SettingsLabelTestSectionState
                       ),
                     ),
                   ),
+                  const SizedBox(height: AppSpacing.s12),
+                  Center(
+                    child: ElevatedButton.icon(
+                      onPressed: _isDualProbing ? null : _probeDualPrinters,
+                      icon: const Icon(Icons.usb, size: 18),
+                      label: Text(_isDualProbing
+                          ? '2대 진단 중...'
+                          : '라벨 프린터 2대 진단 (SDK 지목 가능 여부 · 부저 판별)'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.indigo,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.s24,
+                          vertical: AppSpacing.s12,
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (_dualProbeResult != null) ...[
+                    const SizedBox(height: AppSpacing.s8),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(AppSpacing.s12),
+                      decoration: BoxDecoration(
+                        color: AppStyles.gray1,
+                        borderRadius: AppRadius.bSm,
+                      ),
+                      child: Text(
+                        _dualProbeResult!,
+                        style: AppTextStyles.caption
+                            .copyWith(color: AppStyles.gray9),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: AppSpacing.s16),
                   const Divider(height: 1),
                   const SizedBox(height: AppSpacing.s8),
