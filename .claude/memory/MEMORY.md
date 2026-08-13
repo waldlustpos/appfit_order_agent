@@ -63,3 +63,5 @@
 - [주문 상세 결제수단별 금액 표시](project_order_payment_breakdown.md) — 서버가 이미 주던 payments[] 등 파싱 + 상세필드 유실 버그(withDetailsFrom) 수정. 실기기 검증 대기 (2026-08-10)
 - [Sentry 이벤트 지연 도착](reference_sentry_delayed_ingest.md) — 장애로 생긴 이벤트는 앱 재시작 후 도착. 알림 시각 ≠ 발생 시각. 회복 쪽이 유일한 실시간 채널.
 - [설치 가이드 기기별 트랙](project_install_guide_device_tracks.md) — T2mini/D3mini 권한 순서 상이. .hl % 좌표는 부모 기준 → 캡션 추가 시 밀림 (2026-08-11)
+- [상품 그룹 일괄 품절](project_product_group_bulk_soldout.md) — 이름+타입으로 카드 묶어 일괄 전환. all-or-nothing 전제, internalId 매칭 필수. 실기기 검증 대기 (2026-08-13)
+- [생 제어문자가 grep을 죽인다](reference_raw_control_char_breaks_grep.md) — 소스에 raw NUL 등이 있으면 file이 data 판정 → grep이 파일 통째로 스킵. \uXXXX 이스케이프 필수.
