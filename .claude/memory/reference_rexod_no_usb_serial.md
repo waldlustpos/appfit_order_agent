@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: reference
   originSessionId: d878d032-b8eb-41f1-a0bb-073f3db8a81e
-  modified: 2026-08-13T07:06:27.128Z
+  modified: 2026-08-13T08:16:04.573Z
 ---
 
 2026-08-13 실측 (D2s_KDS_STGL `DK1925AJ40349` + REXOD RXLA-561, `adb shell dumpsys usb`).
@@ -109,11 +109,13 @@ CLS
 프린터 고유 식별은 현재 불가: 벤더 유틸의 SYSTEM NAME/SERIAL 은 USB 디스크립터에 안
 실리고(전원 재인가 후에도 불변), `CP_Proto_QuerySerialNumber` 는 `rc=-1` 로 실패한다.
 
-### 미해결 — IN 채널 비대칭
+### ✅ 해결됨 — IN 채널 비대칭은 Caysn 이 켜는 것이었다
 
-장치1 은 status 비콘 응답이 **0건**, 장치2 는 정상 수신(`53 1C 0E 00 00 04 00 45 …`).
-raw USB 에서는 auto-reply 모드를 켜는 명령을 아직 안 보내서로 추정. 완료 판정을 비콘에
-의존하려면 이걸 먼저 풀어야 한다.
+장치1 만 비콘 0건이던 것은 **고장이 아니라** Caysn 의 `CP_Port_OpenUsb(name, 1)` 이
+켜 주는 벤더 전용 레이어였다(첫 매칭 한 대만 열리므로 그 한 대만 말한다).
+조용한 장치도 **표준 ESC/POS 상태 명령에는 정상 응답**하고, 완료 판정은
+`DLE EOT 4` 의 bit2 로 벤더 의존 없이 된다.
+상세·판별 절차: [[project_usb_direct_label_pipeline]]
 
 ## 콜백 핸들은 유효하다 (다중화 시 쓸 수 있음)
 

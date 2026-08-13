@@ -275,6 +275,62 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
                 break;
             }
 
+            // 조용한 장치를 말하게 만드는 명령을 찾는 진단. 표준 제어 전송
+            // (GET_DEVICE_ID / GET_PORT_STATUS)도 함께 찍는다. 개발자 옵션 전용.
+            case "probeDirectUsbEnable": {
+                labelPrintExecutor.submit(() -> {
+                    String report;
+                    try {
+                        report = co.kr.waldlust.order.receive.util.print.UsbLabelDriver
+                                .probeDirectEnable(activity);
+                    } catch (Throwable t) {
+                        report = "활성화 후보 진단 예외: " + t;
+                    }
+                    final String finalReport = report;
+                    new android.os.Handler(android.os.Looper.getMainLooper())
+                            .post(() -> result.success(finalReport));
+                });
+                break;
+            }
+
+            // 라벨 1장 인쇄 후 상태 비트 전이를 기록 — 표준 ESC/POS 채널로 "떼기" 를
+            // 감지할 수 있는지 가른다. 개발자 옵션 전용.
+            case "probeDirectUsbPeel": {
+                final byte[] peelPng = call.argument("imageBytes");
+                labelPrintExecutor.submit(() -> {
+                    String report;
+                    try {
+                        report = co.kr.waldlust.order.receive.util.print.UsbLabelDriver
+                                .probeDirectPeelState(activity, peelPng);
+                    } catch (Throwable t) {
+                        report = "떼기 감지 진단 예외: " + t;
+                    }
+                    final String finalReport = report;
+                    new android.os.Handler(android.os.Looper.getMainLooper())
+                            .post(() -> result.success(finalReport));
+                });
+                break;
+            }
+
+            // 연결된 프린터 전부에 동시에 N장씩 인쇄하며 완료 판정과 격리를 검증.
+            // 장치마다 별도 스레드. 개발자 옵션 전용.
+            case "probeDirectUsbDualPrint": {
+                final java.util.List<byte[]> dualPngs = call.argument("images");
+                labelPrintExecutor.submit(() -> {
+                    String report;
+                    try {
+                        report = co.kr.waldlust.order.receive.util.print.UsbLabelDriver
+                                .probeDirectDualPrint(activity, dualPngs);
+                    } catch (Throwable t) {
+                        report = "2대 동시 인쇄 시험 예외: " + t;
+                    }
+                    final String finalReport = report;
+                    new android.os.Handler(android.os.Looper.getMainLooper())
+                            .post(() -> result.success(finalReport));
+                });
+                break;
+            }
+
             case "reconnectExternalPrinter": {
                 try {
                     if (MainActivity.receiptPrinter != null) {

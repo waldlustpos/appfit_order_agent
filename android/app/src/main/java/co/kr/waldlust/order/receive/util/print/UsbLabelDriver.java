@@ -493,6 +493,120 @@ public class UsbLabelDriver {
         return out;
     }
 
+    // ── paper-state machine (표준 ESC/POS) ──────────────────────────────────
+    //
+    // 완료 판정의 유일한 신호원. Caysn 의 벤더 비콘을 쓰지 않는다 — 그건
+    // CP_Port_OpenUsb 가 켜 줘야만 오고, Caysn 은 첫 매칭 한 대만 열 수 있어
+    // 2대 운용에서 나머지 한 대가 영영 조용하기 때문이다(2026-08-13 확정).
+
+    /** ESC/POS 실시간 용지 센서 조회. 인쇄 중에도 즉시 처리된다. */
+    private static final byte[] PAPER_QUERY = {0x10, 0x04, 0x04};
+
+    /**
+     * {@code DLE EOT 4} 응답의 peel 비트.
+     *
+     * <p><b>0 = 라벨이 peel 위치에 있음(아직 안 뗌)</b>, 1 = 없음.
+     * 실측 전이 {@code 1E → 1A → 1E} (제출 → 도달 → 떼기), 2026-08-13.
+     * Caysn 의 {@code INFO_PAPERNOFETCH} 와 같은 신호다.
+     */
+    private static final int PEEL_BIT = 0x04;
+
+    /** 마지막으로 관측한 "라벨이 peel 위치에 있는가". */
+    private boolean labelAtPeel;
+    private boolean peelStateKnown;
+
+    /**
+     * 라벨이 peel 위치에 <b>도달</b>한 횟수(없음→있음 전이).
+     *
+     * <p>이 카운터가 완료 판정의 핵심이다. 절대값이 아니라 <b>증가</b>를 보는 이유는
+     * edge 귀속 때문이다 — 앞 라벨을 안 뗐으면 제출 시점에 이미 "있음" 이라 내 라벨의
+     * 도달을 상태값만으로는 구분할 수 없다. 펌웨어는 앞 라벨을 뗄 때까지 보류하므로
+     * 실제 순서는 "떼짐(있음→없음) → 내 것 도달(없음→있음)" 이 되고, 제출 전
+     * 스냅샷 대비 증가를 기다리면 자연히 내 라벨에 귀속된다.
+     */
+    private int arrivalCount;
+
+    /** 폴링 1회. 상태가 바뀌면 카운터를 갱신한다. @return 조회 성공 여부 */
+    public boolean pollPaperState() {
+        final byte[] r = query(PAPER_QUERY, 400);
+        if (r == null || r.length < 1) return false;
+        final boolean present = (r[0] & PEEL_BIT) == 0;
+        if (peelStateKnown && present && !labelAtPeel) {
+            arrivalCount++;
+        }
+        labelAtPeel = present;
+        peelStateKnown = true;
+        return true;
+    }
+
+    public boolean isLabelAtPeel() {
+        return peelStateKnown && labelAtPeel;
+    }
+
+    /**
+     * 라벨 1장을 인쇄하고 <b>실제로 나왔는지</b>까지 판정한다.
+     *
+     * <p>반환은 {@link LabelPrinter} 의 3분류와 같은 계약이다. 이 계약은 라벨 2장
+     * 인쇄 사고(852a4c4)의 재발 방지선이므로 의미를 바꾸지 말 것:
+     * <ul>
+     *   <li>{@code RESULT_SUCCESS} — 도달 관측</li>
+     *   <li>{@code RESULT_RETRYABLE} — <b>제출 전</b> 실패. 재시도해도 중복이 안 난다</li>
+     *   <li>{@code RESULT_SUBMITTED_NO_ACK} — 제출은 됐는데 확인을 못 함.
+     *       <b>절대 재시도 금지</b> — 페이지가 이미 펌웨어에 있어 한 장 더 나온다</li>
+     * </ul>
+     *
+     * <p>제출 여부의 경계가 깔끔한 것은 {@code PRINT} 명령이 job 의 <b>마지막</b>
+     * 바이트이기 때문이다. 중간 청크가 실패하면 PRINT 가 도달하지 않아 인쇄가
+     * 시작되지 않는다 → 전송 실패는 곧 미제출이다.
+     *
+     * <p><b>보류는 무한 대기한다.</b> 상한이 지났는데 peel 위치에 라벨이 있으면,
+     * 그건 앞 라벨을 아직 안 뗀 것이고 펌웨어가 내 페이지를 정상적으로 붙들고 있는
+     * 상태다. 러시아워의 정상 운영이지 고장이 아니므로 기다린다
+     * (현행 Caysn 경로와 같은 의미).
+     */
+    public int printLabelAwait(Bitmap bmp, long capMs, String tag) {
+        if (bmp == null || !isOpen()) return LabelPrinter.RESULT_RETRYABLE;
+
+        // 제출 전 기준선. 여기서 한 번 폴링해 두지 않으면 첫 전이를 놓친다.
+        pollPaperState();
+        final int baseline = arrivalCount;
+        final long t0 = System.currentTimeMillis();
+
+        // ★ 전송이 끝나기 전에는 절대 폴링하지 말 것 — BITMAP 스트리밍 중에
+        //   DLE EOT 를 끼워 넣으면 이미지 데이터로 먹혀 라벨이 깨진다.
+        if (!printLabelBitmap(bmp, TSPL_ZERO_IS_BLACK)) {
+            log(tag + " 전송 실패 → 재시도가능 (미제출)");
+            return LabelPrinter.RESULT_RETRYABLE;
+        }
+        final long submitted = System.currentTimeMillis();
+
+        long lastNotice = submitted;
+        while (true) {
+            if (!sleep(POLL_INTERVAL_MS)) return LabelPrinter.RESULT_SUBMITTED_NO_ACK;
+            pollPaperState();
+            if (arrivalCount > baseline) {
+                log(tag + " 도달 (" + (System.currentTimeMillis() - t0) + "ms)");
+                return LabelPrinter.RESULT_SUCCESS;
+            }
+            final long elapsed = System.currentTimeMillis() - submitted;
+            if (elapsed < capMs) continue;
+
+            // 상한 초과. 여기서 갈린다.
+            if (isLabelAtPeel()) {
+                if (System.currentTimeMillis() - lastNotice >= 60_000L) {
+                    log(tag + " 보류 대기중 " + (elapsed / 1000) + "s — 앞 라벨 미회수");
+                    lastNotice = System.currentTimeMillis();
+                }
+                continue; // 정상 보류 → 계속 기다린다
+            }
+            log(tag + " 무응답 (" + elapsed + "ms, peel 비어 있음) → 제출후무확인");
+            return LabelPrinter.RESULT_SUBMITTED_NO_ACK;
+        }
+    }
+
+    /** 폴링 주기. 실측 도달이 ~715ms 라 이 정도면 충분히 촘촘하다. */
+    private static final int POLL_INTERVAL_MS = 200;
+
     // ── 진단 ────────────────────────────────────────────────────────────────
 
     /**
@@ -762,17 +876,18 @@ public class UsbLabelDriver {
      * 그런데 그 관측만으로는 원인이 <b>그 기계의 특성</b>인지 <b>"먼저 처리한
      * 장치" 라는 위치의 특성</b>인지 구분되지 않는다 — 둘이 완전히 교락돼 있었다.
      *
-     * <p>그래서 <b>정순 → 역순</b>으로 두 번 돌린다:
-     * <ul>
-     *   <li>순서를 바꿔도 같은 bus 가 0건 → <b>기계/케이블 고유</b> 문제</li>
-     *   <li>순서를 바꾸면 0건인 쪽도 바뀜 → <b>먼저 연 장치</b>가 못 받는 구조 문제
-     *       (커널 usblp 잔여 claim, 첫 read 의 pipe stall 등)</li>
-     *   <li>둘 다 정상 수신 → 1차 관측은 read timeout(2~3초)이 비콘 주기(~2초)
-     *       경계에 걸린 <b>측정 아티팩트</b></li>
-     * </ul>
+     * <p><b>2026-08-13 1차 결과 — 순서 요인은 배제됐다.</b> 정순/역순 두 번 모두
+     * bus 3 = 0건, bus 5 = 5~6건. "먼저 연 장치" 문제가 아니다.
      *
-     * <p>인쇄를 하지 않으므로 용지 소모가 없다. 완료 판정을 비콘에 의존하려면
-     * 이 비대칭을 먼저 풀어야 한다 — paper-state machine 의 선행조건이다.
+     * <p>그래서 2차는 축을 바꾼다. <b>자발적 비콘이 없어도 능동 질의에는 답하는가</b>
+     * 를 본다 — TSPL 의 {@code <ESC>!?} 는 "프린터 에러 중에도 언제나" 상태를
+     * 돌려주게 돼 있다. 답이 오면 IN 채널 자체는 살아 있고 <b>자발적 통지만</b>
+     * 꺼진 것이므로 폴링으로 우회할 수 있다. 답도 없으면 그 장치의 IN 은 죽은 것이다.
+     *
+     * <p>이게 왜 중요한가: <b>비콘이 안 오는 프린터에서도 완료 판정이 돼야 한다.</b>
+     * 자발적 비콘에만 의존하는 설계는 이런 한 대 때문에 통째로 무너진다.
+     *
+     * <p>인쇄를 하지 않으므로 용지 소모가 없다.
      */
     public static String probeDirectInChannel(MainActivity activity) {
         log("===== IN 채널 비대칭 진단 시작 =====");
@@ -789,31 +904,218 @@ public class UsbLabelDriver {
         awaitPermissions(activity, um, devices);
 
         final StringBuilder out = new StringBuilder();
-        out.append("장치 ").append(devices.size()).append("대 · 각 ")
-                .append(BEACON_LISTEN_MS / 1000).append("초씩 정순/역순 청취\n");
+        out.append("장치 ").append(devices.size()).append("대\n");
 
-        for (int pass = 0; pass < 2; pass++) {
-            final boolean reverse = pass == 1;
-            out.append(reverse ? "\n[역순]\n" : "[정순]\n");
-            for (int i = 0; i < devices.size(); i++) {
-                final UsbDevice d = devices.get(reverse ? devices.size() - 1 - i : i);
-                final UsbLabelDriver drv = new UsbLabelDriver(d);
-                if (!drv.open(activity)) {
-                    out.append("  bus ").append(busNumberOf(d)).append(": open 실패\n");
-                    continue;
+        for (UsbDevice d : devices) {
+            final UsbLabelDriver drv = new UsbLabelDriver(d);
+            if (!drv.open(activity)) {
+                out.append("bus ").append(busNumberOf(d)).append(": open 실패\n");
+                continue;
+            }
+            try {
+                out.append("bus ").append(drv.getBusNumber()).append('\n');
+                out.append("  수동 비콘: ")
+                        .append(drv.countBeacons(BEACON_LISTEN_MS)).append('\n');
+                for (StatusQuery q : STATUS_QUERIES) {
+                    out.append("  ").append(q.name).append(": ")
+                            .append(drv.askStatus(q)).append('\n');
                 }
-                try {
-                    out.append("  bus ").append(drv.getBusNumber()).append(": ")
-                            .append(drv.countBeacons(BEACON_LISTEN_MS)).append('\n');
-                } finally {
-                    drv.close();
-                }
+            } finally {
+                drv.close();
             }
         }
 
-        out.append("\n같은 bus 가 두 번 다 0건이면 기계/케이블 문제,\n")
-                .append("순서에 따라 0건이 옮겨가면 '먼저 연 장치' 구조 문제입니다.");
+        out.append("\n비콘 0건인데 능동 질의에 답이 오면 폴링으로 완료 판정이 가능합니다.\n")
+                .append("둘 다 무응답이면 그 장치의 IN 채널은 쓸 수 없습니다.\n")
+                .append("※ 케이블을 서로 바꿔 꽂고 한 번 더 돌리면 '기계'와 '포트'가 갈립니다.");
         log("===== IN 채널 비대칭 진단 끝 =====");
+        return out.toString();
+    }
+
+    /** 능동 상태 질의 한 종류. */
+    private static final class StatusQuery {
+        final String name;
+        final byte[] command;
+
+        StatusQuery(String name, byte[] command) {
+            this.name = name;
+            this.command = command;
+        }
+    }
+
+    /**
+     * TSPL 능동 상태 질의 후보.
+     *
+     * <p>{@code <ESC>!?} 는 TSPL2 표준으로 "프린터 에러 중에도 언제나" 1바이트
+     * 상태를 돌려주게 돼 있다(0x00 정상 / 0x01 헤드열림 / 0x04 용지없음 /
+     * 0x20 인쇄중 …). {@code <ESC>!S} 는 더 상세한 상태.
+     * {@code ~!@} 는 라인 명령이라 CRLF 가 필요하다 — {@code <ESC>!} 계열은
+     * 즉시 명령이라 붙이지 않는다.
+     *
+     * <p>어느 것이 이 펌웨어에서 실제로 동작하는지 모르므로 셋 다 쏴 보고 고른다.
+     */
+    private static final StatusQuery[] STATUS_QUERIES = {
+            new StatusQuery("<ESC>!? (표준 1바이트)", new byte[]{0x1B, 0x21, 0x3F}),
+            new StatusQuery("<ESC>!S (상세)", new byte[]{0x1B, 0x21, 0x53}),
+            new StatusQuery("~!@ (라인)", new byte[]{0x7E, 0x21, 0x40, 0x0D, 0x0A}),
+    };
+
+    /**
+     * 능동 상태 질의를 보내고 응답을 모은다.
+     *
+     * <p>질의 전에 IN 을 <b>비운다</b> — 안 비우면 큐에 남아 있던 자발적 비콘이
+     * 질의 응답으로 오독된다(비콘이 오는 장치에서 특히). 응답도 한 건만 읽지 않고
+     * 잠깐 더 모은다 — 자발적 비콘과 섞여 오므로 첫 패킷이 답이라는 보장이 없다.
+     */
+    public String askStatus(StatusQuery query) {
+        if (!isOpen() || endpointIn == null) return "IN 엔드포인트 없음";
+        int drained = 0;
+        while (read(50) != null && drained < 32) drained++;
+        if (!write(query.command)) return "전송 실패";
+
+        final StringBuilder sb = new StringBuilder();
+        int count = 0;
+        final long deadline = System.currentTimeMillis() + QUERY_LISTEN_MS;
+        while (System.currentTimeMillis() < deadline) {
+            final byte[] pkt = read(300);
+            if (pkt == null) continue;
+            count++;
+            if (count <= 3) sb.append(describeBytes(pkt)).append(' ');
+        }
+        final String result = count == 0
+                ? "무응답" + (drained > 0 ? " (사전 배출 " + drained + "건)" : "")
+                : count + "건 " + sb;
+        log("bus " + getBusNumber() + " " + query.name + " -> " + result);
+        return result;
+    }
+
+    /** 능동 질의 응답 청취 시간. */
+    private static final int QUERY_LISTEN_MS = 2000;
+
+    // ── USB Printer Class 표준 제어 전송 ─────────────────────────────────────
+    //
+    // 벤더 auto-reply 프로토콜과 <b>무관하게</b> 동작하는 채널이다. Caysn 이 켜 주지
+    // 않은 장치에서도 답해야 정상이므로, 여기서 답이 오면 완료 판정의 대안 경로가 된다.
+
+    private static final int PRINTER_CLASS_IN = 0xA1; // device->host, class, interface
+    private static final int REQ_GET_DEVICE_ID = 0;
+    private static final int REQ_GET_PORT_STATUS = 1;
+
+    /**
+     * IEEE-1284 장치 식별 문자열 (GET_DEVICE_ID).
+     *
+     * <p>여기에 {@code SN:} 이 들어 있으면 <b>버스 번호 대신 진짜 프린터 고유
+     * 식별자</b>를 얻는다 — USB 디스크립터의 iSerialNumber 가 없어서 막혔던
+     * 장치 지목 문제를 다른 경로로 푸는 셈이다. 케이블을 옮겨도 따라오는 키가 된다.
+     *
+     * <p>응답은 앞 2바이트가 big-endian 길이, 그 뒤가 ASCII.
+     */
+    public String deviceIdString() {
+        if (connection == null || iface == null) return "미연결";
+        final byte[] buf = new byte[1024];
+        // wIndex = (interface << 8) | altsetting — GET_DEVICE_ID 만 이 형식이다.
+        final int n = connection.controlTransfer(PRINTER_CLASS_IN, REQ_GET_DEVICE_ID,
+                0, iface.getId() << 8, buf, buf.length, 1000);
+        if (n < 0) return "미지원(rc=" + n + ")";
+        if (n < 2) return "응답 " + n + "바이트";
+        final int len = Math.min(((buf[0] & 0xFF) << 8) | (buf[1] & 0xFF), n);
+        return new String(buf, 2, Math.max(0, len - 2), StandardCharsets.US_ASCII)
+                .trim();
+    }
+
+    /**
+     * USB Printer Class 포트 상태 1바이트 (GET_PORT_STATUS).
+     * bit3 = NoError, bit4 = Select/OnLine, bit5 = PaperEmpty.
+     */
+    public String portStatus() {
+        if (connection == null || iface == null) return "미연결";
+        final byte[] buf = new byte[1];
+        final int n = connection.controlTransfer(PRINTER_CLASS_IN, REQ_GET_PORT_STATUS,
+                0, iface.getId(), buf, 1, 1000);
+        if (n < 1) return "미지원(rc=" + n + ")";
+        final int s = buf[0] & 0xFF;
+        return String.format("0x%02X", s)
+                + (((s & 0x20) != 0) ? " [용지없음]" : "")
+                + (((s & 0x10) != 0) ? " [온라인]" : "")
+                + (((s & 0x08) != 0) ? " [에러없음]" : "");
+    }
+
+    /**
+     * auto-reply 를 켜는 명령 후보. 하나씩 쏘고 응답이 시작되는지 본다.
+     *
+     * <p>{@code GS a n}(0x1D 0x61)은 ESC/POS 의 <b>Automatic Status Back</b> —
+     * 이름 그대로 "상태를 자동으로 보내라" 이고, Caysn 이 부르는 "autoreplymode" 와
+     * 같은 개념이다. 이 SDK 는 {@code CP_Pos_*} 를 가진 POS 겸용이라 앞서 쏜 TSPL
+     * 계열({@code <ESC>!?})이 아니라 이쪽일 공산이 크다.
+     */
+    private static final StatusQuery[] ENABLE_CANDIDATES = {
+            new StatusQuery("GS a 255 (ASB 전체)", new byte[]{0x1D, 0x61, (byte) 0xFF}),
+            new StatusQuery("GS a 2 (ASB 에러)", new byte[]{0x1D, 0x61, 0x02}),
+            new StatusQuery("DLE EOT 1 (실시간)", new byte[]{0x10, 0x04, 0x01}),
+            new StatusQuery("ESC = 1 (장치선택)", new byte[]{0x1B, 0x3D, 0x01}),
+            new StatusQuery("ESC @ (초기화)", new byte[]{0x1B, 0x40}),
+    };
+
+    /**
+     * 조용한 장치를 <b>말하게 만들 수 있는지</b> 가른다.
+     *
+     * <p>Caysn 의 {@code CP_Port_OpenUsb(name, 1)} 이 auto-reply 를 켠다는 것까지는
+     * 확인됐다(2026-08-13). 하지만 Caysn 은 첫 매칭 한 대만 열 수 있으므로, 2대
+     * 운용을 하려면 <b>우리가 직접 켜는 방법</b>을 찾아야 한다.
+     *
+     * <p>정적 추출(.so 에서 XOR 유효 8바이트 프레임 스캔)은 실패했다 — SDK 가 프레임을
+     * 런타임 조립한다. 그래서 표준 명령 후보를 하나씩 쏘고 응답 시작 여부를 본다.
+     *
+     * <p>표준 제어 전송(GET_DEVICE_ID / GET_PORT_STATUS)도 함께 찍는다. 이쪽은
+     * 벤더 프로토콜과 무관하게 답해야 하므로, auto-reply 를 못 켜더라도 완료 판정의
+     * 대안이 된다. GET_DEVICE_ID 에 {@code SN:} 이 있으면 장치 매핑 키도 얻는다.
+     */
+    public static String probeDirectEnable(MainActivity activity) {
+        log("===== auto-reply 활성화 후보 진단 시작 =====");
+        try {
+            LabelPrinter.close();
+        } catch (Throwable t) {
+            log("Caysn 포트 close 예외: " + t.getMessage());
+        }
+
+        final UsbManager um = (UsbManager) activity.getSystemService(Context.USB_SERVICE);
+        if (um == null) return "USB 서비스 없음";
+        final List<UsbDevice> devices = findDevices(activity);
+        if (devices.isEmpty()) return "라벨 프린터 없음";
+        awaitPermissions(activity, um, devices);
+
+        final StringBuilder out = new StringBuilder();
+        for (UsbDevice d : devices) {
+            final UsbLabelDriver drv = new UsbLabelDriver(d);
+            if (!drv.open(activity)) {
+                out.append("bus ").append(busNumberOf(d)).append(": open 실패\n");
+                continue;
+            }
+            try {
+                out.append("bus ").append(drv.getBusNumber()).append('\n');
+
+                final String devId = drv.deviceIdString();
+                final String port = drv.portStatus();
+                log("bus " + drv.getBusNumber() + " GET_DEVICE_ID = " + devId);
+                log("bus " + drv.getBusNumber() + " GET_PORT_STATUS = " + port);
+                out.append("  식별문자열: ").append(devId).append('\n');
+                out.append("  포트상태: ").append(port).append('\n');
+
+                // 이미 말하고 있는 장치인지 먼저 확인 — 그래야 후보의 효과와
+                // 원래 상태를 혼동하지 않는다.
+                final String before = drv.countBeacons(3000);
+                out.append("  사전 비콘(3초): ").append(before).append('\n');
+
+                for (StatusQuery c : ENABLE_CANDIDATES) {
+                    out.append("  ").append(c.name).append(" → ")
+                            .append(drv.askStatus(c)).append('\n');
+                }
+            } finally {
+                drv.close();
+            }
+        }
+        out.append("\n조용하던 장치가 어느 후보 뒤부터 응답하기 시작하면 그게 활성화 명령입니다.");
+        log("===== auto-reply 활성화 후보 진단 끝 =====");
         return out.toString();
     }
 
@@ -846,6 +1148,220 @@ public class UsbLabelDriver {
         }
         log("bus " + getBusNumber() + " 비콘 " + sb);
         return sb.toString();
+    }
+
+    /**
+     * 라벨 1장을 뽑고 <b>상태 비트가 언제 어떻게 바뀌는지</b> 기록한다.
+     *
+     * <p>여기서 가리는 것: <b>표준 ESC/POS 상태 채널로 "라벨을 뗐다" 를 감지할 수
+     * 있는가.</b> 이게 되면 Caysn 의 벤더 비콘에 의존하지 않고 완료 판정을 만들 수
+     * 있고, 그러면 2대 운용의 마지막 미지수가 풀린다.
+     *
+     * <p>2026-05 PoC 가 만든 paper-state machine 은 Caysn 비콘의 byte7 마스크에
+     * 기대고 있었는데, byte7 은 상태가 아니라 <b>XOR 체크섬</b>임이 밝혀졌다
+     * (2026-08-13). 그러니 어차피 상태 비트는 처음부터 다시 유도해야 한다.
+     *
+     * <p>기록은 <b>변화가 있을 때만</b> 남긴다 — 40초를 400ms 로 폴링하면 수백 줄이
+     * 되지만, 우리가 찾는 건 값이 아니라 <b>전이 시점</b>이다. 사용자가 라벨을 떼는
+     * 순간에 어떤 바이트의 어떤 비트가 뒤집히는지가 답이다.
+     */
+    public static String probeDirectPeelState(MainActivity activity, byte[] png) {
+        log("===== 떼기 감지 진단 시작 =====");
+        if (png == null || png.length == 0) return "라벨 이미지가 비어 있습니다.";
+        final Bitmap bmp = BitmapFactory.decodeByteArray(png, 0, png.length);
+        if (bmp == null) return "라벨 이미지 디코드 실패";
+
+        try {
+            LabelPrinter.close();
+        } catch (Throwable t) {
+            log("Caysn 포트 close 예외: " + t.getMessage());
+        }
+        final UsbManager um = (UsbManager) activity.getSystemService(Context.USB_SERVICE);
+        if (um == null) return "USB 서비스 없음";
+        final List<UsbDevice> devices = findDevices(activity);
+        if (devices.isEmpty()) return "라벨 프린터 없음";
+        awaitPermissions(activity, um, devices);
+
+        final UsbLabelDriver drv = new UsbLabelDriver(devices.get(0));
+        if (!drv.open(activity)) {
+            return "장치 open 실패 (bus " + busNumberOf(devices.get(0)) + ")";
+        }
+
+        final StringBuilder out = new StringBuilder();
+        out.append("bus ").append(drv.getBusNumber()).append(" 에서 1장 인쇄 후 ")
+                .append(PEEL_WATCH_MS / 1000).append("초 관찰\n");
+        try {
+            // ASB 를 켜 두면 상태 변화 시 자발적으로 밀어 준다. 폴링과 병행해
+            // 어느 채널이 먼저/정확히 잡는지도 함께 본다.
+            drv.write(new byte[]{0x1D, 0x61, (byte) 0xFF});
+            while (drv.read(100) != null) { /* 사전 배출 */ }
+
+            final long t0 = System.currentTimeMillis();
+            drv.printLabelBitmap(bmp, TSPL_ZERO_IS_BLACK);
+            out.append("인쇄 전송 완료\n");
+
+            String lastPush = "";
+            final String[] lastPoll = new String[PEEL_QUERIES.length];
+            final long deadline = t0 + PEEL_WATCH_MS;
+            while (System.currentTimeMillis() < deadline) {
+                // ① 자발적 푸시 (ASB / 벤더 비콘 둘 다 여기로 온다)
+                final byte[] push = drv.read(120);
+                if (push != null) {
+                    final String s = describeBytes(push);
+                    if (!s.equals(lastPush)) {
+                        lastPush = s;
+                        record(out, t0, "푸시", s);
+                    }
+                }
+                // ② 동기 폴링
+                for (int q = 0; q < PEEL_QUERIES.length; q++) {
+                    final byte[] r = drv.query(PEEL_QUERIES[q].command, 400);
+                    final String s = r == null ? "무응답" : describeBytes(r);
+                    if (!s.equals(lastPoll[q])) {
+                        lastPoll[q] = s;
+                        record(out, t0, PEEL_QUERIES[q].name, s);
+                    }
+                }
+                if (!sleep(300)) break;
+            }
+        } finally {
+            drv.close();
+            bmp.recycle();
+        }
+        out.append("\n라벨을 떼는 순간에 바뀐 줄이 떼기 신호입니다.");
+        log("===== 떼기 감지 진단 끝 =====");
+        return out.toString();
+    }
+
+    /** 관찰 시간. 사용자가 라벨을 떼고 그 전후를 다 담을 만큼 길어야 한다. */
+    private static final int PEEL_WATCH_MS = 45_000;
+
+    /**
+     * 떼기 관찰에 쓰는 동기 폴링 명령.
+     *
+     * <p>ESC/POS 실시간 상태 4종. {@code DLE EOT 4}(용지 센서)가 본命 후보지만,
+     * 라벨 프린터 펌웨어가 어느 비트에 peel 을 싣는지 모르므로 넷 다 본다.
+     */
+    private static final StatusQuery[] PEEL_QUERIES = {
+            new StatusQuery("EOT1 프린터", new byte[]{0x10, 0x04, 0x01}),
+            new StatusQuery("EOT2 오프라인", new byte[]{0x10, 0x04, 0x02}),
+            new StatusQuery("EOT3 에러", new byte[]{0x10, 0x04, 0x03}),
+            new StatusQuery("EOT4 용지", new byte[]{0x10, 0x04, 0x04}),
+    };
+
+    private static void record(StringBuilder out, long t0, String label, String value) {
+        final long ms = System.currentTimeMillis() - t0;
+        final String line = String.format("%6dms %-12s %s", ms, label, value);
+        log("[PEEL] " + line);
+        out.append(line).append('\n');
+    }
+
+    /** 명령을 보내고 한 패킷 받는다. 응답 없으면 null. */
+    public byte[] query(byte[] command, int timeoutMs) {
+        if (!write(command)) return null;
+        return read(timeoutMs);
+    }
+
+    /**
+     * 연결된 프린터 <b>전부에 동시에</b> 라벨을 여러 장 뽑으며 완료 판정을 검증한다.
+     *
+     * <p>경로 B 의 종합 시험이다. 여기서 보는 것 셋:
+     * <ol>
+     *   <li><b>완료 판정</b> — 장마다 3분류 결과와 소요 시간</li>
+     *   <li><b>격리</b> — 한 대에서 라벨을 안 떼도 다른 대는 계속 나가는가.
+     *       Caysn 단일 핸들에서는 구조적으로 불가능했던 것이다</li>
+     *   <li><b>순서</b> — 각 라벨에 기계 번호와 순번이 찍혀 나온다</li>
+     * </ol>
+     *
+     * <p>장치마다 <b>별도 스레드</b>로 돌린다. 한 스레드가 보류 대기로 막혀도 다른
+     * 쪽이 진행되는 것이 요점이므로, 순차로 돌리면 검증하려는 성질 자체가 사라진다.
+     *
+     * @param pngsPerDevice 장치 <b>한 대당</b> 뽑을 라벨들. 어느 기계·몇 번째인지는
+     *                      호출부가 이미지 안에 박아 둔다.
+     */
+    public static String probeDirectDualPrint(MainActivity activity,
+                                              List<byte[]> pngsPerDevice) {
+        log("===== 2대 동시 인쇄 + 완료 판정 시험 시작 =====");
+        if (pngsPerDevice == null || pngsPerDevice.isEmpty()) return "이미지가 비어 있습니다.";
+
+        try {
+            LabelPrinter.close();
+        } catch (Throwable t) {
+            log("Caysn 포트 close 예외: " + t.getMessage());
+        }
+        final UsbManager um = (UsbManager) activity.getSystemService(Context.USB_SERVICE);
+        if (um == null) return "USB 서비스 없음";
+        final List<UsbDevice> devices = findDevices(activity);
+        if (devices.isEmpty()) return "라벨 프린터 없음";
+        awaitPermissions(activity, um, devices);
+
+        final List<Bitmap> pages = new ArrayList<>();
+        for (byte[] png : pngsPerDevice) {
+            final Bitmap b = (png == null || png.length == 0)
+                    ? null : BitmapFactory.decodeByteArray(png, 0, png.length);
+            if (b != null) pages.add(b);
+        }
+        if (pages.isEmpty()) return "이미지 디코드 실패";
+
+        final StringBuilder[] reports = new StringBuilder[devices.size()];
+        final Thread[] workers = new Thread[devices.size()];
+        for (int i = 0; i < devices.size(); i++) {
+            final int index = i;
+            final UsbDevice d = devices.get(i);
+            reports[i] = new StringBuilder();
+            workers[i] = new Thread(() -> {
+                final StringBuilder r = reports[index];
+                final UsbLabelDriver drv = new UsbLabelDriver(d);
+                if (!drv.open(activity)) {
+                    r.append("bus ").append(busNumberOf(d)).append(": open 실패\n");
+                    return;
+                }
+                try {
+                    r.append("bus ").append(drv.getBusNumber()).append('\n');
+                    for (int p = 0; p < pages.size(); p++) {
+                        final String tag = "[bus " + drv.getBusNumber()
+                                + " " + (p + 1) + "/" + pages.size() + "]";
+                        final long t0 = System.currentTimeMillis();
+                        final int rc = drv.printLabelAwait(
+                                pages.get(p), DUAL_PRINT_CAP_MS, tag);
+                        r.append("  ").append(p + 1).append("장: ")
+                                .append(describeResult(rc)).append(" (")
+                                .append(System.currentTimeMillis() - t0)
+                                .append("ms)\n");
+                        // 재시도 정책은 여기서 흉내내지 않는다 — 이 프로브의 목적은
+                        // 판정이 맞는지 보는 것이고, 재시도는 Dart 큐의 책임이다.
+                    }
+                } finally {
+                    drv.close();
+                }
+            }, "usb-label-" + busNumberOf(d));
+            workers[i].start();
+        }
+
+        for (Thread w : workers) {
+            try {
+                w.join();
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+        for (Bitmap b : pages) b.recycle();
+
+        final StringBuilder out = new StringBuilder();
+        for (StringBuilder r : reports) out.append(r);
+        out.append("\n한 대에서 라벨을 안 떼고 두면 그 대만 대기하고 다른 대는 계속 나와야 정상입니다.");
+        log("===== 2대 동시 인쇄 + 완료 판정 시험 끝 =====");
+        return out.toString();
+    }
+
+    /** 한 장당 완료 대기 상한. 넘어도 peel 에 라벨이 있으면 계속 기다린다. */
+    private static final long DUAL_PRINT_CAP_MS = 30_000L;
+
+    private static String describeResult(int rc) {
+        if (rc == LabelPrinter.RESULT_SUCCESS) return "성공";
+        if (rc == LabelPrinter.RESULT_RETRYABLE) return "재시도가능(미제출)";
+        return "제출후무확인";
     }
 
     /** 화이트리스트 장치 <b>전부</b>에 USB 권한을 요청하고 최대 8초 기다린다. */

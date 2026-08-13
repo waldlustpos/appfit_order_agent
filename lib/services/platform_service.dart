@@ -593,6 +593,57 @@ class PlatformService {
     }
   }
 
+  /// 조용한 라벨 프린터를 **말하게 만드는 명령**을 찾는 진단.
+  ///
+  /// Caysn 의 `CP_Port_OpenUsb(name, 1)` 이 auto-reply 를 켠다는 것은 확인됐지만
+  /// Caysn 은 첫 매칭 한 대만 열 수 있어, 2대 운용을 하려면 직접 켜는 방법이 필요하다.
+  /// 표준 제어 전송(GET_DEVICE_ID / GET_PORT_STATUS)도 함께 찍는다.
+  static Future<String?> probeDirectUsbEnable() async {
+    if (!Platform.isAndroid) return null;
+    try {
+      return await platform.invokeMethod<String>('probeDirectUsbEnable');
+    } catch (e, s) {
+      logger.w('[PlatformService] 활성화 후보 진단 호출 실패', error: e, stackTrace: s);
+      return '활성화 후보 진단 호출 실패: $e';
+    }
+  }
+
+  /// 라벨 1장을 뽑고 상태 비트 전이를 기록하는 진단 (약 45초, 라벨 1장 소모).
+  ///
+  /// 표준 ESC/POS 채널로 "라벨을 뗐다" 를 감지할 수 있는지 가른다. 되면 Caysn 의
+  /// 벤더 비콘 없이 완료 판정을 만들 수 있다.
+  static Future<String?> probeDirectUsbPeel(Uint8List imageBytes) async {
+    if (!Platform.isAndroid) return null;
+    try {
+      return await platform.invokeMethod<String>(
+        'probeDirectUsbPeel',
+        {'imageBytes': imageBytes},
+      );
+    } catch (e, s) {
+      logger.w('[PlatformService] 떼기 감지 진단 호출 실패', error: e, stackTrace: s);
+      return '떼기 감지 진단 호출 실패: $e';
+    }
+  }
+
+  /// 연결된 프린터 **전부에 동시에** [images] 를 인쇄하며 완료 판정과 격리를 검증.
+  ///
+  /// [images] 는 프린터 **한 대당** 뽑을 라벨들이다 (2대면 총 2×length 장).
+  /// 장치마다 별도 스레드로 돌아가므로, 한 대에서 라벨을 안 떼도 다른 대는 계속
+  /// 나가야 정상이다 — Caysn 단일 핸들에서는 구조적으로 불가능했던 성질이다.
+  static Future<String?> probeDirectUsbDualPrint(List<Uint8List> images) async {
+    if (!Platform.isAndroid) return null;
+    try {
+      return await platform.invokeMethod<String>(
+        'probeDirectUsbDualPrint',
+        {'images': images},
+      );
+    } catch (e, s) {
+      logger.w('[PlatformService] 2대 동시 인쇄 시험 호출 실패',
+          error: e, stackTrace: s);
+      return '2대 동시 인쇄 시험 호출 실패: $e';
+    }
+  }
+
   /// 앱 재시작.
   /// - Android: 네이티브에서 새 Activity로 재부팅(AlarmManager + killProcess).
   ///   기존 동작 그대로이며 별도 정리(cleanup) 없이 즉시 종료된다.

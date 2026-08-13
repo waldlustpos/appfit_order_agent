@@ -238,6 +238,94 @@ class _SettingsLabelTestSectionState
     });
   }
 
+  /// 조용한 프린터를 말하게 만드는 명령을 찾는다 (인쇄 없음, 장치당 ~15초).
+  Future<void> _probeEnableCandidates() async {
+    if (_isDualProbing) return;
+    setState(() {
+      _isDualProbing = true;
+      _dualProbeResult = '활성화 후보 탐색 중... 표준 제어 전송 + 명령 5종 (인쇄 없음)';
+    });
+    logToFile(tag: LogTag.UI_ACTION, message: 'auto-reply 활성화 후보 진단 실행');
+    final report = await PlatformService.probeDirectUsbEnable();
+    if (!mounted) return;
+    setState(() {
+      _isDualProbing = false;
+      _dualProbeResult = report ?? 'Android 전용 진단입니다.';
+    });
+  }
+
+  /// 라벨 1장을 뽑고 상태 비트 전이를 기록한다 (약 45초).
+  ///
+  /// **관찰 중에 라벨을 떼야** 한다 — 떼는 순간의 전이가 곧 답이다.
+  Future<void> _probePeelState() async {
+    if (_isDualProbing) return;
+    setState(() {
+      _isDualProbing = true;
+      _dualProbeResult = '떼기 감지 관찰 중 (45초)... 라벨이 나오면 '
+          '10초쯤 두었다가 떼어 주세요';
+    });
+    logToFile(tag: LogTag.UI_ACTION, message: '떼기 감지 진단 실행');
+    try {
+      final imageBytes = await _buildProbeLabel(
+        shopOrderNo: 'PEEL',
+        qrData: 'USBDIRECT-PEEL-0',
+        memo: '떼기 감지 관찰',
+      );
+      final report = await PlatformService.probeDirectUsbPeel(imageBytes);
+      if (!mounted) return;
+      setState(() {
+        _isDualProbing = false;
+        _dualProbeResult = report ?? 'Android 전용 진단입니다.';
+      });
+    } catch (e) {
+      logToFile(tag: LogTag.ERROR, message: '[PeelProbe] 실패: $e');
+      if (!mounted) return;
+      setState(() {
+        _isDualProbing = false;
+        _dualProbeResult = '떼기 감지 진단 실패: $e';
+      });
+    }
+  }
+
+  /// 프린터 한 대당 뽑을 장수. 격리를 보려면 2장 이상이어야 한다 — 1장이면
+  /// "안 뗀 상태에서 다음 장이 보류되는가" 를 볼 수 없다.
+  static const int _dualPrintPagesPerDevice = 3;
+
+  /// 경로 B 종합 시험 — 두 프린터에 **동시에** 3장씩, 완료 판정까지.
+  Future<void> _probeDualPrint() async {
+    if (_isDualProbing) return;
+    setState(() {
+      _isDualProbing = true;
+      _dualProbeResult = '2대 동시 인쇄 시험 중... '
+          '기계마다 $_dualPrintPagesPerDevice장. '
+          '한 대는 일부러 안 떼고 두었다가 다른 대가 계속 나오는지 보세요';
+    });
+    logToFile(tag: LogTag.UI_ACTION, message: 'USB Direct 2대 동시 인쇄 시험 실행');
+    try {
+      final images = <Uint8List>[];
+      for (int i = 1; i <= _dualPrintPagesPerDevice; i++) {
+        images.add(await _buildProbeLabel(
+          shopOrderNo: 'D$i',
+          qrData: 'USBDIRECT-DUAL-$i',
+          memo: '2대 동시 $i/$_dualPrintPagesPerDevice',
+        ));
+      }
+      final report = await PlatformService.probeDirectUsbDualPrint(images);
+      if (!mounted) return;
+      setState(() {
+        _isDualProbing = false;
+        _dualProbeResult = report ?? 'Android 전용 진단입니다.';
+      });
+    } catch (e) {
+      logToFile(tag: LogTag.ERROR, message: '[DualPrint] 실패: $e');
+      if (!mounted) return;
+      setState(() {
+        _isDualProbing = false;
+        _dualProbeResult = '2대 동시 인쇄 시험 실패: $e';
+      });
+    }
+  }
+
   Future<void> _probeDualPrinters() async {
     if (_isDualProbing) return;
     setState(() {
@@ -1101,6 +1189,61 @@ class _SettingsLabelTestSectionState
                           : 'IN 채널 비대칭 진단 (비콘 청취 · 인쇄 없음 · 약 40초)'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.blueGrey,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.s24,
+                          vertical: AppSpacing.s12,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.s8),
+                  Center(
+                    child: ElevatedButton.icon(
+                      onPressed: _isDualProbing ? null : _probeEnableCandidates,
+                      icon: const Icon(Icons.key, size: 18),
+                      label: Text(_isDualProbing
+                          ? '진단 중...'
+                          : 'auto-reply 활성화 후보 (ASB·제어전송·식별문자열)'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.purple,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.s24,
+                          vertical: AppSpacing.s12,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.s8),
+                  Center(
+                    child: ElevatedButton.icon(
+                      onPressed: _isDualProbing ? null : _probePeelState,
+                      icon: const Icon(Icons.back_hand, size: 18),
+                      label: Text(_isDualProbing
+                          ? '진단 중...'
+                          : '떼기 감지 진단 (1장 인쇄 후 45초 관찰 — 중간에 떼세요)'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.teal.shade700,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.s24,
+                          vertical: AppSpacing.s12,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.s8),
+                  Center(
+                    child: ElevatedButton.icon(
+                      onPressed: _isDualProbing ? null : _probeDualPrint,
+                      icon: const Icon(Icons.done_all, size: 18),
+                      label: Text(_isDualProbing
+                          ? '진단 중...'
+                          : '★ 2대 동시 인쇄 + 완료 판정 '
+                              '(기계당 $_dualPrintPagesPerDevice장 · 격리 확인)'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green.shade800,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(
                           horizontal: AppSpacing.s24,
