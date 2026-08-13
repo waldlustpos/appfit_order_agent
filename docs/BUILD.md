@@ -6,6 +6,25 @@
 >
 > 배포 채널 정책(OTA + Sunmi App Store 이중 채널, 롤아웃 순서·핫픽스 절차)의 정본: [docs/RELEASE.md](RELEASE.md).
 
+## Flutter SDK 버전 고정
+
+**stable 3.38.5 (revision `f6ff1529fd`)** 로 고정합니다. `pubspec.yaml`의 `flutter: >=3.19.0` 은 하한일 뿐이라 버전 드리프트를 막지 못합니다.
+
+- **`flutter upgrade` 를 쓰지 마십시오.** stable 채널의 최신(head)을 받아오므로 고정 버전을 넘어갑니다. 실수로 올라갔다면 Flutter SDK 디렉터리에서 복구합니다:
+
+  ```bash
+  cd <flutter-sdk>
+  git checkout -B stable 3.38.5
+  git branch --set-upstream-to=origin/stable stable
+  rm -f bin/cache/flutter_tools.snapshot bin/cache/flutter_tools.stamp bin/cache/flutter.version.json
+  flutter --version   # 3.38.5 / channel stable 확인
+  ```
+
+  (스냅샷 캐시를 지우지 않으면 `Wrong full snapshot version` 오류가 납니다.)
+
+- **버전 상향은 모든 개발 머신에서 동시에** 진행하고, 상향 후 `flutter pub get` → 코드 생성 → `flutter analyze` → `flutter test` → Windows 릴리즈 빌드까지 실증합니다.
+- `.metadata` 의 `revision` / `channel` 이 diff 에 뜨면 머신 간 SDK 가 어긋났다는 신호입니다. 그 파일을 커밋하지 말고 SDK 버전을 먼저 맞추십시오. 특히 도구가 `platform: android` 항목을 지우고 덮어쓰는 경우가 있어 그대로 커밋하면 Android 마이그레이션 기준점이 유실됩니다.
+
 ## 빌드 및 실행 명령어
 
 ```bash
