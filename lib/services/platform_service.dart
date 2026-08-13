@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/services.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
@@ -520,6 +521,75 @@ class PlatformService {
       logger.w('[PlatformService] USB Direct 진단 호출 실패',
           error: e, stackTrace: s);
       return 'USB Direct 진단 호출 실패: $e';
+    }
+  }
+
+  /// USB Direct 로 **실제 라벨 이미지**(TSPL BITMAP)를 인쇄하는 진단.
+  ///
+  /// [imageBytes] 는 `LabelPainter.generateLabelImage` 가 만든 PNG 를 그대로 넘긴다 —
+  /// 네이티브가 디코드해 1bpp 로 패킹한 뒤 TSPL `BITMAP` 으로 보낸다. 운영 인쇄와
+  /// 같은 이미지를 쓰므로 레이아웃까지 함께 검증된다.
+  ///
+  /// 극성 판별 카드가 먼저 1장 나오고, 이어서 연결된 프린터마다 라벨 1장씩 나온다.
+  ///
+  /// ⚠️ Caysn 포트를 닫으므로 진단 직후 첫 인쇄는 재연결을 한 번 거친다.
+  static Future<String?> probeDirectUsbBitmap(Uint8List imageBytes) async {
+    if (!Platform.isAndroid) return null;
+    try {
+      return await platform.invokeMethod<String>(
+        'probeDirectUsbBitmap',
+        {'imageBytes': imageBytes},
+      );
+    } catch (e, s) {
+      logger.w('[PlatformService] USB Direct BITMAP 진단 호출 실패',
+          error: e, stackTrace: s);
+      return 'USB Direct BITMAP 진단 호출 실패: $e';
+    }
+  }
+
+  /// 같은 라벨을 **이진화 임계값만 바꿔가며** 한 기계에서 연속 인쇄하는 진단.
+  ///
+  /// USB Direct 라벨이 Caysn 출력물보다 글자가 얇게 나오는 문제를 좁히기 위한 것.
+  /// 조합을 Dart 가 정하므로 후보를 바꿀 때 네이티브 재빌드가 필요 없다.
+  ///
+  /// [images] 는 조합마다 하나씩이며, **어떤 조합인지 라벨 안에 인쇄되어 있어야**
+  /// 인쇄물만 보고 고를 수 있다. [thresholds]/[densities] 는 [images] 와 같은 길이.
+  /// `Int32List` 로 보내야 네이티브가 `int[]` 로 받는다 (`List<int>` 는
+  /// `ArrayList<Integer>` 가 되어 캐스트에 실패한다).
+  static Future<String?> probeDirectUsbBitmapTuning({
+    required List<Uint8List> images,
+    required List<int> thresholds,
+    required List<int> densities,
+  }) async {
+    if (!Platform.isAndroid) return null;
+    try {
+      return await platform.invokeMethod<String>(
+        'probeDirectUsbBitmapTuning',
+        {
+          'images': images,
+          'thresholds': Int32List.fromList(thresholds),
+          'densities': Int32List.fromList(densities),
+        },
+      );
+    } catch (e, s) {
+      logger.w('[PlatformService] USB Direct BITMAP 튜닝 호출 실패',
+          error: e, stackTrace: s);
+      return 'USB Direct BITMAP 튜닝 호출 실패: $e';
+    }
+  }
+
+  /// 인쇄 없이 status 비콘만 장치별로 세어 IN 채널 비대칭을 가르는 진단.
+  ///
+  /// 1차 실증에서 한쪽 프린터만 응답이 0건이었는데, 그 관측만으로는 원인이 그
+  /// 기계인지 "먼저 처리한 장치" 라는 위치인지 구분되지 않는다. 정순/역순으로 두 번
+  /// 청취해 두 요인을 분리한다. 용지를 쓰지 않는다.
+  static Future<String?> probeDirectUsbInChannel() async {
+    if (!Platform.isAndroid) return null;
+    try {
+      return await platform.invokeMethod<String>('probeDirectUsbInChannel');
+    } catch (e, s) {
+      logger.w('[PlatformService] IN 채널 진단 호출 실패', error: e, stackTrace: s);
+      return 'IN 채널 진단 호출 실패: $e';
     }
   }
 

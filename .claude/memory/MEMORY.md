@@ -65,3 +65,4 @@
 - [빠른 제조 메뉴 우선 출력](project_fast_menu_priority.md) — 구현완료·미커밋·실기기 미검증. 모드1→관찰→모드2 순으로 올릴 것 (2026-08-12)
 - [매장 ID는 getId()](reference_store_id_is_getid.md) — getStoreId()/KEY_STORE_ID 는 writer 없는 죽은 API, 항상 null
 - [RXLA-561 은 USB serial 없음](reference_rexod_no_usb_serial.md) — 동일 기종 2대 지목 불가(실측). null이 부재인지 권한마스킹인지 가르는 대조군 기법 포함 (2026-08-13)
+- [USB Direct 라벨 파이프라인 이식](project_usb_direct_label_pipeline.md) — 경로 B. 2대 독립제어✅ TSPL BITMAP 극성 0=검정 확정. 임계값 튜닝 중, 진단 하네스가 운영과 다른 QR 쓰던 함정 (2026-08-13)

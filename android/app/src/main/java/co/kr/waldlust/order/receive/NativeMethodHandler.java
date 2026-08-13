@@ -216,6 +216,65 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
                 break;
             }
 
+            // USB Direct 로 실제 라벨 이미지(TSPL BITMAP)를 인쇄하는 진단.
+            // 극성 판별 카드 1장 + 장치마다 실제 라벨 1장. 개발자 옵션 전용.
+            case "probeDirectUsbBitmap": {
+                final byte[] labelPng = call.argument("imageBytes");
+                labelPrintExecutor.submit(() -> {
+                    String report;
+                    try {
+                        report = co.kr.waldlust.order.receive.util.print.UsbLabelDriver
+                                .probeDirectBitmap(activity, labelPng);
+                    } catch (Throwable t) {
+                        report = "USB Direct BITMAP 진단 예외: " + t;
+                    }
+                    final String finalReport = report;
+                    new android.os.Handler(android.os.Looper.getMainLooper())
+                            .post(() -> result.success(finalReport));
+                });
+                break;
+            }
+
+            // 같은 라벨을 이진화 임계값만 바꿔 연속 인쇄 — "글자가 얇다" 를 좁히는 프로브.
+            // 조합은 Dart 가 정한다(재빌드 없이 후보를 바꾸기 위해). 개발자 옵션 전용.
+            case "probeDirectUsbBitmapTuning": {
+                final java.util.List<byte[]> tuningPngs = call.argument("images");
+                final int[] tuningThresholds = call.argument("thresholds");
+                final int[] tuningDensities = call.argument("densities");
+                labelPrintExecutor.submit(() -> {
+                    String report;
+                    try {
+                        report = co.kr.waldlust.order.receive.util.print.UsbLabelDriver
+                                .probeDirectBitmapTuning(activity, tuningPngs,
+                                        tuningThresholds, tuningDensities);
+                    } catch (Throwable t) {
+                        report = "USB Direct BITMAP 튜닝 예외: " + t;
+                    }
+                    final String finalReport = report;
+                    new android.os.Handler(android.os.Looper.getMainLooper())
+                            .post(() -> result.success(finalReport));
+                });
+                break;
+            }
+
+            // 인쇄 없이 idle status 비콘만 장치별로 세어 IN 채널 비대칭을 가른다.
+            // 정순/역순 두 번 돌려 "기계 고유" 와 "먼저 연 장치" 를 분리. 개발자 옵션 전용.
+            case "probeDirectUsbInChannel": {
+                labelPrintExecutor.submit(() -> {
+                    String report;
+                    try {
+                        report = co.kr.waldlust.order.receive.util.print.UsbLabelDriver
+                                .probeDirectInChannel(activity);
+                    } catch (Throwable t) {
+                        report = "IN 채널 진단 예외: " + t;
+                    }
+                    final String finalReport = report;
+                    new android.os.Handler(android.os.Looper.getMainLooper())
+                            .post(() -> result.success(finalReport));
+                });
+                break;
+            }
+
             case "reconnectExternalPrinter": {
                 try {
                     if (MainActivity.receiptPrinter != null) {

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -76,6 +77,160 @@ class _SettingsLabelTestSectionState
     });
     logToFile(tag: LogTag.UI_ACTION, message: 'USB Direct 2대 진단 실행');
     final report = await PlatformService.probeDirectUsbLabel();
+    if (!mounted) return;
+    setState(() {
+      _isDualProbing = false;
+      _dualProbeResult = report ?? 'Android 전용 진단입니다.';
+    });
+  }
+
+  /// USB Direct 로 **실제 라벨 이미지**(TSPL BITMAP)를 인쇄한다.
+  ///
+  /// 운영과 같은 [LabelPainter.generateLabelImage] 출력을 그대로 네이티브에 넘겨
+  /// 1bpp 패킹 → TSPL `BITMAP` 경로를 검증한다. 먼저 비트 극성 판별 카드가 1장
+  /// 나오고(잉크 최소), 이어서 연결된 프린터마다 라벨 1장씩 나온다.
+  ///
+  /// 카드의 검은 블록이 오른쪽(R=0xFF)이면 극성 가정이 틀린 것 —
+  /// `UsbLabelDriver.TSPL_ZERO_IS_BLACK` 을 뒤집어야 한다.
+  Future<void> _probeDirectBitmap() async {
+    if (_isDualProbing) return;
+    setState(() {
+      _isDualProbing = true;
+      _dualProbeResult = 'BITMAP 진단 중... ① 극성 카드 → (떼기 10초) → ② 각 기계에 실제 라벨';
+    });
+    logToFile(tag: LogTag.UI_ACTION, message: 'USB Direct BITMAP 진단 실행');
+    try {
+      // 운영 라벨과 같은 렌더 정책(QR 180px·레벨 L 포함). 텍스트만 있는 이미지는
+      // 1bpp 임계값 문제도 QR 밀도 문제도 못 드러낸다.
+      final imageBytes = await _buildProbeLabel(
+        shopOrderNo: '0000',
+        qrData: 'USBDIRECT-BITMAP-0',
+        memo: 'TSPL BITMAP 이식 검증',
+      );
+      final report = await PlatformService.probeDirectUsbBitmap(imageBytes);
+      if (!mounted) return;
+      setState(() {
+        _isDualProbing = false;
+        _dualProbeResult = report ?? 'Android 전용 진단입니다.';
+      });
+    } catch (e) {
+      logToFile(tag: LogTag.ERROR, message: '[DirectBitmap] 진단 실패: $e');
+      if (!mounted) return;
+      setState(() {
+        _isDualProbing = false;
+        _dualProbeResult = 'BITMAP 진단 실패: $e';
+      });
+    }
+  }
+
+  /// 이진화 임계값 후보. 128 = 최초값("50% 이상 덮인 픽셀만 검정"), 올릴수록
+  /// 안티에일리어싱 가장자리가 살아나 획이 굵어진다.
+  ///
+  /// 재빌드 없이 후보를 바꿀 수 있도록 조합을 Dart 에 둔다.
+  ///
+  /// **2026-08-13 실기기로 232 확정** (드라이버 기본값 `LUMA_THRESHOLD`).
+  /// 1차 128/176/216 → 216(끝값이라 재확인 필요) → 2차 216/232/244 → **232**.
+  ///
+  /// 후보를 216/232/244 로 남겨 둔다 — 용지·기종·폰트가 바뀌면 이 버튼으로 다시
+  /// 고르면 되고, 확정값 232 가 가운데 있어 위아래를 함께 볼 수 있다.
+  /// 임계값은 QR 모듈도 같이 굵히므로 고를 때 **QR 스캔을 함께** 확인할 것.
+  static const List<int> _bitmapThresholdCandidates = [216, 232, 244];
+
+  /// 진단용 라벨 이미지. **운영 라벨과 같은 렌더 정책**으로 만든다.
+  ///
+  /// 1차 프로브는 `qrSize`/`qrErrorCorrectLevel` 을 넘기지 않아 QR 이 기본값
+  /// (120px·레벨 M)으로 렌더됐다 — 운영 V2 는 [LabelPainter.qrSizeForLayout] =
+  /// 180px·레벨 L 이므로 **33% 작고 더 촘촘한** 라벨을 비교하고 있었다.
+  /// 진단이 운영과 다른 이미지를 쓰면 그 차이가 전부 결론을 오염시킨다.
+  Future<Uint8List> _buildProbeLabel({
+    required String shopOrderNo,
+    required String qrData,
+    required String memo,
+  }) {
+    const int layoutVersion = 1; // 라벨 레이아웃 V2 (운영 고정값)
+    return LabelPainter.generateLabelImage(
+      menuName: '아이스 카페라떼',
+      options: const ['샷추가', '시럽빼기'],
+      shopOrderNo: shopOrderNo,
+      orderTime: DateFormat('MM/dd\nHH:mm:ss').format(DateTime.now()),
+      beanType: '다크',
+      temperature: 'ICED',
+      sizeOption: 'L',
+      qrData: qrData,
+      memo: memo,
+      orderIndex: 1,
+      orderTotal: 1,
+      layoutVersion: layoutVersion,
+      qrSize: LabelPainter.qrSizeForLayout(layoutVersion),
+      qrErrorCorrectLevel:
+          LabelPainter.qrErrorCorrectLevelForLayout(layoutVersion),
+      optionTitleOverride: 'option',
+      detailTitleOverride: 'detail',
+    );
+  }
+
+  /// 같은 라벨을 임계값만 바꿔 한 기계에서 연속 인쇄한다.
+  ///
+  /// USB Direct 라벨이 Caysn 출력물보다 **글자가 얇게** 나오는 문제를 좁히기 위한
+  /// 프로브. 농도(DENSITY)는 건드리지 않는다 — "얇다" 는 농도가 아니라 이진화 축의
+  /// 증상이고, 두 축을 같이 흔들면 원인이 섞인다.
+  ///
+  /// 각 라벨의 주문번호 자리에 `T176` 처럼 임계값이 찍히므로 인쇄물만으로 고를 수 있다.
+  Future<void> _probeDirectBitmapTuning() async {
+    if (_isDualProbing) return;
+    setState(() {
+      _isDualProbing = true;
+      _dualProbeResult = '임계값 튜닝 중... '
+          '${_bitmapThresholdCandidates.join("/")} 순으로 ${_bitmapThresholdCandidates.length}장'
+          ' (한 장씩 떼어 주세요)';
+    });
+    logToFile(
+        tag: LogTag.UI_ACTION,
+        message: 'USB Direct BITMAP 임계값 튜닝 실행 '
+            '${_bitmapThresholdCandidates.join(",")}');
+    try {
+      final images = <Uint8List>[];
+      for (final t in _bitmapThresholdCandidates) {
+        images.add(await _buildProbeLabel(
+          // 헤더 큰 글씨 자리에 조건을 박는다 — 인쇄물만 보고 고를 수 있어야 한다.
+          shopOrderNo: 'T$t',
+          qrData: 'USBDIRECT-THRESH-$t',
+          memo: '이진화 임계값 $t',
+        ));
+      }
+      final report = await PlatformService.probeDirectUsbBitmapTuning(
+        images: images,
+        thresholds: _bitmapThresholdCandidates,
+        // 음수 = DENSITY 명령 생략(펌웨어 기본값). Caysn 경로도 농도를 지정하지
+        // 않으므로 이래야 두 경로의 조건이 같다.
+        densities: List<int>.filled(_bitmapThresholdCandidates.length, -1),
+      );
+      if (!mounted) return;
+      setState(() {
+        _isDualProbing = false;
+        _dualProbeResult = report ?? 'Android 전용 진단입니다.';
+      });
+    } catch (e) {
+      logToFile(tag: LogTag.ERROR, message: '[DirectBitmapTuning] 실패: $e');
+      if (!mounted) return;
+      setState(() {
+        _isDualProbing = false;
+        _dualProbeResult = '임계값 튜닝 실패: $e';
+      });
+    }
+  }
+
+  /// 인쇄 없이 status 비콘만 세어 IN 채널 비대칭을 가른다 (약 40초, 용지 소모 0).
+  ///
+  /// 완료 판정을 비콘에 의존하려면 선행돼야 하는 진단이다.
+  Future<void> _probeInChannel() async {
+    if (_isDualProbing) return;
+    setState(() {
+      _isDualProbing = true;
+      _dualProbeResult = 'IN 채널 청취 중... 장치마다 10초씩 정순/역순 (약 40초, 인쇄 없음)';
+    });
+    logToFile(tag: LogTag.UI_ACTION, message: 'USB Direct IN 채널 진단 실행');
+    final report = await PlatformService.probeDirectUsbInChannel();
     if (!mounted) return;
     setState(() {
       _isDualProbing = false;
@@ -890,6 +1045,62 @@ class _SettingsLabelTestSectionState
                           : 'USB Direct 2대 테스트 (각 기계에 USB-1 / USB-2 인쇄)'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.deepOrange,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.s24,
+                          vertical: AppSpacing.s12,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.s8),
+                  Center(
+                    child: ElevatedButton.icon(
+                      onPressed: _isDualProbing ? null : _probeDirectBitmap,
+                      icon: const Icon(Icons.image, size: 18),
+                      label: Text(_isDualProbing
+                          ? '진단 중...'
+                          : 'USB Direct BITMAP (극성 카드 1장 + 기계마다 실제 라벨)'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.brown,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.s24,
+                          vertical: AppSpacing.s12,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.s8),
+                  Center(
+                    child: ElevatedButton.icon(
+                      onPressed:
+                          _isDualProbing ? null : _probeDirectBitmapTuning,
+                      icon: const Icon(Icons.tune, size: 18),
+                      label: Text(_isDualProbing
+                          ? '진단 중...'
+                          : 'USB Direct 임계값 튜닝 ('
+                              '${_bitmapThresholdCandidates.join("/")} — 획 굵기 비교)'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.brown.shade400,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.s24,
+                          vertical: AppSpacing.s12,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.s8),
+                  Center(
+                    child: ElevatedButton.icon(
+                      onPressed: _isDualProbing ? null : _probeInChannel,
+                      icon: const Icon(Icons.hearing, size: 18),
+                      label: Text(_isDualProbing
+                          ? '진단 중...'
+                          : 'IN 채널 비대칭 진단 (비콘 청취 · 인쇄 없음 · 약 40초)'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blueGrey,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(
                           horizontal: AppSpacing.s24,
