@@ -192,10 +192,16 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
 
             // 시작 시점 라벨 포트 warm-up. 포트만 열고 인쇄는 하지 않는다.
             //
-            // labelPrintExecutor(단일 스레드)에 태워 첫 인쇄와 FIFO 로 직렬화한다 —
-            // warmup 이 먼저 접수되면 첫 인쇄는 열린 핸들을 그대로 재사용하고, 순서가
-            // 뒤집혀도 인쇄 쪽 lazy 연결이 살아 있어 무해하다. 메인 스레드에서 열면
-            // CP_Port_OpenUsb 블로킹이 ANR 이 된다.
+            // labelPrintExecutor(단일 스레드)에 태우는 이유는 메인 스레드 회피다 —
+            // CP_Port_OpenUsb 블로킹이 메인에서 돌면 ANR 이 된다.
+            //
+            // ★ Direct 는 인쇄가 labelTargetExecutors 로 갈라져 나가므로 여기 executor
+            //   가 첫 인쇄와의 FIFO 를 보장하지 않는다. 보장하는 것은
+            //   UsbLabelRegistry 의 클래스 단위 synchronized 다(warmup/acquire 가 같은
+            //   락) — 인쇄가 먼저 도착해도 warmup 이 끝날 때까지 기다리고, 그 사이
+            //   열린 핸들은 openOrReuseLocked 가 그대로 재사용한다. 같은 이유로 warmup
+            //   을 타깃별 executor 로 옮겨도 병렬화되지 않는다(한 호출이 전 장치를
+            //   순회하며 그 락을 잡는다). 실익이 없어 단일 스레드로 둔다.
             //
             // 벤더 분기는 printLabel 과 동일 규칙 — "warmup 도는 기종/안 도는 기종"
             // 이라는 비대칭을 남기지 않는다.
