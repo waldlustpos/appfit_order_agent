@@ -16,9 +16,12 @@ import 'package:appfit_order_agent/utils/label_painter.dart';
 
 /// 라벨 구역(제조 구역별 프린터 분담) 설정 화면.
 ///
-/// 두 가지를 정한다 — 저장 위치도 의미도 다르므로 화면에서도 분리해 보여준다:
+/// **"어디로 보낼까"(매장 정책)와 "누가 담당할까"(단말 배치)는 저장 범위가 다르다.**
+/// 섞이면 한 대만 고쳐 놓고 전 단말에 퍼진 줄 아는 사고가 나므로 화면에서도
+/// 섹션 제목에 범위를 적어 분리한다:
 /// 1. **카테고리별 구역** = 매장 정책. 모든 단말이 같은 값을 가져야 한다.
-/// 2. **이 단말이 출력할 구역** = 단말별 배치. 기기마다 다르다.
+/// 2. **빠른 메뉴 구역** = 매장 정책. 1을 **덮는** 더 좁은 규칙.
+/// 3. **이 단말이 출력할 구역** / **프린터 연결 방식** = 단말별 배치. 기기마다 다르다.
 ///
 /// [FastMenuSelectionScreen] 과 같은 규약: 변경 즉시 저장하고
 /// `ref.invalidate(labelTargetPolicyProvider)` 로 판정 캐시를 갱신한다
@@ -40,6 +43,9 @@ class _LabelZoneSettingsScreenState
   /// 이 단말이 담당하는 target id. 비어 있으면 전부 담당(기본값).
   late Set<String> _localTargets;
 
+  /// 빠른 제조 메뉴가 갈 target id. null = 미지정(카테고리 배정만 적용).
+  late String? _fastMenuTarget;
+
   /// USB 직접 제어 사용 여부. OFF 면 종전 Caysn 경로(프린터 1대).
   late bool _useUsbDirect;
 
@@ -56,6 +62,7 @@ class _LabelZoneSettingsScreenState
     final prefs = ref.read(preferenceServiceProvider);
     _assignment = Map<String, String>.from(prefs.getLabelTargetAssignment());
     _localTargets = prefs.getLabelLocalTargets();
+    _fastMenuTarget = prefs.getLabelFastMenuTarget();
     _useUsbDirect = prefs.getLabelUseUsbDirect();
     _targetBus = Map<String, int>.from(prefs.getLabelTargetBusMap());
     if (_useUsbDirect) unawaited(_refreshDevices());
@@ -154,16 +161,35 @@ class _LabelZoneSettingsScreenState
     _afterSave(ok);
   }
 
+  /// 빠른 메뉴 구역 배정. [target] 이 null 이면 해제(카테고리 배정만 적용).
+  Future<void> _assignFastMenu(LabelTarget? target) async {
+    setState(() => _fastMenuTarget = target?.id);
+    final ok = await ref
+        .read(preferenceServiceProvider)
+        .setLabelFastMenuTarget(target?.id);
+    _afterSave(ok);
+  }
+
   Future<void> _clearAll() async {
     setState(() {
       _assignment = <String, String>{};
       _localTargets = <String>{};
+      _fastMenuTarget = null;
     });
     final prefs = ref.read(preferenceServiceProvider);
     final a = await prefs.setLabelTargetAssignment(_assignment);
     final b = await prefs.setLabelLocalTargets(_localTargets);
-    _afterSave(a && b);
+    final c = await prefs.setLabelFastMenuTarget(null);
+    _afterSave(a && b && c);
   }
+
+  /// 이 단말이 출력하지 않는 구역인가.
+  ///
+  /// **오류가 아니다** — 다른 단말이 그 구역을 맡고 있으면 정상 운영이다. 그래서
+  /// 문구도 "안 나온다" 가 아니라 "이 단말에서는 안 나온다" 여야 한다. 진짜 사고는
+  /// *어느 단말도* 그 구역을 안 맡은 경우인데, 그건 이 화면에서 알 수 없다.
+  bool _notHandledHere(LabelTarget target) =>
+      _localTargets.isNotEmpty && !_localTargets.contains(target.id);
 
   /// 저장 결과 처리 — 실패를 조용히 삼키면 "설정했는데 안 남는다" 가 된다.
   void _afterSave(bool ok) {
@@ -212,7 +238,9 @@ class _LabelZoneSettingsScreenState
       appBar: AppBar(
         title: Text(t.label_zone_select.title),
         actions: [
-          if (_assignment.isNotEmpty || _localTargets.isNotEmpty)
+          if (_assignment.isNotEmpty ||
+              _localTargets.isNotEmpty ||
+              _fastMenuTarget != null)
             TextButton(
               onPressed: _clearAll,
               child: Text(t.label_zone_select.clear_all),
@@ -244,7 +272,10 @@ class _LabelZoneSettingsScreenState
         const Divider(height: 1, color: AppStyles.gray3),
         _buildLocalSection(),
         const Divider(height: 1, color: AppStyles.gray3),
+        _buildFastMenuSection(),
+        const Divider(height: 1, color: AppStyles.gray3),
         _buildSectionTitle(t.label_zone_select.assign_section),
+        _buildUnhandledNotice(),
         if (categories.isEmpty)
           Padding(
             padding: const EdgeInsets.all(AppSpacing.s20),
@@ -258,6 +289,27 @@ class _LabelZoneSettingsScreenState
           ...categories.map(_buildCategoryRow),
         const SizedBox(height: AppSpacing.s20),
       ],
+    );
+  }
+
+  /// 이 단말이 안 맡는 구역에 배정된 카테고리가 몇 개인지.
+  ///
+  /// 행마다 표시하지 않고 한 줄로 합치는 이유: 카테고리가 수십 개인 매장에서
+  /// 행마다 경고를 달면 정상 상태(구역을 나눈 매장)가 온통 경고로 보인다.
+  Widget _buildUnhandledNotice() {
+    if (_localTargets.isEmpty) return const SizedBox.shrink();
+    final count =
+        _assignment.values.where((id) => !_localTargets.contains(id)).length;
+    if (count == 0) return const SizedBox.shrink();
+    return Container(
+      width: double.infinity,
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.s16, 0, AppSpacing.s16, AppSpacing.s8),
+      child: Text(
+        t.label_zone_select.assign_not_handled(count: count),
+        style: AppTextStyles.caption.copyWith(color: AppStyles.kMainColor),
+      ),
     );
   }
 
@@ -316,6 +368,87 @@ class _LabelZoneSettingsScreenState
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  /// "빠른 메뉴는 어느 구역으로" — 카테고리 배정을 **덮는** 규칙.
+  ///
+  /// 카테고리 배정과 따로 두는 이유: 고객사가 쓰는 말이 "아아만 따로 빼 달라" 라
+  /// 카테고리(면)로는 표현이 안 된다. 어느 메뉴가 빠른 메뉴인지는 이 화면이 정하지
+  /// 않는다 — 그건 [FastMenuSelectionScreen] 소관이고 여기는 행선지만 정한다.
+  Widget _buildFastMenuSection() {
+    final selected = _fastMenuTarget;
+    final count = ref.read(preferenceServiceProvider).getFastMenuIds().length;
+    final target = selected == null ? null : LabelTarget(selected);
+    return Container(
+      width: double.infinity,
+      color: Colors.white,
+      padding: const EdgeInsets.only(bottom: AppSpacing.s12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionTitle(t.label_zone_select.fast_menu_section),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s16),
+            child: Wrap(
+              spacing: AppSpacing.s8,
+              runSpacing: AppSpacing.s8,
+              children: [
+                ChoiceChip(
+                  label: Text(t.label_zone_select.fast_menu_unset),
+                  selected: selected == null,
+                  selectedColor: AppStyles.kMainColor,
+                  labelStyle: AppTextStyles.bodySm.copyWith(
+                    color: selected == null ? Colors.white : AppStyles.gray9,
+                  ),
+                  onSelected: (_) => _assignFastMenu(null),
+                ),
+                for (final zone in LabelTarget.selectable)
+                  ChoiceChip(
+                    label: Text(_zoneLabel(zone)),
+                    selected: target == zone,
+                    selectedColor: AppStyles.kMainColor,
+                    labelStyle: AppTextStyles.bodySm.copyWith(
+                      color: target == zone ? Colors.white : AppStyles.gray9,
+                    ),
+                    onSelected: (_) => _assignFastMenu(zone),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.s8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s16),
+            child: Text(
+              selected == null
+                  ? t.label_zone_select.fast_menu_unset_hint
+                  : t.label_zone_select.fast_menu_hint(count: count),
+              style: AppTextStyles.caption.copyWith(color: AppStyles.gray6),
+            ),
+          ),
+          // 지정된 메뉴가 없으면 배정만 해 두고 아무 일도 일어나지 않는다.
+          // "설정했는데 그대로다" 로 보이는 대표 경로라 화면에서 짚어 준다.
+          if (selected != null && count == 0)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.s16, AppSpacing.s4, AppSpacing.s16, 0),
+              child: Text(
+                t.label_zone_select.fast_menu_empty,
+                style: AppTextStyles.caption.copyWith(color: AppStyles.kRed),
+              ),
+            ),
+          if (target != null && _notHandledHere(target))
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.s16, AppSpacing.s4, AppSpacing.s16, 0),
+              child: Text(
+                t.label_zone_select.not_handled_here(zone: _zoneLabel(target)),
+                style:
+                    AppTextStyles.caption.copyWith(color: AppStyles.kMainColor),
+              ),
+            ),
         ],
       ),
     );

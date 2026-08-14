@@ -121,6 +121,14 @@ class PreferenceService {
   static const String KEY_LABEL_LOCAL_TARGETS_PREFIX =
       "APPFIT_LABEL_LOCAL_TARGETS_";
 
+  /// 빠른 제조 메뉴가 갈 타깃 id. 값은 문자열. 미설정이면 카테고리 배정만 쓴다.
+  ///
+  /// [KEY_LABEL_TARGET_ASSIGNMENT_PREFIX] 와 같은 **매장 정책** 축이라 매장별 키다.
+  /// 빠른 메뉴 **집합**은 [KEY_FAST_MENU_IDS_PREFIX] 가 따로 들고 있다 — 여기는
+  /// "그 집합을 어디로 보낼지" 만 안다.
+  static const String KEY_LABEL_FAST_MENU_TARGET_PREFIX =
+      "APPFIT_LABEL_FAST_MENU_TARGET_";
+
   // ── USB Direct (한 단말에 라벨 프린터 여러 대) ──────────────────────────────
   // 위 두 키와 달리 **매장별이 아니라 기기별**이다 — 이 단말에 프린터가 몇 대
   // 어느 포트에 붙어 있는지는 하드웨어 배치라 매장 정책이 아니고, 매장이 바뀌어도
@@ -796,6 +804,13 @@ class PreferenceService {
     return '$KEY_LABEL_LOCAL_TARGETS_PREFIX$storeId';
   }
 
+  /// 현재 매장의 "빠른 메뉴가 갈 타깃" 키. 매장 미확정이면 null.
+  String? _labelFastMenuTargetKey() {
+    final storeId = getId();
+    if (storeId == null || storeId.isEmpty) return null;
+    return '$KEY_LABEL_FAST_MENU_TARGET_PREFIX$storeId';
+  }
+
   /// 상품 카테고리 코드 → 라벨 타깃 id 배정. 미설정이면 빈 맵.
   ///
   /// 빈 맵이면 모든 라벨이 `LabelTarget.primary` 로 가서 종전 동작과 동일하다.
@@ -840,6 +855,35 @@ class PreferenceService {
       logger.w('[PreferenceService] 라벨 담당 타깃 파싱 실패 — 전부 담당으로 처리: $e');
       return <String>{};
     }
+  }
+
+  /// 빠른 제조 메뉴가 갈 타깃 id. 미설정이면 null = 카테고리 배정만 적용.
+  String? getLabelFastMenuTarget() {
+    final key = _labelFastMenuTargetKey();
+    if (key == null) return null;
+    final raw = _prefs.getString(key);
+    if (raw == null || raw.isEmpty) return null;
+    return raw;
+  }
+
+  /// 빠른 메뉴 타깃 저장. null/빈 문자열이면 배정 해제. 매장 미확정이면 false.
+  Future<bool> setLabelFastMenuTarget(String? targetId) async {
+    final key = _labelFastMenuTargetKey();
+    if (key == null) {
+      logger.w('[PreferenceService] 매장 ID 미확정 — 빠른메뉴 타깃 저장 실패');
+      logToFile(
+          tag: LogTag.WARNING, message: '[LabelTarget] 매장 ID 미확정 — 빠른메뉴 저장 실패');
+      return false;
+    }
+    if (targetId == null || targetId.isEmpty) {
+      await _prefs.remove(key);
+      logToFile(tag: LogTag.PLATFORM, message: '[LabelTarget] 빠른메뉴 타깃 해제');
+      return true;
+    }
+    await _prefs.setString(key, targetId);
+    logToFile(
+        tag: LogTag.PLATFORM, message: '[LabelTarget] 빠른메뉴 타깃=$targetId 저장');
+    return true;
   }
 
   /// USB Direct 사용 여부. 기본 false = 종전 Caysn 경로.

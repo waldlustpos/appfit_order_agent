@@ -59,6 +59,12 @@ abstract class LabelFilterStrategy {
   /// 하드코딩이 아니라 매장 설정이 정본이므로 필터 전략과 무관하게 모든 브랜드에서
   /// 동작한다 — [selectMenus] 처럼 capability 로 게이팅하지 않는다.
   ///
+  /// ## [isFastMenu] 는 판정 결과만 받는다
+  /// 빠른 메뉴인지 아닌지는 [FastMenuPolicy] 가 정하고 여기는 그 결과만 쓴다.
+  /// 배정표를 두 축(카테고리·빠른메뉴) 모두 들고 있는 것은 [policy] 이므로
+  /// 우선순위 판단도 거기서 한다([LabelTargetPolicy.resolveTarget]) — 이 메서드는
+  /// "무엇을 조회 키로 줄 것인가" 만 안다.
+  ///
   /// ## [selectMenus] 와의 관계 — 직교하는 두 축이다
   /// [selectMenus] 는 **인쇄 여부**(이 라벨을 뽑을 것인가), 여기는 **행선지**
   /// (어느 프린터로 보낼 것인가)를 정한다. 재출력(`isReprint`)이 필터를 우회해도
@@ -73,9 +79,12 @@ abstract class LabelFilterStrategy {
     OrderMenuModel menu, {
     required List<ProductModel> products,
     required LabelTargetPolicy policy,
+    bool isFastMenu = false,
   }) =>
-      policy.targetForCategory(
-          findProduct(products, menu.shopItemId)?.categoryCode);
+      policy.resolveTarget(
+        isFastMenu: isFastMenu,
+        categoryCode: findProduct(products, menu.shopItemId)?.categoryCode,
+      );
 
   /// 상품 카탈로그에서 ID 로 상품을 찾는다.
   ///

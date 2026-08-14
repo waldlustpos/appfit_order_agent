@@ -315,11 +315,18 @@ class _Translations$label_zone_select$en extends Translations$label_zone_select$
 
 	// Translations
 	@override String get title => 'Label zones';
-	@override String get guide => 'For stores with separate prep areas, choose which device prints which categories. Categories left unassigned print in the \'Default\' zone.';
-	@override String get local_section => 'Zones this device prints';
+	@override String get guide => 'For stores with separate prep areas, choose which labels go to which printer. Categories left unassigned print in the \'Default\' zone. A fast menu zone, if set, overrides the category assignment.\n· Store-wide — every device must hold the same value.\n· This device only — set separately on each device.';
+	@override String get local_section => 'Zones this device prints (this device only)';
 	@override String get local_all => 'None selected — this device prints every label (default)';
 	@override String get local_warning => 'This device prints only the selected zones. The rest must be printed by the device handling that zone.';
-	@override String get assign_section => 'Zone per category';
+	@override String get assign_section => 'Zone per category (store-wide)';
+	@override String assign_not_handled({required Object count}) => '${count} categories are assigned to zones this device does not print. They print on the device handling that zone.';
+	@override String get fast_menu_section => 'Fast menu zone (store-wide)';
+	@override String get fast_menu_unset => 'Not set';
+	@override String get fast_menu_unset_hint => 'Fast menus follow the category assignment.';
+	@override String fast_menu_hint({required Object count}) => 'The ${count} fast menus you selected print in this zone regardless of their category assignment.';
+	@override String get fast_menu_empty => '⚠ No fast menus selected yet. Pick them first in Settings > Fast menus.';
+	@override String not_handled_here({required Object zone}) => 'This device does not print ${zone} labels. Make sure a device handles ${zone}.';
 	@override String get zone_primary => 'Default';
 	@override String get zone_2 => 'Zone 2';
 	@override String get zone_3 => 'Zone 3';
@@ -327,7 +334,7 @@ class _Translations$label_zone_select$en extends Translations$label_zone_select$
 	@override String error_load({required Object error}) => 'An error occurred while loading products.\n${error}';
 	@override String get clear_all => 'Reset assignments';
 	@override String get save_failed => 'Could not save. Check that you are signed in and try again.';
-	@override String get direct_section => 'Printer connection';
+	@override String get direct_section => 'Printer connection (this device only)';
 	@override String get direct_toggle => 'Direct USB control';
 	@override String get direct_hint => 'Turn on when this device has two or more label printers. Off keeps the previous single-printer behaviour.';
 	@override String get direct_devices => 'Connected printers';

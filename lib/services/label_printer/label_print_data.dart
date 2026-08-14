@@ -251,8 +251,15 @@ class LabelPrintData {
 
       // 행선지 배정 — 메뉴 단위로 한 번만. 같은 메뉴의 qty 장은 전부 같은 프린터로
       // 간다(같은 음료 3잔이 두 구역에 흩어지면 제조가 안 된다).
-      final target =
-          strategy.assignTarget(menu, products: products, policy: targetPolicy);
+      //
+      // 바로 위 isFastMenu 를 그대로 넘긴다 — 마커 표시와 행선지가 **같은 판정**을
+      // 쓰게 하려는 것이다. 여기서 따로 isFast 를 부르면 두 곳이 갈릴 수 있다.
+      final target = strategy.assignTarget(
+        menu,
+        products: products,
+        policy: targetPolicy,
+        isFastMenu: isFastMenu,
+      );
 
       // 옵션 카테고리 분류 — 브랜드 전략에 위임 (기본 NoOp = 분류 없음).
       final cats = strategy.classifyOptions(menu, products: products);

@@ -58,6 +58,7 @@ class LabelTargetPolicy {
   const LabelTargetPolicy({
     required this.assignment,
     required this.localTargets,
+    this.fastMenuTarget,
   });
 
   /// 아무 것도 하지 않는 중립 정책. 모든 라벨이 primary 로 가고 전부 인쇄된다.
@@ -69,13 +70,27 @@ class LabelTargetPolicy {
   /// 상품 카테고리 코드 → 타깃 id. 비어 있으면 전부 [LabelTarget.primary].
   final Map<String, String> assignment;
 
+  /// 빠른 제조 메뉴 전용 타깃 id. null 이면 이 규칙을 쓰지 않는다.
+  ///
+  /// [assignment] 와 **같은 매장 정책 축**이지만 더 좁다: 카테고리 배정이
+  /// "음료는 1번" 이라는 면(面)이라면 이쪽은 "그중 아아만 2번" 이라는 점(點)이다.
+  /// 그래서 [resolveTarget] 에서 **점이 면을 이긴다** — 그렇지 않으면 고객사가
+  /// 실제로 쓰는 말("아아만 따로 빼 주세요")을 표현할 수 없다.
+  ///
+  /// 빠른 메뉴 집합 자체는 여기 없다. 그건 [FastMenuPolicy] 소관이고, 이 클래스는
+  /// "빠르다고 판정된 메뉴를 어디로 보낼지" 만 안다.
+  final String? fastMenuTarget;
+
   /// 이 단말이 담당하는 타깃 id 집합.
   ///
   /// **비어 있으면 전부 담당한다** — 미설정 매장의 종전 동작을 보존하는 기본값이다.
   final Set<String> localTargets;
 
   /// 설정이 하나라도 있는가. 로그/진단 표기용.
-  bool get isConfigured => assignment.isNotEmpty || localTargets.isNotEmpty;
+  bool get isConfigured =>
+      assignment.isNotEmpty ||
+      localTargets.isNotEmpty ||
+      (fastMenuTarget != null && fastMenuTarget!.isNotEmpty);
 
   /// 카테고리 코드가 배정된 타깃. 미매핑·미상은 [LabelTarget.primary].
   LabelTarget targetForCategory(String? categoryCode) {
@@ -85,6 +100,21 @@ class LabelTargetPolicy {
     final id = assignment[categoryCode];
     if (id == null || id.isEmpty) return LabelTarget.primary;
     return LabelTarget(id);
+  }
+
+  /// 최종 행선지. 빠른 메뉴 배정이 카테고리 배정을 **덮는다**.
+  ///
+  /// 두 규칙이 한 메서드에 있어야 우선순위가 한눈에 보인다 — 호출부마다 조건을
+  /// 나열하면 어디선가 순서가 뒤집힌다.
+  LabelTarget resolveTarget({
+    required bool isFastMenu,
+    required String? categoryCode,
+  }) {
+    if (isFastMenu) {
+      final id = fastMenuTarget;
+      if (id != null && id.isNotEmpty) return LabelTarget(id);
+    }
+    return targetForCategory(categoryCode);
   }
 
   /// 이 단말이 [target] 을 인쇄하는가.
@@ -102,5 +132,6 @@ final labelTargetPolicyProvider = Provider<LabelTargetPolicy>((ref) {
   return LabelTargetPolicy(
     assignment: prefs.getLabelTargetAssignment(),
     localTargets: prefs.getLabelLocalTargets(),
+    fastMenuTarget: prefs.getLabelFastMenuTarget(),
   );
 });

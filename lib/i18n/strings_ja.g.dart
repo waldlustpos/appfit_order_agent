@@ -311,11 +311,18 @@ class _Translations$label_zone_select$ja extends Translations$label_zone_select$
 
 	// Translations
 	@override String get title => 'ラベル区域の指定';
-	@override String get guide => '製造区域が分かれている店舗で、どのカテゴリをどの端末が出力するかを決めます。割り当てていないカテゴリは「基本」区域で出力されます。';
-	@override String get local_section => 'この端末が出力する区域';
+	@override String get guide => '製造区域が分かれている店舗で、どのラベルをどのプリンターに送るかを決めます。割り当てていないカテゴリは「基本」区域で出力されます。早いメニューの区域を指定すると、カテゴリの割り当てより優先されます。\n・店舗共通 — すべての端末で同じ値にしてください。\n・この端末のみ — 端末ごとに設定します。';
+	@override String get local_section => 'この端末が出力する区域（この端末のみ）';
 	@override String get local_all => '選択なし — この端末がすべてのラベルを出力します（基本）';
 	@override String get local_warning => 'この端末は選択した区域のラベルだけを出力します。残りは担当端末で出力してください。';
-	@override String get assign_section => 'カテゴリ別の区域';
+	@override String get assign_section => 'カテゴリ別の区域（店舗共通）';
+	@override String assign_not_handled({required Object count}) => '${count}件のカテゴリが、この端末が出力しない区域に割り当てられています。担当端末で出力されます。';
+	@override String get fast_menu_section => '早いメニューの区域（店舗共通）';
+	@override String get fast_menu_unset => '未指定';
+	@override String get fast_menu_unset_hint => '早いメニューもカテゴリの割り当てに従います。';
+	@override String fast_menu_hint({required Object count}) => '指定した早いメニュー${count}件は、カテゴリの割り当てに関係なくこの区域で出力されます。';
+	@override String get fast_menu_empty => '⚠ 指定された早いメニューがありません。設定 > 早いメニュー指定で先にメニューを選んでください。';
+	@override String not_handled_here({required Object zone}) => 'この端末は${zone}のラベルを出力しません。${zone}の担当端末があるか確認してください。';
 	@override String get zone_primary => '基本';
 	@override String get zone_2 => '区域 2';
 	@override String get zone_3 => '区域 3';
@@ -323,7 +330,7 @@ class _Translations$label_zone_select$ja extends Translations$label_zone_select$
 	@override String error_load({required Object error}) => '商品リストの読み込み中にエラーが発生しました。\n${error}';
 	@override String get clear_all => '割り当てをリセット';
 	@override String get save_failed => '保存できませんでした。ログイン状態を確認して、もう一度お試しください。';
-	@override String get direct_section => 'プリンター接続方式';
+	@override String get direct_section => 'プリンター接続方式（この端末のみ）';
 	@override String get direct_toggle => 'USB直接制御';
 	@override String get direct_hint => 'この端末にラベルプリンターを2台以上つなぐ場合にオンにします。オフの場合は従来どおり1台で動作します。';
 	@override String get direct_devices => '接続中のプリンター';

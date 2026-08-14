@@ -547,11 +547,11 @@ class Translations$label_zone_select$ko {
 	/// ko: '라벨 구역 지정'
 	String get title => '라벨 구역 지정';
 
-	/// ko: '제조 구역이 나뉜 매장에서, 어떤 카테고리를 어느 단말이 출력할지 정합니다. 배정하지 않은 카테고리는 '기본' 구역으로 출력됩니다.'
-	String get guide => '제조 구역이 나뉜 매장에서, 어떤 카테고리를 어느 단말이 출력할지 정합니다. 배정하지 않은 카테고리는 \'기본\' 구역으로 출력됩니다.';
+	/// ko: '제조 구역이 나뉜 매장에서, 어떤 라벨을 어느 프린터로 보낼지 정합니다. 배정하지 않은 카테고리는 '기본' 구역으로 출력됩니다. 빠른 메뉴 구역을 지정하면 카테고리 배정보다 우선합니다. · 매장 공통 — 모든 단말이 같은 값이어야 합니다. · 이 기기만 — 단말마다 따로 정합니다.'
+	String get guide => '제조 구역이 나뉜 매장에서, 어떤 라벨을 어느 프린터로 보낼지 정합니다. 배정하지 않은 카테고리는 \'기본\' 구역으로 출력됩니다. 빠른 메뉴 구역을 지정하면 카테고리 배정보다 우선합니다.\n· 매장 공통 — 모든 단말이 같은 값이어야 합니다.\n· 이 기기만 — 단말마다 따로 정합니다.';
 
-	/// ko: '이 단말이 출력할 구역'
-	String get local_section => '이 단말이 출력할 구역';
+	/// ko: '이 단말이 출력할 구역 (이 기기만)'
+	String get local_section => '이 단말이 출력할 구역 (이 기기만)';
 
 	/// ko: '선택 없음 — 이 단말이 모든 라벨을 출력합니다 (기본)'
 	String get local_all => '선택 없음 — 이 단말이 모든 라벨을 출력합니다 (기본)';
@@ -559,8 +559,29 @@ class Translations$label_zone_select$ko {
 	/// ko: '이 단말은 선택한 구역의 라벨만 출력합니다. 나머지는 해당 구역 단말에서 출력하세요.'
 	String get local_warning => '이 단말은 선택한 구역의 라벨만 출력합니다. 나머지는 해당 구역 단말에서 출력하세요.';
 
-	/// ko: '카테고리별 구역'
-	String get assign_section => '카테고리별 구역';
+	/// ko: '카테고리별 구역 (매장 공통)'
+	String get assign_section => '카테고리별 구역 (매장 공통)';
+
+	/// ko: '{count}개 카테고리가 이 단말이 출력하지 않는 구역에 배정돼 있습니다. 해당 구역 단말에서 출력됩니다.'
+	String assign_not_handled({required Object count}) => '${count}개 카테고리가 이 단말이 출력하지 않는 구역에 배정돼 있습니다. 해당 구역 단말에서 출력됩니다.';
+
+	/// ko: '빠른 메뉴 구역 (매장 공통)'
+	String get fast_menu_section => '빠른 메뉴 구역 (매장 공통)';
+
+	/// ko: '미지정'
+	String get fast_menu_unset => '미지정';
+
+	/// ko: '빠른 메뉴도 카테고리 배정을 따릅니다.'
+	String get fast_menu_unset_hint => '빠른 메뉴도 카테고리 배정을 따릅니다.';
+
+	/// ko: '지정한 빠른 메뉴 {count}개는 카테고리 배정과 무관하게 이 구역으로 출력됩니다.'
+	String fast_menu_hint({required Object count}) => '지정한 빠른 메뉴 ${count}개는 카테고리 배정과 무관하게 이 구역으로 출력됩니다.';
+
+	/// ko: '⚠ 지정된 빠른 메뉴가 없습니다. 설정 > 빠른 메뉴 지정에서 먼저 메뉴를 고르세요.'
+	String get fast_menu_empty => '⚠ 지정된 빠른 메뉴가 없습니다. 설정 > 빠른 메뉴 지정에서 먼저 메뉴를 고르세요.';
+
+	/// ko: '이 단말은 {zone} 라벨을 출력하지 않습니다. {zone} 단말이 있는지 확인하세요.'
+	String not_handled_here({required Object zone}) => '이 단말은 ${zone} 라벨을 출력하지 않습니다. ${zone} 단말이 있는지 확인하세요.';
 
 	/// ko: '기본'
 	String get zone_primary => '기본';
@@ -583,8 +604,8 @@ class Translations$label_zone_select$ko {
 	/// ko: '저장하지 못했습니다. 로그인 상태를 확인한 뒤 다시 시도해 주세요.'
 	String get save_failed => '저장하지 못했습니다. 로그인 상태를 확인한 뒤 다시 시도해 주세요.';
 
-	/// ko: '프린터 연결 방식'
-	String get direct_section => '프린터 연결 방식';
+	/// ko: '프린터 연결 방식 (이 기기만)'
+	String get direct_section => '프린터 연결 방식 (이 기기만)';
 
 	/// ko: 'USB 직접 제어'
 	String get direct_toggle => 'USB 직접 제어';

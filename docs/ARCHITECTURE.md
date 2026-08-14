@@ -321,5 +321,18 @@ WebSocket 푸시 / 폴링 / 자정 새로고침으로 주문 상태가 빈번히
   - **추월 면역**: `ReprintJob` 은 `add(protectedFromPriority: true)` 로 들어가 FIFO 자리를 지키면서 절대 밀리지 않는다. 운영자가 프린터 앞에서 결과를 기다리는 요청이기 때문.
   - **fail-safe**: 우선 판정(`_isPriorityOrder`)의 예외는 전부 '일반'으로 흡수한다. 부가 기능의 설정 조회 실패가 라벨 enqueue 자체를 죽여 주문 라벨을 통째로 날리면 안 된다.
   - **한계(점주 안내서에 명시)**: ① 큐에 대기가 쌓였을 때만 효과 ② 이미 dispatch 된 라벨(PAPERNOFETCH 대기)은 추월 불가 ③ 외부 영수증 프린터 매장은 label tail enqueue 가 직전 영수증에 묶여 큐 깊이가 얕음.
+- **라벨 구역(제조 구역별 프린터 분담)**: 같은 고객사 요구(빠른 메뉴가 앞 주문에 막힌다)를 **시간축이 아니라 공간축**으로 푸는 기능. 정본은 [`LabelTargetPolicy`](../lib/services/label_printer/label_target.dart) (`labelTargetPolicyProvider`), 행선지 결정은 `LabelFilterStrategy.assignTarget()` **한 곳**. 설정 화면은 `lib/screens/label_zone_settings_screen.dart`.
+  - **빠른 메뉴 우선 출력과의 관계**: 우선 출력은 순서만 바꿔 **처리량을 늘리지 못한다** — 큐 선두가 라벨 떼기 대기에 걸리면 `addPriority` 로도 못 지나간다(`SerialAsyncQueue` 는 이미 꺼낸 항목을 추월시키지 않는다). 병목이 프린터 처리량이면 구역 분리만이 실제로 가른다. 구역이 나뉜 매장에서는 **모드 1(주문 내 정렬) + 빠른메뉴 구역 배정**이 권장 조합이고, 모드 2(주문 간 추월)는 프린터 1대 매장용이다.
+  - **세 축과 저장 범위** — 섞이면 "한 대만 고쳐 놓고 전 단말에 퍼진 줄 아는" 사고가 난다:
+    | 축 | 질문 | 키 | 범위 |
+    |---|---|---|---|
+    | 무엇을 먼저 | 빠른 메뉴 모드/마커 | `KEY_FAST_MENU_MODE` 외 | 매장별 |
+    | 어디로 | 카테고리→구역, 빠른메뉴→구역 | `..._TARGET_ASSIGN_<storeId>`, `..._FAST_MENU_TARGET_<storeId>` | 매장별 |
+    | 누가 담당 | 담당 구역 / 포트 배정 | `..._LOCAL_TARGETS_<storeId>`, `KEY_LABEL_TARGET_BUS` | **단말별** |
+  - **우선순위**: 빠른메뉴 배정이 카테고리 배정을 **덮는다**(`LabelTargetPolicy.resolveTarget`). 카테고리가 면(面)이고 빠른메뉴가 점(點)이라, 점이 이겨야 "아아만 따로" 가 표현된다. 미설정이면 종전대로 카테고리 축만 동작.
+  - **컵 식별자 불변**: 구역을 나눠도 `orderIndex`/`orderTotal` 은 주문 전체 기준을 유지한다. 부분합으로 바꾸면 QR 페이로드가 깨진다. 회귀 고정: `test/services/label_target_test.dart`.
+  - **2단 큐**: `_labelPrepQueue`(직렬 1개, 상세조회·타깃 분할) → `_labelQueues[타깃]`(타깃마다 1개, 렌더+인쇄+완료 대기). 앞단을 직렬로 남기는 이유는 `markPendingReprint` 가 **주문 단위**라, 타깃별로 상세조회하면 한쪽 실패가 성공한 쪽까지 재발행시켜 라벨이 중복되기 때문. 중복방지 플래그는 `_pendingTargetJobs` 로 **마지막 타깃 작업이 끝날 때** 푼다.
+  - **격리는 가장 좁은 병목에서 결정된다**: Dart 큐 → MethodChannel executor(`labelTargetExecutors`) → 네이티브 드라이버 락, 세 층이 모두 갈라져야 성립한다. 한 층만 넓히면 다음 층이 그대로 직렬화하고 증상은 "막힌 쪽이 아닌 프린터에서 **비프음조차 안 난다**"(= 명령 미도달)로 나타난다.
+  - **폴백은 항상 인쇄 쪽**: 미매핑 카테고리는 `primary`, 미배정 버스는 첫 장치. **안 나오는 비용 > 엉뚱한 프린터에서 나오는 비용** — 후자는 손으로 분류하면 끝이지만 전자는 누락 복구 경로를 타야 한다.
 - **인증/세션 정리**: `Auth.logout()`(`lib/providers/auth_provider.dart`)이 credentials/JWT/SecureStorage(projectId·apiKey)/SharedPreferences/WebSocket을 정리하는 **단일 진입점**. UI 계층(예: `HomeScreen`)은 이 메서드만 호출하고 영업 상태 변경·`OrderProvider` cleanup·네비게이션을 담당. `disconnect()` 후 dependency가 outdated되므로 모든 `ref.read()`는 disconnect 호출 전에 미리 캐시. `unauthenticate()`는 환경 변경 시 WebSocket만 끊고 로그인 화면으로 복귀.
 - **라우팅**: 세 개의 명명된 라우트: `/login`, `/home`, `/settings`.
