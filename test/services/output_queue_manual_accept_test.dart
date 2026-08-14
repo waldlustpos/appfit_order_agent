@@ -4,6 +4,7 @@ import 'package:appfit_order_agent/core/orders/output_service.dart';
 import 'package:appfit_order_agent/models/order_menu_model.dart';
 import 'package:appfit_order_agent/models/order_model.dart';
 import 'package:appfit_order_agent/services/label_printer/fast_menu_policy.dart';
+import 'package:appfit_order_agent/services/label_printer/label_target.dart';
 import 'package:appfit_order_agent/services/output_queue_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -43,8 +44,19 @@ class _SlowLabelFake implements OutputService {
   }
 
   @override
+  // 라벨 큐 2단계 중 준비 단계는 통과만 시킨다 — 이 테스트가 보는 것은 인쇄가
+  // 막혀 있을 때의 큐 거동이라, 타깃 하나로 종전과 같은 단일 큐를 재현한다.
+  @override
+  Future<OrderModel?> prepareOrderForLabels(OrderModel order) async => order;
+
+  @override
+  Future<Set<LabelTarget>> targetsForOrder(OrderModel order,
+          {bool isReprint = false}) async =>
+      {LabelTarget.primary};
+
+  @override
   Future<void> printOrderLabels(OrderModel order,
-      {bool isReprint = false}) async {
+      {bool isReprint = false, LabelTarget? onlyTarget}) async {
     events.add('label:${order.orderId}${isReprint ? ':reprint' : ''}');
     final gate = Completer<void>();
     _gate = gate;

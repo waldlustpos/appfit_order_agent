@@ -133,44 +133,99 @@ class OutputService {
     }
   }
 
-  /// 주문에 포함된 메뉴들의 라벨을 출력합니다.
-  /// [isReprint] true이면 재출력 (필터링 없이 전체 출력)
-  Future<void> printOrderLabels(OrderModel order,
-      {bool isReprint = false}) async {
-    try {
-      final useLabel = ref.read(preferenceServiceProvider).getUseLabelPrinter();
-      if (!useLabel) return;
+  /// 라벨 출력에 필요한 **주문 단위 선행 작업**만 수행한다 (상세조회 + 생략 판정).
+  ///
+  /// 인쇄 자체는 하지 않는다. 프린터가 여러 대일 때 이 단계를 **정확히 한 번만**
+  /// 돌리기 위해 분리했다 — 타깃별로 각자 상세조회를 하면 (a) 같은 주문을 여러 번
+  /// 조회하고, 더 나쁘게는 (b) 한쪽만 조회에 실패했을 때 그쪽이
+  /// [markPendingReprint] 를 걸어 **성공한 쪽까지 재발행되어 라벨이 중복된다.**
+  ///
+  /// @return 인쇄에 쓸 주문(메뉴 보강 완료). null 이면 인쇄하지 않는다 —
+  ///         생략 사유 기록과 복구 큐 등록은 이 함수가 이미 처리했다.
+  Future<OrderModel?> prepareOrderForLabels(OrderModel order) async {
+    final useLabel = ref.read(preferenceServiceProvider).getUseLabelPrinter();
+    if (!useLabel) return null;
 
-      // 상세 정보(메뉴)가 없는 경우 로드 시도
-      OrderModel orderToPrint = order;
-      if (orderToPrint.menus.isEmpty) {
-        logToFile(
-            tag: LogTag.PLATFORM,
-            message: '[Label] ${order.displayNum} 메뉴 정보 미보유 — 상세 조회 시도');
-        try {
-          orderToPrint = await _prepareOrderForPrinting(order);
-        } catch (e) {
-          // 상세조회 실패로 라벨을 못 내보냄 — 출력 누락 등록 후 조용히 생략한다.
-          // 상위 catch 로 던지지 않아 '라벨 출력 영역 예외'(비정상 예외용) 오탐과
-          // Sentry 중복 보고를 막는다. 영수증 OFF(라벨만) 매장의 라벨 단독 누락도
-          // 이 경로로 복구 큐에 등록된다.
-          logger.w('[Label] ${order.displayNum} 상세조회 실패 — 라벨 생략, 복구 대기 ($e)');
-          try {
-            _orderNotifier.markPendingReprint(order.orderId);
-          } catch (_) {}
-          return;
-        }
-      }
-
-      if (orderToPrint.menus.isEmpty) {
-        logger.w('[Label] ${order.displayNum} 라벨 생략 (메뉴 정보 없음)');
-        // 모든 라벨 경로(_NewOrderLabelTail / LabelOnlyJob / addLabelOnly)가 이
-        // 깔때기로 수렴 — 라벨 단독 누락도 출력 누락으로 등록해 메뉴 복구 시 재발행.
+    // 상세 정보(메뉴)가 없는 경우 로드 시도
+    OrderModel orderToPrint = order;
+    if (orderToPrint.menus.isEmpty) {
+      logToFile(
+          tag: LogTag.PLATFORM,
+          message: '[Label] ${order.displayNum} 메뉴 정보 미보유 — 상세 조회 시도');
+      try {
+        orderToPrint = await _prepareOrderForPrinting(order);
+      } catch (e) {
+        // 상세조회 실패로 라벨을 못 내보냄 — 출력 누락 등록 후 조용히 생략한다.
+        // 상위 catch 로 던지지 않아 '라벨 출력 영역 예외'(비정상 예외용) 오탐과
+        // Sentry 중복 보고를 막는다. 영수증 OFF(라벨만) 매장의 라벨 단독 누락도
+        // 이 경로로 복구 큐에 등록된다.
+        logger.w('[Label] ${order.displayNum} 상세조회 실패 — 라벨 생략, 복구 대기 ($e)');
         try {
           _orderNotifier.markPendingReprint(order.orderId);
         } catch (_) {}
-        return;
+        return null;
       }
+    }
+
+    if (orderToPrint.menus.isEmpty) {
+      logger.w('[Label] ${order.displayNum} 라벨 생략 (메뉴 정보 없음)');
+      // 모든 라벨 경로(_NewOrderLabelTail / LabelOnlyJob / addLabelOnly)가 이
+      // 깔때기로 수렴 — 라벨 단독 누락도 출력 누락으로 등록해 메뉴 복구 시 재발행.
+      try {
+        _orderNotifier.markPendingReprint(order.orderId);
+      } catch (_) {}
+      return null;
+    }
+    return orderToPrint;
+  }
+
+  /// 이 주문이 **이 단말에서** 실제로 사용할 타깃 집합.
+  ///
+  /// 큐를 타깃별로 나누기 위한 조회다. 판정을 [printOrderLabels] 와 반드시 같게
+  /// 유지해야 하므로 같은 [LabelPrintData.fromOrder] 를 그대로 호출한다 —
+  /// 순수 계산이라 두 번 돌아도 부담이 없고, 규칙을 복사해 두면 언젠가 갈라진다.
+  ///
+  /// 비어 있으면 이 단말이 인쇄할 라벨이 없다는 뜻이다.
+  Future<Set<LabelTarget>> targetsForOrder(OrderModel order,
+      {bool isReprint = false}) async {
+    try {
+      final prefService = ref.read(preferenceServiceProvider);
+      final targetPolicy = ref.read(labelTargetPolicyProvider);
+      final labels = LabelPrintData.fromOrder(
+        order,
+        products: await ref.read(productProvider.future),
+        filterMode: prefService.getLabelFilterMode(),
+        strategy: ref.read(labelFilterStrategyProvider),
+        qrStrategy: ref.read(qrPayloadStrategyProvider),
+        isReprint: isReprint,
+        fastMenuPolicy: ref.read(fastMenuPolicyProvider),
+        targetPolicy: targetPolicy,
+      );
+      return labels
+          .where((d) => targetPolicy.handles(d.target))
+          .map((d) => d.target)
+          .toSet();
+    } catch (e) {
+      // 판정 실패로 라벨을 통째로 잃지 않는다. primary 하나로 보내면 종전과 같은
+      // 단일 큐 경로가 되고, 실제 분배는 printOrderLabels 가 다시 판정한다.
+      logToFile(
+          tag: LogTag.WARNING,
+          message: '[Label] ${order.displayNum} 타깃 판정 실패 — 단일 큐로 처리: $e');
+      return {LabelTarget.primary};
+    }
+  }
+
+  /// 주문에 포함된 메뉴들의 라벨을 출력합니다.
+  /// [isReprint] true이면 재출력 (필터링 없이 전체 출력)
+  ///
+  /// [onlyTarget] 이 주어지면 그 타깃의 라벨만 인쇄한다 — 타깃별 큐가 각자
+  /// 자기 몫만 맡을 때 쓴다. null 이면 담당 구역 전량(종전 동작).
+  Future<void> printOrderLabels(OrderModel order,
+      {bool isReprint = false, LabelTarget? onlyTarget}) async {
+    try {
+      final prepared = await prepareOrderForLabels(order);
+      if (prepared == null) return;
+      final OrderModel orderToPrint = prepared;
 
       // 진입 로그: 운영자 단위 식별 — displayNum + 메뉴/총라벨수 + reprint 플래그.
       final int entryTotalLabels =
@@ -218,9 +273,17 @@ class OutputService {
       // 이 단말이 담당하지 않는 구역의 라벨은 건너뛴다. **누락이 아니다** —
       // 그 구역을 맡은 다른 단말이 자기 프린터로 인쇄한다. 그래서 실패 회계
       // (failedLabels / markPendingReprint / Sentry)에 넣지 않는다.
-      final labelsToPrint =
+      final handled =
           labels.where((d) => targetPolicy.handles(d.target)).toList();
-      final skipped = labels.length - labelsToPrint.length;
+      // 스킵 집계는 **담당 여부만** 센다. 아래 onlyTarget 분할은 같은 단말 안에서
+      // 큐를 나눈 것뿐이라 "다른 큐가 인쇄한다" — 스킵으로 세면 정상 동작이
+      // 누락처럼 보이는 로그가 매 주문 쌓인다.
+      final skipped = labels.length - handled.length;
+      // 타깃별 큐가 자기 몫만 맡는 경우. 담당 판정 **뒤**에 온다 — 담당하지 않는
+      // 구역은 애초에 이 단말의 일이 아니고, onlyTarget 은 그 안에서 다시 나누는 축이다.
+      final labelsToPrint = onlyTarget == null
+          ? handled
+          : handled.where((d) => d.target == onlyTarget).toList();
       if (skipped > 0) {
         // 설정 실수(담당 타깃 오타 등)로 전량이 조용히 사라지는 것을 막는 관찰점.
         // 스킵은 정상 동작이지만 **보이지 않으면 오설정과 구분할 수 없다.**
