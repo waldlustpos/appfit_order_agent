@@ -50,7 +50,31 @@ public final class UsbLabelRegistry {
      */
     private static final Map<Integer, String> NODES = new HashMap<>();
 
+    /**
+     * Caysn 포트를 이미 놓아줬는가.
+     *
+     * <p>인쇄마다 {@link LabelPrinter#close()} 를 부르면 그 메서드가 무조건 남기는
+     * "[CLOSE]" 로그가 라벨 한 장마다 찍힌다 — 실제로는 닫을 것이 없는데 닫힌 것처럼
+     * 보여 사후 분석을 흐린다. 세션당 한 번이면 충분하다(Caysn 이 다시 열리는 경로는
+     * Direct 를 끄는 것뿐이고, 그때는 {@link #closeAll()} 이 이 플래그를 되돌린다).
+     */
+    private static volatile boolean caysnReleased = false;
+
     private UsbLabelRegistry() {
+    }
+
+    /** Direct 로 가는 동안 SDK 가 같은 장치를 물고 있으면 안 된다. 세션당 1회. */
+    private static void releaseCaysnOnce() {
+        if (caysnReleased) return;
+        synchronized (UsbLabelRegistry.class) {
+            if (caysnReleased) return;
+            try {
+                LabelPrinter.close();
+            } catch (Throwable t) {
+                Log.w(TAG, "Caysn close 예외: " + t.getMessage());
+            }
+            caysnReleased = true;
+        }
     }
 
     // ── 라우팅 ──────────────────────────────────────────────────────────────
@@ -73,12 +97,7 @@ public final class UsbLabelRegistry {
                                  int totalLabels) {
         if (bitmap == null) return LabelPrinter.RESULT_RETRYABLE;
 
-        // Direct 로 가는 동안 SDK 가 같은 장치를 물고 있으면 안 된다.
-        try {
-            LabelPrinter.close();
-        } catch (Throwable t) {
-            Log.w(TAG, "Caysn close 예외: " + t.getMessage());
-        }
+        releaseCaysnOnce();
 
         final UsbLabelDriver drv = acquire(activity, targetId, targetBusMap);
         if (drv == null) {
@@ -167,11 +186,7 @@ public final class UsbLabelRegistry {
      * @return 연 장치 수
      */
     public static synchronized int warmup(MainActivity activity) {
-        try {
-            LabelPrinter.close();
-        } catch (Throwable t) {
-            Log.w(TAG, "Caysn close 예외: " + t.getMessage());
-        }
+        releaseCaysnOnce();
         int opened = 0;
         for (UsbDevice d : UsbLabelDriver.findDevices(activity)) {
             if (openOrReuseLocked(activity, d) != null) opened++;
@@ -192,10 +207,7 @@ public final class UsbLabelRegistry {
     /** 지정 버스에 테스트 라벨 1장. 설정 화면의 물리 대조용. */
     public static int testPrint(MainActivity activity, int bus, Bitmap bitmap) {
         if (bitmap == null) return LabelPrinter.RESULT_RETRYABLE;
-        try {
-            LabelPrinter.close();
-        } catch (Throwable ignored) {
-        }
+        releaseCaysnOnce();
         UsbLabelDriver drv = null;
         synchronized (UsbLabelRegistry.class) {
             for (UsbDevice d : UsbLabelDriver.findDevices(activity)) {
@@ -214,6 +226,9 @@ public final class UsbLabelRegistry {
     }
 
     private static void closeAllLocked() {
+        // Direct 를 껐거나 장치가 사라진 상황. 다음에 다시 Direct 로 들어오면
+        // Caysn 이 그 사이 포트를 열었을 수 있으므로 해제 플래그를 되돌린다.
+        caysnReleased = false;
         for (UsbLabelDriver d : DRIVERS.values()) {
             try {
                 d.close();

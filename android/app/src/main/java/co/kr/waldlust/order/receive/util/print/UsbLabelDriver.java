@@ -564,7 +564,12 @@ public class UsbLabelDriver {
      * 상태다. 러시아워의 정상 운영이지 고장이 아니므로 기다린다
      * (현행 Caysn 경로와 같은 의미).
      */
-    public int printLabelAwait(Bitmap bmp, long capMs, String tag) {
+    /**
+     * <b>인스턴스 단위로 잠근다.</b> 두 타깃이 같은 버스에 배정되면(설정상 가능하다)
+     * 서로 다른 스레드가 같은 드라이버로 들어온다. 전송이 뒤섞이면 라벨이 깨지므로
+     * 직렬화한다 — 같은 물리 프린터를 기다리는 것이니 직렬화가 곧 올바른 동작이다.
+     */
+    public synchronized int printLabelAwait(Bitmap bmp, long capMs, String tag) {
         if (bmp == null || !isOpen()) return LabelPrinter.RESULT_RETRYABLE;
 
         // 제출 전 기준선. 여기서 한 번 폴링해 두지 않으면 첫 전이를 놓친다.

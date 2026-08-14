@@ -36,6 +36,30 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
     private final MainActivity activity;
     private final ExecutorService fileIoExecutor = Executors.newSingleThreadExecutor();
     private final ExecutorService labelPrintExecutor = Executors.newSingleThreadExecutor();
+
+    /**
+     * USB Direct 전용 — 타깃(제조 구역)마다 단일 스레드.
+     *
+     * <p>{@link #labelPrintExecutor} 는 스레드가 하나라, 여기에 태우면 한 프린터의
+     * 떼기 대기가 <b>다른 프린터로 갈 인쇄 명령까지</b> 붙잡는다. 명령이 장치에
+     * 도달조차 못 하므로 그쪽 펌웨어는 보류할 것이 없어 비프음도 안 울리고,
+     * 라벨을 떼도 아무 일이 없다 — 2026-08-14 실기기에서 정확히 이 증상을 봤다.
+     *
+     * <p>Dart 쪽 큐를 타깃별로 나눠도 여기가 한 줄이면 소용없다. 격리는 <b>가장
+     * 좁은 병목</b>에서 결정된다.
+     */
+    private final java.util.Map<String, ExecutorService> labelTargetExecutors =
+            new java.util.HashMap<>();
+
+    private synchronized ExecutorService labelExecutorFor(String targetId) {
+        final String key = targetId == null || targetId.isEmpty() ? "-" : targetId;
+        ExecutorService e = labelTargetExecutors.get(key);
+        if (e == null) {
+            e = Executors.newSingleThreadExecutor();
+            labelTargetExecutors.put(key, e);
+        }
+        return e;
+    }
     private final ExecutorService receiptPrintExecutor = Executors.newSingleThreadExecutor();
 
     public NativeMethodHandler(MainActivity activity) {
@@ -108,7 +132,13 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
                     final int finalLabelIndex = labelIndex != null ? labelIndex : 1;
                     final int finalTotalLabels = totalLabels != null ? totalLabels : 1;
 
-                    labelPrintExecutor.submit(() -> {
+                    // Direct 는 타깃별 스레드로 보낸다 — 한 프린터의 떼기 대기가 다른
+                    // 프린터의 인쇄를 막지 않게 하는 마지막 조각이다. Caysn/BIXOLON 은
+                    // 핸들이 하나뿐이라 종전 단일 스레드를 그대로 쓴다.
+                    final ExecutorService printExecutor = finalUseDirect
+                            ? labelExecutorFor(finalTargetId)
+                            : labelPrintExecutor;
+                    printExecutor.submit(() -> {
                         // 벤더 라우팅: 연결된 USB VID 로 매 인쇄 재평가 (attach/detach stale 방지).
                         // 두 벤더 동시 연결 시 BIXOLON 우선. Caysn 전용 knob(autoReplyMode 등)은
                         // BIXOLON 경로에서 무의미하므로 전달하지 않는다.
