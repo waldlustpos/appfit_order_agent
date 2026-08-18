@@ -65,3 +65,5 @@
 - [설치 가이드 기기별 트랙](project_install_guide_device_tracks.md) — T2mini/D3mini 권한 순서 상이. .hl % 좌표는 부모 기준 → 캡션 추가 시 밀림 (2026-08-11)
 - [상품 그룹 일괄 품절](project_product_group_bulk_soldout.md) — 이름+타입으로 카드 묶어 일괄 전환. all-or-nothing 전제, internalId 매칭 필수. 실기기 검증 대기 (2026-08-13)
 - [생 제어문자가 grep을 죽인다](reference_raw_control_char_breaks_grep.md) — 소스에 raw NUL 등이 있으면 file이 data 판정 → grep이 파일 통째로 스킵. \uXXXX 이스케이프 필수.
+- [AppFit 설치 모니터링 도구](project_appfit_migration_monitoring.md) — Sunmi CSV → SQLite 일별 추적. 구앱·appfit 공존이라 "전환" 아닌 설치 여부. 코호트 freeze 필수, sticky 판정 (2026-08-14)
+- [맘모스 전용 빌드 + 2-티어 배포](project_mammoth_dedicated_build.md) — 채널은 브랜드 아닌 아티팩트에 종속. 스토어 리스팅=패키지당 1개라 동일 패키지 불가. MMTH 미등록=출시 차단. 설계만 (2026-08-18)
