@@ -1007,11 +1007,11 @@ class PreferenceService {
   /// 현재 저장된 매장 ID가 TPCP(일본 특화) 매장인지 반환.
   bool isTpcpStore() => isTPCPStoreId(getId());
 
-  /// 맘모스(매머드) 매장 여부를 ID 문자열로 판별. MMTH(운영)·MHST(스테이징) 둘 다.
+  /// 매머드 매장 여부를 ID 문자열로 판별. MMTH(운영)·MHST(스테이징) 둘 다.
   static bool isMammothStoreId(String? storeId) =>
       BrandRegistry.resolveOrNull(storeId)?.key == BrandKey.mammoth;
 
-  /// 현재 저장된 매장 ID가 맘모스(매머드) 매장인지 반환.
+  /// 현재 저장된 매장 ID가 매머드 매장인지 반환.
   bool isMammothStore() => isMammothStoreId(getId());
 
   /// 마하테이스트(mahataste) 매장 여부를 ID 문자열로 판별.

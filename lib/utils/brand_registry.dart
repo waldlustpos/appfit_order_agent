@@ -11,7 +11,7 @@ enum BrandFeature {
   /// TPCP 라벨 카테고리 필터(전체/와플만/와플제외) + 옵션 카테고리 분류.
   labelCategoryFilter,
 
-  /// 맘모스 사운드그래프 주문 전송(자동접수 성공 후 외부 통합).
+  /// 매머드 사운드그래프 주문 전송(자동접수 성공 후 외부 통합).
   soundGraphSend,
 
   /// 일본(JPY/japanLive) 환경 브랜드.
@@ -54,7 +54,7 @@ class BrandMeta {
   /// 매장 ID prefix(대문자) → 서버 환경('live'/'japanLive'/'staging') 매핑.
   ///
   /// 한 브랜드가 여러 프리픽스를 가질 수 있고, 프리픽스마다 서버가 다를 수 있다.
-  /// 예: 맘모스는 운영이 `MMTH`(live), 스테이징이 `MHST`(staging) 다.
+  /// 예: 매머드는 운영이 `MMTH`(live), 스테이징이 `MHST`(staging) 다.
   /// **첫 항목이 대표 프리픽스**([storeIdPrefix])이므로 선언 순서에 의미가 있다.
   final Map<String, String> prefixEnvironments;
 
@@ -84,7 +84,7 @@ class BrandMeta {
   /// capability 게이팅 진입점.
   bool has(BrandFeature f) => features.contains(f);
 
-  /// 대표 매장 ID prefix (대문자). 예: 'TPCP', 맘모스는 'MMTH'.
+  /// 대표 매장 ID prefix (대문자). 예: 'TPCP', 매머드는 'MMTH'.
   ///
   /// 로그·표시용. 환경 판정에는 프리픽스마다 서버가 다를 수 있으므로 반드시
   /// [environmentFor] 를 쓴다.
@@ -157,7 +157,7 @@ class BrandRegistry {
         BrandFeature.displayRotate,
       },
     ),
-    // 맘모스는 프리픽스가 둘이다: MMTH 가 운영(live), MHST 가 스테이징(staging).
+    // 매머드는 프리픽스가 둘이다: MMTH 가 운영(live), MHST 가 스테이징(staging).
     // 둘 다 같은 브랜드라 자산·테마·capability 를 공유하며, 서버만 갈린다.
     BrandKey.mammoth: BrandMeta(
       key: BrandKey.mammoth,

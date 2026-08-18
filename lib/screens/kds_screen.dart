@@ -16,7 +16,6 @@ import 'package:appfit_order_agent/widgets/order/order_detail_popup.dart';
 import 'package:appfit_order_agent/widgets/common/common_dialog.dart';
 import 'package:appfit_order_agent/widgets/common/app_toolbar_button.dart';
 import 'package:appfit_order_agent/widgets/common/fault_injection_ribbon.dart';
-import 'package:appfit_order_agent/widgets/common/brand_install_banner.dart';
 import 'package:appfit_order_agent/widgets/common/sync_status_banner.dart';
 import 'package:appfit_order_agent/models/order_model.dart';
 import 'package:appfit_order_agent/widgets/home/order_card_widget.dart';
@@ -532,8 +531,6 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
                   const FaultInjectionRibbon(),
                   // 서버 응답 지연 배너 (정상일 때는 높이 0)
                   const SyncStatusBanner(),
-                  // 앱/매장 브랜드 불일치 안내 (일치하면 높이 0)
-                  const BrandInstallBanner(),
                   // 탭 바 (이미 계산된 카운트 사용)
                   DecoratedBox(
                     decoration: BoxDecoration(

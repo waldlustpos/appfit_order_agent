@@ -77,7 +77,7 @@ fi
 
 echo ".env 주입하여 빌드... (flavor=$BRAND)"
 # --flavor 와 --dart-define=APPFIT_BRAND 는 반드시 같은 값이어야 한다. 전자가
-# 패키지를, 후자가 인앱 OTA 채널을 결정하므로 어긋나면 맘모스 패키지가 공통
+# 패키지를, 후자가 인앱 OTA 채널을 결정하므로 어긋나면 매머드 패키지가 공통
 # 채널을 폴링하게 된다. 하나의 $BRAND 가 둘을 동시에 구동한다.
 # --target-platform: x86_64 AOT 컴파일을 건너뛴다(빌드 시간 단축). 실제 패키징
 # 차단의 정본은 android/app/build.gradle.kts 의 release ndk.abiFilters 다 —

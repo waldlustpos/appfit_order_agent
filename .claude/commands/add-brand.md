@@ -39,7 +39,7 @@ description: 새 브랜드를 대화형으로 추가 (brand_registry/brand_theme
 
 셋 다 "예"일 때만 Tier 1 승격 대상이다. 이 커맨드는 **Tier 0(런타임 등록)까지만
 수행**한다 — 패키지 분리·전용 아이콘·전용 OTA 채널은 범위 밖이며, STEP 6 에서
-안내만 하고 실제 작업은 사람이 별도로 진행한다(맘모스 사례: `co.kr.waldlust.
+안내만 하고 실제 작업은 사람이 별도로 진행한다(매머드 사례: `co.kr.waldlust.
 order.receive.appfit.mammoth` 패키지 분리, `feat/mammoth-dedicated-build`
 브랜치의 Android productFlavor(Phase B)·Windows CMake/Inno 브랜드 축(Phase C)
 패턴 참고). 하나라도 "아니오"면 Tier 0 로 계속 진행한다.
@@ -93,7 +93,7 @@ ls android/app/src/main/res/drawable/dm_<slug>.png 2>/dev/null   # 듀얼모니�
 > 브랜드가 프리픽스를 여러 개 가질 수 있는 경우(예: 운영/스테이징 분리)는
 > `{'<PREFIX1>': 'live', '<PREFIX2>': 'staging'}` 처럼 항목을 늘린다 — 이
 > 커맨드의 기본 입력 흐름은 프리픽스 1개만 받으므로, 다중 프리픽스가 필요하면
-> STEP 6 에서 사람이 직접 추가한다(맘모스 사례 참고: `MMTH`=live,
+> STEP 6 에서 사람이 직접 추가한다(매머드 사례 참고: `MMTH`=live,
 > `MHST`=staging).
 
 ### 2-2. `lib/constants/brand_theme.dart` — ⚠️ 세미콜론 함정

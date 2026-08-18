@@ -3,7 +3,7 @@
 /// 2-티어 아티팩트 모델의 Tier 1(전용 아티팩트)을 구분하는 유일한 축이다.
 ///
 /// - `common`  — 기본값. 모든 브랜드가 쓰는 공통 아티팩트.
-/// - `mammoth` — 맘모스(매머드커피) 전용 아티팩트. 별도 패키지
+/// - `mammoth` — 매머드커피 전용 아티팩트. 별도 패키지
 ///   (`co.kr.waldlust.order.receive.appfit.mammoth`)·전용 런처 이름·아이콘·
 ///   전용 OTA 채널을 갖는다.
 ///
@@ -28,7 +28,7 @@
 ///
 /// ## 주입
 /// `--dart-define=APPFIT_BRAND=<slug>`. Android 는 **`--flavor <slug>` 와 반드시
-/// 함께** 넘겨야 한다 — 둘이 어긋나면 맘모스 패키지가 공통 OTA 채널을 보게 되고,
+/// 함께** 넘겨야 한다 — 둘이 어긋나면 매머드 패키지가 공통 OTA 채널을 보게 되고,
 /// 다운로드한 APK 는 패키지 불일치로 설치가 실패한다. 빌드 스크립트는 하나의
 /// `BRAND` 변수로 두 인자를 동시에 구동한다.
 class BuildBrand {
@@ -38,7 +38,7 @@ class BuildBrand {
   static const String slug =
       String.fromEnvironment('APPFIT_BRAND', defaultValue: 'common');
 
-  /// 맘모스 전용 아티팩트 여부.
+  /// 매머드 전용 아티팩트 여부.
   ///
   /// getter 가 아니라 **`const`** 여야 한다 — `OtaConfig` 의 컴파일 타임 const
   /// 채널 분기가 이 값을 쓴다.

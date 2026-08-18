@@ -66,5 +66,6 @@
 - [상품 그룹 일괄 품절](project_product_group_bulk_soldout.md) — 이름+타입으로 카드 묶어 일괄 전환. all-or-nothing 전제, internalId 매칭 필수. 실기기 검증 대기 (2026-08-13)
 - [생 제어문자가 grep을 죽인다](reference_raw_control_char_breaks_grep.md) — 소스에 raw NUL 등이 있으면 file이 data 판정 → grep이 파일 통째로 스킵. \uXXXX 이스케이프 필수.
 - [AppFit 설치 모니터링 도구](project_appfit_migration_monitoring.md) — Sunmi CSV → SQLite 일별 추적. 구앱·appfit 공존이라 "전환" 아닌 설치 여부. 코호트 freeze 필수, sticky 판정 (2026-08-14)
-- [맘모스 전용 빌드 + 2-티어 배포](project_mammoth_dedicated_build.md) — Phase A+B 구현·커밋(57977b9). 채널은 아티팩트에 종속, --flavor와 APPFIT_BRAND 동시 구동 필수. C(Windows)~E 미착수 (2026-08-18)
+- [매머드 전용 빌드 + 2-티어 배포](project_mammoth_dedicated_build.md) — Phase A~E 전부 완료(71259d8). Windows 브랜드전환은 CMake 부분wipe만, add-brand.md 컴파일깨짐 버그 발견·수정. Windows 실치 미검증 (2026-08-18)
 - [flavor 프리시드 vs 명시적 선택](feedback_flavor_preseed_vs_explicit_choice.md) — 설정값=null일때만 개입 vs 로그인로고 같은 "아티팩트 정체성"은 테마무관 항상 강제, 구분 필수 (2026-08-18)
+- [브랜드 빌드는 화면 요소만](feedback_brand_artifact_visual_only.md) — 아티팩트/매장 브랜드 불일치에 안내·경고·제약 금지. 오설치 배너 기능째 삭제 (2026-08-18)

@@ -24,17 +24,14 @@ const Set<String> kAllowedBuildBrandReferences = {
   'lib/config/build_brand.dart',
   // OTA 채널 URL — 아티팩트마다 채널 1세트(패키지 불일치 설치 실패 방지).
   'lib/config/ota_config.dart',
-  // 오설치 안내 판정 — 설치된 아티팩트 vs 매장 브랜드 비교. 게이팅이 아니라
-  // 안내만 한다(차단하지 않음).
-  'lib/providers/brand_provider.dart',
   // 로그인 전 기본 브랜드 프리시드 — 문서 주석(build_brand.dart)이 명시한
   // 허용 범위. 저장된 브랜드 테마가 없는 신규 설치에서만 개입하고, 로그인 후엔
   // 매장ID 기반 reconcileForStore 가 그대로 정본이다.
   'lib/main.dart',
-  // 드로어 헤더 로고 — 맘모스 flavor 전용 이미지 강제 적용. 다른 flavor는
+  // 드로어 헤더 로고 — 매머드 flavor 전용 이미지 강제 적용. 다른 flavor는
   // 기존 고정 아이콘 그대로라 회귀 없음.
   'lib/widgets/home/drawer_menu.dart',
-  // 로그인 화면 로고 — 맘모스 flavor면 선택된 테마와 무관하게 항상 맘모스
+  // 로그인 화면 로고 — 매머드 flavor면 선택된 테마와 무관하게 항상 매머드
   // 이미지(런처 아이콘/이름과 동급의 아티팩트 정체성 요소로 취급). 다른
   // flavor는 기존 BrandLogo(activeBrand 기반) 그대로라 회귀 없음.
   'lib/screens/login_screen.dart',
@@ -71,11 +68,11 @@ void main() {
   });
 
   group('OTA 채널 — 아티팩트당 정확히 1세트', () {
-    // 기본(dart-define 없음) = common. 맘모스 쪽은
+    // 기본(dart-define 없음) = common. 매머드 쪽은
     //   flutter test --dart-define=APPFIT_BRAND=mammoth
     // 로 검증한다.
     //
-    // 조건부 skip 을 쓰지 않는다 — define 이 전달되지 않으면 맘모스 케이스가
+    // 조건부 skip 을 쓰지 않는다 — define 이 전달되지 않으면 매머드 케이스가
     // 조용히 통과해버려서, 정작 검증하려던 것을 검증하지 못한다. 대신 슬러그로
     // 분기해 **어느 쪽으로 돌든 반드시 한 세트를 단언**한다.
     test('채널 문자열이 슬러그와 정확히 대응한다', () {
@@ -115,7 +112,7 @@ void main() {
   });
 
   group('Windows OTA 채널(UpdateConfig) — 아티팩트당 정확히 1세트', () {
-    // Android 와 반대로 공통이 "레거시 무접미"고 맘모스가 신설이다 — Windows
+    // Android 와 반대로 공통이 "레거시 무접미"고 매머드가 신설이다 — Windows
     // 는 패키지 개념이 없어 기존 설치본이 무접미 채널로 자연 업데이트되므로
     // 동결이 아니라 계속 사용이 정책이다(update_config.dart 클래스 doc 참조).
     test('공통 슬러그면 모든 상수가 이 파일 신설 이전과 바이트 단위로 동일하다', () {
@@ -134,7 +131,7 @@ void main() {
       expect(UpdateConfig.updaterLogName, 'appfit_order_agent_updater.log');
     });
 
-    test('맘모스 슬러그면 전용 채널 + 전용 임시 파일명을 쓴다', () {
+    test('매머드 슬러그면 전용 채널 + 전용 임시 파일명을 쓴다', () {
       if (!BuildBrand.isMammoth) return;
       expect(
         UpdateConfig.downloadUrl,

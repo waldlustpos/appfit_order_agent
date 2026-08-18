@@ -58,7 +58,7 @@ android {
     // WARNING: 플레이버가 있는 프로젝트는 --flavor 없는 flutter build 가 실패한다.
     // 모든 빌드 스크립트와 .vscode/launch.json 에 --flavor 를 명시해야 한다.
     // Android 는 --flavor <slug> 와 --dart-define=APPFIT_BRAND=<slug> 를 반드시
-    // 함께 넘긴다. 어긋나면 맘모스 패키지가 공통 OTA 채널을 보게 되고, 받은 APK 는
+    // 함께 넘긴다. 어긋나면 매머드 패키지가 공통 OTA 채널을 보게 되고, 받은 APK 는
     // 패키지 불일치로 설치가 실패한다.
     flavorDimensions += "brand"
     productFlavors {
@@ -66,9 +66,9 @@ android {
         create("common") {
             dimension = "brand"
         }
-        // Tier 1 — 맘모스(매머드커피) 전용. 별도 Sunmi App Store 리스팅이 필요해
+        // Tier 1 — 매머드커피 전용. 별도 Sunmi App Store 리스팅이 필요해
         // 패키지를 분리한다: 리스팅은 패키지당 1개인데 모든 Sunmi 매장이 공통
-        // 리스팅에서 설치하므로, 같은 패키지로는 "맘모스 매장만 맘모스 아이콘"을
+        // 리스팅에서 설치하므로, 같은 패키지로는 "매머드 매장만 매머드 아이콘"을
         // 보장할 수 없다 (런처 아이콘은 앱 실행 전에 보여 런타임 게이팅 불가).
         create("mammoth") {
             dimension = "brand"

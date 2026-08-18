@@ -58,18 +58,18 @@ flutter test test/<파일_경로>
 
 두 아티팩트는 **같은 코드·같은 커밋·같은 versionCode·같은 서명키**입니다. 다른 것은 OS 셸 아이덴티티(applicationId, 런처 label/icon)와 OTA 채널뿐이며, **브랜드 동작은 100% 런타임(`BrandRegistry`)** 입니다. 빌드 축이 서버 환경·`BrandFeature`·프린터/주문 로직·i18n 으로 번지지 않도록 `test/config/build_brand_scope_test.dart` 가 `BuildBrand` 참조 파일을 화이트리스트로 고정합니다.
 
-Tier 1 승격은 셋 다 충족해야 합니다: ① 자체 스토어 리스팅/유통 경로 요구 ② 그 함대가 해당 브랜드 전용(혼재 없음) ③ 런처 이름·아이콘이 계약·운영 요구사항. 맘모스가 패키지를 나눈 이유는 **Sunmi App Store 리스팅이 패키지당 1개**인데 모든 Sunmi 매장이 공통 리스팅에서 설치하기 때문입니다 — 런처 아이콘은 앱 실행 전에 보이므로 런타임 게이팅으로 막을 수 없습니다.
+Tier 1 승격은 셋 다 충족해야 합니다: ① 자체 스토어 리스팅/유통 경로 요구 ② 그 함대가 해당 브랜드 전용(혼재 없음) ③ 런처 이름·아이콘이 계약·운영 요구사항. 매머드가 패키지를 나눈 이유는 **Sunmi App Store 리스팅이 패키지당 1개**인데 모든 Sunmi 매장이 공통 리스팅에서 설치하기 때문입니다 — 런처 아이콘은 앱 실행 전에 보이므로 런타임 게이팅으로 막을 수 없습니다.
 
 - **서버는 런타임 결정**: 서버(live=한국 / japanLive=일본)는 저장값(`PreferenceService.getEnvironment()`, 기본 `live`)으로 시작하고, 로그인 화면 우상단 배지(KR/JP)를 탭해 변경할 수 있습니다(릴리즈는 live/japanLive/staging 3종, 개발 빌드는 dev 포함 4종).
-- **매장 ID 프리픽스 자동 전환**: 로그인 시 입력한 매장코드의 프리픽스(`BrandMeta.environmentFor` — TPCP·PAIK·TLJP→japanLive, MMTH·MATA→live, **MHST→staging**)로 서버가 자동 전환됩니다. 한 브랜드가 프리픽스를 여러 개 가질 수 있습니다(맘모스: `MMTH`=운영, `MHST`=스테이징). 미등록 프리픽스는 명시 선택 이력이 없으면 서버선택 다이얼로그를 1회 띄웁니다. release 에서 dev 잔존 저장값은 시작 시 live 로 클램프됩니다(`main.dart`).
+- **매장 ID 프리픽스 자동 전환**: 로그인 시 입력한 매장코드의 프리픽스(`BrandMeta.environmentFor` — TPCP·PAIK·TLJP→japanLive, MMTH·MATA→live, **MHST→staging**)로 서버가 자동 전환됩니다. 한 브랜드가 프리픽스를 여러 개 가질 수 있습니다(매머드: `MMTH`=운영, `MHST`=스테이징). 미등록 프리픽스는 명시 선택 이력이 없으면 서버선택 다이얼로그를 1회 띄웁니다. release 에서 dev 잔존 저장값은 시작 시 live 로 클램프됩니다(`main.dart`).
 - **OTA 채널은 아티팩트마다 정확히 1세트** (`lib/config/ota_config.dart` / `lib/config/update_config.dart`). 채널명은 슬러그에서 규칙 파생하며(`appfit_order_agent_<brand>_release.*`) 손으로 짓지 않습니다. **아티팩트 없이 채널만 늘리지 않습니다.**
   - Android 공통 — `appfit_order_agent_release_version.json` / `appfit_order_agent_release.apk`
-  - Android 맘모스 — `appfit_order_agent_mammoth_release_version.json` / `appfit_order_agent_mammoth_release.apk`
-    - 맘모스 패키지가 공통 채널의 APK 를 받으면 **패키지 불일치로 설치가 실패**합니다. 그래서 자동 업데이트를 끄는 게 아니라 자기 채널로 돌립니다. 운영상 맘모스 배포는 Sunmi 스토어 경로지만, **빈 채널은 안전망이 아니므로**(404 는 조용히 삼켜집니다) 릴리즈마다 맘모스 채널도 함께 채웁니다.
+  - Android 매머드 — `appfit_order_agent_mammoth_release_version.json` / `appfit_order_agent_mammoth_release.apk`
+    - 매머드 패키지가 공통 채널의 APK 를 받으면 **패키지 불일치로 설치가 실패**합니다. 그래서 자동 업데이트를 끄는 게 아니라 자기 채널로 돌립니다. 운영상 매머드 배포는 Sunmi 스토어 경로지만, **빈 채널은 안전망이 아니므로**(404 는 조용히 삼켜집니다) 릴리즈마다 매머드 채널도 함께 채웁니다.
     - ⚠️ 레거시 무접미 채널(`appfit_order_agent.apk` / `appfit_order_agent_version.json`)은 **동결(FROZEN)**. 구 패키지(`co.kr.waldlust.order.receive`)로 설치된 일본 매장 1곳 전용이라 `.appfit` APK 를 올리면 패키지 불일치로 설치 실패 — 업로드 금지. 구 `_japan`/`_korea`/`_appfit` 채널은 폐기(미사용).
   - Windows — `appfit_order_agent_windows_version.json` / `appfit_order_agent_windows.zip` (레거시 무접미 채널 **계속 사용** — 패키지 개념이 없고 exe명이 동일해 기존 설치본이 자연 업데이트. Android 와 정책 반대)
   - ⚠️ 한 채널 안에서는 국가 구분이 없으므로 업로드 즉시 **한국/일본 동시 롤아웃**됩니다(지역별 시차 배포 불가).
-- **실행**: Android 스크립트는 브랜드 인자를 받습니다 — `./build_main.sh [common|mammoth|all]`, `./deploy_apk.sh [common|mammoth]`. Windows 스크립트(`.\build_windows.ps1`, `.\deploy_windows.ps1`, `.\build_installer.ps1`)는 아직 인자가 없습니다(맘모스 Windows 아티팩트는 미구현 — Phase C).
+- **실행**: Android 스크립트는 브랜드 인자를 받습니다 — `./build_main.sh [common|mammoth|all]`, `./deploy_apk.sh [common|mammoth]`. Windows 스크립트(`.\build_windows.ps1`, `.\deploy_windows.ps1`, `.\build_installer.ps1`)는 아직 인자가 없습니다(매머드 Windows 아티팩트는 미구현 — Phase C).
 - Android 는 `productFlavors { common, mammoth }` 를 쓰며 **`--flavor` 없는 빌드는 실패**합니다. `common` 은 `applicationIdSuffix` 가 없어 기존 함대의 applicationId 가 그대로입니다. Windows exe명(CMake BINARY_NAME)·mutex·설치 GUID 는 아직 통일돼 있어 한 머신에 하나만 설치되며, 재설치 시 in-place 업그레이드됩니다.
 - **브랜드 전용 런처 아이콘 재생성**:
   ```bash

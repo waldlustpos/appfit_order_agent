@@ -10,11 +10,11 @@ void main() {
       expect(b?.key, BrandKey.tpcp);
     });
 
-    test('MMTH prefix(맘모스 운영) → mammoth 메타', () {
+    test('MMTH prefix(매머드 운영) → mammoth 메타', () {
       expect(BrandRegistry.resolveOrNull('MMTH00001')?.key, BrandKey.mammoth);
     });
 
-    test('MHST prefix(맘모스 스테이징) → 같은 mammoth 메타', () {
+    test('MHST prefix(매머드 스테이징) → 같은 mammoth 메타', () {
       expect(BrandRegistry.resolveOrNull('MHST123')?.key, BrandKey.mammoth);
     });
 
@@ -63,7 +63,7 @@ void main() {
           isFalse);
     });
 
-    test('사운드그래프 전송은 맘모스 만 (TPCP/MATA 는 false → 누수 차단)', () {
+    test('사운드그래프 전송은 매머드 만 (TPCP/MATA 는 false → 누수 차단)', () {
       expect(
           BrandRegistry.byKey(BrandKey.mammoth).has(BrandFeature.soundGraphSend),
           isTrue);
@@ -75,7 +75,7 @@ void main() {
           isFalse);
     });
 
-    test('Sunmi App Store 채널(OTA OFF)은 맘모스 만 (TPCP/MATA 는 false → OTA)', () {
+    test('Sunmi App Store 채널(OTA OFF)은 매머드 만 (TPCP/MATA 는 false → OTA)', () {
       expect(
           BrandRegistry.byKey(BrandKey.mammoth)
               .has(BrandFeature.sunmiAppStoreUpdate),
@@ -92,7 +92,7 @@ void main() {
   });
 
   group('통화/환경/테마/영수증로고 매핑', () {
-    test('통화: TPCP=jpy, 맘모스/MATA=krw', () {
+    test('통화: TPCP=jpy, 매머드/MATA=krw', () {
       expect(BrandRegistry.byKey(BrandKey.tpcp).currency, CurrencyUnit.jpy);
       expect(BrandRegistry.byKey(BrandKey.mammoth).currency, CurrencyUnit.krw);
       expect(BrandRegistry.byKey(BrandKey.mata).currency, CurrencyUnit.krw);
@@ -111,7 +111,7 @@ void main() {
       expect(BrandRegistry.byKey(BrandKey.mata).theme, BrandTheme.mata);
     });
 
-    test('영수증 로고: TPCP 없음, 맘모스/MATA 있음', () {
+    test('영수증 로고: TPCP 없음, 매머드/MATA 있음', () {
       expect(BrandRegistry.byKey(BrandKey.tpcp).hasReceiptLogo, isFalse);
       expect(BrandRegistry.byKey(BrandKey.tpcp).receiptLogoPath, isNull);
       expect(BrandRegistry.byKey(BrandKey.mammoth).hasReceiptLogo, isTrue);
@@ -130,7 +130,7 @@ void main() {
   // 한 브랜드가 프리픽스를 여러 개 갖는 유일한 사례. MMTH 가 없으면 MMTH 매장이
   // resolveOrNull=null 로 떨어져 사운드그래프 OFF·테마 미적용이 되고, resolve()
   // 폴백 때문에 라벨·영수증에 tokyoplatz 로고가 찍힌다(출시 차단급 결함).
-  group('맘모스 다중 프리픽스 (MMTH=운영, MHST=스테이징)', () {
+  group('매머드 다중 프리픽스 (MMTH=운영, MHST=스테이징)', () {
     test('MMTH → live, MHST → staging', () {
       expect(BrandRegistry.environmentForStoreId('MMTH00001'), 'live');
       expect(BrandRegistry.environmentForStoreId('MHST00001'), 'staging');

@@ -1,4 +1,4 @@
-# 맘모스(매머드커피) 전용 아티팩트 런처 아이콘.
+# 매머드커피 전용 아티팩트 런처 아이콘.
 #
 # 파일명 규약: flutter_launcher_icons-<flavor>.yaml  → 산출물이
 # android/app/src/<flavor>/res/mipmap-* 로 들어간다(공통 아이콘을 덮지 않는다).

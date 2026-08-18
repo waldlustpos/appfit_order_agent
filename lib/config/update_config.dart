@@ -10,7 +10,7 @@ import 'package:appfit_order_agent/config/build_brand.dart';
 /// | 아티팩트 | 채널 |
 /// | --- | --- |
 /// | 공통 | `appfit_order_agent_windows.zip` (레거시 무접미 — 계속 사용, 동결 아님) |
-/// | 맘모스 | `appfit_order_agent_mammoth_windows.zip` (신설) |
+/// | 매머드 | `appfit_order_agent_mammoth_windows.zip` (신설) |
 ///
 /// 서버(live/japanLive/staging)는 로그인 화면에서 런타임 선택되므로 채널과
 /// 무관하다. 채널을 가르는 것은 exe명(=브랜드)뿐이다.

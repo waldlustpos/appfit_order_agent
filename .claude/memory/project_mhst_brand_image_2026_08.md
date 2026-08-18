@@ -1,6 +1,6 @@
 ---
 name: project_mhst_brand_image_2026_08
-description: MHST(맘모스커피) 라벨/영수증/로그인/D3mini 세컨모니터 이미지 4종 교체 + D3mini 영상/이미지 우선순위 반전
+description: MHST(매머드커피) 라벨/영수증/로그인/D3mini 세컨모니터 이미지 4종 교체 + D3mini 영상/이미지 우선순위 반전
 metadata: 
   node_type: memory
   type: project
@@ -8,7 +8,7 @@ metadata:
   modified: 2026-08-03T06:55:02.165Z
 ---
 
-2026-08-03, `fix/label-duplicate-on-ack-timeout` 브랜치 위에서 진행(무관한 다른 작업과 같은 브랜치에 공존 — 커밋 시 분리 주의). 맘모스커피 새 브랜드 키트(`~/Downloads/MAMMOTH COFFEE Logo/`)로 4개 자산 교체:
+2026-08-03, `fix/label-duplicate-on-ack-timeout` 브랜치 위에서 진행(무관한 다른 작업과 같은 브랜치에 공존 — 커밋 시 분리 주의). 매머드커피 새 브랜드 키트(`~/Downloads/MAMMOTH COFFEE Logo/`)로 4개 자산 교체:
 - `assets/images/brand/mammoth/label_logo.bmp` ← `Mammoth_Symbal_Black.png` (검정비율 42%)
 - `assets/images/brand/mammoth/receipt_logo.png` ← `Mammoth_English Logotype Single-line_Black.png` (384×29px, 매우 얇지만 볼드체라 1비트 프리뷰로 가독 확인함)
 - `assets/images/brand/mammoth/logo.png`(신규, `.svg` 대체) ← `Mammoth_Symbol + English Logotype_White.png` — `lib/constants/brand_theme.dart`의 `logoAsset` 갱신, `BrandLogo` 위젯이 확장자로 svg/png 자동분기라 위젯 코드 변경 없음

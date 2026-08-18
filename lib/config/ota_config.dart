@@ -10,7 +10,7 @@ import 'package:appfit_order_agent/config/build_brand.dart';
 /// | 아티팩트 | applicationId | 채널 |
 /// | --- | --- | --- |
 /// | 공통 | `….appfit` | `appfit_order_agent_release.apk` / `_release_version.json` |
-/// | 맘모스 | `….appfit.mammoth` | `appfit_order_agent_mammoth_release.apk` / `_mammoth_release_version.json` |
+/// | 매머드 | `….appfit.mammoth` | `appfit_order_agent_mammoth_release.apk` / `_mammoth_release_version.json` |
 ///
 /// 채널명은 슬러그에서 규칙 파생한다(`appfit_order_agent_<brand>_release.*`).
 /// 다음 Tier 1 브랜드는 슬러그만 정하면 채널이 따라온다 — 손으로 짓지 않는다.
@@ -22,7 +22,7 @@ import 'package:appfit_order_agent/config/build_brand.dart';
 /// 동결(FROZEN)한다. 구 패키지(co.kr.waldlust.order.receive)로 설치된 일본 매장
 /// 1곳이 이 채널을 폴링하고 있어, .appfit 패키지 APK 를 업로드하면 패키지 불일치로
 /// 설치가 실패한다. 해당 매장이 신규 패키지로 수동 재설치될 때까지 절대 업로드 금지.
-/// (맘모스 채널 신설도 같은 원리의 반대편이다 — 끄는 게 아니라 자기 채널로 돌린다.)
+/// (매머드 채널 신설도 같은 원리의 반대편이다 — 끄는 게 아니라 자기 채널로 돌린다.)
 class OtaConfig {
   static const String _base = 'http://waldpay.kokonutstamp2.com/';
 

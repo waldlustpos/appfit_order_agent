@@ -39,6 +39,10 @@
   #define MyAppId          "{{B9F9381A-7444-4FE6-B7C9-2A5881B79C18}"
   #define MyAppDirName     "AppfitOrderAgentMammoth"
   #define MyOutputBaseName "AppfitOrderAgentMammoth-Setup-" + MyAppVersion
+  ; Setup.exe's own icon. Must follow the brand like every other identity
+  ; field here - the app exe already gets this same .ico via Runner.rc's
+  ; APPFIT_BRAND_MAMMOTH branch (windows/CMakeLists.txt).
+  #define MySetupIcon      "..\windows\runner\resources\app_icon_mammoth.ico"
 #else
   #define MyAppName        "Appfit Order Agent"
   #define MyAppExeName     "appfit_order_agent.exe"
@@ -46,6 +50,7 @@
   #define MyAppId          "{{8E19A1C4-AFDA-4061-B0FF-186FB71B1745}"
   #define MyAppDirName     "AppfitOrderAgent"
   #define MyOutputBaseName "AppfitOrderAgent-Setup-" + MyAppVersion
+  #define MySetupIcon      "..\windows\runner\resources\app_icon.ico"
 #endif
 
 #define MyAppPublisher  "waldlust"
@@ -80,7 +85,7 @@ Compression=lzma2/ultra
 SolidCompression=yes
 
 ; === Wizard UI ===
-SetupIconFile=..\windows\runner\resources\app_icon.ico
+SetupIconFile={#MySetupIcon}
 UninstallDisplayIcon={app}\{#MyAppExeName}
 UninstallDisplayName={#MyAppName}
 WizardStyle=modern

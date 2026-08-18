@@ -36,7 +36,7 @@ API 로 재현 가능하게 만든다. `add-brand` 스킬이 이 스크립트를
 | spillover(자동) | `store_id sw MMTH` + `environment ne live` | 전체 | appfit-alert-test (C0AV9RDTTT7) |
 | catch-all | 위 branded 4개를 `store_id` 로 전부 제외 | 전체 | appfit-alert-test (C0AV9RDTTT7) |
 
-> **맘모스 프리픽스 2종**: `MMTH`=운영(live), `MHST`=스테이징(staging). 브랜드 채널로는
+> **매머드 프리픽스 2종**: `MMTH`=운영(live), `MHST`=스테이징(staging). 브랜드 채널로는
 > **MMTH 만** 라우팅한다. `MHST` 는 규칙을 두지 않아 catch-all(appfit-alert-test)로
 > 떨어지는데, 이게 원래 `environment: live` 로 좁혔던 의도("사내 QA 노이즈를 브랜드
 > 채널에서 뺀다")를 그대로 실현한다 — 이제 MHST 가 곧 그 QA 프리픽스다.

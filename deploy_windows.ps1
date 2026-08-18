@@ -29,7 +29,7 @@ $REMOTE_DIR        = "/var/www/docs/waldpay_html"
 # 공통은 레거시 무접미 채널(그대로 유지 — Windows 는 패키지 개념이 없고 exe명이
 # 기존 설치본과 동일하므로, 기존 설치본이 이 채널로 자연스럽게 자동 업데이트된다.
 # Android 는 구 패키지 일본 매장 때문에 무접미 채널을 동결하고 _release 채널을
-# 쓴다. 정책이 반대이니 혼동 주의). 맘모스는 전용 채널 신설 — 맘모스 exe 는
+# 쓴다. 정책이 반대이니 혼동 주의). 매머드는 전용 채널 신설 — 매머드 exe 는
 # 공통 채널 ZIP 을 받아도 파일명이 달라 자연 업데이트가 걸리지 않는다.
 $ZIP_NAME          = if ($Brand -eq 'mammoth') { "appfit_order_agent_mammoth_windows.zip" } else { "appfit_order_agent_windows.zip" }
 $VERSION_JSON_NAME = if ($Brand -eq 'mammoth') { "appfit_order_agent_mammoth_windows_version.json" } else { "appfit_order_agent_windows_version.json" }

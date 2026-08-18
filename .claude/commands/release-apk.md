@@ -36,7 +36,7 @@ label/icon·OTA 채널뿐이다(브랜드 로직은 전부 런타임 `BrandRegis
 반드시 확인**하고 보고한다(정본은 `pubspec.yaml` 하나이므로 다르면 이상 징후).
 
 OTA 채널은 아티팩트마다 하나다(`lib/config/ota_config.dart`): 공통은
-`_release`, 맘모스는 `_mammoth_release`.
+`_release`, 매머드는 `_mammoth_release`.
 
 > ⚠️ 레거시 무접미 채널(`appfit_order_agent_version.json` / `.apk`)은 동결(구 패키지 일본 매장 전용). 이 릴리즈 산출물을 그 채널로 업로드 금지.
 

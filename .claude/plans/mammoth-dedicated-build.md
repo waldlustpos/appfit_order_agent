@@ -1,10 +1,10 @@
-# 맘모스(MHST/MMTH) 전용 빌드 + 공통/브랜드 2-티어 배포 체계
+# 매머드(MHST/MMTH) 전용 빌드 + 공통/브랜드 2-티어 배포 체계
 
 ## Context
 
-맘모스커피 브랜드에 **전용 앱 이름·아이콘**을 입힌 빌드를 만들고, 그 결과를 공통 빌드와 구분해 배포·운영해야 한다. 지금 손대는 이유는 셋이다.
+매머드커피 브랜드에 **전용 앱 이름·아이콘**을 입힌 빌드를 만들고, 그 결과를 공통 빌드와 구분해 배포·운영해야 한다. 지금 손대는 이유는 셋이다.
 
-1. **맘모스는 아직 서비스 출시 전**이다. 패키지 분리는 매장 수에 비례해 비용이 커지는 결정이라, 지금이 유일하게 싼 시점이다.
+1. **매머드는 아직 서비스 출시 전**이다. 패키지 분리는 매장 수에 비례해 비용이 커지는 결정이라, 지금이 유일하게 싼 시점이다.
 2. **`MMTH` 프리픽스가 코드베이스 어디에도 없다.** [brand_registry.dart:142](../../lib/utils/brand_registry.dart) 는 `MHST` 하나만 알고 있어서, live 프리픽스인 MMTH 매장이 로그인하면 `resolveOrNull` 이 null → 사운드그래프 전송 OFF, 업데이트 정책 미적용, 테마 미적용, 그리고 `resolve()` 폴백 때문에 **라벨·영수증에 tokyoplatz 로고가 찍힌다.** 전용 빌드와 무관하게 출시를 막는 결함이다.
 3. 현재 정책 문서([docs/RELEASE.md](../../docs/RELEASE.md))는 "MHST 전용 패키지명/전용 APK 생성"을 금지 항목으로 못박고 있다. 2026-07-09 변형 폐기 결정의 산물인데, 그 결정의 진짜 교훈은 "브랜드로 빌드를 나누지 마라"가 아니라 **"빌드 축이 서버·OTA·UI 로직까지 번지게 두지 마라"** 였다. 이번엔 빌드 축의 사정거리를 OS 셸 아이덴티티로 못박아 그 재발을 막는다.
 
@@ -19,7 +19,7 @@
 | 프리픽스/환경 | `MMTH` → live, `MHST` → **staging** (현재는 MHST→live 로 잘못 매핑) |
 | 플랫폼 | Android + Windows |
 | 브랜딩 범위 | 런처 이름·아이콘, Windows exe/인스톨러 이름, 앱 내부 표기 |
-| 업데이트 채널 | **맘모스 전용 채널 1세트 신설** — Android OTA APK/JSON + Windows ZIP/JSON. Android 도 스토어와 OTA 두 경로가 병존한다 |
+| 업데이트 채널 | **매머드 전용 채널 1세트 신설** — Android OTA APK/JSON + Windows ZIP/JSON. Android 도 스토어와 OTA 두 경로가 병존한다 |
 | 롤아웃 시점 | 미정 — 이번엔 골격·문서까지 |
 
 ---
@@ -34,7 +34,7 @@
 2. 그 함대가 해당 브랜드 기기로만 구성된다(타 브랜드와 혼재하지 않는다).
 3. 런처 이름·아이콘이 계약·운영상 요구사항이다.
 
-맘모스는 셋 다 충족한다. 이 조건표가 곧 무분별한 증식을 막는 장치이며, `/add-brand` 마지막 단계에서 이 3문항을 강제로 묻게 한다(기본은 Tier 0).
+매머드는 셋 다 충족한다. 이 조건표가 곧 무분별한 증식을 막는 장치이며, `/add-brand` 마지막 단계에서 이 3문항을 강제로 묻게 한다(기본은 Tier 0).
 
 **채널 불변식 — 채널은 브랜드가 아니라 아티팩트에 종속된다.** 전용 아티팩트는 자기 패키지·exe명 때문에 공통 채널을 물리적으로 쓸 수 없으므로(받아도 패키지 불일치로 설치 실패), Tier 1 아티팩트마다 **정확히 채널 1세트**(Android OTA APK+JSON / Windows ZIP+JSON)를 부여한다. 뒤집으면 이게 증식 방지선이다 — **아티팩트 없이 채널만 늘리지 않는다.** 채널 수는 항상 아티팩트 수와 같다.
 
@@ -42,11 +42,11 @@
 
 **빌드 축이 절대 건드리면 안 되는 것:** 서버 환경, `BrandFeature` 게이팅, 프린터·주문 로직, i18n 분기. 이건 전부 `brand_registry` 런타임 정본으로 남는다. 위반을 컴파일 타임에 잡을 수는 없으므로 **참조 지점 화이트리스트 테스트**로 고정한다.
 
-**왜 별도 패키지인가 (동일 패키지 안이 안 되는 이유):** Sunmi App Store 리스팅은 패키지당 1개인데, [설치 가이드](../../docs/guide/Sunmi-appfit-agent-install-guide.html) 상 **모든** Sunmi 매장(TPCP/MATA 포함)이 그 리스팅에서 최초 설치한다. 같은 패키지로는 "맘모스 매장만 맘모스 아이콘"을 구조적으로 보장할 방법이 없다 — 런처 아이콘은 앱을 켜기 전에 이미 보이므로 런타임 게이팅으로 막을 수 없다.
+**왜 별도 패키지인가 (동일 패키지 안이 안 되는 이유):** Sunmi App Store 리스팅은 패키지당 1개인데, [설치 가이드](../../docs/guide/Sunmi-appfit-agent-install-guide.html) 상 **모든** Sunmi 매장(TPCP/MATA 포함)이 그 리스팅에서 최초 설치한다. 같은 패키지로는 "매머드 매장만 매머드 아이콘"을 구조적으로 보장할 방법이 없다 — 런처 아이콘은 앱을 켜기 전에 이미 보이므로 런타임 게이팅으로 막을 수 없다.
 
 ---
 
-## Phase A — 맘모스 프리픽스 정본화 (선행·독립)
+## Phase A — 매머드 프리픽스 정본화 (선행·독립)
 
 전용 빌드와 무관하게 단독으로 배포 가능하며, **MMTH live 오픈 전 필수**다. 먼저 끝낸다.
 
@@ -94,19 +94,19 @@ class BuildBrand {
 
 **리소스 오버레이** — `android/app/src/mammoth/res/values/strings.xml` 에 `app_name` 만. 나머지는 `main` 상속.
 
-**런처 아이콘** — `flutter_launcher_icons-mammoth.yaml` 를 추가하면 `android/app/src/mammoth/res/` 로 생성된다. 원본 PNG 는 [tool/gen_korea_icon.dart](../../tool/gen_korea_icon.dart) 를 본떠 `tool/gen_brand_icon.dart` 로 만든다 — 배경은 맘모스 테마색(`0xFF5B443B`~`0xFFC7A79B` 그라데이션, [brand_theme.dart:18-30](../../lib/constants/brand_theme.dart)), 전경은 흰색 맘모스 심볼. 대형 캔버스 원본은 표준 파이프라인 전에 alpha bbox 크롭이 필요하다([docs/BRAND_ASSETS.md](../../docs/BRAND_ASSETS.md) §4.1). **플레이버 출력 경로는 1회 실행으로 실제 확인**하고, 미동작 시 mipmap 수동 배치로 폴백한다.
+**런처 아이콘** — `flutter_launcher_icons-mammoth.yaml` 를 추가하면 `android/app/src/mammoth/res/` 로 생성된다. 원본 PNG 는 [tool/gen_korea_icon.dart](../../tool/gen_korea_icon.dart) 를 본떠 `tool/gen_brand_icon.dart` 로 만든다 — 배경은 매머드 테마색(`0xFF5B443B`~`0xFFC7A79B` 그라데이션, [brand_theme.dart:18-30](../../lib/constants/brand_theme.dart)), 전경은 흰색 매머드 심볼. 대형 캔버스 원본은 표준 파이프라인 전에 alpha bbox 크롭이 필요하다([docs/BRAND_ASSETS.md](../../docs/BRAND_ASSETS.md) §4.1). **플레이버 출력 경로는 1회 실행으로 실제 확인**하고, 미동작 시 mipmap 수동 배치로 폴백한다.
 
-**맘모스 Android OTA 채널 (신설)** — 맘모스 패키지가 공통 `_release` APK 를 받으면 **패키지 불일치로 설치가 실패**한다(레거시 무접미 채널 동결과 정확히 같은 원리). 끄는 게 아니라 **자기 채널로 돌린다** — 맘모스 함대에도 스토어 경로와 OTA 경로가 둘 다 존재하기 때문이다.
+**매머드 Android OTA 채널 (신설)** — 매머드 패키지가 공통 `_release` APK 를 받으면 **패키지 불일치로 설치가 실패**한다(레거시 무접미 채널 동결과 정확히 같은 원리). 끄는 게 아니라 **자기 채널로 돌린다** — 매머드 함대에도 스토어 경로와 OTA 경로가 둘 다 존재하기 때문이다.
 - [ota_config.dart](../../lib/config/ota_config.dart) 의 `versionUrl`/`downloadUrl` 을 `BuildBrand` 기준 **컴파일 타임 const 분기**로 바꾼다. 과거 standalone 변형이 쓰던 것과 같은 형태다.
   - 공통: `appfit_order_agent_release.apk` / `_release_version.json` (불변)
-  - 맘모스: `appfit_order_agent_mammoth_release.apk` / `_mammoth_release_version.json`
+  - 매머드: `appfit_order_agent_mammoth_release.apk` / `_mammoth_release_version.json`
 - [login_screen.dart:287](../../lib/screens/login_screen.dart) `_checkForUpdate` 와 [settings_screen.dart:252](../../lib/screens/settings_screen.dart) `_checkUpdateFromSettings` 는 코드 변경 없이 올바른 채널을 보게 된다. **수동 체크 경로에 브랜드 게이팅이 없는 현재 상태가 그대로 정답이 된다** — 채널이 패키지와 일치하므로.
-- 자동 체크 ON/OFF 판정은 기존 런타임 규칙(`BrandFeature.sunmiAppStoreUpdate` + Sunmi 여부, [login_screen.dart:498](../../lib/screens/login_screen.dart))을 **그대로 유지**한다. 이제 채널이 맞으므로 이 규칙이 의도대로 작동한다: 맘모스+Sunmi 는 스토어로, 맘모스 비-Sunmi 는 맘모스 OTA 채널로.
+- 자동 체크 ON/OFF 판정은 기존 런타임 규칙(`BrandFeature.sunmiAppStoreUpdate` + Sunmi 여부, [login_screen.dart:498](../../lib/screens/login_screen.dart))을 **그대로 유지**한다. 이제 채널이 맞으므로 이 규칙이 의도대로 작동한다: 매머드+Sunmi 는 스토어로, 매머드 비-Sunmi 는 매머드 OTA 채널로.
 - 레거시 무접미 채널 동결은 불변 — 어떤 브랜드도 그 이름으로 올리지 않는다.
 
 **오설치 안전망** — 로그인 성공 직후 빌드 브랜드와 매장 브랜드를 비교해 안내한다. 차단하지 않는다(런타임 브랜드 시스템이 살아 있어 기능은 정상 동작하므로, 실패 모드가 "깨짐"이 아니라 "일반 아이콘 + 안내"가 된다).
-- 공통 빌드 + 맘모스 매장 → "맘모스 전용 앱 설치 필요" 배너
-- 맘모스 빌드 + 타 브랜드 매장 → 경고
+- 공통 빌드 + 매머드 매장 → "매머드 전용 앱 설치 필요" 배너
+- 매머드 빌드 + 타 브랜드 매장 → 경고
 
 **규율 테스트** — `test/config/build_brand_scope_test.dart`: `BuildBrand` 를 참조하는 파일 집합을 화이트리스트로 고정한다. 새 참조가 생기면 테스트가 깨지고, 통과시키려면 사람이 의도적으로 목록을 늘려야 한다.
 
@@ -122,7 +122,7 @@ class BuildBrand {
 | [windows/runner/Runner.rc:76-81](../../windows/runner/Runner.rc) | `#ifdef` 로 `APPFIT_PRODUCT_NAME`/`APPFIT_EXE_NAME` 분기, ICON 을 `app_icon_mammoth.ico` 로 |
 | [windows/runner/main.cpp:14-15](../../windows/runner/main.cpp) | mutex 명·window title 분기 |
 | [installer/appfit_order_agent.iss:23-29](../../installer/appfit_order_agent.iss) | `-Brand` 에서 `/D` 로 주입 — AppName·ExeName·Mutex·DirName·OutputBaseName·**AppId** |
-| [lib/config/update_config.dart](../../lib/config/update_config.dart) | 맘모스 채널 + 임시 파일명 전부 분리 (zip/extract/bat/vbs/log) |
+| [lib/config/update_config.dart](../../lib/config/update_config.dart) | 매머드 채널 + 임시 파일명 전부 분리 (zip/extract/bat/vbs/log) |
 
 - `ProductName` 이 `%APPDATA%\CompanyName\ProductName` 을 결정하므로 SharedPreferences 샌드박스가 자동 분리된다. 출시 전이라 설정 승계는 불필요하다.
 - **Inno AppId GUID 를 새로 1회 생성해 영구 고정**하고 iss 주석에 박는다. 폐기된 korea GUID `{E448C213-990C-AEED-03A8-6A695F9EED14}` 는 재사용 금지.
@@ -148,7 +148,7 @@ class BuildBrand {
 | 명령어 | 변경 |
 | --- | --- |
 | `/release-apk [common\|mammoth\|all]` | 인자 없으면 AskUserQuestion. `all` 은 **같은 커밋·같은 버전**으로 연속 빌드 후 두 APK 의 versionCode 동일 여부를 출력 |
-| `/deploy-android [common\|mammoth\|all]` | 1단계 버전표를 **브랜드×채널 행렬**로 확장(각 채널 JSON 조회 + 마지막 스토어 업로드 기록). 맘모스 행에는 "운영 정책상 실제 배포는 스토어 경로"임을 함께 표시한다 |
+| `/deploy-android [common\|mammoth\|all]` | 1단계 버전표를 **브랜드×채널 행렬**로 확장(각 채널 JSON 조회 + 마지막 스토어 업로드 기록). 매머드 행에는 "운영 정책상 실제 배포는 스토어 경로"임을 함께 표시한다 |
 | **신규 `/store-upload [common\|mammoth]`** | Sunmi App Store 수동 업로드 체크리스트·기록. 아티팩트 존재/서명/versionCode 확인 → gray 타깃 범위 확인 → 업로드 후 이력 기록. 콘솔 자동화는 불가하나 **절차 강제와 이력은 가능하다** |
 | `/release-windows`, `/deploy-windows` | `[common\|mammoth]` 인자 + 브랜드별 채널 JSON 조회/갱신 |
 | `/add-brand` | 마지막에 **Tier 1 승격 3문항** 추가(기본 Tier 0). STEP 2-1 앵커를 `storeIdPrefix:` → `prefixEnvironments:` 로 갱신 |
@@ -162,7 +162,7 @@ class BuildBrand {
 - **[docs/BUILD.md](../../docs/BUILD.md)**, **[docs/BUILD_VARIANTS.md](../../docs/BUILD_VARIANTS.md)** — 플레이버·`-Brand`·채널 매트릭스 반영. BUILD_VARIANTS 는 "단일 빌드 모델"이라는 제목부터 갱신 대상.
 - **[CLAUDE.md](../../CLAUDE.md)** — "flavor·변형 인자 없음" 문장 수정.
 - **[docs/ARCHITECTURE.md](../../docs/ARCHITECTURE.md)**, **[docs/AS-IS.md](../../docs/AS-IS.md)**, **[agentc4model/](../../agentc4model/)** — 패키지·채널 표 갱신.
-- **설치 가이드** — 맘모스는 별도 리스팅이므로 [Sunmi 설치 가이드](../../docs/guide/Sunmi-appfit-agent-install-guide.html) 의 맘모스 버전 1부가 필요하다(검색할 앱 이름·아이콘 캡처가 다르다).
+- **설치 가이드** — 매머드는 별도 리스팅이므로 [Sunmi 설치 가이드](../../docs/guide/Sunmi-appfit-agent-install-guide.html) 의 매머드 버전 1부가 필요하다(검색할 앱 이름·아이콘 캡처가 다르다).
 - **설치 모니터링 도구** — 추적 대상 패키지 목록에 `.appfit.mammoth` 추가.
 
 ---
@@ -172,13 +172,13 @@ class BuildBrand {
 | 브랜드 | 플랫폼 | 아티팩트 | 스토어 경로 | OTA 채널 |
 | --- | --- | --- | --- | --- |
 | 공통 | Android | `app-common-release.apk` (`….appfit`) | Sunmi App Store 공통 리스팅 | `appfit_order_agent_release.apk` / `_release_version.json` (불변) |
-| 맘모스 | Android | `app-mammoth-release.apk` (`….appfit.mammoth`) | Sunmi App Store **맘모스 리스팅**, gray 단계 배포 | `appfit_order_agent_mammoth_release.apk` / `_mammoth_release_version.json` (신설) |
+| 매머드 | Android | `app-mammoth-release.apk` (`….appfit.mammoth`) | Sunmi App Store **매머드 리스팅**, gray 단계 배포 | `appfit_order_agent_mammoth_release.apk` / `_mammoth_release_version.json` (신설) |
 | 공통 | Windows | `appfit_order_agent.exe` | — | 무접미 ZIP 채널 (불변) |
-| 맘모스 | Windows | `appfit_order_agent_mammoth.exe` | — | `_mammoth_windows` ZIP 채널 (신설) |
+| 매머드 | Windows | `appfit_order_agent_mammoth.exe` | — | `_mammoth_windows` ZIP 채널 (신설) |
 
 **채널 이름은 규칙으로 파생한다** — `appfit_order_agent_<brand>_release.*` / `appfit_order_agent_<brand>_windows.*`. 다음 Tier 1 브랜드는 슬러그만 정하면 채널이 따라오고, 스크립트도 문자열 조립만 하면 된다. 브랜드마다 채널명을 손으로 짓지 않는다.
 
-**맘모스의 실제 운영 정책은 Sunmi 스토어 전용이다.** OTA 채널은 (1) 향후 Tier 1 브랜드를 위한 구조적 대비이고, (2) 비-Sunmi 단말과 수동 체크 경로의 안전망이다. 다만 **빈 채널은 안전망이 아니다** — 404 는 조용히 삼켜진다. 릴리즈마다 맘모스 채널도 함께 채워 살아 있게 유지한다(추가 비용은 scp 한 번).
+**매머드의 실제 운영 정책은 Sunmi 스토어 전용이다.** OTA 채널은 (1) 향후 Tier 1 브랜드를 위한 구조적 대비이고, (2) 비-Sunmi 단말과 수동 체크 경로의 안전망이다. 다만 **빈 채널은 안전망이 아니다** — 404 는 조용히 삼켜진다. 릴리즈마다 매머드 채널도 함께 채워 살아 있게 유지한다(추가 비용은 scp 한 번).
 
 **불변식:** 두 Android 아티팩트는 항상 **같은 커밋·같은 versionCode·같은 서명키**로 만든다. 버전 정본은 `pubspec.yaml` 하나를 유지한다. 롤아웃 순서는 아티팩트별로 기존 규칙을 따른다 — 스토어 gray canary 먼저, 비율 제어가 없는 OTA 는 항상 맨 뒤.
 
@@ -189,10 +189,10 @@ class BuildBrand {
 1. `flutter analyze` — warning baseline 은 **69**(0 아님). 새 에러 0 확인. `flutter test` 전량 통과.
 2. 양쪽 빌드 후 `aapt dump badging` 으로 package / versionCode / label / icon 확인 → **두 versionCode 동일** 확인.
 3. 실기기(Sunmi D3 MINI): 두 APK 병존 설치 후 `adb shell pm list packages | grep appfit` → 런처에 이름·아이콘 2종이 각각 보이는지 육안 확인.
-4. 맘모스 빌드: 로그인·설정의 업데이트 체크가 **맘모스 채널 URL** 로 나가는지 로그로 확인. 공통 빌드는 기존 `_release` 그대로인지 확인(회귀 방지). 맘모스+Sunmi 는 자동 체크가 OFF 로 재조정되는지도 함께 확인.
-5. MMTH 매장 ID 로그인 → 라벨·영수증 로고가 맘모스(tokyoplatz 폴백 아님), 서버 live 자동 전환. MHST 매장 ID → staging 전환.
+4. 매머드 빌드: 로그인·설정의 업데이트 체크가 **매머드 채널 URL** 로 나가는지 로그로 확인. 공통 빌드는 기존 `_release` 그대로인지 확인(회귀 방지). 매머드+Sunmi 는 자동 체크가 OFF 로 재조정되는지도 함께 확인.
+5. MMTH 매장 ID 로그인 → 라벨·영수증 로고가 매머드(tokyoplatz 폴백 아님), 서버 live 자동 전환. MHST 매장 ID → staging 전환.
 6. 공통 빌드에 MMTH 로그인 → 전용 앱 안내 배너가 뜨고 **기능은 정상 동작**.
-7. Windows `-Brand mammoth`: exe명·ProductName·`%APPDATA%` 분리·mutex 독립·인스톨러 GUID 별개(공통 설치본과 병존 설치), 맘모스 채널 JSON 조회.
+7. Windows `-Brand mammoth`: exe명·ProductName·`%APPDATA%` 분리·mutex 독립·인스톨러 GUID 별개(공통 설치본과 병존 설치), 매머드 채널 JSON 조회.
 8. 브랜드 전환 빌드 2연속(`common → mammoth → common`)으로 Gradle·CMake 캐시 오염이 없는지.
 
 ## 다른 머신에서 이어받기 (Windows 빌드 PC)
@@ -208,6 +208,6 @@ Phase C 는 Windows 빌드 PC 에서 수행한다. 옮겨가기 전 확인할 �
 ## 열린 항목 (실행 중 확인)
 
 - **Sunmi App Store 신규 리스팅** 등록·심사 리드타임 — 콘솔 수동 작업이라 자동화 불가. 롤아웃 일정의 임계 경로일 수 있다.
-- **이미 `.appfit` 이 깔린 맘모스 함대 처리** — 신규 패키지 설치 후 구 패키지를 제거할지 병존시킬지. 롤아웃 시점이 미정이라 별도 결정으로 남긴다.
+- **이미 `.appfit` 이 깔린 매머드 함대 처리** — 신규 패키지 설치 후 구 패키지를 제거할지 병존시킬지. 롤아웃 시점이 미정이라 별도 결정으로 남긴다.
 - `flutter_launcher_icons` 플레이버 출력 경로 — 1회 실행으로 확인 후 확정.
 - MHST 를 staging 으로 옮긴 뒤 **Sentry 라우팅 환경 스코프** 재확인.

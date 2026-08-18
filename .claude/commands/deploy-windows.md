@@ -7,7 +7,7 @@ Android 배포는 별도(`/deploy-android`, `deploy_apk.sh`), 신규 설치용 �
 
 ## 2-티어 아티팩트 · 아티팩트당 채널 1세트
 
-Tier 0(공통)과 Tier 1(맘모스 전용)은 같은 코드·같은 버전이고, 다른 것은
+Tier 0(공통)과 Tier 1(매머드 전용)은 같은 코드·같은 버전이고, 다른 것은
 exe명·ProductName·mutex뿐이다(브랜드 로직은 전부 런타임 `BrandRegistry`).
 서버(live/japanLive)는 앱 로그인 화면에서 런타임 선택된다(매장 ID 프리픽스 자동 전환).
 
@@ -16,12 +16,12 @@ OTA 채널은 아티팩트마다 하나다 (`lib/config/update_config.dart`):
 | 브랜드 | 채널 파일 (ZIP / 버전 JSON) | 용도 |
 | --- | --- | --- |
 | common | `appfit_order_agent_windows.zip` / `appfit_order_agent_windows_version.json` | 한국·일본 전 매장 공용. **레거시 무접미 채널 — 계속 사용(동결 아님)**. 기존 설치본이 자연 업데이트됨 |
-| mammoth | `appfit_order_agent_mammoth_windows.zip` / `appfit_order_agent_mammoth_windows_version.json` | 맘모스 전용(신설) |
+| mammoth | `appfit_order_agent_mammoth_windows.zip` / `appfit_order_agent_mammoth_windows_version.json` | 매머드 전용(신설) |
 
 > **Android 와 정책이 다르다**: Android 는 구 패키지 일본 매장 때문에 공통이
 > 무접미 레거시 채널을 동결하고 `_release` 채널을 쓰지만, Windows 는 패키지
 > 개념이 없고 exe명이 기존 설치본과 동일해(`appfit_order_agent.exe`) 공통은
-> 레거시 무접미 채널을 **그대로 계속 사용**한다. 맘모스는 exe명 자체가 달라
+> 레거시 무접미 채널을 **그대로 계속 사용**한다. 매머드는 exe명 자체가 달라
 > (`appfit_order_agent_mammoth.exe`) 공통 채널의 ZIP 을 받아도 자연 업데이트가
 > 걸리지 않으므로 전용 채널이 신설됐다. 구 `_korea_windows` 채널은 폐기(미사용)됐다.
 
@@ -48,7 +48,7 @@ git log --oneline -3
   curl -fsS --max-time 10 http://waldpay.kokonutstamp2.com/appfit_order_agent_mammoth_windows_version.json  # mammoth
   ```
   (응답 `{"version": <int>}` = 현재 배포된 빌드번호)
-- 조회 실패(네트워크/404 등) 시: 실패 사실만 알리고 차단하지 않는다(서버에 아직 파일이 없는 첫 배포일 수 있음 — 맘모스 채널은 아직 한 번도 채워지지 않았을 수 있다).
+- 조회 실패(네트워크/404 등) 시: 실패 사실만 알리고 차단하지 않는다(서버에 아직 파일이 없는 첫 배포일 수 있음 — 매머드 채널은 아직 한 번도 채워지지 않았을 수 있다).
 
 아래 형식으로 **현재 서버 버전 → 업데이트할 버전** 을 보여준다:
 

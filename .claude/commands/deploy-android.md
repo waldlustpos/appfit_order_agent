@@ -7,7 +7,7 @@ Windows 배포는 별도 (`deploy_windows.ps1`). 아래 순서를 반드시 지�
 
 ## 2-티어 아티팩트 · 아티팩트당 채널 1세트
 
-Tier 0(공통, 패키지 `co.kr.waldlust.order.receive.appfit`)과 Tier 1(맘모스 전용,
+Tier 0(공통, 패키지 `co.kr.waldlust.order.receive.appfit`)과 Tier 1(매머드 전용,
 `….appfit.mammoth`)은 같은 코드·같은 버전이고, 다른 것은 applicationId·런처
 label/icon·OTA 채널뿐이다(브랜드 로직은 전부 런타임 `BrandRegistry`). 서버
 (live/japanLive/staging)는 앱 로그인 화면에서 런타임 선택된다(매장 ID 프리픽스
@@ -18,12 +18,12 @@ OTA 채널은 아티팩트마다 하나다 (`lib/config/ota_config.dart`):
 | 브랜드 | 채널 파일 | 용도 |
 | --- | --- | --- |
 | common | `appfit_order_agent_release_version.json` / `appfit_order_agent_release.apk` | 공통 아티팩트 |
-| mammoth | `appfit_order_agent_mammoth_release_version.json` / `appfit_order_agent_mammoth_release.apk` | 맘모스 전용 아티팩트 |
+| mammoth | `appfit_order_agent_mammoth_release_version.json` / `appfit_order_agent_mammoth_release.apk` | 매머드 전용 아티팩트 |
 
-> ⚠️ **맘모스의 실제 운영 정책은 Sunmi App Store 경로다.** 이 OTA 채널은 (1)
+> ⚠️ **매머드의 실제 운영 정책은 Sunmi App Store 경로다.** 이 OTA 채널은 (1)
 > 향후 Tier 1 브랜드를 위한 구조적 대비, (2) 비-Sunmi 단말·수동 체크 경로의
 > 안전망이다. 다만 **빈 채널은 안전망이 아니다** — 404 는 조용히 삼켜진다.
-> 맘모스를 선택했다면 이 배포 이후 실제 유통은 `/store-upload mammoth` 로
+> 매머드를 선택했다면 이 배포 이후 실제 유통은 `/store-upload mammoth` 로
 > 별도 진행해야 한다는 점을 안내한다.
 
 > ⚠️ **한국/일본 동시 롤아웃**: 채널이 하나이므로 업로드 즉시 양국 매장이 같은
@@ -57,7 +57,7 @@ git log --oneline -3
   curl -fsS --max-time 10 http://waldpay.kokonutstamp2.com/appfit_order_agent_mammoth_release_version.json  # mammoth
   ```
   (응답 `{"version": <int>}` = 현재 배포된 빌드번호)
-- 조회 실패(네트워크/404 등) 시: 실패 사실만 알리고 차단하지 않는다(서버에 아직 파일이 없는 첫 배포일 수 있음 — 맘모스 채널은 아직 한 번도 채워지지 않았을 수 있다).
+- 조회 실패(네트워크/404 등) 시: 실패 사실만 알리고 차단하지 않는다(서버에 아직 파일이 없는 첫 배포일 수 있음 — 매머드 채널은 아직 한 번도 채워지지 않았을 수 있다).
 
 아래 형식으로 **현재 서버 버전 → 업데이트할 버전** 을 보여준다:
 

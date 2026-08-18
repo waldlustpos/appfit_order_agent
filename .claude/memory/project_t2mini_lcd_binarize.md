@@ -8,7 +8,7 @@ metadata:
   modified: 2026-08-06T01:43:47.196Z
 ---
 
-`MainActivity.java`의 `refreshBrandLcd()`가 MHST(맘모스커피) 매장일 때 전면 고객용 LCD(128×40 기준,
+`MainActivity.java`의 `refreshBrandLcd()`가 MHST(매머드커피) 매장일 때 전면 고객용 LCD(128×40 기준,
 Sunmi `sendLCDBitmap`/`sendLCDDoubleString`)에 무엇을 띄울지 실기기로 비교 검증했다.
 
 **경과**: 로고 비트맵(`mmth_print_logo.bmp`, 341×24 워드마크 "MAMMOTH COFFEE")을 128×40 캔버스에

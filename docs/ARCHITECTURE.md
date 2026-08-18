@@ -272,20 +272,20 @@ WebSocket 푸시 / 폴링 / 자정 새로고침으로 주문 상태가 빈번히
 
 ## 브랜드 (식별·자산·테마·커스텀 기능)
 
-브랜드는 **매장 ID prefix**(`TPCP`/`MMTH`/`MHST`/`MATA`/`PAIK`/`TLJP`)로 식별되며, 3계층으로 다룹니다. 한 브랜드가 프리픽스를 여러 개 가질 수 있습니다 — 맘모스는 `MMTH`(운영)와 `MHST`(스테이징) 둘 다 같은 브랜드로 해석됩니다.
+브랜드는 **매장 ID prefix**(`TPCP`/`MMTH`/`MHST`/`MATA`/`PAIK`/`TLJP`)로 식별되며, 3계층으로 다룹니다. 한 브랜드가 프리픽스를 여러 개 가질 수 있습니다 — 매머드는 `MMTH`(운영)와 `MHST`(스테이징) 둘 다 같은 브랜드로 해석됩니다.
 
 **Layer 1 — SSOT 레지스트리**: `lib/utils/brand_registry.dart`의 `BrandRegistry`가 단일 출처. prefix → `BrandMeta`(자산 폴더/영수증로고/테마/통화/`features`)를 해석합니다. 서버 환경은 `BrandMeta.prefixEnvironments`(`Map<프리픽스, 환경>`)에서 프리픽스별로 조회합니다(`environmentFor(storeId)`). prefix 매칭 로직은 이곳에만 존재하며, `PreferenceService.isTPCPStoreId` 등 레거시 헬퍼와 `BrandAssets`(자산 경로)는 모두 레지스트리에 위임합니다.
 - `BrandRegistry.resolveOrNull(id)` → 미매칭이면 **null** (capability·통화·환경 판단용 — "미지의 브랜드 = 기능 없음" 보장).
 - `BrandRegistry.resolve(id)` → 미매칭이면 **fallback=tokyoplatz** (라벨/영수증 로고는 항상 필요하므로 자산 경로 전용).
 - `currentBrandProvider`(`lib/providers/brand_provider.dart`)는 무상태로 매번 prefs를 읽어 `BrandMeta?`를 반환 → 로그아웃/서버전환 시 outdated 문제 없음.
 
-**Layer 2 — Capability 게이팅**: `enum BrandFeature`(`labelCategoryFilter`, `soundGraphSend`, `japanEnvironment`, `sunmiAppStoreUpdate`)로 UI show/hide·로직 enable/disable을 `brand.has(feature)`로 일관 처리. 산재된 `isTpcpStore`/`isMammothStore` 분기를 대체합니다. `sunmiAppStoreUpdate`(현재 맘모스 — `MMTH`/`MHST` 프리픽스 둘 다)는 Sunmi 기기에서 앱내 자동 OTA 체크를 끄고 Sunmi App Store 채널로 업데이트를 유도합니다.
+**Layer 2 — Capability 게이팅**: `enum BrandFeature`(`labelCategoryFilter`, `soundGraphSend`, `japanEnvironment`, `sunmiAppStoreUpdate`)로 UI show/hide·로직 enable/disable을 `brand.has(feature)`로 일관 처리. 산재된 `isTpcpStore`/`isMammothStore` 분기를 대체합니다. `sunmiAppStoreUpdate`(현재 매머드 — `MMTH`/`MHST` 프리픽스 둘 다)는 Sunmi 기기에서 앱내 자동 OTA 체크를 끄고 Sunmi App Store 채널로 업데이트를 유도합니다.
 
 **Layer 3 — 동작 seam**: 게이팅이 아니라 **동작이 갈리는** 소수 지점만 얇은 인터페이스로 분리(비대상 브랜드는 NoOp).
 - 파이프라인 **변환** → `LabelFilterStrategy`(`lib/services/label_printer/label_filter_strategy.dart`). `labelFilterStrategyProvider`가 capability로 `TpcpLabelFilterStrategy`/`NoOpLabelFilterStrategy` 선택. `LabelPrintData.fromOrder(strategy: ...)`가 메뉴 필터/옵션 분류를 위임.
-- 라이프사이클 **외부 통합** → `SoundGraphHook`(`lib/services/soundgraph_hook.dart`). `soundGraphHookProvider`가 capability로 `MhstSoundGraphHook`/`NoOpSoundGraphHook` 선택(클래스명은 역사적 이름 그대로 — `BrandKey.mammoth` capability 로 선택됨). `OrderProvider`의 자동접수 성공 후 `onAutoAccepted(order)` 호출. 비-맘모스 매장은 NoOp → 크로스-브랜드 전송 누수 차단.
+- 라이프사이클 **외부 통합** → `SoundGraphHook`(`lib/services/soundgraph_hook.dart`). `soundGraphHookProvider`가 capability로 `MhstSoundGraphHook`/`NoOpSoundGraphHook` 선택(클래스명은 역사적 이름 그대로 — `BrandKey.mammoth` capability 로 선택됨). `OrderProvider`의 자동접수 성공 후 `onAutoAccepted(order)` 호출. 비-매머드 매장은 NoOp → 크로스-브랜드 전송 누수 차단.
 
-**빌드 아티팩트 티어**(런타임 레지스트리와는 별개 축): 대부분의 브랜드는 Tier 0(공통 아티팩트)이며 applicationId·런처 이름/아이콘도 공유합니다. 승격 조건 3개(자체 유통 경로/전용 함대/계약상 요구)를 전부 충족하면 Tier 1(전용 아티팩트)로 승격할 수 있습니다 — 현재 맘모스가 유일한 사례(`co.kr.waldlust.order.receive.appfit.mammoth`). Tier 1 은 OS 셸 아이덴티티와 OTA 채널만 다르고 이 3계층 런타임 모델은 그대로 공유합니다. 상세: [docs/RELEASE.md](RELEASE.md) 대원칙, [docs/BUILD_VARIANTS.md](BUILD_VARIANTS.md).
+**빌드 아티팩트 티어**(런타임 레지스트리와는 별개 축): 대부분의 브랜드는 Tier 0(공통 아티팩트)이며 applicationId·런처 이름/아이콘도 공유합니다. 승격 조건 3개(자체 유통 경로/전용 함대/계약상 요구)를 전부 충족하면 Tier 1(전용 아티팩트)로 승격할 수 있습니다 — 현재 매머드가 유일한 사례(`co.kr.waldlust.order.receive.appfit.mammoth`). Tier 1 은 OS 셸 아이덴티티와 OTA 채널만 다르고 이 3계층 런타임 모델은 그대로 공유합니다. 상세: [docs/RELEASE.md](RELEASE.md) 대원칙, [docs/BUILD_VARIANTS.md](BUILD_VARIANTS.md).
 
 **테마**: `lib/constants/brand_theme.dart`의 `BrandTheme` enum이 색상·로그인 배경·로고를 정의(레지스트리의 `BrandMeta.theme`가 prefix→테마 매핑). `main()`에서 `AppStyles.applyBrand(savedBrand)`로 부팅 시 1회 고정하며 색상 교체는 **앱 재시작 후** 반영(런타임 즉시 변경 X).
 

@@ -4,8 +4,8 @@
 
 **AppFit 주문 에이전트** — 카페·음식 업종에서 키오스크/모바일 주문을 접수·관리하는 Flutter 앱. **Android 가로 전용 + Windows 데스크톱**, 메인 모드(주문 접수)와 KDS 모드(주방 디스플레이) 토글. 주력 디바이스: Sunmi D3 MINI, D2s_KDS, Windows POS.
 
-- 패키지: `co.kr.waldlust.order.receive.appfit` (Tier 0 공통) / `co.kr.waldlust.order.receive.appfit.mammoth` (Tier 1 맘모스 전용). **국가는 빌드를 가르지 않는다** — 서버 live/japanLive/staging 은 로그인 화면에서 런타임 선택되고 매장 ID 프리픽스로 자동 전환된다. 빌드를 가르는 축은 브랜드 아티팩트 티어 하나뿐이며, 사정거리는 applicationId·런처 label/icon·OTA 채널까지다(`lib/config/build_brand.dart`).
-- **Android 는 product flavor 를 쓴다 — `--flavor` 없는 빌드는 실패한다.** `--flavor <slug>` 와 `--dart-define=APPFIT_BRAND=<slug>` 를 **반드시 같은 값으로 함께** 넘긴다(어긋나면 맘모스 패키지가 공통 OTA 채널을 폴링해 설치 실패에 빠진다). 스크립트는 `./build_main.sh [common|mammoth|all]`, `./deploy_apk.sh [common|mammoth]`.
+- 패키지: `co.kr.waldlust.order.receive.appfit` (Tier 0 공통) / `co.kr.waldlust.order.receive.appfit.mammoth` (Tier 1 매머드 전용). **국가는 빌드를 가르지 않는다** — 서버 live/japanLive/staging 은 로그인 화면에서 런타임 선택되고 매장 ID 프리픽스로 자동 전환된다. 빌드를 가르는 축은 브랜드 아티팩트 티어 하나뿐이며, 사정거리는 applicationId·런처 label/icon·OTA 채널까지다(`lib/config/build_brand.dart`).
+- **Android 는 product flavor 를 쓴다 — `--flavor` 없는 빌드는 실패한다.** `--flavor <slug>` 와 `--dart-define=APPFIT_BRAND=<slug>` 를 **반드시 같은 값으로 함께** 넘긴다(어긋나면 매머드 패키지가 공통 OTA 채널을 폴링해 설치 실패에 빠진다). 스크립트는 `./build_main.sh [common|mammoth|all]`, `./deploy_apk.sh [common|mammoth]`.
 - Dart SDK: ^3.5.0, Flutter: >=3.19.0
 - Android: minSdk 24, targetSdk 35
 - Windows: x64 release, Inno Setup 6 인스톨러, 단일 인스턴스 뮤텍스
