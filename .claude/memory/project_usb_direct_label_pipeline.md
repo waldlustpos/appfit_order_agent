@@ -1,11 +1,11 @@
 ---
 name: project_usb_direct_label_pipeline
-description: 경로 B — Android USB Host API 직접 제어로 라벨 인쇄(TSPL BITMAP) 이식. 극성 확정·임계값 튜닝 진행 중
+description: 경로 B — USB Host API 직접 제어 라벨 인쇄. 전환 범위=REXOD 2대만 확정, BIXOLON 은 전송층만 통합 가능(TSPL 미지원)
 metadata: 
   node_type: memory
   type: project
   originSessionId: d878d032-b8eb-41f1-a0bb-073f3db8a81e
-  modified: 2026-08-14T00:50:15.695Z
+  modified: 2026-08-14T05:38:35.608Z
 ---
 
 RXLA-561 동일 기종 2대 운용을 위해 Caysn SDK 를 버리고 USB Host API 로 직접 제어하는
@@ -239,6 +239,52 @@ _labelPrepQueue (직렬 1개)      _labelQueues[타깃] (타깃마다 1개)
 (불변식은 멀쩡한데). 영수증을 게이트로 막아 두고 "라벨이 나오는가" 를 보는 형태로
 바꿨다 — 그게 진짜 불변식이다.
 
+## ✅ 전환 범위 확정 — REXOD 2대 케이스만 (2026-08-14)
+
+**USB Direct 는 REXOD 2대 운영 매장에서만 켠다.** 1대 매장·BIXOLON·Windows·
+Caysn D2/D3 는 전부 기존 경로 유지. Caysn **제거는 하지 않는다** — 이유 3가지:
+`LabelPrinter.RESULT_*` 가 앱 전체 3분류 계약의 정의처이고, Windows 라벨 백엔드가
+여전히 Caysn FFI 이며, Caysn 경로가 D2/D3 도 커버한다.
+
+### ★ BIXOLON 도 2대 지목이 불가능하다 — Direct 는 일반해다
+
+`BixolonLabelPrinter.connect(UsbDevice)` 는 **인자를 무시하고 VID 0x1504 로 자체
+enumerate** 한다(`BixolonLabelDriver.java:382`, bytecode 확인). Caysn 의 포트명 충돌과
+같은 병이다. 즉 USB Direct 는 "REXOD 전용 우회" 가 아니라 **동일 기종 복수 대응의
+유일한 일반해**다. 지금은 BIXOLON 1대 매장뿐이라 안 드러났을 뿐.
+
+### 통합의 경계 — 전송층은 되고 명령층은 안 된다
+
+BIXOLON XD5-40d 는 **TSPL 을 지원하지 않는다**(SLCS / BPL-Z=ZPL II / BPL-E=EPL,
+BPL-D 는 옵션). 완료 판정도 `DLE EOT 4` 가 아니라 SLCS 상태 질의를 써야 한다.
+
+| 층 | 통합 | 근거 |
+|---|---|---|
+| 전송(지목·권한·claim·bulk·타깃별 스레드) | **가능, 이미 일반적** | `open()` 이 Printer Class(7) + bulk OUT 폴백 |
+| 렌더(Bitmap→1bpp) | 가능 | 극성·임계값만 파라미터 |
+| 명령 방언(SIZE/GAP/BITMAP/PRINT) | **불가** | TSPL vs SLCS/ZPL |
+| 완료 판정 | **불가** | DLE EOT 4 vs `ESC ! ?` |
+| 3분류 계약 | 가능(해야 함) | 지금 Caysn 클래스가 소유 중 |
+
+**"하나의 방식" 은 전송층·계약층을 뜻하고 그게 가치의 대부분이다.** 둘이 지금
+`UsbLabelDriver` 한 클래스에 섞여 있는 것이 문제 — 기종이 늘기 전에
+`UsbLabelTransport` + `LabelDialect` 로 가르는 것이 다음 정리 대상.
+
+BIXOLON Direct 착수 트리거는 **BIXOLON 2대 매장이 실제로 생길 때** 하나뿐이다.
+착수하면 REXOD 의 ZPL 지원 여부부터 확인할 것 — 되면 방언이 2개가 아니라 1개로 끝난다.
+그리고 극성은 반드시 **판별 카드 먼저**(SLCS `GW` 는 TSPL 과 극성이 반대일 수 있다).
+
+## warmup 은 executor 가 아니라 레지스트리 락이 직렬화한다 (34c57f4)
+
+`warmupLabelPrinter` 가 Direct 여도 단일 `labelPrintExecutor` 를 쓰는 것이 비대칭으로
+보였으나 **고칠 것이 없었다.** `UsbLabelRegistry.warmup()` 과 `acquire()` 가 둘 다
+클래스 단위 `synchronized` 라 executor 를 바꿔도 직렬화는 그대로고, warmup 은 한
+호출이 전 장치를 순회하므로 타깃별 executor 로 옮겨도 병렬화되지 않는다.
+
+**Why:** "층이 갈렸는데 여기만 안 갈렸다" 는 형태만 보고 결함이라 판정하면 무의미한
+변경을 한다. 격리를 실제로 떠받치는 것이 어느 층인지 먼저 확인할 것 — 여기서는
+executor 가 아니라 락이었다.
+
 ## 남은 것 — 회귀 검증만
 
 1. **토글 OFF(1대 매장) 무영향** — 기존 매장 전부가 이 경로다. 최우선
@@ -266,6 +312,18 @@ _labelPrepQueue (직렬 1개)      _labelQueues[타깃] (타깃마다 1개)
    buzzer byte1 `0x1C`. 프로토콜은 [[project_label_ack_patch]] 에 역공학돼 있음
 3. `LabelPrintOutcome` 3분류 · submit-wins · "retryable 일 때 정확히 1회" 계약 유지
 4. `LabelTarget` ↔ 버스번호 매핑, Caysn↔Direct 토글(가면 둘 다 간다 — 혼용 금지)
+
+## "3안(KDS 쌍 추가)" 은 새로 만들 것이 없다
+
+TPCP 의 "출력방향 설정" 이라 불리던 것의 실체는 **와플 필터 모드**
+(`KOKONUT_LABEL_FILTER_MODE`, 0=전체/1=와플만/2=와플제외,
+`label_filter_strategy.dart:125`)이고, 이는 "이 단말이 무엇을 출력할지" 를 거르는
+**브랜드 전용 선행 구현**이다. `LabelTargetPolicy.localTargets` 가 그 일반해 —
+KDS 를 한 대 더 놓고 `localTargets` 를 다르게 주면 그게 3안이다.
+
+⚠️ 필터 모드로 프린터를 나누는 방식(A=와플만 / B=와플제외)은 **쓰면 안 된다**.
+TPCP `selectMenus` 의 세트 상품(TKP0051/52)은 두 모드 모두에서 true 라 양쪽에
+중복 인쇄된다. `assignTarget` 이 단일 값을 반환하는 것이 이 사고를 구조적으로 막는다.
 
 ## 코드 위치
 
