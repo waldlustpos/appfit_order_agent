@@ -1272,8 +1272,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   /// 로그인 직전 매장 ID 프리픽스로 서버 환경을 결정한다.
   ///
   /// live/japanLive 운영 세션에서만 동작한다(dev/staging 개발 테스트 보호).
-  /// - 등록 브랜드: BrandRegistry.serverEnvironment 와 현재 선택이 다르면
-  ///   자동 전환한다.
+  /// 비대칭 주의: live 에서 MHST(맘모스 스테이징) 를 입력하면 staging 으로
+  /// 넘어가지만, 그 뒤 staging 세션에서 MMTH 를 입력해도 자동으로 돌아오지
+  /// 않는다 — 개발자가 고른 staging 을 앱이 임의로 뺏지 않기 위함이다.
+  /// 되돌리려면 로그인 화면의 서버 선택에서 직접 고른다.
+  /// - 등록 브랜드: 그 매장 ID 프리픽스의 서버 환경(BrandMeta.environmentFor)과
+  ///   현재 선택이 다르면 자동 전환한다. 같은 브랜드라도 프리픽스마다 서버가
+  ///   다를 수 있다(맘모스: MMTH=live, MHST=staging).
   /// - 미등록 프리픽스: 명시 선택 이력(manual override)이 없으면 서버선택
   ///   다이얼로그로 1회 지정을 요구한다. 취소하면 false → 로그인 중단.
   Future<bool> _resolveEnvironmentForStoreId(String storeId) async {
@@ -1281,7 +1286,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
     final brand = BrandRegistry.resolveOrNull(storeId);
     if (brand != null) {
-      final target = brand.serverEnvironment;
+      final target = brand.environmentFor(storeId);
       if (target != _selectedEnv) {
         await _applyEnvironment(target,
             reason: '브랜드 ${brand.storeIdPrefix} 프리픽스 자동');

@@ -83,6 +83,7 @@ class _Translations$common$ja extends Translations$common$ko {
 	@override String get later => '後で';
 	@override late final _Translations$common$api_error$ja api_error = _Translations$common$api_error$ja._(_root);
 	@override late final _Translations$common$sync$ja sync = _Translations$common$sync$ja._(_root);
+	@override late final _Translations$common$brand_install$ja brand_install = _Translations$common$brand_install$ja._(_root);
 }
 
 // Path: login
@@ -484,6 +485,17 @@ class _Translations$common$sync$ja extends Translations$common$sync$ko {
 	@override String last_updated({required Object time}) => '最終更新 ${time}';
 	@override String get never_updated => 'まだ更新されていません';
 	@override String get retry_now => '今すぐ再試行';
+}
+
+// Path: common.brand_install
+class _Translations$common$brand_install$ja extends Translations$common$brand_install$ko {
+	_Translations$common$brand_install$ja._(TranslationsJa root) : this._root = root, super.internal(root);
+
+	final TranslationsJa _root; // ignore: unused_field
+
+	// Translations
+	@override String get needs_dedicated => 'この店舗はマンモスオーダーエージェント専用アプリをご利用ください。現在のアプリでも注文は正常に処理されます。';
+	@override String get wrong_dedicated => 'マンモス専用アプリに他ブランドの店舗でログインしています。共通アプリへの入れ替えが必要です。';
 }
 
 // Path: login.tabs

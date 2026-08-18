@@ -220,7 +220,7 @@ class V2MigrationService {
 
   /// 서버 환경 설정 (브랜드 레지스트리 기반, 미지의 매장은 'live')
   Future<void> _setEnvironment(SharedPreferences prefs, String oldId) async {
-    final env = BrandRegistry.resolveOrNull(oldId)?.serverEnvironment ?? 'live';
+    final env = BrandRegistry.environmentForStoreId(oldId) ?? 'live';
     await prefs.setString(PreferenceService.KEY_ENVIRONMENT, env);
     V2MigrationLogger.log('서버 환경 설정: $env (ID: $oldId)');
   }

@@ -29,6 +29,10 @@
             "last_updated": "Last updated {time}",
             "never_updated": "Not updated yet",
             "retry_now": "Retry now"
+        },
+        "brand_install": {
+            "needs_dedicated": "This store should use the dedicated Mammoth Order Agent app. Orders still work normally on this app.",
+            "wrong_dedicated": "You signed in to the Mammoth-only app with another brand's store. Please switch to the common app."
         }
     },
     "login": {

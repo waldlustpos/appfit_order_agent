@@ -29,6 +29,10 @@
             "last_updated": "마지막 갱신 {time}",
             "never_updated": "아직 갱신되지 않음",
             "retry_now": "지금 재시도"
+        },
+        "brand_install": {
+            "needs_dedicated": "이 매장은 매머드오더 에이전트 전용 앱을 사용해야 합니다. 현재 앱으로도 주문은 정상 처리됩니다.",
+            "wrong_dedicated": "매머드 전용 앱에 다른 브랜드 매장으로 로그인했습니다. 공통 앱으로 교체가 필요합니다."
         }
     },
     "login": {

@@ -279,8 +279,7 @@ class PreferenceService {
     if (_prefs.containsKey(KEY_ENVIRONMENT)) return;
     final savedId = getId();
     if (savedId != null && savedId.isNotEmpty) {
-      final env =
-          BrandRegistry.resolveOrNull(savedId)?.serverEnvironment ?? 'live';
+      final env = BrandRegistry.environmentForStoreId(savedId) ?? 'live';
       await _prefs.setString(KEY_ENVIRONMENT, env);
       logger.i('[PreferenceService] 서버 환경 자동 복원: $env (ID: $savedId)');
       return;
@@ -1008,12 +1007,12 @@ class PreferenceService {
   /// 현재 저장된 매장 ID가 TPCP(일본 특화) 매장인지 반환.
   bool isTpcpStore() => isTPCPStoreId(getId());
 
-  /// MHST(매머드) 매장 여부를 ID 문자열로 판별.
-  static bool isMHSTStoreId(String? storeId) =>
-      BrandRegistry.resolveOrNull(storeId)?.key == BrandKey.mhst;
+  /// 맘모스(매머드) 매장 여부를 ID 문자열로 판별. MMTH(운영)·MHST(스테이징) 둘 다.
+  static bool isMammothStoreId(String? storeId) =>
+      BrandRegistry.resolveOrNull(storeId)?.key == BrandKey.mammoth;
 
-  /// 현재 저장된 매장 ID가 MHST(매머드) 매장인지 반환.
-  bool isMammothStore() => isMHSTStoreId(getId());
+  /// 현재 저장된 매장 ID가 맘모스(매머드) 매장인지 반환.
+  bool isMammothStore() => isMammothStoreId(getId());
 
   /// 마하테이스트(mahataste) 매장 여부를 ID 문자열로 판별.
   static bool isMATAStoreId(String? storeId) =>

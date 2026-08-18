@@ -11,7 +11,7 @@ enum BrandFeature {
   /// TPCP 라벨 카테고리 필터(전체/와플만/와플제외) + 옵션 카테고리 분류.
   labelCategoryFilter,
 
-  /// MHST 사운드그래프 주문 전송(자동접수 성공 후 외부 통합).
+  /// 맘모스 사운드그래프 주문 전송(자동접수 성공 후 외부 통합).
   soundGraphSend,
 
   /// 일본(JPY/japanLive) 환경 브랜드.
@@ -28,7 +28,7 @@ enum BrandFeature {
 }
 
 /// 브랜드 식별 키. 매장 ID prefix 로 결정된다.
-enum BrandKey { tpcp, mhst, mata, paik, tljp }
+enum BrandKey { tpcp, mammoth, mata, paik, tljp }
 
 /// 한 브랜드의 모든 메타데이터를 모은 단일 출처(SSOT) 레코드.
 ///
@@ -39,11 +39,10 @@ enum BrandKey { tpcp, mhst, mata, paik, tljp }
 class BrandMeta {
   const BrandMeta({
     required this.key,
-    required this.storeIdPrefix,
+    required this.prefixEnvironments,
     required this.assetFolder,
     required this.theme,
     required this.currency,
-    required this.serverEnvironment,
     this.hasReceiptLogo = false,
     this.hasLabelLogo = true,
     this.labelLogoWidth = 50,
@@ -52,8 +51,12 @@ class BrandMeta {
 
   final BrandKey key;
 
-  /// 매장 ID prefix (대문자). 예: 'TPCP'.
-  final String storeIdPrefix;
+  /// 매장 ID prefix(대문자) → 서버 환경('live'/'japanLive'/'staging') 매핑.
+  ///
+  /// 한 브랜드가 여러 프리픽스를 가질 수 있고, 프리픽스마다 서버가 다를 수 있다.
+  /// 예: 맘모스는 운영이 `MMTH`(live), 스테이징이 `MHST`(staging) 다.
+  /// **첫 항목이 대표 프리픽스**([storeIdPrefix])이므로 선언 순서에 의미가 있다.
+  final Map<String, String> prefixEnvironments;
 
   /// `assets/images/brand/<folder>/` 자산 폴더명.
   final String assetFolder;
@@ -75,14 +78,31 @@ class BrandMeta {
   /// 기본 통화. (저장된 사용자 선택이 우선이며, 그게 없을 때의 기본값)
   final CurrencyUnit currency;
 
-  /// 서버 환경 ('japanLive' / 'live').
-  final String serverEnvironment;
-
   /// 이 브랜드가 지원하는 커스텀 기능 집합.
   final Set<BrandFeature> features;
 
   /// capability 게이팅 진입점.
   bool has(BrandFeature f) => features.contains(f);
+
+  /// 대표 매장 ID prefix (대문자). 예: 'TPCP', 맘모스는 'MMTH'.
+  ///
+  /// 로그·표시용. 환경 판정에는 프리픽스마다 서버가 다를 수 있으므로 반드시
+  /// [environmentFor] 를 쓴다.
+  String get storeIdPrefix => prefixEnvironments.keys.first;
+
+  /// 이 매장 ID 가 속한 프리픽스의 서버 환경.
+  ///
+  /// 매칭되는 프리픽스가 없으면(다른 브랜드의 ID 를 넘긴 경우 등) 대표 프리픽스의
+  /// 환경으로 폴백한다.
+  String environmentFor(String? storeId) {
+    final id = storeId?.toUpperCase();
+    if (id != null && id.isNotEmpty) {
+      for (final e in prefixEnvironments.entries) {
+        if (id.startsWith(e.key)) return e.value;
+      }
+    }
+    return prefixEnvironments.values.first;
+  }
 
   /// 일반 설정에서 사용자가 고를 수 있는 테마 목록 = 기본 테마 + 브랜드 고유 테마.
   ///
@@ -108,7 +128,8 @@ class BrandMeta {
   String get themeLogoPath => '$_assetBase/logo.svg';
 }
 
-/// 매장 ID prefix → [BrandMeta] 단일 출처(SSOT).
+/// 매장 ID prefix → [BrandMeta] 단일 출처(SSOT). 한 브랜드가 프리픽스를 여러 개
+/// 가질 수 있다(운영/스테이징 등) — [BrandMeta.prefixEnvironments] 참조.
 ///
 /// 순수(prefs 비의존) 클래스로, 단위 테스트가 쉽다. 현재 브랜드를 얻으려면
 /// [resolve] 에 매장 ID 를 넘기거나 `currentBrandProvider`(brand_provider.dart) 를
@@ -126,25 +147,25 @@ class BrandRegistry {
   static const Map<BrandKey, BrandMeta> _all = {
     BrandKey.tpcp: BrandMeta(
       key: BrandKey.tpcp,
-      storeIdPrefix: 'TPCP',
+      prefixEnvironments: {'TPCP': 'japanLive'},
       assetFolder: 'tokyoplatz',
       theme: BrandTheme.appfitDefault,
       currency: CurrencyUnit.jpy,
-      serverEnvironment: 'japanLive',
       features: {
         BrandFeature.labelCategoryFilter,
         BrandFeature.japanEnvironment,
         BrandFeature.displayRotate,
       },
     ),
-    BrandKey.mhst: BrandMeta(
-      key: BrandKey.mhst,
-      storeIdPrefix: 'MHST',
+    // 맘모스는 프리픽스가 둘이다: MMTH 가 운영(live), MHST 가 스테이징(staging).
+    // 둘 다 같은 브랜드라 자산·테마·capability 를 공유하며, 서버만 갈린다.
+    BrandKey.mammoth: BrandMeta(
+      key: BrandKey.mammoth,
+      prefixEnvironments: {'MMTH': 'live', 'MHST': 'staging'},
       assetFolder: 'mammoth',
       hasReceiptLogo: true,
       theme: BrandTheme.mammothCoffee,
       currency: CurrencyUnit.krw,
-      serverEnvironment: 'live',
       features: {
         BrandFeature.soundGraphSend,
         BrandFeature.sunmiAppStoreUpdate,
@@ -152,16 +173,15 @@ class BrandRegistry {
     ),
     BrandKey.mata: BrandMeta(
       key: BrandKey.mata,
-      storeIdPrefix: 'MATA',
+      prefixEnvironments: {'MATA': 'live'},
       assetFolder: 'mahataste',
       hasReceiptLogo: true,
       theme: BrandTheme.mata,
       currency: CurrencyUnit.krw,
-      serverEnvironment: 'live',
     ),
     BrandKey.paik: BrandMeta(
       key: BrandKey.paik,
-      storeIdPrefix: 'PAIK',
+      prefixEnvironments: {'PAIK': 'japanLive'},
       assetFolder: 'paik',
       hasReceiptLogo: true,
       // TODO(paik): 적절한 라벨 로고 이미지 작업 후 true로 복구.
@@ -171,17 +191,15 @@ class BrandRegistry {
       hasLabelLogo: false,
       theme: BrandTheme.paik,
       currency: CurrencyUnit.jpy,
-      serverEnvironment: 'japanLive',
       features: {BrandFeature.japanEnvironment},
     ),
     BrandKey.tljp: BrandMeta(
       key: BrandKey.tljp,
-      storeIdPrefix: 'TLJP',
+      prefixEnvironments: {'TLJP': 'japanLive'},
       assetFolder: 'theliterjp',
       hasLabelLogo: false, // TODO(tljp): 라벨 로고 BMP 준비되면 true로 복구
       theme: BrandTheme.tljp,
       currency: CurrencyUnit.jpy,
-      serverEnvironment: 'japanLive',
       features: {BrandFeature.japanEnvironment},
     ),
   };
@@ -195,15 +213,22 @@ class BrandRegistry {
   /// 을 보장한다. ([resolve] 는 자산용 fallback 이 있어 미지의 매장에도 TPCP 기능이
   /// 붙는 오작동을 일으킬 수 있다.)
   ///
-  /// prefix 들은 서로 접두 관계가 없으므로(TPCP/MHST/MATA) 순회 순서 무관.
+  /// prefix 들은 서로 접두 관계가 없으므로(TPCP/MMTH/MHST/MATA/PAIK/TLJP)
+  /// 브랜드 순회 순서·브랜드 내 prefix 순회 순서 모두 무관.
   static BrandMeta? resolveOrNull(String? storeId) {
     final id = storeId?.toUpperCase();
     if (id == null || id.isEmpty) return null;
     for (final meta in _all.values) {
-      if (id.startsWith(meta.storeIdPrefix)) return meta;
+      for (final prefix in meta.prefixEnvironments.keys) {
+        if (id.startsWith(prefix)) return meta;
+      }
     }
     return null;
   }
+
+  /// 매장 ID 의 서버 환경. 미지의 prefix 는 `null` (호출 측이 폴백을 정한다).
+  static String? environmentForStoreId(String? storeId) =>
+      resolveOrNull(storeId)?.environmentFor(storeId);
 
   /// 인쇄 자산용 해석 — 매칭이 없으면 [fallback](tokyoplatz). 라벨/영수증은 항상
   /// 로고가 필요하므로 fallback 한다. capability 판단에는 [resolveOrNull] 사용.

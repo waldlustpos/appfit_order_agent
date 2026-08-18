@@ -100,7 +100,7 @@ final qrPayloadStrategyProvider = Provider<QrPayloadStrategy>((ref) {
     // 미래 브랜드 override 지점:
     // case BrandKey.xxxx: return const XxxxQrPayloadStrategy();
     case BrandKey.tpcp:
-    case BrandKey.mhst:
+    case BrandKey.mammoth:
     case BrandKey.mata:
     case BrandKey.paik:
     case BrandKey.tljp:

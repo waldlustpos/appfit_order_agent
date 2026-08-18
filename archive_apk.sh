@@ -4,17 +4,23 @@
 # APK 산출물을 로컬 공용 보관소에 아카이브하고 빌드 노트를 기록한 뒤
 # 해당 버전 폴더를 Finder 로 연다.
 #
-# 사용법: bash ./archive_apk.sh <built_apk_path>
+# 사용법: bash ./archive_apk.sh <built_apk_path> [brand]
 #   - <built_apk_path> : 보관할 APK 파일 경로
+#   - [brand]          : common|mammoth (기본 common)
 #
-# 보관 구조: <ARCHIVE_BASE>/<프로젝트명>/apk/<버전>/<APK> + release_notes.txt
-#   예) /Users/.../!Project Files/appfit_order_agent/apk/3.3.6+152/
+# 보관 구조: <ARCHIVE_BASE>/<프로젝트명>/apk/<브랜드>/<버전>/<APK> + release_notes.txt
+#   예) /Users/.../!Project Files/appfit_order_agent/apk/common/3.3.6+152/
+#
+# 브랜드를 경로에 넣는 이유: 두 아티팩트가 같은 버전을 공유하므로(정본은
+# pubspec.yaml 하나), 브랜드별로 나누지 않으면 같은 버전 폴더에서 두 브랜드의
+# release_notes.txt 가 서로 덮어쓴다.
 #
 # 주의: deploy/build 가 이미 끝난 뒤 호출되므로, 아카이브 실패가 전체 흐름을
 #       중단시키지 않도록 항상 경고만 출력하고 exit 0 으로 끝낸다.
 ###############################################################################
 
 SRC_APK="$1"
+BRAND="${2:-common}"
 
 # 공용 보관소 베이스. archive_windows.ps1 과 동일하게 홈 디렉터리에서 동적으로
 # 구해 머신/OS 에 무관하게 동작한다 (macOS: /Users/<user>, Windows Git Bash:
@@ -29,10 +35,13 @@ PROJECT_NAME=$(grep "^name:" pubspec.yaml | cut -d' ' -f2 | tr -d '"' | tr -d "'
 VERSION=$(grep "^version:" pubspec.yaml | cut -d' ' -f2 | tr -d '"' | tr -d "'")
 BUILD_NUMBER=$(echo "$VERSION" | sed 's/.*+//')
 
-# 단일 패키지 (국가 무관)
-APP_ID="co.kr.waldlust.order.receive.appfit"
+# 브랜드별 패키지 (build_main.sh / android/app/build.gradle.kts 와 일치)
+case "$BRAND" in
+  mammoth) APP_ID="co.kr.waldlust.order.receive.appfit.mammoth" ;;
+  *)       APP_ID="co.kr.waldlust.order.receive.appfit" ;;
+esac
 
-ARCHIVE_DIR="$ARCHIVE_BASE/$PROJECT_NAME/apk/$VERSION"
+ARCHIVE_DIR="$ARCHIVE_BASE/$PROJECT_NAME/apk/$BRAND/$VERSION"
 
 echo "==== Archive APK to local Project Files ===="
 
@@ -58,6 +67,7 @@ cp "$SRC_APK" "$ARCHIVE_DIR/" || {
 NOTES_FILE="$ARCHIVE_DIR/release_notes.txt"
 {
   echo "=== $PROJECT_NAME 빌드 노트 ==="
+  echo "브랜드: $BRAND"
   echo "버전: $VERSION"
   echo "빌드번호: $BUILD_NUMBER"
   echo "패키지명: $APP_ID"

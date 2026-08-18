@@ -29,9 +29,9 @@
       "channel_id": "C0BMQCJMB62"
     },
     {
-      "label": "MHST",
+      "label": "MMTH",
       "match": "sw",
-      "value": "MHST",
+      "value": "MMTH",
       "environment": "live",
       "channel": "appfit-alert-mhst",
       "channel_id": "C0BPSFVEM9S"

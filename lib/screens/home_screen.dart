@@ -25,6 +25,7 @@ import 'package:appfit_order_agent/widgets/home/drawer_menu.dart';
 import 'package:appfit_order_agent/screens/settings_screen.dart';
 import 'package:appfit_order_agent/widgets/common/common_dialog.dart';
 import 'package:appfit_order_agent/widgets/common/fault_injection_ribbon.dart';
+import 'package:appfit_order_agent/widgets/common/brand_install_banner.dart';
 import 'package:appfit_order_agent/widgets/common/sync_status_banner.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:appfit_order_agent/services/monitoring/monitoring_sync_provider.dart';
@@ -561,6 +562,9 @@ class HomeContent extends ConsumerWidget {
         // 서버 응답 지연 배너 — KDS 모드와 같은 위젯을 쓴다. 장애는 모드를
         // 가리지 않고, 두 모드 모두 같은 HTTP 파이프라인 위에서 돈다.
         const SyncStatusBanner(),
+        // 설치된 앱과 매장 브랜드가 어긋났을 때만 뜬다(정상은 높이 0). 사람이
+        // 앱을 교체해야 사라지는 조건이라 위쪽 배너들과 함께 상시 노출한다.
+        const BrandInstallBanner(),
         Expanded(child: _buildNormalBody(selectedIndex, ref)),
       ],
     );

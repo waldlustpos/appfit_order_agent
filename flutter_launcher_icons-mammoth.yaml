@@ -1,0 +1,21 @@
+# 맘모스(매머드커피) 전용 아티팩트 런처 아이콘.
+#
+# 파일명 규약: flutter_launcher_icons-<flavor>.yaml  → 산출물이
+# android/app/src/<flavor>/res/mipmap-* 로 들어간다(공통 아이콘을 덮지 않는다).
+#
+# 재생성:
+#   dart run tool/gen_brand_icon.dart mammoth "<브랜드 원본 PNG 경로>"
+#   flutter pub run flutter_launcher_icons -f flutter_launcher_icons-mammoth.yaml
+#   git status  # android/app/src/main/res/mipmap-* 이 안 바뀌었는지 반드시 확인
+#
+# 공통 아이콘은 pubspec.yaml 의 flutter_launcher_icons 블록이 정본이다(별개).
+# windows 키는 두지 않는다 — Windows 아이콘은 Runner.rc 가 .ico 를 직접 참조한다.
+flutter_launcher_icons:
+  android: true
+  ios: false
+  # 레거시(비-adaptive) 런처용: 흰 배경 + 브랜드 원본색 로고
+  image_path: "assets/icons/app_icon_mammoth.png"
+  min_sdk_android: 24
+  # adaptive: 브랜드 원본이 흰 배경 록업이라 배경도 흰색으로 맞춘다(단색이라 PNG 불필요)
+  adaptive_icon_background: "#ffffff"
+  adaptive_icon_foreground: "assets/icons/app_icon_mammoth_fg.png"

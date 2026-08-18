@@ -10,8 +10,12 @@ void main() {
       expect(b?.key, BrandKey.tpcp);
     });
 
-    test('MHST prefix → mhst 메타', () {
-      expect(BrandRegistry.resolveOrNull('MHST123')?.key, BrandKey.mhst);
+    test('MMTH prefix(맘모스 운영) → mammoth 메타', () {
+      expect(BrandRegistry.resolveOrNull('MMTH00001')?.key, BrandKey.mammoth);
+    });
+
+    test('MHST prefix(맘모스 스테이징) → 같은 mammoth 메타', () {
+      expect(BrandRegistry.resolveOrNull('MHST123')?.key, BrandKey.mammoth);
     });
 
     test('MATA prefix → mata 메타', () {
@@ -50,7 +54,7 @@ void main() {
               .has(BrandFeature.labelCategoryFilter),
           isTrue);
       expect(
-          BrandRegistry.byKey(BrandKey.mhst)
+          BrandRegistry.byKey(BrandKey.mammoth)
               .has(BrandFeature.labelCategoryFilter),
           isFalse);
       expect(
@@ -59,9 +63,9 @@ void main() {
           isFalse);
     });
 
-    test('사운드그래프 전송은 MHST 만 (TPCP/MATA 는 false → 누수 차단)', () {
+    test('사운드그래프 전송은 맘모스 만 (TPCP/MATA 는 false → 누수 차단)', () {
       expect(
-          BrandRegistry.byKey(BrandKey.mhst).has(BrandFeature.soundGraphSend),
+          BrandRegistry.byKey(BrandKey.mammoth).has(BrandFeature.soundGraphSend),
           isTrue);
       expect(
           BrandRegistry.byKey(BrandKey.tpcp).has(BrandFeature.soundGraphSend),
@@ -71,9 +75,9 @@ void main() {
           isFalse);
     });
 
-    test('Sunmi App Store 채널(OTA OFF)은 MHST 만 (TPCP/MATA 는 false → OTA)', () {
+    test('Sunmi App Store 채널(OTA OFF)은 맘모스 만 (TPCP/MATA 는 false → OTA)', () {
       expect(
-          BrandRegistry.byKey(BrandKey.mhst)
+          BrandRegistry.byKey(BrandKey.mammoth)
               .has(BrandFeature.sunmiAppStoreUpdate),
           isTrue);
       expect(
@@ -88,38 +92,75 @@ void main() {
   });
 
   group('통화/환경/테마/영수증로고 매핑', () {
-    test('통화: TPCP=jpy, MHST/MATA=krw', () {
+    test('통화: TPCP=jpy, 맘모스/MATA=krw', () {
       expect(BrandRegistry.byKey(BrandKey.tpcp).currency, CurrencyUnit.jpy);
-      expect(BrandRegistry.byKey(BrandKey.mhst).currency, CurrencyUnit.krw);
+      expect(BrandRegistry.byKey(BrandKey.mammoth).currency, CurrencyUnit.krw);
       expect(BrandRegistry.byKey(BrandKey.mata).currency, CurrencyUnit.krw);
     });
 
-    test('서버 환경: TPCP=japanLive, 그 외=live', () {
-      expect(BrandRegistry.byKey(BrandKey.tpcp).serverEnvironment, 'japanLive');
-      expect(BrandRegistry.byKey(BrandKey.mhst).serverEnvironment, 'live');
-      expect(BrandRegistry.byKey(BrandKey.mata).serverEnvironment, 'live');
+    test('서버 환경: TPCP=japanLive, MATA=live', () {
+      expect(BrandRegistry.environmentForStoreId('TPCP0001'), 'japanLive');
+      expect(BrandRegistry.environmentForStoreId('MATA999'), 'live');
     });
 
     test('테마 매핑', () {
       expect(
           BrandRegistry.byKey(BrandKey.tpcp).theme, BrandTheme.appfitDefault);
       expect(
-          BrandRegistry.byKey(BrandKey.mhst).theme, BrandTheme.mammothCoffee);
+          BrandRegistry.byKey(BrandKey.mammoth).theme, BrandTheme.mammothCoffee);
       expect(BrandRegistry.byKey(BrandKey.mata).theme, BrandTheme.mata);
     });
 
-    test('영수증 로고: TPCP 없음, MHST/MATA 있음', () {
+    test('영수증 로고: TPCP 없음, 맘모스/MATA 있음', () {
       expect(BrandRegistry.byKey(BrandKey.tpcp).hasReceiptLogo, isFalse);
       expect(BrandRegistry.byKey(BrandKey.tpcp).receiptLogoPath, isNull);
-      expect(BrandRegistry.byKey(BrandKey.mhst).hasReceiptLogo, isTrue);
-      expect(BrandRegistry.byKey(BrandKey.mhst).receiptLogoPath, isNotNull);
+      expect(BrandRegistry.byKey(BrandKey.mammoth).hasReceiptLogo, isTrue);
+      expect(BrandRegistry.byKey(BrandKey.mammoth).receiptLogoPath, isNotNull);
     });
 
     test('자산 경로 포맷', () {
-      final mhst = BrandRegistry.byKey(BrandKey.mhst);
-      expect(mhst.labelLogoPath, 'assets/images/brand/mammoth/label_logo.bmp');
+      final mammoth = BrandRegistry.byKey(BrandKey.mammoth);
       expect(
-          mhst.receiptLogoPath, 'assets/images/brand/mammoth/receipt_logo.png');
+          mammoth.labelLogoPath, 'assets/images/brand/mammoth/label_logo.bmp');
+      expect(mammoth.receiptLogoPath,
+          'assets/images/brand/mammoth/receipt_logo.png');
+    });
+  });
+
+  // 한 브랜드가 프리픽스를 여러 개 갖는 유일한 사례. MMTH 가 없으면 MMTH 매장이
+  // resolveOrNull=null 로 떨어져 사운드그래프 OFF·테마 미적용이 되고, resolve()
+  // 폴백 때문에 라벨·영수증에 tokyoplatz 로고가 찍힌다(출시 차단급 결함).
+  group('맘모스 다중 프리픽스 (MMTH=운영, MHST=스테이징)', () {
+    test('MMTH → live, MHST → staging', () {
+      expect(BrandRegistry.environmentForStoreId('MMTH00001'), 'live');
+      expect(BrandRegistry.environmentForStoreId('MHST00001'), 'staging');
+    });
+
+    test('두 프리픽스가 같은 브랜드·같은 자산·같은 capability 로 해석된다', () {
+      final live = BrandRegistry.resolveOrNull('MMTH00001')!;
+      final staging = BrandRegistry.resolveOrNull('MHST00001')!;
+      expect(live.key, staging.key);
+      expect(live.assetFolder, staging.assetFolder);
+      expect(live.theme, staging.theme);
+      expect(live.currency, staging.currency);
+      expect(live.features, staging.features);
+      expect(live.labelLogoPath, 'assets/images/brand/mammoth/label_logo.bmp');
+      expect(staging.labelLogoPath, live.labelLogoPath);
+    });
+
+    test('대표 프리픽스는 MMTH (선언 순서 = 운영 우선)', () {
+      expect(BrandRegistry.byKey(BrandKey.mammoth).storeIdPrefix, 'MMTH');
+    });
+
+    test('타 브랜드 ID 를 넘기면 대표 프리픽스 환경으로 폴백', () {
+      expect(
+          BrandRegistry.byKey(BrandKey.mammoth).environmentFor('TPCP0001'),
+          'live');
+      expect(BrandRegistry.byKey(BrandKey.mammoth).environmentFor(null), 'live');
+    });
+
+    test('미등록 prefix 는 여전히 null (환경 폴백은 호출 측 책임)', () {
+      expect(BrandRegistry.environmentForStoreId('KOKO0001'), isNull);
     });
   });
 }

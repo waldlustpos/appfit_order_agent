@@ -51,6 +51,31 @@ android {
         targetSdk = 35
     }
 
+    // 2-티어 아티팩트 모델. 같은 코드·같은 버전이고 OS 셸 아이덴티티(applicationId,
+    // 런처 label/icon)만 다르다. 브랜드 로직은 전부 런타임(BrandRegistry) 정본이며
+    // 플레이버는 절대 로직을 가르지 않는다 (lib/config/build_brand.dart 참조).
+    //
+    // WARNING: 플레이버가 있는 프로젝트는 --flavor 없는 flutter build 가 실패한다.
+    // 모든 빌드 스크립트와 .vscode/launch.json 에 --flavor 를 명시해야 한다.
+    // Android 는 --flavor <slug> 와 --dart-define=APPFIT_BRAND=<slug> 를 반드시
+    // 함께 넘긴다. 어긋나면 맘모스 패키지가 공통 OTA 채널을 보게 되고, 받은 APK 는
+    // 패키지 불일치로 설치가 실패한다.
+    flavorDimensions += "brand"
+    productFlavors {
+        // Tier 0 — 공통 아티팩트. suffix 없음 = 기존 함대의 applicationId 불변.
+        create("common") {
+            dimension = "brand"
+        }
+        // Tier 1 — 맘모스(매머드커피) 전용. 별도 Sunmi App Store 리스팅이 필요해
+        // 패키지를 분리한다: 리스팅은 패키지당 1개인데 모든 Sunmi 매장이 공통
+        // 리스팅에서 설치하므로, 같은 패키지로는 "맘모스 매장만 맘모스 아이콘"을
+        // 보장할 수 없다 (런처 아이콘은 앱 실행 전에 보여 런타임 게이팅 불가).
+        create("mammoth") {
+            dimension = "brand"
+            applicationIdSuffix = ".mammoth"
+        }
+    }
+
     signingConfigs {
         create("release") {
             keyAlias = keystoreProperties.getProperty("keyAlias")

@@ -114,6 +114,7 @@ class Translations$common$ko {
 
 	late final Translations$common$api_error$ko api_error = Translations$common$api_error$ko.internal(_root);
 	late final Translations$common$sync$ko sync = Translations$common$sync$ko.internal(_root);
+	late final Translations$common$brand_install$ko brand_install = Translations$common$brand_install$ko.internal(_root);
 }
 
 // Path: login
@@ -904,6 +905,21 @@ class Translations$common$sync$ko {
 
 	/// ko: '지금 재시도'
 	String get retry_now => '지금 재시도';
+}
+
+// Path: common.brand_install
+class Translations$common$brand_install$ko {
+	Translations$common$brand_install$ko.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// ko: '이 매장은 매머드오더 에이전트 전용 앱을 사용해야 합니다. 현재 앱으로도 주문은 정상 처리됩니다.'
+	String get needs_dedicated => '이 매장은 매머드오더 에이전트 전용 앱을 사용해야 합니다. 현재 앱으로도 주문은 정상 처리됩니다.';
+
+	/// ko: '매머드 전용 앱에 다른 브랜드 매장으로 로그인했습니다. 공통 앱으로 교체가 필요합니다.'
+	String get wrong_dedicated => '매머드 전용 앱에 다른 브랜드 매장으로 로그인했습니다. 공통 앱으로 교체가 필요합니다.';
 }
 
 // Path: login.tabs
