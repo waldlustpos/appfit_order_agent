@@ -33,6 +33,7 @@ import 'package:appfit_order_agent/providers/locale_provider.dart';
 import 'package:appfit_order_agent/providers/rotation_provider.dart';
 import 'package:appfit_order_agent/services/monitoring/monitoring_context_builder.dart';
 import 'package:appfit_order_agent/services/monitoring/order_agent_monitoring_context.dart';
+import 'package:appfit_order_agent/config/build_brand.dart';
 import 'package:appfit_order_agent/constants/app_styles.dart';
 import 'package:appfit_order_agent/constants/brand_theme.dart';
 
@@ -188,7 +189,14 @@ void main() async {
     }
 
     // 브랜드 테마 적용 — runApp 이전에 AppStyles 의 활성 브랜드를 확정
-    final savedBrand = BrandTheme.fromId(preferenceService.getBrandThemeId());
+    // 저장값이 없는 신규 설치는 맘모스 flavor 빌드면 로그인 전부터 맘모스 테마로
+    // 프리시드한다(로그인 후에는 매장ID 기반 reconcileForStore 가 그대로 정본).
+    final savedId = preferenceService.getBrandThemeId();
+    final savedBrand = savedId != null
+        ? BrandTheme.fromId(savedId)
+        : (BuildBrand.isMammoth
+            ? BrandTheme.mammothCoffee
+            : BrandTheme.appfitDefault);
     AppStyles.applyBrand(savedBrand);
     logger.i('[Main] 브랜드 테마 적용: ${savedBrand.id}');
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:appfit_order_agent/config/build_brand.dart';
 import 'package:appfit_order_agent/constants/app_styles.dart';
 import 'package:appfit_order_agent/providers/kds/kds_unified_providers.dart';
 import 'package:appfit_order_agent/providers/store_provider.dart';
@@ -102,14 +103,23 @@ class _DrawerHeader extends StatelessWidget {
       decoration: BoxDecoration(color: AppStyles.kMainColor),
       child: Row(
         children: [
-          Image.asset(
-            'assets/icons/app_icon_transparent.png',
-            width: 36,
-            height: 36,
-            // 원본 1024px 를 36px 표시용으로 전체 디코딩하지 않도록 축소 디코딩
-            // (2GB 기기 이미지 캐시 절약: ~4MB → 수십 KB)
-            cacheWidth: (36 * MediaQuery.devicePixelRatioOf(context)).round(),
-          ),
+          BuildBrand.isMammoth
+              ? Image.asset(
+                  'assets/images/brand/mammoth/logo.png',
+                  height: 36,
+                  fit: BoxFit.contain,
+                  cacheHeight:
+                      (36 * MediaQuery.devicePixelRatioOf(context)).round(),
+                )
+              : Image.asset(
+                  'assets/icons/app_icon_transparent.png',
+                  width: 36,
+                  height: 36,
+                  // 원본 1024px 를 36px 표시용으로 전체 디코딩하지 않도록 축소 디코딩
+                  // (2GB 기기 이미지 캐시 절약: ~4MB → 수십 KB)
+                  cacheWidth:
+                      (36 * MediaQuery.devicePixelRatioOf(context)).round(),
+                ),
           const SizedBox(width: AppSpacing.s12),
           Expanded(
             child: Text(

@@ -26,6 +26,13 @@ const Set<String> kAllowedBuildBrandReferences = {
   // 오설치 안내 판정 — 설치된 아티팩트 vs 매장 브랜드 비교. 게이팅이 아니라
   // 안내만 한다(차단하지 않음).
   'lib/providers/brand_provider.dart',
+  // 로그인 전 기본 브랜드 프리시드 — 문서 주석(build_brand.dart)이 명시한
+  // 허용 범위. 저장된 브랜드 테마가 없는 신규 설치에서만 개입하고, 로그인 후엔
+  // 매장ID 기반 reconcileForStore 가 그대로 정본이다.
+  'lib/main.dart',
+  // 드로어 헤더 로고 — 맘모스 flavor 전용 이미지 강제 적용. 다른 flavor는
+  // 기존 고정 아이콘 그대로라 회귀 없음.
+  'lib/widgets/home/drawer_menu.dart',
   // Phase C 예정: 'lib/config/update_config.dart' (Windows OTA 채널)
 };
 
