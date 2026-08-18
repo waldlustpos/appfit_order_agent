@@ -145,8 +145,8 @@ sentry.properties
 # ----------------------------------------------------------------------------
 # Windows Build Artifacts
 # ----------------------------------------------------------------------------
-appfit_order_agent_windows.zip
-appfit_order_agent_windows_version.json
+appfit_order_agent*_windows.zip
+appfit_order_agent*_windows_version.json
 .sentry-native/
 dist/
 
