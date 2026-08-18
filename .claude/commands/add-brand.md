@@ -26,6 +26,24 @@ description: 새 브랜드를 대화형으로 추가 (brand_registry/brand_theme
 
 치환 토큰을 확정한다: `<PREFIX>`(대문자4), `<slug>`, `<KEY>`(enum 키), `<EnumCase>`(BrandTheme 항목명, camelCase, 예: `mahaTaste`), `<KeyPascal>`(인스턴스 헬퍼명, 예: `Maha`→`isMahaStore`), `<NAME_ko/en/ja>`.
 
+### STEP 0-B — Tier 1(전용 아티팩트) 승격 판정
+
+아래 3문항을 묻는다. **기본은 전부 "아니오"(Tier 0 — 이 커맨드가 하는 런타임
+등록만으로 충분)**. 이 게이트가 무분별한 아티팩트 증식을 막는 장치다 — 채널은
+브랜드가 아니라 아티팩트에 종속되므로, 아티팩트가 늘면 채널·서명·배포 절차
+전체가 함께 늘어난다.
+
+12. **이 브랜드가 자체 App Store 리스팅이나 자체 유통 경로를 요구하는가?**
+13. **그 함대가 이 브랜드 기기로만 구성되는가(타 브랜드와 혼재하지 않는가)?**
+14. **런처 이름·아이콘이 계약·운영상 요구사항인가?**
+
+셋 다 "예"일 때만 Tier 1 승격 대상이다. 이 커맨드는 **Tier 0(런타임 등록)까지만
+수행**한다 — 패키지 분리·전용 아이콘·전용 OTA 채널은 범위 밖이며, STEP 6 에서
+안내만 하고 실제 작업은 사람이 별도로 진행한다(맘모스 사례: `co.kr.waldlust.
+order.receive.appfit.mammoth` 패키지 분리, `feat/mammoth-dedicated-build`
+브랜치의 Android productFlavor(Phase B)·Windows CMake/Inno 브랜드 축(Phase C)
+패턴 참고). 하나라도 "아니오"면 Tier 0 로 계속 진행한다.
+
 ---
 
 ## STEP 1 — 멱등성·중복 검증 (Grep 가드)
@@ -33,7 +51,7 @@ description: 새 브랜드를 대화형으로 추가 (brand_registry/brand_theme
 각 지점이 이미 적용됐는지 Grep 한다:
 
 ```
-grep -n "BrandKey.<KEY>\|storeIdPrefix: '<PREFIX>'\|assetFolder: '<slug>'" lib/utils/brand_registry.dart
+grep -n "BrandKey.<KEY>\|prefixEnvironments: {'<PREFIX>'\|assetFolder: '<slug>'" lib/utils/brand_registry.dart
 grep -n "BrandKey.<KEY>" lib/services/label_printer/qr_payload_strategy.dart   # QR 전략 exhaustive switch case
 grep -n "id: '<KEY>'" lib/constants/brand_theme.dart
 grep -n "options.<KEY>" lib/widgets/settings/settings_brand_theme_section.dart
@@ -61,16 +79,22 @@ ls android/app/src/main/res/drawable/dm_<slug>.png 2>/dev/null   # 듀얼모니�
 ```dart
     BrandKey.<KEY>: BrandMeta(
       key: BrandKey.<KEY>,
-      storeIdPrefix: '<PREFIX>',
+      prefixEnvironments: {'<PREFIX>': '<live|japanLive>'},   // 입력 8 → japanLive
       assetFolder: '<slug>',
       hasReceiptLogo: <true 영수증 시 / 아니면 줄 생략>,
       theme: BrandTheme.<EnumCase>,
       currency: CurrencyUnit.<krw|jpy>,        // 입력 8(일본/JPY) → jpy
-      serverEnvironment: '<live|japanLive>',   // 입력 8 → japanLive
       features: {<지원 기능, 예: BrandFeature.labelCategoryFilter> },  // 없으면 줄 생략
     ),
 ```
-입력 8(특수 분기)이 "아니오"면 currency=krw / serverEnvironment='live' / features 생략. "예"(일본)면 jpy / japanLive / 필요 기능 등록.
+입력 8(특수 분기)이 "아니오"면 currency=krw / `prefixEnvironments` 값='live' / features 생략. "예"(일본)면 jpy / japanLive / 필요 기능 등록.
+
+> `prefixEnvironments` 는 `Map<String, String>` 이다(프리픽스 → 서버 환경). 한
+> 브랜드가 프리픽스를 여러 개 가질 수 있는 경우(예: 운영/스테이징 분리)는
+> `{'<PREFIX1>': 'live', '<PREFIX2>': 'staging'}` 처럼 항목을 늘린다 — 이
+> 커맨드의 기본 입력 흐름은 프리픽스 1개만 받으므로, 다중 프리픽스가 필요하면
+> STEP 6 에서 사람이 직접 추가한다(맘모스 사례 참고: `MMTH`=live,
+> `MHST`=staging).
 
 ### 2-2. `lib/constants/brand_theme.dart` — ⚠️ 세미콜론 함정
 마지막 enum 항목이 `);` 로 끝난다. anchor 에 `  );` + 빈 줄 + `  const BrandTheme({` 를 포함해 종료부만 유일 매칭하고, `);`→`),` 로 바꾼 뒤 새 항목 + `);` 를 넣는다.
@@ -104,7 +128,7 @@ assets 의 마지막 brand 폴더 줄 뒤에 `    - assets/images/brand/<slug>/`
 - **기본 포맷 그대로**(대부분): Default 반환 그룹에 `case BrandKey.<KEY>:` 한 줄 추가.
 ```dart
     case BrandKey.tpcp:
-    case BrandKey.mhst:
+    case BrandKey.mammoth:
     case BrandKey.mata:
     case BrandKey.<KEY>:       // ← 추가
     case null:
@@ -191,7 +215,7 @@ catch-all(appfit-alert-test)로 흡수되므로 **스킵**한다. 전용 채널�
 ```
    - 브랜드 전체를 한 채널로(권장): `match: "sw"` + 4자 prefix.
    - 특정 매장만: `match: "eq"` + 정확한 store_id.
-   - 운영 서버 이벤트만 받고 싶으면 `"environment": "<브랜드 serverEnvironment>"`(선택) 추가.
+   - 운영 서버 이벤트만 받고 싶으면 `"environment": "<브랜드 prefixEnvironments 값>"`(선택) 추가.
      스크립트가 `[auto] <PREFIX>(non-<env>) -> #<catchall 채널>` spillover 규칙을 함께 만들어
      나머지 환경(staging 등)을 흘려보낸다. 사내 QA 매장이 많은 브랜드에 유용(MHST 선례).
 2. 적용(멱등):
@@ -221,5 +245,6 @@ python3 sentry_alerts/sentry_alerts.py list              # 결과 확인
 - [ ] 실기기: 해당 prefix 매장 로그인 → 라벨/영수증 테스트 출력, 브랜드 전환 시 캐시 무효화 확인
 - [ ] **테마 노출** — 해당 prefix 매장 로그인 → 설정 오른쪽 패널 상단에 테마 카드(`기본 / <NAME>`) 2종 노출 확인. 색상 placeholder 면 핑크로 보이지만 노출은 정상(STEP 2-2 항목만 있으면 동작). `theme: BrandTheme.appfitDefault` 로 둔 브랜드는 일반 설정 picker 미노출이 정상.
 - [ ] **QR 페이로드** — STEP 2-6 에서 `BrandKey.<KEY>` case 추가됨(기본 `DefaultQrPayloadStrategy`). 이 브랜드가 다른 QR 포맷이면 커스텀 `<KeyPascal>QrPayloadStrategy` 로 교체했는지 확인. (QR 출력 ON/OFF 는 일반설정 토글이라 코드 변경 없음.)
-- [ ] (입력 8 이 "예" 였다면) 일본/JPY 등은 `BrandMeta.currency`/`serverEnvironment` 로 처리됨. 추가로 다른 동작이 필요하면 `BrandFeature` + Strategy/Hook(라벨필터=`label_filter_strategy.dart`, 외부전송=`soundgraph_hook.dart`, QR페이로드=`qr_payload_strategy.dart`) 패턴 참고
+- [ ] (입력 8 이 "예" 였다면) 일본/JPY 등은 `BrandMeta.currency`/`prefixEnvironments` 로 처리됨. 추가로 다른 동작이 필요하면 `BrandFeature` + Strategy/Hook(라벨필터=`label_filter_strategy.dart`, 외부전송=`soundgraph_hook.dart`, QR페이로드=`qr_payload_strategy.dart`) 패턴 참고
+- [ ] Tier 1(전용 아티팩트) 승격 대상이었다면(STEP 0-B 3문항) — 이 커맨드는 Tier 0(런타임 등록)까지만 수행했다. 패키지 분리·전용 아이콘·전용 OTA 채널은 `feat/mammoth-dedicated-build` 브랜치의 Phase B(Android)/C(Windows) 패턴을 참고해 별도 작업으로 진행
 - [ ] (입력 11 이 있었다면) **Sentry 알림 라우팅** — `SENTRY_AUTH_TOKEN` 발급 후 `sentry_alerts.py apply` 실행 → `list` 로 `[auto] <PREFIX> -> #채널` 규칙 생성 확인. **소급 발화 없음** → 해당 브랜드에서 새 에러 1건 유발해 전용 채널 도착 + test 채널 미도착 확인

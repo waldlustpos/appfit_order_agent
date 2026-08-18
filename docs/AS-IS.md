@@ -96,20 +96,25 @@ lib/
 | --- | --- | --- |
 | Layer 1 — SSOT 레지스트리 | `BrandRegistry` → `BrandMeta` | prefix → 자산 폴더·영수증 로고·테마·통화·서버환경·features 해석. `resolveOrNull()`(미매칭=null, capability·통화·환경용) vs `resolve()`(미매칭=fallback tpcp, 자산 경로 전용) 2단 해석 |
 | Layer 2 — Capability 게이팅 | `enum BrandFeature` | `labelCategoryFilter`·`soundGraphSend`·`japanEnvironment`·`sunmiAppStoreUpdate` — `brand.has(feature)`로 UI show/hide·로직 on/off |
-| Layer 3 — 동작 seam | Strategy/Hook 인터페이스 | 동작이 갈리는 소수 지점만 분리: `LabelFilterStrategy`(TPCP 라벨 메뉴 필터), `SoundGraphHook`(MHST 자동접수 후 전송), `qrPayloadStrategyProvider`(라벨 QR 페이로드) — 비대상 브랜드는 NoOp |
+| Layer 3 — 동작 seam | Strategy/Hook 인터페이스 | 동작이 갈리는 소수 지점만 분리: `LabelFilterStrategy`(TPCP 라벨 메뉴 필터), `SoundGraphHook`(맘모스 자동접수 후 전송), `qrPayloadStrategyProvider`(라벨 QR 페이로드) — 비대상 브랜드는 NoOp |
 
 ### 3.2 등록 브랜드 (prefix 표)
 
-| BrandKey | prefix | 자산 폴더 | 테마 | 통화 | 서버 환경 | features |
-| --- | --- | --- | --- | --- | --- | --- |
-| `tpcp` (fallback) | `TPCP` | tokyoplatz | appfitDefault | JPY | japanLive | labelCategoryFilter, japanEnvironment |
-| `mhst` | `MHST` | mammoth | mammothCoffee | KRW | live | soundGraphSend, sunmiAppStoreUpdate |
-| `mata` | `MATA` | mahataste | mata | KRW | live | (없음) |
-| `paik` | `PAIK` | paik | paik | JPY | japanLive | japanEnvironment |
+한 브랜드가 프리픽스를 여러 개 가질 수 있다(`BrandMeta.prefixEnvironments`,
+`Map<프리픽스, 서버환경>`) — 맘모스가 유일한 사례.
+
+| BrandKey | prefix → 서버 환경 | 자산 폴더 | 테마 | 통화 | features |
+| --- | --- | --- | --- | --- | --- |
+| `tpcp` (fallback) | `TPCP`→japanLive | tokyoplatz | appfitDefault | JPY | labelCategoryFilter, japanEnvironment |
+| `mammoth` | `MMTH`→live, `MHST`→staging | mammoth | mammothCoffee | KRW | soundGraphSend, sunmiAppStoreUpdate |
+| `mata` | `MATA`→live | mahataste | mata | KRW | (없음) |
+| `paik` | `PAIK`→japanLive | paik | paik | JPY | japanEnvironment |
+| `tljp` | `TLJP`→japanLive | theliterjp | tljp | JPY | japanEnvironment |
 
 - 테마는 `main()`의 `AppStyles.applyBrand()`로 부팅 시 1회 고정 — 색상 변경은 앱 재시작 후 반영.
 - `currentBrandProvider`는 무상태로 매번 prefs를 읽어 `BrandMeta?` 반환 → 로그아웃/서버전환 시 outdated 문제 없음.
-- 새 브랜드 추가 = `BrandKey` enum + `BrandRegistry._all` 항목 + 자산 + `BrandTheme`(선택) + pubspec + `qrPayloadStrategyProvider` switch. 절차: [BRAND_ASSETS.md](BRAND_ASSETS.md) / `/add-brand` 스킬.
+- 새 브랜드 추가 = `BrandKey` enum + `BrandRegistry._all` 항목(`prefixEnvironments` 최소 1개) + 자산 + `BrandTheme`(선택) + pubspec + `qrPayloadStrategyProvider` switch. 절차: [BRAND_ASSETS.md](BRAND_ASSETS.md) / `/add-brand` 스킬(마지막에 Tier 1 승격 3문항 포함).
+- 빌드 아티팩트 티어(런타임과 별개 축): 대부분 Tier 0(공통), 승격 조건 3개를 전부 충족하면 Tier 1(전용 아티팩트) — 현재 맘모스가 유일. 상세: [RELEASE.md](RELEASE.md), [BUILD_VARIANTS.md](BUILD_VARIANTS.md).
 
 ## 4. 핵심 도메인 흐름
 
@@ -171,17 +176,25 @@ lib/
 
 ## 6. 배포 · OTA
 
-### 6.1 단일 빌드 · 런타임 서버선택
+### 6.1 2-티어 아티팩트 · 런타임 서버선택
 
-단일 패키지(`co.kr.waldlust.order.receive.appfit`)·단일 exe(`appfit_order_agent.exe`)·**단일 빌드**가 한국/일본을 모두 서빙한다. 빌드 변형(`APPFIT_VARIANT` dart-define)은 제거됐다.
+**국가는 빌드를 가르지 않는다** — 서버(live/japanLive/staging)는 항상 런타임
+결정이다. 빌드를 가르는 축은 브랜드 아티팩트 티어 하나뿐이다: Tier 0(공통,
+패키지 `co.kr.waldlust.order.receive.appfit`·exe `appfit_order_agent.exe`)이
+기본이고, 승격 조건 3개를 전부 충족하는 브랜드만 Tier 1(전용 아티팩트)로
+분리한다 — 현재 맘모스(`….appfit.mammoth` / `appfit_order_agent_mammoth.exe`)
+가 유일. 두 티어는 같은 코드·같은 버전이며 OS 셸 아이덴티티와 OTA 채널만
+다르다. 상세: [BUILD_VARIANTS.md](BUILD_VARIANTS.md), [RELEASE.md](RELEASE.md).
 
 | 항목 | 내용 |
 | --- | --- |
-| 서버 결정 | 런타임 — 저장값(`appfit_environment`, 기본 `live`) + 로그인 화면 배지(KR/JP) 탭 선택(릴리즈 live/japanLive 2종) + 매장 ID 프리픽스 자동 전환(`BrandRegistry.serverEnvironment`: TPCP·PAIK→japanLive, MHST·MATA→live) |
+| 서버 결정 | 런타임 — 저장값(`appfit_environment`, 기본 `live`) + 로그인 화면 배지(KR/JP) 탭 선택(릴리즈 live/japanLive/staging 3종) + 매장 ID 프리픽스 자동 전환(`BrandMeta.prefixEnvironments`: TPCP·PAIK·TLJP→japanLive, MMTH·MATA→live, MHST→staging) |
 | 미등록 프리픽스 | 명시 선택 이력 없으면 로그인 시 서버선택 다이얼로그 1회 강제 (`appfit_environment_manual_override` 기록) |
-| Android 채널 | `appfit_order_agent_release_version.json` / `appfit_order_agent_release.apk` (단일) |
-| Windows 채널 | `appfit_order_agent_windows_version.json` / `appfit_order_agent_windows.zip` (레거시 무접미 = 단일 채널, 기존 설치본 자연 업데이트) |
-| 병존 설치 | 불가 (머신당 1개, 재설치 시 in-place 업그레이드) |
+| Android 채널(공통) | `appfit_order_agent_release_version.json` / `appfit_order_agent_release.apk` |
+| Android 채널(맘모스) | `appfit_order_agent_mammoth_release_version.json` / `appfit_order_agent_mammoth_release.apk` |
+| Windows 채널(공통) | `appfit_order_agent_windows_version.json` / `appfit_order_agent_windows.zip` (레거시 무접미, 기존 설치본 자연 업데이트) |
+| Windows 채널(맘모스) | `appfit_order_agent_mammoth_windows_version.json` / `appfit_order_agent_mammoth_windows.zip` |
+| 병존 설치 | Tier 0 는 머신당 1개(재설치 시 in-place 업그레이드). Tier 1(맘모스)은 별도 applicationId/exe명/설치 GUID 라 **Tier 0 와 같은 머신에 병존 설치 가능** |
 
 - 전환 시퀀스는 `login_screen.dart _applyEnvironment` — WebSocket 해제 → 환경 저장 → `AppFitConfig.configure` → 자격증명 정리 → tokenManager/dio invalidate (`appFitNotifierServiceProvider` invalidate 금지, 순서 변경 금지).
 - **Android 레거시 무접미 채널 동결(FROZEN)**: 구 패키지(`co.kr.waldlust.order.receive`)로 설치된 일본 매장 1곳 전용 — 업로드 금지(수동 재설치 시까지). 구 `_japan`/`_korea` 채널은 폐기(미사용). 채널이 하나이므로 업로드 즉시 한국/일본 동시 롤아웃된다.
