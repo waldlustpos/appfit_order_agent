@@ -8,11 +8,20 @@
 namespace {
 
 // Single-instance identity. Unified across korea and japan builds: the region
-// is a runtime concept, so both share one mutex name and window title. Only one
-// instance of the app runs on a machine regardless of region.
+// is a runtime concept, so both share one mutex name and window title within
+// a brand. Only one instance of the app runs on a machine per brand.
+//
+// Brand axis - see windows/CMakeLists.txt (APPFIT_BRAND_MAMMOTH). Common
+// keeps the exact legacy values (no regression for the existing fleet).
+#if defined(APPFIT_BRAND_MAMMOTH)
+constexpr const wchar_t kSingleInstanceMutexName[] =
+    L"Global\\AppfitOrderAgent_Mammoth_SingleInstance_Mutex";
+constexpr const wchar_t kWindowTitle[] = L"appfit_order_agent_mammoth";
+#else
 constexpr const wchar_t kSingleInstanceMutexName[] =
     L"Global\\AppfitOrderAgent_SingleInstance_Mutex";
 constexpr const wchar_t kWindowTitle[] = L"appfit_order_agent";
+#endif
 
 // Brings the already-running instance's window to the foreground.
 BOOL CALLBACK BringExistingWindowToFront(HWND hwnd, LPARAM lparam) {

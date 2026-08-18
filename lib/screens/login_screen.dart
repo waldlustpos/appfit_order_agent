@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:appfit_order_agent/config/app_env.dart';
+import 'package:appfit_order_agent/config/build_brand.dart';
 import 'package:appfit_order_agent/widgets/common/app_loading_indicator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
@@ -851,14 +852,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            BrandLogo(
-              height: 120,
-              fallbackText: 'AppFit',
-              fallbackStyle: AppTextStyles.display.copyWith(
-                color: brand.onLoginBackground,
-                fontSize: 40,
-              ),
-            ),
+            // 로그인 로고는 맘모스 flavor 빌드면 선택된 테마(기본 테마 포함)와
+            // 무관하게 항상 맘모스로 고정한다 — 런처 아이콘/이름과 같은 아티팩트
+            // 정체성 요소로 취급(색상 테마는 여전히 activeBrand 를 따름).
+            BuildBrand.isMammoth
+                ? Image.asset(
+                    'assets/images/brand/mammoth/logo.png',
+                    height: 120,
+                    fit: BoxFit.contain,
+                  )
+                : BrandLogo(
+                    height: 120,
+                    fallbackText: 'AppFit',
+                    fallbackStyle: AppTextStyles.display.copyWith(
+                      color: brand.onLoginBackground,
+                      fontSize: 40,
+                    ),
+                  ),
             const SizedBox(height: AppSpacing.s32),
             Text(
               heroSubTitle,

@@ -1,5 +1,10 @@
 ﻿# 윈도우 릴리스 빌드 스크립트 (PowerShell)
-# 사용법: .\build_windows.ps1
+# 사용법: .\build_windows.ps1 [-Brand common|mammoth]   (기본 common)
+
+param(
+    [ValidateSet('common', 'mammoth')]
+    [string]$Brand = 'common'
+)
 
 # 콘솔/파이프라인 인코딩 UTF-8 고정 (한글 출력 깨짐 방지)
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
@@ -8,11 +13,32 @@ chcp 65001 > $null
 
 $ErrorActionPreference = "Stop"
 
-# Single unified build for both regions. The server (live/japanLive) is chosen
-# at runtime on the login screen, so there is no variant argument or
-# APPFIT_VARIANT dart-define injection.
-$ExeName = 'appfit_order_agent.exe'
-Write-Host "[INFO] Build exe: $ExeName" -ForegroundColor Cyan
+# 지역(한국/일본)은 이 빌드와 무관 — 서버(live/japanLive)는 로그인 화면에서
+# 런타임 선택된다. 빌드를 가르는 축은 브랜드 아티팩트 티어 하나뿐이다
+# (lib/config/build_brand.dart, Android productFlavors 와 동일 축).
+
+# 브랜드 전환 시 CMake 캐시가 이전 BINARY_NAME 을 참조해 두 exe 가 같은
+# Release 폴더에 공존하는 사고를 막는다(ZIP/설치본에 잘못된 exe 까지 함께
+# 담길 수 있음). CMakeCache.txt/CMakeFiles 만 정밀 삭제한다 — build\windows
+# 전체를 지우면(특히 _deps, 즉 sentry-native 재fetch 를 동반한 완전 콜드
+# configure) 이 머신의 CMake+VS2022 조합에서 generator platform 기록이
+# 비어버리는 간헐적 버그를 실측했다(재현: CMakeCache.txt+CMakeFiles 만 지운
+# 부분 wipe 는 매번 정상, build\windows 전체 wipe 는 1회 실패 관측).
+$BrandSentinel = "build\windows\.appfit_brand"
+$previousBrand = if (Test-Path $BrandSentinel) { (Get-Content $BrandSentinel -Raw).Trim() } else { $null }
+if ($previousBrand -and $previousBrand -ne $Brand) {
+    Write-Host "[INFO] Brand changed ($previousBrand -> $Brand) - cleaning CMake cache + stale exe" -ForegroundColor Yellow
+    Remove-Item "build\windows\x64\CMakeCache.txt" -Force -ErrorAction SilentlyContinue
+    Remove-Item "build\windows\x64\CMakeFiles" -Recurse -Force -ErrorAction SilentlyContinue
+    # 이전 브랜드의 exe 가 Release 폴더에 잔류해 ZIP/설치본에 함께 담기는
+    # 사고를 막는다(CMake 재구성은 새 타겟만 추가할 뿐 이전 산출물을 지우지
+    # 않는다).
+    Remove-Item "build\windows\x64\runner\Release\*.exe" -Force -ErrorAction SilentlyContinue
+}
+$env:APPFIT_BRAND = $Brand
+
+$ExeName = if ($Brand -eq 'mammoth') { 'appfit_order_agent_mammoth.exe' } else { 'appfit_order_agent.exe' }
+Write-Host "[INFO] Brand: $Brand / Build exe: $ExeName" -ForegroundColor Cyan
 
 Write-Host "🚀 Windows Release 빌드 시작..." -ForegroundColor Green
 Write-Host ""
@@ -54,6 +80,7 @@ $buildOutput = "build\windows\x64\runner\Release"
 function Invoke-FlutterWindowsBuild {
     flutter build windows --release `
         --dart-define-from-file=.env `
+        --dart-define=APPFIT_BRAND="$Brand" `
         --dart-define=WINDOWS_APP_VERSION="$WinBuildName" `
         --dart-define=WINDOWS_APP_BUILD="$WinBuildNumber" `
         --build-name="$WinBuildName" `
@@ -90,6 +117,10 @@ if ($exitCode -ne 0 -or -not (Test-BuildArtifactComplete)) {
     Write-Host "   깨진 산출물이 아카이브/배포되지 않도록 여기서 중단합니다." -ForegroundColor Red
     exit 1
 }
+
+# 브랜드 sentinel 갱신 (다음 실행의 브랜드 전환 감지용)
+New-Item -ItemType Directory -Force -Path "build\windows" | Out-Null
+Set-Content -Path $BrandSentinel -Value $Brand -NoNewline
 
 Write-Host ""
 Write-Host "✅ 빌드 완료!" -ForegroundColor Green
@@ -181,4 +212,4 @@ Write-Host "ℹ️  Release 폴더 전체를 ZIP 으로 압축해 배포하면 �
 
 # --- 로컬 아카이브 보관 (Release 폴더를 ZIP 으로 압축해 버전별 보관 + 노트 기록 + 폴더 열기) ---
 Write-Host ""
-& "$PSScriptRoot\archive_windows.ps1" -SrcArtifact $buildOutput
+& "$PSScriptRoot\archive_windows.ps1" -SrcArtifact $buildOutput -Brand $Brand

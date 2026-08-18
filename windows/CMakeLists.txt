@@ -5,11 +5,27 @@ project(appfit_order_agent LANGUAGES CXX)
 # The name of the executable created for the application. Change this to change
 # the on-disk name of your application.
 #
-# Single unified exe name for both korea and japan. The server (live/japanLive)
-# is selected at runtime on the app's login screen, so there is no per-region
-# binary name or build-time define. The OTA channel is a single URL
-# (see lib/config/update_config.dart).
-set(BINARY_NAME "appfit_order_agent")
+# Region (korea/japan) never affects this - the server (live/japanLive) is
+# selected at runtime on the app's login screen.
+#
+# Brand axis (mirrors Android product flavors, lib/config/build_brand.dart).
+# Default "common" keeps BINARY_NAME identical to before this branch (no
+# regression for the fleet). Set via $env:APPFIT_BRAND before invoking
+# flutter/cmake (see build_windows.ps1/-Brand) - an environment variable, not
+# a cmake cache variable, because "flutter build windows" calls cmake
+# internally with no hook to pass custom -D args through, while env vars are
+# inherited by any child process automatically.
+#
+# Only OS shell identity (exe name, ProductName, mutex, icon) changes here.
+# Server environment, BrandFeature gating, printer/order logic stay 100%
+# runtime (BrandRegistry) - see test/config/build_brand_scope_test.dart, which
+# pins the whitelist of files allowed to reference the brand axis.
+if("$ENV{APPFIT_BRAND}" STREQUAL "mammoth")
+  set(BINARY_NAME "appfit_order_agent_mammoth")
+  add_definitions(-DAPPFIT_BRAND_MAMMOTH)
+else()
+  set(BINARY_NAME "appfit_order_agent")
+endif()
 
 # Explicitly opt in to modern CMake behaviors to avoid warnings with recent
 # versions of CMake.

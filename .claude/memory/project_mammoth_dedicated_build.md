@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 189e1561-e4e8-4434-b4f8-17a8e4dc7c9d
-  modified: 2026-08-18T05:36:17.391Z
+  modified: 2026-08-18T06:16:04.948Z
 ---
 
 맘모스커피에 전용 앱 이름·아이콘을 입힌 빌드를 만들고 공통 빌드와 구분해 배포하는 체계. 설계는 `.claude/plans/mammoth-dedicated-build.md`(커밋 `605ac09`).
@@ -32,3 +32,9 @@ metadata:
 **오설치 안전망은 차단하지 않는다**: 브랜드 동작이 100% 런타임이라 어느 조합이든 기능은 정상 — 실패 모드가 "깨짐"이 아니라 "런처 아이콘·이름이 다름"이다. 그래서 배너 안내만.
 
 관련: [[project_variant_rename_japan_korea]](변형 폐기 이력), [[project_update_channel_policy_mhst_sunmi]](스토어/OTA 정책), [[project_mhst_brand_image_2026_08]](맘모스 자산), [[reference_brand_asset_large_canvas_bbox_crop]](bbox 크롭), [[project_app_env_gitignored_variant]](gitignored 로컬 파일 함정), [[feedback_concurrent_deploy_version_race]](배포 직전 pubspec 재확인).
+
+**추가 작업 (2026-08-18, 같은 세션)**: 로그인 화면·HOME 드로어 로고를 `BuildBrand.isMammoth` 축으로 강제 적용(기존 `assets/images/brand/mammoth/logo.png` 975×640 재사용). `test/config/build_brand_scope_test.dart` 화이트리스트에 `lib/main.dart`(로그인 전 프리시드 — `build_brand.dart` 문서 주석이 이미 허용 범위로 명시한 케이스)와 `lib/widgets/home/drawer_menu.dart`(드로어 로고 — 새 사용처, 의도적 추가)를 늘렸다. main.dart는 `getBrandThemeId()==null`(신규 설치)일 때만 개입 — 저장값이 있으면 기존 매장ID 기반 `reconcileForStore` 그대로 정본. drawer_menu.dart는 `BuildBrand.isMammoth`일 때만 자산을 교체하고 다른 flavor는 기존 `app_icon_transparent.png` 그대로라 회귀 없음. `flutter analyze`(17건, 기존 베이스라인과 동일) + `flutter test`(513건 전부) + 화이트리스트 테스트(common/mammoth 양쪽 dart-define) 통과 확인. **미검증**: logo.png(가로 워드마크, 975×640)를 드로어 36px 높이에 `BoxFit.contain`으로 넣으면 실사용 폭이 약 55px로 늘어나 좁은 드로어에서 매장명과 답답해 보일 수 있음 — 실기기 시각 확인 필요, 답답하면 이미 브랜치에 있는 정사각 심볼 자산(`assets/icons/app_icon_mammoth_fg.png`, adaptive icon foreground)로 교체 고려.
+
+**후속 버그 + 수정 (같은 날)**: main.dart 프리시드 조건을 한 번 더 넓혀 "해석된 테마==appfitDefault면 무조건 mammoth로" 했다가, 실기기 검증에서 설정→기본 테마 선택→재시작해도 반영 안 되는 회귀 발견. 원인은 `reconcileForStore`가 저장을 쓰지 않는 한 preference 는 계속 null 로 남는데, "값 없음"과 "명시적으로 기본값 저장"을 같은 조건으로 취급했기 때문. `savedId == null`(저장 슬롯 자체가 비어있음) 기준으로 되돌려 수정. 부가 발견: `reconcileForStore`는 비호환 테마를 기본값으로 **리셋만** 하지, 로그인한 매장의 브랜드 테마를 **능동적으로 적용하지 않는다** — 즉 MMTH 매장이 로그인해도 사용자가 설정에서 수동으로 맘모스 테마를 고르지 않으면 UI 색상은 계속 기본값이다(라벨/영수증 인쇄 자산은 매장ID 직결이라 무관, docs/BRAND_ASSETS.md 범위).
+
+**최종 확정 (같은 날)**: 사용자가 "기본 테마이더라도 MAMMOTH 빌드면 로그인화면 로고는 MAMMOTH로"를 재요청 — main.dart의 되돌림과 상충하는 게 아니라, **범위가 다름**을 사용자가 명확히 함. 앱 전체 색상 테마(`AppStyles.activeBrand`)는 설정의 명시적 선택을 존중(위 되돌림 유지), **로그인 화면 로고만** 런처 아이콘/이름과 동급의 "아티팩트 정체성" 요소로 취급해 `BuildBrand.isMammoth`면 테마 선택과 무관하게 항상 맘모스 고정. `lib/screens/login_screen.dart` `_buildHeroPanel()`에서 `BrandLogo`(activeBrand 기반) 대신 `BuildBrand.isMammoth` 분기로 직접 `Image.asset('assets/images/brand/mammoth/logo.png')` 렌더 — 배경/그라데이션은 여전히 `brand.loginGradient`(activeBrand 기반) 그대로라 테마=기본이면 로고만 맘모스+배경은 기본 핑크로 섞일 수 있음(사용자가 로고만 명시했으므로 배경은 손대지 않음, 실기기에서 어색하면 재검토). 드로어 헤더 로고는 애초에 이 방식(activeBrand 무관)으로 구현돼 있어 추가 수정 불필요. 화이트리스트에 `lib/screens/login_screen.dart` 추가. 상세 원칙: [[feedback_flavor_preseed_vs_explicit_choice]].

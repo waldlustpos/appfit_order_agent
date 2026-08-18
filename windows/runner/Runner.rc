@@ -52,7 +52,14 @@ END
 
 // Icon with lowest ID value placed first to ensure application icon
 // remains consistent on all systems.
+//
+// Brand axis - see APPFIT_BRAND_MAMMOTH below. Requires
+// windows/runner/resources/app_icon_mammoth.ico (tool/gen_brand_icon.dart).
+#if defined(APPFIT_BRAND_MAMMOTH)
+IDI_APP_ICON            ICON                    "resources\\app_icon_mammoth.ico"
+#else
 IDI_APP_ICON            ICON                    "resources\\app_icon.ico"
+#endif
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -72,13 +79,23 @@ IDI_APP_ICON            ICON                    "resources\\app_icon.ico"
 #define VERSION_AS_STRING "1.0.0"
 #endif
 
-// Product identity (unified across korea and japan). ProductName drives the
-// per-user data directory chosen by path_provider_windows
-// (%APPDATA%\CompanyName\ProductName). Kept as the legacy name so existing
-// japan Windows installs retain their SharedPreferences and app-support files.
+// Product identity (unified across korea and japan - region never affects
+// this). ProductName drives the per-user data directory chosen by
+// path_provider_windows (%APPDATA%\CompanyName\ProductName). CompanyName
+// (below) is intentionally NOT branched - a different ProductName alone
+// already isolates the SharedPreferences sandbox per brand.
 // Keep ASCII only.
+//
+// Brand axis - see windows/CMakeLists.txt (APPFIT_BRAND_MAMMOTH). Common
+// keeps the exact legacy name so existing japan Windows installs retain their
+// SharedPreferences and app-support files (no regression).
+#if defined(APPFIT_BRAND_MAMMOTH)
+#define APPFIT_PRODUCT_NAME "appfit_order_agent_mammoth"
+#define APPFIT_EXE_NAME     "appfit_order_agent_mammoth.exe"
+#else
 #define APPFIT_PRODUCT_NAME "appfit_order_agent"
 #define APPFIT_EXE_NAME     "appfit_order_agent.exe"
+#endif
 
 VS_VERSION_INFO VERSIONINFO
  FILEVERSION VERSION_AS_NUMBER

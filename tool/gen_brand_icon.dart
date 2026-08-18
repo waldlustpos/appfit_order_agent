@@ -8,11 +8,15 @@
 // 아이콘 한가운데 점처럼 찍힌다 (docs/BRAND_ASSETS.md §4.1).
 //
 // 산출물 (<slug>=mammoth 기준):
-//   assets/icons/app_icon_mammoth.png     - 레거시(비-adaptive) 런처: 흰 배경 + 로고
-//   assets/icons/app_icon_mammoth_fg.png  - adaptive 전경: 투명 배경 + 로고
+//   assets/icons/app_icon_mammoth.png            - 레거시(비-adaptive) 런처: 흰 배경 + 로고
+//   assets/icons/app_icon_mammoth_fg.png         - adaptive 전경: 투명 배경 + 로고
+//   windows/runner/resources/app_icon_mammoth.ico - Windows 런처/설치 아이콘(256px)
 //
 // adaptive 배경은 단색이라 PNG 가 필요 없다 — flutter_launcher_icons-<slug>.yaml 의
 // adaptive_icon_background 에 hex 로 준다.
+// .ico 는 windows/runner/Runner.rc 의 APPFIT_BRAND_MAMMOTH 분기가 직접 참조하므로
+// flutter_launcher_icons 실행과 무관하게 이 스크립트만으로 완성된다
+// (tool/gen_korea_icon.dart 의 공통 .ico 생성 패턴과 동일).
 //
 // 실행:
 //   dart run tool/gen_brand_icon.dart mammoth "C:/Users/.../mammoth_icon.png"
@@ -91,17 +95,22 @@ void main(List<String> args) {
 
   final legacyPath = 'assets/icons/app_icon_$slug.png';
   final foregroundPath = 'assets/icons/app_icon_${slug}_fg.png';
+  final windowsIcoPath = 'windows/runner/resources/app_icon_$slug.ico';
 
-  File(legacyPath).writeAsBytesSync(
-    img.encodePng(_place(logo, kLegacyScale, background: _white)),
-  );
+  final legacyImage = _place(logo, kLegacyScale, background: _white);
+  File(legacyPath).writeAsBytesSync(img.encodePng(legacyImage));
   File(foregroundPath).writeAsBytesSync(
     img.encodePng(_place(logo, kAdaptiveScale, background: null)),
   );
 
+  // Windows 런처/설치 아이콘: 레거시(흰 배경) 합성본을 256px ICO 로 인코딩.
+  final ico = img.copyResize(legacyImage, width: 256, height: 256);
+  File(windowsIcoPath).writeAsBytesSync(img.encodeIco(ico));
+
   stdout.writeln('생성 완료:');
   stdout.writeln('  $legacyPath        (레거시 런처, 로고 ${(kLegacyScale * 100).round()}%)');
   stdout.writeln('  $foregroundPath  (adaptive 전경, 로고 ${(kAdaptiveScale * 100).round()}%)');
+  stdout.writeln('  $windowsIcoPath (Windows 런처/설치 아이콘, 256px)');
   stdout.writeln('');
   stdout.writeln('다음: flutter pub run flutter_launcher_icons '
       '-f flutter_launcher_icons-$slug.yaml');

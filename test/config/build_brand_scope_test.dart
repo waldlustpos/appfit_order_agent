@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:appfit_order_agent/config/build_brand.dart';
 import 'package:appfit_order_agent/config/ota_config.dart';
+import 'package:appfit_order_agent/config/update_config.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// `BuildBrand` 를 참조해도 되는 파일의 화이트리스트.
@@ -33,7 +34,12 @@ const Set<String> kAllowedBuildBrandReferences = {
   // 드로어 헤더 로고 — 맘모스 flavor 전용 이미지 강제 적용. 다른 flavor는
   // 기존 고정 아이콘 그대로라 회귀 없음.
   'lib/widgets/home/drawer_menu.dart',
-  // Phase C 예정: 'lib/config/update_config.dart' (Windows OTA 채널)
+  // 로그인 화면 로고 — 맘모스 flavor면 선택된 테마와 무관하게 항상 맘모스
+  // 이미지(런처 아이콘/이름과 동급의 아티팩트 정체성 요소로 취급). 다른
+  // flavor는 기존 BrandLogo(activeBrand 기반) 그대로라 회귀 없음.
+  'lib/screens/login_screen.dart',
+  // Windows OTA 채널 — ota_config.dart 의 Windows 대응.
+  'lib/config/update_config.dart',
 };
 
 void main() {
@@ -105,6 +111,45 @@ void main() {
         OtaConfig.versionUrl.endsWith('/appfit_order_agent_version.json'),
         isFalse,
       );
+    });
+  });
+
+  group('Windows OTA 채널(UpdateConfig) — 아티팩트당 정확히 1세트', () {
+    // Android 와 반대로 공통이 "레거시 무접미"고 맘모스가 신설이다 — Windows
+    // 는 패키지 개념이 없어 기존 설치본이 무접미 채널로 자연 업데이트되므로
+    // 동결이 아니라 계속 사용이 정책이다(update_config.dart 클래스 doc 참조).
+    test('공통 슬러그면 모든 상수가 이 파일 신설 이전과 바이트 단위로 동일하다', () {
+      if (!BuildBrand.isCommon) return;
+      expect(UpdateConfig.downloadUrl,
+          'http://waldpay.kokonutstamp2.com/appfit_order_agent_windows.zip');
+      expect(
+        UpdateConfig.versionUrl,
+        'http://waldpay.kokonutstamp2.com/appfit_order_agent_windows_version.json',
+      );
+      expect(UpdateConfig.zipFileName, 'appfit_order_agent_windows.zip');
+      expect(UpdateConfig.extractDirName, 'appfit_order_agent_update_extracted');
+      expect(UpdateConfig.updaterBatName, 'appfit_order_agent_updater.bat');
+      expect(UpdateConfig.updaterVbsName,
+          'appfit_order_agent_updater_launcher.vbs');
+      expect(UpdateConfig.updaterLogName, 'appfit_order_agent_updater.log');
+    });
+
+    test('맘모스 슬러그면 전용 채널 + 전용 임시 파일명을 쓴다', () {
+      if (!BuildBrand.isMammoth) return;
+      expect(
+        UpdateConfig.downloadUrl,
+        'http://waldpay.kokonutstamp2.com/appfit_order_agent_mammoth_windows.zip',
+      );
+      expect(
+        UpdateConfig.versionUrl,
+        'http://waldpay.kokonutstamp2.com/'
+            'appfit_order_agent_mammoth_windows_version.json',
+      );
+      expect(UpdateConfig.zipFileName, 'appfit_order_agent_mammoth_windows.zip');
+      // 임시 파일명까지 분리해야 두 브랜드가 한 머신에서 동시에 업데이트를
+      // 진행해도 서로의 updater 배치 파일을 밟지 않는다.
+      expect(UpdateConfig.updaterBatName,
+          'appfit_order_agent_mammoth_updater.bat');
     });
   });
 }

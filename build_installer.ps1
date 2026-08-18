@@ -2,8 +2,9 @@
 # Build the Flutter Windows Release output and wrap it with Inno Setup 6
 # to produce a Setup.exe installer.
 #
-# Usage : .\build_installer.ps1
-# Output: dist\AppfitOrderAgent-Setup-<semver>.exe
+# Usage : .\build_installer.ps1 [-Brand common|mammoth]   (default common)
+# Output: dist\AppfitOrderAgent-Setup-<semver>.exe          (common)
+#         dist\AppfitOrderAgentMammoth-Setup-<semver>.exe   (mammoth)
 #
 # Requires:
 #   - Inno Setup 6 (ISCC.exe)
@@ -13,9 +14,12 @@
 #
 # This script is for the "initial install" installer only.
 # OTA (zip) publishing continues to use deploy_windows.ps1.
-#
-# Usage: .\build_installer.ps1
 ###############################################################################
+
+param(
+    [ValidateSet('common', 'mammoth')]
+    [string]$Brand = 'common'
+)
 
 # Force UTF-8 console so that ISCC output is readable even if it contains
 # localized strings.
@@ -23,9 +27,33 @@
 $OutputEncoding = [System.Text.Encoding]::UTF8
 chcp 65001 > $null
 
-# Single unified installer for both regions. The server (live/japanLive) is
-# chosen at runtime on the login screen, so there is no variant argument or
-# APPFIT_VARIANT dart-define injection.
+# Region (KR/JP) never affects this installer - the server (live/japanLive)
+# is chosen at runtime on the login screen. Brand axis (default "common")
+# mirrors the Android product flavor (lib/config/build_brand.dart).
+Write-Host "[INFO] Brand: $Brand"
+
+# Brand switch cleans the CMake cache so the two brands' exes never collide
+# in the same Release folder (this check must run before the CACHE_FILE
+# reconfigure check below, so that check sees "no cache -> reconfigure").
+# Only CMakeCache.txt/CMakeFiles are removed - wiping all of build\windows
+# (in particular _deps, which forces a sentry-native re-fetch from a cold
+# configure) was observed to leave CMAKE_GENERATOR_PLATFORM blank in the
+# resulting cache on this machine's CMake+VS2022 combo, which then makes any
+# subsequent "-A x64" invocation (including flutter's own internal one) fail
+# with "generator platform: x64 / Does not match the platform used
+# previously". This narrower wipe reconfigures reliably.
+$BrandSentinel = "build\windows\.appfit_brand"
+$previousBrand = if (Test-Path $BrandSentinel) { (Get-Content $BrandSentinel -Raw).Trim() } else { $null }
+if ($previousBrand -and $previousBrand -ne $Brand) {
+    Write-Host "[INFO] Brand changed ($previousBrand -> $Brand) - cleaning CMake cache + stale exe"
+    Remove-Item "build\windows\x64\CMakeCache.txt" -Force -ErrorAction SilentlyContinue
+    Remove-Item "build\windows\x64\CMakeFiles" -Recurse -Force -ErrorAction SilentlyContinue
+    # Remove any leftover exe from the previous brand's build so it can never
+    # ride along into the new ZIP/installer (CMake reconfigure only adds a
+    # new target; it doesn't delete a previous build's output).
+    Remove-Item "build\windows\x64\runner\Release\*.exe" -Force -ErrorAction SilentlyContinue
+}
+$env:APPFIT_BRAND = $Brand
 
 # Path constants
 $BUILD_DIR      = "build\windows\x64"
@@ -154,6 +182,7 @@ Write-Host "[INFO] Windows 버전: $WinBuildName ($WinBuildNumber)"
 function Invoke-FlutterWindowsBuild {
     flutter build windows --release `
         --dart-define-from-file=.env `
+        --dart-define=APPFIT_BRAND="$Brand" `
         --dart-define=WINDOWS_APP_VERSION="$WinBuildName" `
         --dart-define=WINDOWS_APP_BUILD="$WinBuildNumber" `
         --build-name="$WinBuildName" `
@@ -185,6 +214,10 @@ if (-not (Test-Path $BUILD_OUTPUT) -or -not (Get-ChildItem $BUILD_OUTPUT -ErrorA
     Write-Error "[ERROR] Build output directory missing: $BUILD_OUTPUT"
     exit 1
 }
+
+# Refresh the brand sentinel (used to detect a brand switch on the next run).
+New-Item -ItemType Directory -Force -Path "build\windows" | Out-Null
+Set-Content -Path $BrandSentinel -Value $Brand -NoNewline
 
 # 3) Bundle VC++ runtime DLLs (mirrors deploy_windows.ps1 L87-153)
 Write-Host "==== 2) Bundle VC++ runtime DLLs ===="
@@ -255,12 +288,13 @@ New-Item -ItemType Directory -Force -Path $DIST_DIR | Out-Null
 
 # 6) Compile installer via ISCC.exe
 Write-Host "==== 4) Compile installer with Inno Setup ===="
-$isccArgs = @("/DMyAppVersion=$semver")
+$isccArgs = @("/DMyAppVersion=$semver", "/DAppfitBrand=$Brand")
 & $iscc @isccArgs $ISS_FILE
 if ($LASTEXITCODE -ne 0) { Write-Error "[ERROR] ISCC compile failed"; exit 1 }
 
 # 7) Verify installer artifact
-$installerPath = Join-Path $DIST_DIR "AppfitOrderAgent-Setup-$semver.exe"
+$installerBaseName = if ($Brand -eq 'mammoth') { 'AppfitOrderAgentMammoth' } else { 'AppfitOrderAgent' }
+$installerPath = Join-Path $DIST_DIR "$installerBaseName-Setup-$semver.exe"
 if (-not (Test-Path $installerPath)) {
     Write-Error "[ERROR] Installer not produced: $installerPath"
     exit 1
@@ -284,4 +318,4 @@ Start-Process "explorer.exe" -ArgumentList "/select,`"$absInstallerPath`""
 
 # 로컬 아카이브 보관 (설치본 .exe 를 버전별 보관 + 노트 기록)
 Write-Host ""
-& "$PSScriptRoot\archive_windows.ps1" -SrcArtifact $installerPath
+& "$PSScriptRoot\archive_windows.ps1" -SrcArtifact $installerPath -Brand $Brand

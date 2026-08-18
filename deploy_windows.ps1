@@ -2,17 +2,23 @@
 # Flutter Windows Release 빌드 후 Lightsail(EC2) 서버에 ZIP 업로드 및
 # Windows 버전 JSON 자동 업데이트 스크립트 (PowerShell)
 #
-# 사용법: .\deploy_windows.ps1
+# 사용법: .\deploy_windows.ps1 [-Brand common|mammoth]   (기본 common)
 ###############################################################################
+
+param(
+    [ValidateSet('common', 'mammoth')]
+    [string]$Brand = 'common'
+)
 
 # 콘솔/파이프라인 인코딩 UTF-8 고정 (한글 출력 깨짐 방지)
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $OutputEncoding = [System.Text.Encoding]::UTF8
 chcp 65001 > $null
 
-# Single unified build for both regions. The server (live/japanLive) is chosen
-# at runtime on the login screen, so there is no variant argument or
-# APPFIT_VARIANT dart-define injection.
+# 지역(한국/일본)은 이 빌드와 무관 — 서버(live/japanLive)는 로그인 화면에서
+# 런타임 선택된다. 채널은 브랜드가 아니라 **아티팩트**에 종속(ota_config.dart
+# 와 동일 원칙) — Tier 1 아티팩트는 자기 exe명이 다르므로 공통 채널을 물리적으로
+# 쓸 수 없다(자연 업데이트가 안 걸린다).
 
 # 0) 사용자 정의 변수
 # Windows OpenSSH scp는 -i 경로에 슬래시(/) 사용 필요
@@ -20,12 +26,32 @@ $PEM_KEY_PATH      = ($env:USERPROFILE + "/.ssh/LightsailDefaultKey-ap-northeast
 $REMOTE_USER       = "ec2-user"
 $REMOTE_HOST       = "52.78.172.188"
 $REMOTE_DIR        = "/var/www/docs/waldpay_html"
-# 채널은 레거시 무접미 하나만 사용한다. Windows 는 패키지 개념이 없고 exe명이
+# 공통은 레거시 무접미 채널(그대로 유지 — Windows 는 패키지 개념이 없고 exe명이
 # 기존 설치본과 동일하므로, 기존 설치본이 이 채널로 자연스럽게 자동 업데이트된다.
-# (Android 는 구 패키지 일본 매장 때문에 무접미 채널을 동결하고 _release 채널을
-#  사용한다. 정책이 반대이니 혼동 주의.)
-$ZIP_NAME          = "appfit_order_agent_windows.zip"
-$VERSION_JSON_NAME = "appfit_order_agent_windows_version.json"
+# Android 는 구 패키지 일본 매장 때문에 무접미 채널을 동결하고 _release 채널을
+# 쓴다. 정책이 반대이니 혼동 주의). 맘모스는 전용 채널 신설 — 맘모스 exe 는
+# 공통 채널 ZIP 을 받아도 파일명이 달라 자연 업데이트가 걸리지 않는다.
+$ZIP_NAME          = if ($Brand -eq 'mammoth') { "appfit_order_agent_mammoth_windows.zip" } else { "appfit_order_agent_windows.zip" }
+$VERSION_JSON_NAME = if ($Brand -eq 'mammoth') { "appfit_order_agent_mammoth_windows_version.json" } else { "appfit_order_agent_windows_version.json" }
+Write-Host "[INFO] Brand: $Brand / Channel: $ZIP_NAME"
+
+# 브랜드 전환 시 CMake 캐시가 이전 BINARY_NAME 을 참조해 두 exe 가 같은
+# Release 폴더에 공존하는 사고를 막는다(같은 ZIP 에 잘못된 exe 까지 함께
+# 담길 수 있음). CMakeCache.txt/CMakeFiles 만 정밀 삭제한다 — build\windows
+# 전체를 지우면(특히 _deps, 즉 sentry-native 재fetch 를 동반한 완전 콜드
+# configure) 이 머신의 CMake+VS2022 조합에서 generator platform 기록이
+# 비어버리는 간헐적 버그를 실측했다. 이 클린이 아래 CACHE_FILE 체크보다
+# 먼저 와야, 그 체크가 "캐시 없음 -> reconfigure" 로 올바르게 판정한다.
+$BrandSentinel = "build\windows\.appfit_brand"
+$previousBrand = if (Test-Path $BrandSentinel) { (Get-Content $BrandSentinel -Raw).Trim() } else { $null }
+if ($previousBrand -and $previousBrand -ne $Brand) {
+    Write-Host "[INFO] Brand changed ($previousBrand -> $Brand) - cleaning CMake cache + stale exe"
+    Remove-Item "build\windows\x64\CMakeCache.txt" -Force -ErrorAction SilentlyContinue
+    Remove-Item "build\windows\x64\CMakeFiles" -Recurse -Force -ErrorAction SilentlyContinue
+    Remove-Item "build\windows\x64\runner\Release\*.exe" -Force -ErrorAction SilentlyContinue
+}
+$env:APPFIT_BRAND = $Brand
+
 $BUILD_DIR         = "build\windows\x64"
 $CACHE_FILE        = "$BUILD_DIR\CMakeCache.txt"
 $BUILD_OUTPUT      = "$BUILD_DIR\runner\Release"
@@ -134,6 +160,7 @@ Write-Host "[INFO] Windows 버전: $WinBuildName ($WinBuildNumber)"
 
 flutter build windows --release `
     --dart-define-from-file=.env `
+    --dart-define=APPFIT_BRAND="$Brand" `
     --dart-define=WINDOWS_APP_VERSION="$WinBuildName" `
     --dart-define=WINDOWS_APP_BUILD="$WinBuildNumber" `
     --build-name="$WinBuildName" `
@@ -144,6 +171,10 @@ if (-not (Test-Path $BUILD_OUTPUT) -or -not (Get-ChildItem $BUILD_OUTPUT -ErrorA
     Write-Error "[오류] 빌드 산출물 디렉토리 없음: $BUILD_OUTPUT"
     exit 1
 }
+
+# 브랜드 sentinel 갱신 (다음 실행의 브랜드 전환 감지용)
+New-Item -ItemType Directory -Force -Path "build\windows" | Out-Null
+Set-Content -Path $BrandSentinel -Value $Brand -NoNewline
 
 # 1-1) VC++ 런타임 DLL 번들링 (대상 PC에 Visual C++ Redistributable이 없어도 동작하도록)
 Write-Host "==== 1-1) Bundle VC++ Runtime DLLs ===="
@@ -256,7 +287,7 @@ Write-Host "[INFO] version JSON 업로드 완료: version = $buildNumber"
 
 # 6) 로컬 아카이브 보관 + 노트 기록 + 폴더 열기 (배포 성공분만 보관)
 Write-Host "==== 6) Archive Windows ZIP to local Project Files ===="
-& "$PSScriptRoot\archive_windows.ps1" -SrcArtifact $ZIP_NAME
+& "$PSScriptRoot\archive_windows.ps1" -SrcArtifact $ZIP_NAME -Brand $Brand
 
 Write-Host "###############################################################################"
 Write-Host "[완료] Windows 배포 완료!"

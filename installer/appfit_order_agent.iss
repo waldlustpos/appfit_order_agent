@@ -2,31 +2,51 @@
 ; Appfit Order Agent -- Inno Setup 6 script
 ;
 ; Build:
-;   ISCC.exe /DMyAppVersion=3.2.1 installer\appfit_order_agent.iss
+;   ISCC.exe /DMyAppVersion=3.2.1 /DAppfitBrand=common installer\appfit_order_agent.iss
+;   ISCC.exe /DMyAppVersion=3.2.1 /DAppfitBrand=mammoth installer\appfit_order_agent.iss
 ; Output:
-;   dist\AppfitOrderAgent-Setup-<version>.exe
+;   dist\AppfitOrderAgent-Setup-<version>.exe          (common)
+;   dist\AppfitOrderAgentMammoth-Setup-<version>.exe   (mammoth)
 ;
 ; Notes:
-;   - Single unified build for both regions (KR/JP). The server (live/japanLive)
-;     is selected at runtime on the app's login screen, so there is no region
-;     define and only ONE build installs per machine.
-;     Do NOT regenerate MyAppId; changing it causes duplicate entries in
-;     "Programs and Features". The retired korea GUID
-;     {{E448C213-990C-AEED-03A8-6A695F9EED14} must never be reused.
-;   - AppMutex must match kSingleInstanceMutexName in windows/runner/main.cpp.
+;   - Region (KR/JP) never affects this build - the server (live/japanLive) is
+;     selected at runtime on the app's login screen.
+;   - Brand axis (AppfitBrand, default "common") mirrors the Android product
+;     flavor (lib/config/build_brand.dart). Each brand gets its own AppId, so
+;     both can be installed side by side on the same machine - only ONE build
+;     per brand installs per machine.
+;   - Do NOT regenerate an existing brand's MyAppId; changing it causes
+;     duplicate entries in "Programs and Features". Retired GUIDs must never
+;     be reused:
+;       korea (retired 2026-07):    {{E448C213-990C-AEED-03A8-6A695F9EED14}
+;   - AppMutex must match kSingleInstanceMutexName in windows/runner/main.cpp
+;     for the same brand.
 ; ----------------------------------------------------------------------
 
 #ifndef MyAppVersion
   #define MyAppVersion "0.0.0"
 #endif
+#ifndef AppfitBrand
+  #define AppfitBrand "common"
+#endif
 
-#define MyAppName        "Appfit Order Agent"
-#define MyAppExeName     "appfit_order_agent.exe"
-#define MyAppMutex       "Global\AppfitOrderAgent_SingleInstance_Mutex"
-#define MyAppId          "{{8E19A1C4-AFDA-4061-B0FF-186FB71B1745}"
-#define MyAppDirName     "AppfitOrderAgent"
-
-#define MyOutputBaseName "AppfitOrderAgent-Setup-" + MyAppVersion
+#if AppfitBrand == "mammoth"
+  #define MyAppName        "매머드오더 에이전트"
+  #define MyAppExeName     "appfit_order_agent_mammoth.exe"
+  #define MyAppMutex       "Global\AppfitOrderAgent_Mammoth_SingleInstance_Mutex"
+  ; Generated once via PowerShell [guid]::NewGuid() on 2026-08-18. Permanent -
+  ; never regenerate (see warning above).
+  #define MyAppId          "{{B9F9381A-7444-4FE6-B7C9-2A5881B79C18}"
+  #define MyAppDirName     "AppfitOrderAgentMammoth"
+  #define MyOutputBaseName "AppfitOrderAgentMammoth-Setup-" + MyAppVersion
+#else
+  #define MyAppName        "Appfit Order Agent"
+  #define MyAppExeName     "appfit_order_agent.exe"
+  #define MyAppMutex       "Global\AppfitOrderAgent_SingleInstance_Mutex"
+  #define MyAppId          "{{8E19A1C4-AFDA-4061-B0FF-186FB71B1745}"
+  #define MyAppDirName     "AppfitOrderAgent"
+  #define MyOutputBaseName "AppfitOrderAgent-Setup-" + MyAppVersion
+#endif
 
 #define MyAppPublisher  "waldlust"
 #define MyAppURL        "http://waldpay.kokonutstamp2.com/"
@@ -99,6 +119,8 @@ Filename: "{app}\{#MyAppExeName}"; Description: "지금 실행"; \
 
 [UninstallDelete]
 ; Remove the install folder only. User settings in
-; %APPDATA%\co.kr.waldlust.order\appfit_order_agent\ are preserved
-; so that a reinstall keeps the login token, printer config, etc.
+; %APPDATA%\co.kr.waldlust.order\{#MyAppExeName untranslated to ProductName,
+; see Runner.rc APPFIT_PRODUCT_NAME}\ are preserved so that a reinstall keeps
+; the login token, printer config, etc. Each brand has its own ProductName,
+; so the two brands' settings never collide.
 Type: filesandordirs; Name: "{app}"

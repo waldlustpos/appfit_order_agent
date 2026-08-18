@@ -3,15 +3,18 @@
 # 해당 버전 폴더를 탐색기로 연다. (PowerShell)
 #
 # 사용법:
-#   .\archive_windows.ps1 -SrcArtifact <경로> [-ArchiveBase <dir>]
+#   .\archive_windows.ps1 -SrcArtifact <경로> [-Brand common|mammoth] [-ArchiveBase <dir>]
 #     - -SrcArtifact : 보관할 산출물. 다음 셋 중 하나
 #         * ZIP 파일 (deploy_windows.ps1 산출물)        → 그대로 복사
 #         * 설치본 .exe (build_installer.ps1 산출물)    → 그대로 복사
-#         * Release 폴더 (build_windows.ps1 산출물)     → <project>_windows.zip 으로 압축해 보관
+#         * Release 폴더 (build_windows.ps1 산출물)     → <project>_<brand>_windows.zip 으로 압축해 보관
+#     - -Brand       : common|mammoth (기본 common) — 두 아티팩트가 같은 버전을
+#         공유하므로(정본은 pubspec.yaml 하나), 브랜드별로 나누지 않으면 같은
+#         버전 폴더에서 두 브랜드의 release_notes.txt 가 서로 덮어쓴다.
 #     - -ArchiveBase : 공용 보관소 베이스 (기본: ~\Documents\!Project Files)
 #
-# 보관 구조: <ArchiveBase>\<프로젝트명>\windows\<버전>\<산출물> + release_notes.txt
-#   예) C:\Users\<user>\Documents\!Project Files\appfit_order_agent\windows\3.3.6+152\
+# 보관 구조: <ArchiveBase>\<프로젝트명>\windows\<브랜드>\<버전>\<산출물> + release_notes.txt
+#   예) C:\Users\<user>\Documents\!Project Files\appfit_order_agent\windows\common\3.3.6+152\
 #
 # 버전 정본: pubspec.yaml 의 version (Android/Windows 공통 단일 정본).
 #
@@ -21,6 +24,7 @@
 
 param(
     [Parameter(Mandatory = $true)][string]$SrcArtifact,
+    [ValidateSet('common', 'mammoth')][string]$Brand = 'common',
     [string]$ArchiveBase = (Join-Path $env:USERPROFILE 'Documents\!Project Files')
 )
 
@@ -42,10 +46,10 @@ $version = ((Select-String -Path 'pubspec.yaml' -Pattern '^version:' | Select-Ob
     -replace '^version:\s*', '' -replace '#.*$', '').Trim().Trim('"').Trim("'")
 $buildNumber = ($version -replace '.*\+', '')
 
-# 단일 패키지 (국가 무관)
-$appId = 'co.kr.waldlust.order.receive.appfit'
+# 브랜드별 exe명 (Windows 는 패키지 개념이 없어 exe명으로 대체 표기)
+$exeName = if ($Brand -eq 'mammoth') { 'appfit_order_agent_mammoth.exe' } else { 'appfit_order_agent.exe' }
 
-$archiveDir = Join-Path $ArchiveBase (Join-Path $projectName (Join-Path 'windows' $version))
+$archiveDir = Join-Path $ArchiveBase (Join-Path $projectName (Join-Path 'windows' (Join-Path $Brand $version)))
 
 # 소스 산출물 확인
 if (-not (Test-Path $SrcArtifact)) {
@@ -65,8 +69,8 @@ try {
 $srcItem = Get-Item $SrcArtifact
 try {
     if ($srcItem.PSIsContainer) {
-        # Release 폴더 -> <project>_windows.zip 압축
-        $artifactName = "${projectName}_windows.zip"
+        # Release 폴더 -> <project>_<brand>_windows.zip 압축
+        $artifactName = "${projectName}_${Brand}_windows.zip"
         $destZip = Join-Path $archiveDir $artifactName
         if (Test-Path $destZip) { Remove-Item $destZip -Force }
         $items = Get-ChildItem -Path $SrcArtifact | Select-Object -ExpandProperty FullName
@@ -88,9 +92,10 @@ if (-not $gitLog) { $gitLog = '(git 정보 없음)' }
 
 $notes = @"
 === $projectName Windows 빌드 노트 ===
+브랜드: $Brand
 버전: $version
 빌드번호: $buildNumber
-패키지명: $appId
+실행파일명: $exeName
 빌드 일시: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
 산출물: $artifactName
 

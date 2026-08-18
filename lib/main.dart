@@ -189,8 +189,10 @@ void main() async {
     }
 
     // 브랜드 테마 적용 — runApp 이전에 AppStyles 의 활성 브랜드를 확정
-    // 저장값이 없는 신규 설치는 맘모스 flavor 빌드면 로그인 전부터 맘모스 테마로
-    // 프리시드한다(로그인 후에는 매장ID 기반 reconcileForStore 가 그대로 정본).
+    // 저장값이 전혀 없는 경우(신규 설치·한 번도 선택한 적 없음)에만 맘모스
+    // flavor 빌드는 로그인 전부터 맘모스 테마로 프리시드한다. 사용자가 설정
+    // 화면에서 명시적으로 "기본 테마"를 선택해 저장한 경우는 그 선택을 그대로
+    // 존중한다 — 여기서 다시 덮어쓰면 설정의 테마 선택 자체가 무의미해진다.
     final savedId = preferenceService.getBrandThemeId();
     final savedBrand = savedId != null
         ? BrandTheme.fromId(savedId)
