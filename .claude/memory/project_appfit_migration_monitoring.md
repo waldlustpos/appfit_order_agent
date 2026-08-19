@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 57eac001-5611-4e07-89d1-195dc2e44c98
-  modified: 2026-08-14T07:12:22.932Z
+  modified: 2026-08-19T01:54:27.931Z
 ---
 
 `/Users/kimsungchun/Documents/Sunmi-Appfit Monitoring/` 에 `monitor.py` + `report_html.py` + `fleet.db`(SQLite) + `README.md`. 매일 `apps_D<날짜>.csv` / `device_D<날짜>.csv` 를 폴더에 넣고 `python3 monitor.py` 하나면 적재→상태계산→CSV 3종 + `reports/latest.html` 까지 나온다. 파이썬 표준 라이브러리만 사용(이 맥에 duckdb·pandas 없음, `/usr/bin/python3` 시스템 파이썬). 2026-08-14 구축, 실데이터 + 가짜 스냅샷 시뮬레이션으로 검증 완료.
@@ -27,4 +27,9 @@ metadata:
 - 임시 질의는 `sqlite3 fleet.db` 로 직접. 주요 뷰 `v_progress` / `v_pending` / `v_newly_installed` / `v_cohort_status`.
 - CSV 파싱 함정(타이틀 1행 스킵, `errors='replace'`, appName 한글 깨짐)은 [[project-device-version-alias-audit]] 와 동일하며 코드에 반영돼 있다.
 
-**대상앱 패키지 전환 결정 (2026-08-19, 미적용)**: 집계 대상앱을 공통 appfit(`co.kr.waldlust.order.receive.appfit`) → **매머드 전용 빌드 `co.kr.waldlust.order.receive.appfit.mammoth` 단독**으로 교체하기로 확정(사용자 선택: 전용만 인정, 공통만 깔린 기기는 미설치). 코호트(구앱 2.0.6 기준 881대)는 freeze 유지 — 분모 불변. 도구 정본이 Mac 에만 있어 Windows 세션에서는 적용 불가, 패치 절차만 전달했다. 적용 시 필수 후속: **sticky 로 굳은 과거 `installed` 행 재계산**(공통 appfit 기준으로 확정된 상태가 남으면 수치가 거짓말한다). 지표 의미가 "appfit 보급률"→"전용 빌드 보급률"로 바뀌므로 설치율 하락은 정상이며, 전용 빌드 배포 개시일은 2026-08-18(3.0.0+185)이라 0 근처에서 시작한다. 관련: [[project_mammoth_dedicated_build]].
+**대상앱 패키지 전환 결정 — 적용 완료 (2026-08-19)**: `monitor.py`의 `APPFIT_PKG` 를 공통 appfit(`co.kr.waldlust.order.receive.appfit`) → **매머드 전용 빌드 `co.kr.waldlust.order.receive.appfit.mammoth` 단독**으로 교체(사용자 선택: 전용만 인정, 공통만 깔린 기기는 미설치). 코호트(구앱 2.0.6 기준 881대)는 freeze 유지 — 분모 불변. README.md 도 정의 갱신.
+- **sticky 재계산은 코드 구조상 자동으로 해결됐다**: `compute_status()`가 매 실행마다 **전 스냅샷 날짜를 순서대로 `daily_status` 삭제 후 원본 `device_apps`에서 재계산**하는 구조라(캐스케이드로 이전 계산된 `installed` 를 참조), 상수만 바꾸고 `--report-only` 를 돌리면 과거 스냅샷까지 새 패키지 기준으로 다시 확정된다. 별도 wipe/force-recohort 불필요 — 이 도구 한정으로는 "상수 바꾸고 재실행"이 곧 안전한 재계산이다.
+- **2026-08-18 데이터로 재실행 결과: 설치 0대/879대(0.0%)** — 사용자가 "의도한 내용"으로 확인(2026-08-19). 타겟 881대 중 2대는 이번에 30일 미접속으로 `dropped`. `device_apps` 직접 조회로도 8/18 스냅샷엔 `...appfit.mammoth` 패키지가 0대(공통 appfit 은 5대만 관측) — 매머드 전용 빌드 첫 배포가 같은 날(8/18)이라 콘솔 앱 인벤토리 스캔이 그 시점 이전에 수집됐을 가능성이 높다. 버그 아님, 확정.
+- **의미 있는 수치는 8/19 이후 스냅샷부터.** 그 전까지는 재실행해도 0이 정상 — 사용자가 새 CSV를 줄 때만 다시 돌릴 것.
+- **대용량 CSV는 채팅 붙여넣기로 온전히 못 옮긴다.** 사용자가 채팅에 파일을 첨부하면 실제로는 `~/Downloads/<원본파일명>`에 그대로 저장돼 있다 — Write 툴로 재입력 시도하지 말고 먼저 `find ~/Downloads -iname "<파일명>"` 로 원본을 찾아 `cp` 할 것. (947KB apps_ CSV를 Write로 받아적으려다 2.5KB로 잘린 사고 1회 — Downloads 확인 후 정정.)
+관련: [[project_mammoth_dedicated_build]].
