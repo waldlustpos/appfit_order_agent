@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:appfit_order_agent/config/app_env.dart';
+import 'package:appfit_order_agent/config/fleet_config.dart';
 import 'package:appfit_order_agent/providers/lifecycle_provider.dart';
 import 'package:appfit_order_agent/providers/log_collection_provider.dart';
 import 'package:appfit_order_agent/providers/preference_provider.dart';
@@ -33,18 +34,22 @@ final fleetStoreAllowlistServiceProvider =
 /// 저장된 매장 코드는 재시작 직후에도 남아 있으므로 파일럿 매장 한정으로
 /// 로그인 전 구간의 보고가 유지된다.
 final fleetTargetedProvider = StateProvider<bool>((ref) {
+  if (!FleetConfig.enabled) return false;
   final service = ref.watch(fleetStoreAllowlistServiceProvider);
   final storeId = ref.watch(preferenceServiceProvider).getId();
   return service.isTargeted(storeId);
 });
 
-/// 관제 기동의 최종 판정 = **빌드 타임 설정 AND 런타임 대상 매장**.
+/// 관제 기동의 최종 판정 = **기능 스위치 AND 빌드 타임 설정 AND 대상 매장**.
 ///
-/// 두 게이트의 역할이 다르다. [AppEnv.hasFleetConfig] 는 "이 빌드가 관제를
-/// 말할 수 있는가"(`.env` 미주입 빌드 보호), [fleetTargetedProvider] 는
-/// "이 매장이 지금 관제 대상인가"(파일럿 범위 제어)다.
+/// 셋의 역할이 다르다. [FleetConfig.enabled] 는 "이 기능을 지금 쓰는가"(정식
+/// 도입 전 차단), [AppEnv.hasFleetConfig] 는 "이 빌드가 관제를 말할 수
+/// 있는가"(`.env` 미주입 빌드 보호), [fleetTargetedProvider] 는 "이 매장이 지금
+/// 관제 대상인가"(파일럿 범위 제어)다.
 final fleetEnabledProvider = Provider<bool>((ref) {
-  return AppEnv.hasFleetConfig && ref.watch(fleetTargetedProvider);
+  return FleetConfig.enabled &&
+      AppEnv.hasFleetConfig &&
+      ref.watch(fleetTargetedProvider);
 });
 
 /// 로그인 성공 시 호출. 원격 목록을 재조회하고 대상 여부를 갱신한다.
@@ -56,6 +61,9 @@ Future<void> reconcileFleetTarget(
   StateController<bool> targeted,
   String storeId,
 ) async {
+  // 기능이 꺼져 있으면 목록 조회 자체를 하지 않는다. 여기가 로그인마다 나가는
+  // 유일한 관제 요청이라, 이 가드가 빠지면 "비활성"인데 통신은 계속된다.
+  if (!FleetConfig.enabled) return;
   await service.refresh();
   final next = service.isTargeted(storeId);
   if (targeted.state != next) {
@@ -173,6 +181,10 @@ final fleetReporterProvider = Provider<FleetReporter>((ref) {
 /// sink → reporter → 여기로 재빌드가 연쇄하고, 구 reporter 는
 /// [fleetReporterProvider] 의 `onDispose` 가 정리한다.
 final fleetSyncProvider = Provider<void>((ref) {
+  // 기능 스위치가 꺼져 있으면 리포터도 만들지 않고 나간다. const 분기라
+  // 릴리즈 빌드에서는 아래 배선이 통째로 빠진다.
+  if (!FleetConfig.enabled) return;
+
   final enabled = ref.watch(fleetEnabledProvider);
   final reporter = ref.watch(fleetReporterProvider);
   if (!enabled) {

@@ -17,6 +17,18 @@
 class FleetConfig {
   const FleetConfig._();
 
+  /// **정식 도입 전까지 관제를 통째로 끈다.**
+  ///
+  /// 끄는 범위는 서버 통신 전부다 — 대상 매장 목록 조회도, register/heartbeat
+  /// 도 나가지 않는다. 배선과 코드는 남겨 두므로 되돌릴 때 이 상수 하나만
+  /// true 로 바꾸면 된다(대상 매장 정책은 그때 다시 세운다).
+  ///
+  /// `const` 라 릴리즈 빌드에서 조회·보고 경로가 트리 셰이킹으로 아예 빠진다.
+  /// dart-define 이나 `AppEnv`(gitignore 대상)에 두지 않는 이유는, 빌드마다
+  /// 값이 달라지거나 레포에서 상태가 안 보이면 "지금 켜져 있나"를 코드로 확인할
+  /// 수 없기 때문이다.
+  static const bool enabled = false;
+
   /// OTA 아티팩트와 같은 정적 호스트(`OtaConfig`/`UpdateConfig` 와 동일 값).
   /// 저 둘은 브랜드 채널 규칙에 묶여 있어 재사용하지 않고 여기서 따로 든다.
   static const String _base = 'http://waldpay.kokonutstamp2.com/';

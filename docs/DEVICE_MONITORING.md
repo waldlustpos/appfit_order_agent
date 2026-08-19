@@ -2,9 +2,15 @@
 
 매장 기기(Sunmi D3 MINI 주문접수기, D2s_KDS, Windows POS)의 **① 앱 실행 상태 ② 기기 정보 ③ 원격 로그 요청**을 다루는 최소 관제 시스템.
 
-> **상태: 배포 완료(2026-07-31), appfit_core 승격 완료(2026-08-03), 대상 매장 화이트리스트 게이트 추가(2026-08-19), 실기기 파일럿 대기.** 백엔드는 별도 레포 `appfit-fleet`(Cloudflare Workers + D1), 공통 리포터는 `appfit_core`(`appifit_agent_core` 레포, v1.0.18~), 앱 측 전용 코드는 `lib/services/fleet/`.
+> ## ⛔ 현재 비활성 (2026-08-19~)
 >
-> **관제는 대상 매장에서만 켜진다** — `.env` 설정(§5) AND 원격 화이트리스트(§5-1) 두 게이트를 모두 통과해야 한다.
+> **`FleetConfig.enabled = false` 로 앱 측 관제를 통째로 꺼 뒀다.** 정식 도입 전까지 서버 통신을 하지 않는다 — 대상 매장 목록 조회도, register/heartbeat 도 나가지 않는다. 대상 매장 정책은 도입 시점에 다시 세운다.
+>
+> 배선과 코드는 그대로 남아 있으므로 **되돌릴 때는 `lib/config/fleet_config.dart` 의 상수 하나만 true 로** 바꾸면 된다. 아래 문서는 켠 뒤의 동작을 기술한다.
+>
+> **상태: 배포 완료(2026-07-31), appfit_core 승격 완료(2026-08-03), 대상 매장 화이트리스트 게이트 추가(2026-08-19), 실기기 파일럿 미실시.** 백엔드는 별도 레포 `appfit-fleet`(Cloudflare Workers + D1), 공통 리포터는 `appfit_core`(`appifit_agent_core` 레포, v1.0.18~), 앱 측 전용 코드는 `lib/services/fleet/`.
+>
+> 켜면 **관제는 대상 매장에서만 돈다** — `FleetConfig.enabled` AND `.env` 설정(§5) AND 원격 화이트리스트(§5-1) 세 게이트를 모두 통과해야 한다.
 >
 > 대시보드: https://appfit-fleet.sckim.workers.dev (자격정보는 `appfit-fleet/DEPLOYMENT.local.md`)
 >

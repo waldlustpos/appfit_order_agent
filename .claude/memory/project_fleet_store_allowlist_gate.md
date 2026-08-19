@@ -1,14 +1,18 @@
 ---
 name: project_fleet_store_allowlist_gate
-description: "Fleet 관제를 feat/mammoth-dedicated-build 에 이식 + 대상 매장 화이트리스트 게이트 추가 (커밋 완료·미푸시, 실기기 미검증)"
+description: "Fleet 관제 이식 + 매장 화이트리스트 게이트. 정식 도입 전까지 FleetConfig.enabled=false 로 비활성(서버통신 0)"
 metadata: 
   node_type: memory
   type: project
   originSessionId: 7202b256-696c-439b-b197-b9aeb235ae84
-  modified: 2026-08-19T01:13:13.483Z
+  modified: 2026-08-19T03:36:18.207Z
 ---
 
-2026-08-19. `feat/fleet-monitoring` 의 Fleet 관제를 `feat/mammoth-dedicated-build` 에 이식하고, **OTA 정적 호스트의 매장 코드 화이트리스트로 게이팅**하는 기능을 추가했다. analyze 에러 0(issue 17 = 변경 전과 동일), test 544건 전량 통과. `feat/mammoth-dedicated-build` 에 **커밋 완료(미푸시) · 실기기 미검증.** 서버에는 `fleet_stores.json`(MMTH00084 단독) 업로드까지 마침.
+2026-08-19. `feat/fleet-monitoring` 의 Fleet 관제를 `feat/mammoth-dedicated-build` 에 이식하고, **OTA 정적 호스트의 매장 코드 화이트리스트로 게이팅**하는 기능을 추가했다. analyze 에러 0(issue 17 = 변경 전과 동일), test 544건 전량 통과. `feat/mammoth-dedicated-build` 에 커밋 완료(미푸시).
+
+**⛔ 최종 상태: 비활성.** 사용자가 "정식 도입 전까지 끄자, 대상 매장 정책도 나중에 다시 수립" 으로 결정해 `FleetConfig.enabled = false`(컴파일 타임 const)로 서버 통신을 통째로 막았고, 서버의 `fleet_stores.json` 도 삭제(404 확인). **실기기 검증은 끝내 못 했다.** 되돌릴 때는 그 상수 하나만 true.
+
+**앱→관제 서버 요청은 정확히 2개뿐**이라는 게 끄기·켜기의 핵심 지식이다: ① 로그인마다 1회 목록 조회(`reconcileFleetTarget` 안의 `service.refresh()`) ② 60초 register/heartbeat. ②는 `fleetSyncProvider → fleetReporterProvider → fleetSinkProvider` 체인으로만 생기므로 첫 단계에서 끊으면 `HttpFleetSink` 인스턴스 자체가 안 생긴다. 스위치를 `AppEnv`(gitignore)나 dart-define 이 아니라 커밋되는 `FleetConfig` 에 둔 이유는, 레포에서 "지금 켜져 있나"가 안 보이면 안 되기 때문.
 
 **이식 방법이 핵심**: `git merge` 가 아니라 **파일 단위 `git checkout`**. fleet 브랜치엔 이미 main 에 반영된 displayOrder 정렬 커밋 4개가 섞여 있고, `pubspec.yaml` 의 appfit_core ref 가 v1.1.0(현재 브랜치는 v1.2.0)이라 머지하면 다운그레이드된다. merge-base(`7cbdc00`) 이후 현재 브랜치 변경 이력이 0인 파일 12개는 통째 체크아웃, 양쪽 다 바뀐 4개(`main.dart`·`platform_service.dart`·`lifecycle_provider.dart`·`app_bar_widget.dart`)만 손으로 병합했다. v1.2.0 의 `FleetReporter` 생성자는 브랜치 사용 시그니처와 호환.
 
