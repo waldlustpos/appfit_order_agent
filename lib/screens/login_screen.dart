@@ -433,36 +433,41 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   }
 
   Future<void> _login({bool isAutoAttempt = false}) async {
+    // 재진입 가드: 서버 자동전환(disconnect+자격증명 정리)이 스피너 표시보다
+    // 먼저 끝나는 구간에서 연타하면 두 번째 로그인 시도가 겹쳐 들어간다.
+    if (_isLoading) return;
+
     logToFile(tag: LogTag.API, message: '로그인시도');
 
-    // 인터넷 연결 확인
-    final hasConnection = await _checkInternetConnection();
-    if (!hasConnection) return;
-
-    // 자동 로그인이 아닌 경우에만 form validation 실행
-    if (!_isAutoLogin) {
-      if (!_formKey.currentState!.validate()) {
-        return;
-      }
-    }
-
-    // 매장 ID 프리픽스로 서버 환경을 결정한다. 자동 로그인은 저장 ID·저장
-    // 환경이 이전 세션에서 이미 정합이므로 개입하지 않는다.
-    if (!isAutoAttempt) {
-      final canProceed = await _resolveEnvironmentForStoreId(
-        _idController.text.trim().toUpperCase(),
-      );
-      if (!canProceed) return;
-    }
-
-    // 로그인 시도 전에 현재 선택된 탭의 모드 설정을 먼저 저장
-    await _saveLoginInfo();
-
+    // 첫 await 이전에 즉시 로딩 상태로 전환해 버튼을 비활성화한다.
     setState(() {
       _isLoading = true;
     });
 
     try {
+      // 인터넷 연결 확인
+      final hasConnection = await _checkInternetConnection();
+      if (!hasConnection) return;
+
+      // 자동 로그인이 아닌 경우에만 form validation 실행
+      if (!_isAutoLogin) {
+        if (!_formKey.currentState!.validate()) {
+          return;
+        }
+      }
+
+      // 매장 ID 프리픽스로 서버 환경을 결정한다. 자동 로그인은 저장 ID·저장
+      // 환경이 이전 세션에서 이미 정합이므로 개입하지 않는다.
+      if (!isAutoAttempt) {
+        final canProceed = await _resolveEnvironmentForStoreId(
+          _idController.text.trim().toUpperCase(),
+        );
+        if (!canProceed) return;
+      }
+
+      // 로그인 시도 전에 현재 선택된 탭의 모드 설정을 먼저 저장
+      await _saveLoginInfo();
+
       // [FIX] 로그인 ID 대문자 강제 변환 (AppFit 소켓 채널 일치 보장)
       String storeId = _idController.text.trim().toUpperCase();
 
