@@ -1,17 +1,18 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:appfit_order_agent/constants/app_styles.dart';
 import 'package:appfit_order_agent/i18n/strings.g.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
+import 'package:appfit_order_agent/services/log_collection/log_collection_request.dart';
 import 'package:appfit_order_agent/services/log_collection/log_collection_service.dart';
 import 'package:appfit_order_agent/services/monitoring/device_identity_service.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/widgets/settings/settings_section_card.dart';
 
-enum _LogRangePreset { today, days7, days30 }
+// 기간 프리셋·캡션·파일명 조립은 log_collection_request.dart 가 정본이다.
+// 원격 명령(FleetCommandHandler)이 같은 함수를 쓰므로 Slack 메시지 포맷이
+// 수동/원격으로 갈라지지 않는다.
 
 /// 설정화면 "로그 전송" 카드 (자기완결형).
 ///
@@ -29,7 +30,7 @@ class SettingsLogCollectionSection extends ConsumerStatefulWidget {
 
 class _SettingsLogCollectionSectionState
     extends ConsumerState<SettingsLogCollectionSection> {
-  _LogRangePreset _preset = _LogRangePreset.today;
+  LogRangePreset _preset = LogRangePreset.today;
   DeviceIdentity? _identity;
   bool _busy = false;
   LogCollectionStage _stage = LogCollectionStage.idle;
@@ -45,28 +46,6 @@ class _SettingsLogCollectionSectionState
   Future<void> _loadIdentity() async {
     final id = await ref.read(deviceIdentityServiceProvider).resolve();
     if (mounted) setState(() => _identity = id);
-  }
-
-  ({DateTime from, DateTime to}) _resolveRange() {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    switch (_preset) {
-      case _LogRangePreset.today:
-        return (from: today, to: today);
-      case _LogRangePreset.days7:
-        return (from: today.subtract(const Duration(days: 6)), to: today);
-      case _LogRangePreset.days30:
-        return (from: today.subtract(const Duration(days: 29)), to: today);
-    }
-  }
-
-  String _fmt(DateTime d) =>
-      '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-
-  String _humanSize(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 
   Future<void> _send() async {
@@ -85,38 +64,33 @@ class _SettingsLogCollectionSectionState
 
     final id =
         _identity ?? await ref.read(deviceIdentityServiceProvider).resolve();
-    final range = _resolveRange();
-    final fromStr = _fmt(range.from);
-    final toStr = _fmt(range.to);
-    final filename = fromStr == toStr
-        ? 'appfit_logs_$fromStr.zip'
-        : 'appfit_logs_${fromStr}_$toStr.zip';
-    final platformName = Platform.isWindows ? 'Windows' : 'Android';
+    final range = resolveLogRange(_preset);
     // 매장명은 앱바와 동일한 소스(storeProvider)를 사용한다.
     final storeName = ref.read(storeProvider).value?.name ?? '';
-    final caption = <String>[
-      '[AppFit 로그]',
-      if (id.projectName != null && id.projectName!.isNotEmpty)
-        '브랜드: ${id.projectName}',
-      if (storeName.isNotEmpty) '매장명: $storeName',
-      if (id.shopCode != null && id.shopCode!.isNotEmpty)
-        '매장코드: ${id.shopCode}',
-      '기기: ${id.deviceLabel} ($platformName)',
-      '기간: $fromStr ~ $toStr',
-    ].join('\n');
+    // 캡션/파일명 조립은 원격 명령과 공유하는 정본 함수가 담당한다.
+    final request = buildLogCollectionRequest(
+      identity: id,
+      storeName: storeName,
+      from: range.from,
+      to: range.to,
+    );
 
     setState(() {
       _busy = true;
       _resultText = null;
       _stage = LogCollectionStage.flushing;
     });
-    logToFile(tag: LogTag.UI_ACTION, message: '로그 전송 시작 ($fromStr~$toStr)');
+    logToFile(
+      tag: LogTag.UI_ACTION,
+      message: '로그 전송 시작 '
+          '(${formatLogDate(range.from)}~${formatLogDate(range.to)})',
+    );
 
     final outcome = await svc.collectAndUpload(
-      from: range.from,
-      to: range.to,
-      caption: caption,
-      filename: filename,
+      from: request.from,
+      to: request.to,
+      caption: request.caption,
+      filename: request.filename,
       onStage: (s) {
         if (mounted) setState(() => _stage = s);
       },
@@ -129,7 +103,7 @@ class _SettingsLogCollectionSectionState
       _resultText = outcome.success
           ? t.settings.log_collection.success(
               count: outcome.fileCount,
-              size: _humanSize(outcome.zipBytes),
+              size: humanSize(outcome.zipBytes),
             )
           : t.settings.log_collection.failed(error: outcome.error ?? '-');
     });
@@ -191,11 +165,11 @@ class _SettingsLogCollectionSectionState
         Row(
           children: [
             _presetChip(
-                _LogRangePreset.today, t.settings.log_collection.range_today),
+                LogRangePreset.today, t.settings.log_collection.range_today),
             _presetChip(
-                _LogRangePreset.days7, t.settings.log_collection.range_7days),
+                LogRangePreset.days7, t.settings.log_collection.range_7days),
             _presetChip(
-                _LogRangePreset.days30, t.settings.log_collection.range_30days),
+                LogRangePreset.days30, t.settings.log_collection.range_30days),
           ],
         ),
         const SizedBox(height: AppSpacing.s12),
@@ -255,7 +229,7 @@ class _SettingsLogCollectionSectionState
         ),
       );
 
-  Widget _presetChip(_LogRangePreset preset, String label) {
+  Widget _presetChip(LogRangePreset preset, String label) {
     final selected = _preset == preset;
     return Padding(
       padding: const EdgeInsets.only(right: AppSpacing.s8),

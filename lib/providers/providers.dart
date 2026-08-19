@@ -17,3 +17,4 @@ export 'package:appfit_order_agent/providers/brand_theme_provider.dart';
 export 'package:appfit_order_agent/providers/misc_providers.dart';
 export 'package:appfit_order_agent/providers/waldpos_scan_provider.dart';
 export 'package:appfit_order_agent/providers/log_collection_provider.dart';
+export 'package:appfit_order_agent/providers/fleet_provider.dart';

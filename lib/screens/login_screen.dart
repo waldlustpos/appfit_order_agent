@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
@@ -517,6 +518,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         if (storeModel != null) {
           storeName = storeModel.name;
         }
+
+        // 기기 관제(Fleet) 대상 매장 재판정. 목록은 OTA 정적 호스트에 있어
+        // 앱 재배포 없이 파일럿 범위를 넓히거나 되돌릴 수 있다.
+        // 로그인을 막지 않도록 fire-and-forget 이며(조회 실패는 캐시로 판정),
+        // pushReplacementNamed 로 이 위젯이 dispose 된 뒤 ref 를 만지지 않도록
+        // 필요한 객체를 미리 캡처한다.
+        final fleetTargets = ref.read(fleetStoreAllowlistServiceProvider);
+        final fleetTargeted = ref.read(fleetTargetedProvider.notifier);
+        unawaited(reconcileFleetTarget(fleetTargets, fleetTargeted, storeId));
 
         if (mounted) {
           // 앱 버전 정보 가져오기 (ref.read 사용)

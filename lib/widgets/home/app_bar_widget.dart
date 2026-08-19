@@ -602,6 +602,45 @@ class _HomeAppBarWidgetState extends ConsumerState<HomeAppBarWidget> {
             );
           },
         ),
+        const SizedBox(width: 4),
+        // 기기 관제(Fleet) 연결 상태 아이콘 (비인터랙티브).
+        // 설정 없는 빌드/비대상 매장에서는 disabled 라 숨는다.
+        Consumer(
+          builder: (context, ref, _) {
+            final fleetStatus = ref.watch(fleetConnectionStatusProvider);
+            if (fleetStatus == appfit_core.FleetConnectionStatus.disabled) {
+              return const SizedBox.shrink();
+            }
+            final (icon, color, tooltip) = switch (fleetStatus) {
+              appfit_core.FleetConnectionStatus.connected => (
+                  Icons.cloud_done,
+                  Colors.green,
+                  '기기 관제 연결됨',
+                ),
+              appfit_core.FleetConnectionStatus.connecting => (
+                  Icons.cloud_sync,
+                  Colors.orange,
+                  '기기 관제 연결 중',
+                ),
+              appfit_core.FleetConnectionStatus.error => (
+                  Icons.cloud_off,
+                  Colors.red,
+                  '기기 관제 연결 끊김',
+                ),
+              appfit_core.FleetConnectionStatus.disabled => (
+                  Icons.cloud_off,
+                  AppStyles.gray9,
+                  '',
+                ),
+            };
+            return AppIconAction(
+              icon: icon,
+              color: color,
+              tooltip: tooltip,
+              isStatus: true,
+            );
+          },
+        ),
         const SizedBox(width: 8),
         // 최소화 버튼
         AppIconAction(

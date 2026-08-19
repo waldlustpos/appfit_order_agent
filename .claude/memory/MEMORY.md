@@ -69,3 +69,4 @@
 - [매머드 전용 빌드 + 2-티어 배포](project_mammoth_dedicated_build.md) — Phase A~E 전부 완료(71259d8). Windows 브랜드전환은 CMake 부분wipe만, add-brand.md 컴파일깨짐 버그 발견·수정. Windows 실치 미검증 (2026-08-18)
 - [flavor 프리시드 vs 명시적 선택](feedback_flavor_preseed_vs_explicit_choice.md) — 설정값=null일때만 개입 vs 로그인로고 같은 "아티팩트 정체성"은 테마무관 항상 강제, 구분 필수 (2026-08-18)
 - [브랜드 빌드는 화면 요소만](feedback_brand_artifact_visual_only.md) — 아티팩트/매장 브랜드 불일치에 안내·경고·제약 금지. 오설치 배너 기능째 삭제 (2026-08-18)
+- [Fleet 매장 화이트리스트 게이트](project_fleet_store_allowlist_gate.md) — 관제를 OTA 호스트의 매장 목록으로 게이팅. 파일단위 checkout 이식, 커밋완료·미푸시·실기기 미검증 (2026-08-19)

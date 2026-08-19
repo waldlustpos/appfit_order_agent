@@ -123,6 +123,14 @@ class PreferenceService {
   static const String KEY_UPDATE_POLICY_RECONCILED =
       "KEY_UPDATE_POLICY_MHST_SUNMI_V1";
 
+  // 기기 관제(Fleet) 대상 매장 목록 캐시. 매장 코드를 콤마로 이어 저장한다.
+  // 키가 없음(null) = "아직 한 번도 못 받아봄"(→ 관제 OFF), 빈 문자열 = 서버가
+  // 내려준 "대상 없음". 둘의 판정 결과는 같지만 조회 실패 시 캐시를 덮어쓸지를
+  // 가르므로 구분해서 저장한다.
+  static const String KEY_FLEET_STORE_ALLOWLIST = "KEY_FLEET_STORE_ALLOWLIST";
+  static const String KEY_FLEET_ALLOWLIST_FETCHED_AT =
+      "KEY_FLEET_ALLOWLIST_FETCHED_AT";
+
   // 브랜드 테마 키 (BrandTheme.id 를 문자열로 저장)
   static const String KEY_BRAND_THEME = "KEY_BRAND_THEME";
 
@@ -995,6 +1003,23 @@ class PreferenceService {
   // 업데이트 채널 정책 재조정 완료 여부 저장
   Future<void> setUpdatePolicyReconciled(bool value) async =>
       await _prefs.setBool(KEY_UPDATE_POLICY_RECONCILED, value);
+
+  // 관제 대상 매장 목록 캐시 조회. null = 아직 한 번도 못 받아봄(관제 OFF).
+  String? getFleetStoreAllowlist() =>
+      _prefs.getString(KEY_FLEET_STORE_ALLOWLIST);
+
+  // 관제 대상 매장 목록 캐시 저장 (조회 성공 시에만 호출)
+  Future<void> setFleetStoreAllowlist(String value) async {
+    await _prefs.setString(KEY_FLEET_STORE_ALLOWLIST, value);
+    await _prefs.setString(
+      KEY_FLEET_ALLOWLIST_FETCHED_AT,
+      DateTime.now().toIso8601String(),
+    );
+  }
+
+  // 관제 대상 매장 목록을 마지막으로 받아온 시각 (진단용)
+  String? getFleetAllowlistFetchedAt() =>
+      _prefs.getString(KEY_FLEET_ALLOWLIST_FETCHED_AT);
 
   // ── 브랜드 판별 레거시 헬퍼 ──────────────────────────────────────────────
   // prefix 매칭 로직의 단일 출처는 [BrandRegistry]. 아래 헬퍼들은 그 위의 얇은
