@@ -26,3 +26,5 @@ metadata:
 - 매장명(Alias)은 `device_` 에 없다. `sm_partner__msn_list_<epoch>.csv`(파일명 숫자 = 유닉스 타임스탬프)를 같은 폴더에 두면 조인해 채운다. 1301대 중 926대만 Alias 존재.
 - 임시 질의는 `sqlite3 fleet.db` 로 직접. 주요 뷰 `v_progress` / `v_pending` / `v_newly_installed` / `v_cohort_status`.
 - CSV 파싱 함정(타이틀 1행 스킵, `errors='replace'`, appName 한글 깨짐)은 [[project-device-version-alias-audit]] 와 동일하며 코드에 반영돼 있다.
+
+**대상앱 패키지 전환 결정 (2026-08-19, 미적용)**: 집계 대상앱을 공통 appfit(`co.kr.waldlust.order.receive.appfit`) → **매머드 전용 빌드 `co.kr.waldlust.order.receive.appfit.mammoth` 단독**으로 교체하기로 확정(사용자 선택: 전용만 인정, 공통만 깔린 기기는 미설치). 코호트(구앱 2.0.6 기준 881대)는 freeze 유지 — 분모 불변. 도구 정본이 Mac 에만 있어 Windows 세션에서는 적용 불가, 패치 절차만 전달했다. 적용 시 필수 후속: **sticky 로 굳은 과거 `installed` 행 재계산**(공통 appfit 기준으로 확정된 상태가 남으면 수치가 거짓말한다). 지표 의미가 "appfit 보급률"→"전용 빌드 보급률"로 바뀌므로 설치율 하락은 정상이며, 전용 빌드 배포 개시일은 2026-08-18(3.0.0+185)이라 0 근처에서 시작한다. 관련: [[project_mammoth_dedicated_build]].
