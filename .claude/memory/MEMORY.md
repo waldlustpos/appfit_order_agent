@@ -70,3 +70,5 @@
 - [flavor 프리시드 vs 명시적 선택](feedback_flavor_preseed_vs_explicit_choice.md) — 설정값=null일때만 개입 vs 로그인로고 같은 "아티팩트 정체성"은 테마무관 항상 강제, 구분 필수 (2026-08-18)
 - [브랜드 빌드는 화면 요소만](feedback_brand_artifact_visual_only.md) — 아티팩트/매장 브랜드 불일치에 안내·경고·제약 금지. 오설치 배너 기능째 삭제 (2026-08-18)
 - [Fleet 매장 화이트리스트 게이트](project_fleet_store_allowlist_gate.md) — 이식·게이트 완료했으나 정식 도입 전까지 FleetConfig.enabled=false 로 비활성(서버통신 0). 앱→관제 요청은 조회·heartbeat 2개뿐 (2026-08-19)
+- [appfit-fleet 백엔드 구조](project_appfit_fleet_backend.md) — Cloudflare Workers+D1, 이미 배포됨. 중첩 미추적 하위디렉터리 함정 주의 (2026-08-20)
+- [Fleet 저장공간/메모리 현황 추가 설계](project_fleet_resource_monitoring_plan.md) — 네이티브 코드 방식 확정(system_info2 게시자 미검증으로 기각), 앱+백엔드 계획 완료·구현 미착수 (2026-08-20)
