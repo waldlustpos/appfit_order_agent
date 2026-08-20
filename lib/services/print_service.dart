@@ -569,6 +569,9 @@ class PrintService {
       // 등 서버값은 그대로.) 누락 시 각 빌더가 한국어로 fallback.
       orderMap['labels'] =
           buildReceiptLabels(ref.read(localeNotifierProvider).translations);
+      // 매장/포장 표기 토글 — 내장(Sunmi Java)/외부(Dart ESC-POS) 양쪽이 이 플래그를
+      // JSON payload 에서 읽으므로 판정 로직은 여기 한 곳에만 존재.
+      orderMap['showOrderType'] = _preferenceService.getPrintShowOrderType();
       final orderJson = jsonEncode(orderMap);
 
       // 캐시된 설정값이 없는 경우에만 로드

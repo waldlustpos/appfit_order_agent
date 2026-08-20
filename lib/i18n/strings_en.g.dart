@@ -150,6 +150,7 @@ class _Translations$settings$en extends Translations$settings$ko {
 	@override late final _Translations$settings$currency$en currency = _Translations$settings$currency$en._(_root);
 	@override late final _Translations$settings$display_rotate$en display_rotate = _Translations$settings$display_rotate$en._(_root);
 	@override late final _Translations$settings$order_type_badge$en order_type_badge = _Translations$settings$order_type_badge$en._(_root);
+	@override late final _Translations$settings$print_show_order_type$en print_show_order_type = _Translations$settings$print_show_order_type$en._(_root);
 	@override late final _Translations$settings$order_source_color$en order_source_color = _Translations$settings$order_source_color$en._(_root);
 	@override late final _Translations$settings$kds_ignore_status$en kds_ignore_status = _Translations$settings$kds_ignore_status$en._(_root);
 	@override late final _Translations$settings$kds_accept_orders$en kds_accept_orders = _Translations$settings$kds_accept_orders$en._(_root);
@@ -752,6 +753,17 @@ class _Translations$settings$order_type_badge$en extends Translations$settings$o
 	// Translations
 	@override String get title => 'Show Dine-in / Takeout Badge';
 	@override String get desc => 'Display a dine-in or takeout badge on the order detail header.';
+}
+
+// Path: settings.print_show_order_type
+class _Translations$settings$print_show_order_type$en extends Translations$settings$print_show_order_type$ko {
+	_Translations$settings$print_show_order_type$en._(TranslationsEn root) : this._root = root, super.internal(root);
+
+	final TranslationsEn _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'Show Dine-in / Takeout on Print';
+	@override String get desc => 'Prints the dine-in/takeout label on receipts and order slips.';
 }
 
 // Path: settings.order_source_color

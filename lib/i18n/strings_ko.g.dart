@@ -239,6 +239,7 @@ class Translations$settings$ko {
 	late final Translations$settings$currency$ko currency = Translations$settings$currency$ko.internal(_root);
 	late final Translations$settings$display_rotate$ko display_rotate = Translations$settings$display_rotate$ko.internal(_root);
 	late final Translations$settings$order_type_badge$ko order_type_badge = Translations$settings$order_type_badge$ko.internal(_root);
+	late final Translations$settings$print_show_order_type$ko print_show_order_type = Translations$settings$print_show_order_type$ko.internal(_root);
 	late final Translations$settings$order_source_color$ko order_source_color = Translations$settings$order_source_color$ko.internal(_root);
 	late final Translations$settings$kds_ignore_status$ko kds_ignore_status = Translations$settings$kds_ignore_status$ko.internal(_root);
 	late final Translations$settings$kds_accept_orders$ko kds_accept_orders = Translations$settings$kds_accept_orders$ko.internal(_root);
@@ -1302,6 +1303,21 @@ class Translations$settings$order_type_badge$ko {
 
 	/// ko: '주문 상세 헤더에 매장/포장 구분 배지를 표시합니다.'
 	String get desc => '주문 상세 헤더에 매장/포장 구분 배지를 표시합니다.';
+}
+
+// Path: settings.print_show_order_type
+class Translations$settings$print_show_order_type$ko {
+	Translations$settings$print_show_order_type$ko.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// ko: '출력물에 매장/포장 표기'
+	String get title => '출력물에 매장/포장 표기';
+
+	/// ko: '영수증·주문서에 매장/포장 구분을 표시합니다.'
+	String get desc => '영수증·주문서에 매장/포장 구분을 표시합니다.';
 }
 
 // Path: settings.order_source_color

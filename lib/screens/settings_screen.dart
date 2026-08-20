@@ -65,6 +65,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _isKioskAlwaysAutoAccept = true;
   bool _isShowOrderTypeBadge = false;
   bool _isOrderSourceColor = false;
+  bool _printShowOrderType = true;
   bool _isOrderHistoryScroll = true;
   bool _isIgnoreOtherDeviceKds = false;
   bool _isKdsAcceptOrders = false;
@@ -135,6 +136,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _isKioskAlwaysAutoAccept = _preferenceService.getKioskAlwaysAutoAccept();
       _isShowOrderTypeBadge = _preferenceService.getShowOrderTypeBadge();
       _isOrderSourceColor = _preferenceService.getOrderSourceColor();
+      _printShowOrderType = _preferenceService.getPrintShowOrderType();
       _isOrderHistoryScroll = _preferenceService.getOrderHistoryScroll();
       _isIgnoreOtherDeviceKds =
           _preferenceService.getIgnoreOtherDeviceTasksKds();
@@ -180,6 +182,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           .setKioskAlwaysAutoAccept(_isKioskAlwaysAutoAccept);
       await _preferenceService.setShowOrderTypeBadge(_isShowOrderTypeBadge);
       await _preferenceService.setOrderSourceColor(_isOrderSourceColor);
+      await _preferenceService.setPrintShowOrderType(_printShowOrderType);
       await _preferenceService.setOrderHistoryScroll(_isOrderHistoryScroll);
       await _preferenceService
           .setIgnoreOtherDeviceTasksKds(_isIgnoreOtherDeviceKds);
@@ -568,6 +571,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               labelQrPayloadFormat: _labelQrPayloadFormat,
               isShowOrderTypeBadge: _isShowOrderTypeBadge,
               isOrderSourceColor: _isOrderSourceColor,
+              printShowOrderType: _printShowOrderType,
               onModeSwitch: _handleModeSwitch,
               onRotated180Changed: (v) => setState(() => _isRotated180 = v),
               onAutoStartChanged: (v) => _setAndSave(() => _isAutoStart = v),
@@ -615,6 +619,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   _setAndSave(() => _isShowOrderTypeBadge = v),
               onOrderSourceColorChanged: (v) =>
                   _setAndSave(() => _isOrderSourceColor = v),
+              onPrintShowOrderTypeChanged: (v) =>
+                  _setAndSave(() => _printShowOrderType = v),
               isSoundGraphEnabled: _isSoundGraphEnabled,
               soundGraphMarketId: _soundGraphMarketId,
               onSoundGraphEnabledChanged: (v) =>

@@ -150,6 +150,7 @@ class _Translations$settings$ja extends Translations$settings$ko {
 	@override late final _Translations$settings$currency$ja currency = _Translations$settings$currency$ja._(_root);
 	@override late final _Translations$settings$display_rotate$ja display_rotate = _Translations$settings$display_rotate$ja._(_root);
 	@override late final _Translations$settings$order_type_badge$ja order_type_badge = _Translations$settings$order_type_badge$ja._(_root);
+	@override late final _Translations$settings$print_show_order_type$ja print_show_order_type = _Translations$settings$print_show_order_type$ja._(_root);
 	@override late final _Translations$settings$order_source_color$ja order_source_color = _Translations$settings$order_source_color$ja._(_root);
 	@override late final _Translations$settings$kds_ignore_status$ja kds_ignore_status = _Translations$settings$kds_ignore_status$ja._(_root);
 	@override late final _Translations$settings$kds_accept_orders$ja kds_accept_orders = _Translations$settings$kds_accept_orders$ja._(_root);
@@ -743,6 +744,17 @@ class _Translations$settings$order_type_badge$ja extends Translations$settings$o
 	// Translations
 	@override String get title => '店内/持ち帰り表示';
 	@override String get desc => '注文詳細ヘッダーに店内/持ち帰りバッジを表示します。';
+}
+
+// Path: settings.print_show_order_type
+class _Translations$settings$print_show_order_type$ja extends Translations$settings$print_show_order_type$ko {
+	_Translations$settings$print_show_order_type$ja._(TranslationsJa root) : this._root = root, super.internal(root);
+
+	final TranslationsJa _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => '印刷物に店内／持ち帰りを表示';
+	@override String get desc => 'レシート・伝票に店内／持ち帰りの区分を表示します。';
 }
 
 // Path: settings.order_source_color

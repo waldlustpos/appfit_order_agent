@@ -576,6 +576,19 @@ public class SunmiPrintHelper {
     }
 
     /**
+     * 주문 JSON 의 "orderType"(IN_SHOP/TAKE_OUT) 을 매장/포장 라벨로 변환한다.
+     * "showOrderType" 이 false 면(설정 토글 OFF) null 을 반환해 인쇄를 건너뛴다.
+     * 그 외 값(레거시 H/T/C 등)은 표기하지 않는다 — 주문 상세 팝업 배지와 동일 스코프.
+     */
+    private String resolveOrderTypeLabel(JSONObject jsonOrder, JSONObject L) {
+        if (!jsonOrder.optBoolean("showOrderType", true)) return null;
+        String ot = jsonOrder.optString("orderType", "").toUpperCase();
+        if (ot.equals("IN_SHOP")) return lbl(L, "type_dine_in", "매장");
+        if (ot.equals("TAKE_OUT")) return lbl(L, "type_takeout", "포장");
+        return null;
+    }
+
+    /**
      * JSON 형식의 주문 데이터를 받아 주문서를 출력합니다. (메서드 설명 수정)
      * @param orderJson JSON 형식의 주문 데이터
      * @param isCancel 취소 주문서 여부
@@ -610,6 +623,10 @@ public class SunmiPrintHelper {
             // 주문번호 출력 (ordrSimpleId 또는 displayOrderNum)
             String displayNum = jsonOrder.optString("displayOrderNum", jsonOrder.optString("ordrSimpleId", ""));
             sunmiPrinterService.printTextWithFont(lbl(L, "order_no", "주문번호") + ": " + displayNum + "\n", null, receiptOrderNumFontSize, null);
+            String orderTypeLabel0 = resolveOrderTypeLabel(jsonOrder, L);
+            if (orderTypeLabel0 != null) {
+                sunmiPrinterService.printTextWithFont(orderTypeLabel0 + "\n", null, receiptOrderNumFontSize, null);
+            }
             sunmiPrinterService.lineWrap(1, null);
             // 사용자 이름 출력 (userName)
             String userName = jsonOrder.optString("userName", "");
@@ -782,7 +799,10 @@ public class SunmiPrintHelper {
             // 주문번호 출력
             String displayNum = jsonOrder.optString("displayOrderNum", jsonOrder.optString("ordrSimpleId", ""));
             sunmiPrinterService.printTextWithFont(lbl(L, "order_no", "주문번호") + " : " + displayNum + "\n", null, receiptOrderNumFontSize, null);
-            sunmiPrinterService.printTextWithFont("〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓〓\n", null, 13, null);
+            String orderTypeLabel1 = resolveOrderTypeLabel(jsonOrder, L);
+            if (orderTypeLabel1 != null) {
+                sunmiPrinterService.printTextWithFont(orderTypeLabel1 + "\n", null, receiptOrderNumFontSize, null);
+            }
             sunmiPrinterService.lineWrap(1, null);
             
             // 왼쪽 정렬 및 줄 간격 설정

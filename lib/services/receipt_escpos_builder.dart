@@ -357,6 +357,22 @@ class ReceiptEscPosBuilder {
 
   // ---- 내부 헬퍼 ----
 
+  /// 주문 JSON 의 `orderType`(IN_SHOP/TAKE_OUT) 을 매장/포장 라벨로 변환한다.
+  /// `showOrderType` 이 false 면(설정 토글 OFF) null 을 반환해 인쇄를 건너뛴다.
+  /// 그 외 값(레거시 H/T/C 등)은 표기하지 않는다 — 주문 상세 팝업 배지와 동일 스코프.
+  static String? _orderTypeLabel(
+    Map<String, dynamic> jsonOrder,
+    String Function(String key, String ko) lbl,
+  ) {
+    if ((jsonOrder['showOrderType'] as bool?) == false) return null;
+    final ot = (jsonOrder['orderType'] as String? ?? '').toUpperCase();
+    return switch (ot) {
+      'IN_SHOP' => lbl('type_dine_in', '매장'),
+      'TAKE_OUT' => lbl('type_takeout', '포장'),
+      _ => null,
+    };
+  }
+
   static Future<void> _appendReceipt(
     ReceiptEscPosBuilder b,
     Map<String, dynamic> jsonOrder,
@@ -393,8 +409,10 @@ class ReceiptEscPosBuilder {
         (jsonOrder['displayOrderNum'] as String?)?.isNotEmpty == true
             ? jsonOrder['displayOrderNum'] as String
             : (jsonOrder['ordrSimpleId'] as String? ?? '');
+    b.textLn('${lbl('order_no', '주문번호')} : $displayNum');
+    final orderTypeLabel1 = _orderTypeLabel(jsonOrder, lbl);
+    if (orderTypeLabel1 != null) b.textLn(orderTypeLabel1);
     b
-      ..textLn('${lbl('order_no', '주문번호')} : $displayNum')
       ..setSize(EscPos.fontNormal)
       ..boldOff()
       ..ln()
@@ -543,8 +561,10 @@ class ReceiptEscPosBuilder {
         (jsonOrder['displayOrderNum'] as String?)?.isNotEmpty == true
             ? jsonOrder['displayOrderNum'] as String
             : (jsonOrder['ordrSimpleId'] as String? ?? '');
+    b.textLn('${lbl('order_no', '주문번호')}: $displayNum');
+    final orderTypeLabel0 = _orderTypeLabel(jsonOrder, lbl);
+    if (orderTypeLabel0 != null) b.textLn(orderTypeLabel0);
     b
-      ..textLn('${lbl('order_no', '주문번호')}: $displayNum')
       ..setSize(EscPos.fontNormal)
       ..boldOff()
       ..ln();

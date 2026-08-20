@@ -26,5 +26,7 @@ Map<String, String> buildReceiptLabels(Translations t) {
     'payment_amount': r.payment_amount,
     'kiosk': r.kiosk,
     'customer_suffix': r.customer_suffix,
+    'type_dine_in': t.order.type_dine_in,
+    'type_takeout': t.order.type_takeout,
   };
 }

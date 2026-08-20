@@ -180,6 +180,10 @@
             "title": "Show Dine-in / Takeout Badge",
             "desc": "Display a dine-in or takeout badge on the order detail header."
         },
+        "print_show_order_type": {
+            "title": "Show Dine-in / Takeout on Print",
+            "desc": "Prints the dine-in/takeout label on receipts and order slips."
+        },
         "order_source_color": {
             "title": "Color by Order Source",
             "desc": "Distinguish app, kiosk, and POS orders by card background color."

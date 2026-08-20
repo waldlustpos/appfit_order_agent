@@ -82,6 +82,8 @@ class PreferenceService {
       "KEY_SHOW_ORDER_TYPE_BADGE"; // 주문 상세 헤더의 매장/포장 pill 노출 여부
   static const String KEY_ORDER_SOURCE_COLOR =
       "KEY_ORDER_SOURCE_COLOR"; // 앱/키오스크 주문 카드 배경색 구분 (default off)
+  static const String KEY_PRINT_SHOW_ORDER_TYPE =
+      "KEY_PRINT_SHOW_ORDER_TYPE"; // 영수증/주문서 출력물에 매장/포장 표기 (기본 true)
 
   // 라벨프린터 테스트 모드 설정 키
   static const String KEY_LABEL_AUTO_REPLY_MODE =
@@ -642,6 +644,10 @@ class PreferenceService {
       _prefs.getBool(KEY_ORDER_SOURCE_COLOR) ??
       false; // 앱/키오스크 주문 카드 배경색 구분 (default off)
 
+  bool getPrintShowOrderType() =>
+      _prefs.getBool(KEY_PRINT_SHOW_ORDER_TYPE) ??
+      true; // 영수증/주문서 출력물에 매장/포장 표기 (default on)
+
   // 라벨프린터 테스트 모드 getters
   // autoReplyMode=1: SDK 양방향 통신 활성. PrintedEvent ACK 콜백을 받기 위한 전제.
   int getLabelAutoReplyMode() => _prefs.getInt(KEY_LABEL_AUTO_REPLY_MODE) ?? 1;
@@ -754,6 +760,10 @@ class PreferenceService {
 
   Future<void> setOrderSourceColor(bool value) async {
     await _prefs.setBool(KEY_ORDER_SOURCE_COLOR, value);
+  }
+
+  Future<void> setPrintShowOrderType(bool value) async {
+    await _prefs.setBool(KEY_PRINT_SHOW_ORDER_TYPE, value);
   }
 
   // 라벨프린터 테스트 모드 setters
