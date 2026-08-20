@@ -20,11 +20,17 @@ project(appfit_order_agent LANGUAGES CXX)
 # Server environment, BrandFeature gating, printer/order logic stay 100%
 # runtime (BrandRegistry) - see test/config/build_brand_scope_test.dart, which
 # pins the whitelist of files allowed to reference the brand axis.
+#
+# The default line below must stay the FIRST `set(BINARY_NAME "...")` in this
+# file: the flutter tool resolves the exe to launch by regex-matching the first
+# such line (packages/flutter_tools/lib/src/cmake.dart), with no knowledge of
+# the env var. The mammoth suffix therefore goes through string(APPEND), which
+# that regex does not match, so `flutter run -d windows` keeps launching the
+# exe cmake actually produced in a dev shell (brand comes from --dart-define).
+set(BINARY_NAME "appfit_order_agent")
 if("$ENV{APPFIT_BRAND}" STREQUAL "mammoth")
-  set(BINARY_NAME "appfit_order_agent_mammoth")
+  string(APPEND BINARY_NAME "_mammoth")
   add_definitions(-DAPPFIT_BRAND_MAMMOTH)
-else()
-  set(BINARY_NAME "appfit_order_agent")
 endif()
 
 # Explicitly opt in to modern CMake behaviors to avoid warnings with recent
