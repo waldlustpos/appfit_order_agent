@@ -317,31 +317,63 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
             ? t.membership.search.hint_searched
             : t.membership.search.hint;
 
-        return TextField(
-          style: AppTextStyles.title,
-          textAlign: TextAlign.start,
-          textAlignVertical: TextAlignVertical.center,
-          controller: _inputController,
-          focusNode: _inputFocusNode,
-          readOnly: true,
-          showCursor: true,
-          // 화면을 감싼 Focus(_keyboardFocusNode)가 하드웨어 키를 처리하므로
-          // 입력 필드는 절대 primary focus 를 가져가지 않게 한다. 이렇게 하면
-          // IME 가 열리지 않아 소프트 키보드 차단이 더 견고하다.
-          autofocus: false,
-          canRequestFocus: false,
-          enableInteractiveSelection: false,
-          keyboardType:
-              isCustomerSearched ? TextInputType.number : TextInputType.none,
-          decoration: AppStyles.outlinedInputDecoration(
-            hintText: hintText,
-            hintStyle: AppTextStyles.body.copyWith(color: AppStyles.gray6),
-          ).copyWith(
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.s12,
-              vertical: AppSpacing.s16,
+        return Stack(
+          children: [
+            TextField(
+              style: AppTextStyles.title,
+              textAlign: TextAlign.start,
+              textAlignVertical: TextAlignVertical.center,
+              controller: _inputController,
+              focusNode: _inputFocusNode,
+              readOnly: true,
+              showCursor: true,
+              // 화면을 감싼 Focus(_keyboardFocusNode)가 하드웨어 키를 처리하므로
+              // 입력 필드는 절대 primary focus 를 가져가지 않게 한다. 이렇게 하면
+              // IME 가 열리지 않아 소프트 키보드 차단이 더 견고하다.
+              autofocus: false,
+              canRequestFocus: false,
+              enableInteractiveSelection: false,
+              keyboardType: isCustomerSearched
+                  ? TextInputType.number
+                  : TextInputType.none,
+              // hintText 는 InputDecoration 에 맡기지 않는다: 값 스타일(title,
+              // 20px)과 힌트 스타일(body, 15px)의 크기가 달라 InputDecorator 가
+              // 내부 슬롯을 값 스타일 기준으로 잡고 힌트를 그 안에서 다시 중앙
+              // 정렬하면서, Pretendard 의 비대칭 ascent/descent 와 맞물려 힌트가
+              // 미세하게 아래로 치우쳐 보이는 문제가 있었다(측정: 1.5px 편차).
+              // 아래 Align 오버레이로 직접 그려 필드 박스 기준으로 바로 중앙
+              // 정렬한다(측정: 0px 편차).
+              decoration: AppStyles.outlinedInputDecoration().copyWith(
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.s12,
+                  vertical: AppSpacing.s16,
+                ),
+              ),
             ),
-          ),
+            Positioned.fill(
+              child: IgnorePointer(
+                child: ValueListenableBuilder<TextEditingValue>(
+                  valueListenable: _inputController,
+                  builder: (context, value, _) {
+                    if (value.text.isNotEmpty) return const SizedBox.shrink();
+                    return Align(
+                      alignment: Alignment.centerLeft,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.s12,
+                        ),
+                        child: Text(
+                          hintText,
+                          style: AppTextStyles.body
+                              .copyWith(color: AppStyles.gray6),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ],
         );
       },
     );
