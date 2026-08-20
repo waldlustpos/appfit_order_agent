@@ -340,6 +340,35 @@ class _ProductManagementScreenState
             data: (products) {
               final visibleGroups =
                   filterProductGroups(_groups(products), _filter);
+              // 카드(그룹) 수. 좌측 타일 카운트와 항상 일치한다.
+              // 카테고리 선택 중엔 "전체"라고 하면 혼동을 줘 카테고리명을 그대로 쓰고,
+              // 좌측 타일 선택색(kMainColor)과 맞춰 카테고리명만 강조한다.
+              final filter = _filter;
+              final headerCountText = filter is CategoryGroups
+                  ? Text.rich(
+                      TextSpan(
+                        style: AppTextStyles.titleSm
+                            .copyWith(color: AppStyles.gray9),
+                        children: [
+                          TextSpan(
+                            text: filter.categoryName,
+                            style: TextStyle(
+                              color: AppStyles.kMainColor,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          TextSpan(
+                            text:
+                                ' ${t.product_mgmt.count(n: visibleGroups.length)}',
+                          ),
+                        ],
+                      ),
+                    )
+                  : Text(
+                      t.product_mgmt.total_count(n: visibleGroups.length),
+                      style: AppTextStyles.titleSm
+                          .copyWith(color: AppStyles.gray9),
+                    );
               return Column(
                 children: [
                   // 헤더
@@ -351,12 +380,7 @@ class _ProductManagementScreenState
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          // 카드(그룹) 수. 좌측 타일 카운트와 항상 일치한다.
-                          t.product_mgmt.total_count(n: visibleGroups.length),
-                          style: AppTextStyles.titleSm
-                              .copyWith(color: AppStyles.gray9),
-                        ),
+                        headerCountText,
                         IconButton(
                           onPressed: () {
                             logToFile(
