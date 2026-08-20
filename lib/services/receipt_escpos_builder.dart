@@ -398,7 +398,11 @@ class ReceiptEscPosBuilder {
 
     if (isCancel) {
       b
+        ..boldOn()
+        ..setSize(EscPos.fontTall)
         ..textLn('[${lbl('cancel_receipt', '취소영수증')}]')
+        ..setSize(EscPos.fontNormal)
+        ..boldOff()
         ..ln();
     }
 
@@ -624,7 +628,9 @@ class ReceiptEscPosBuilder {
               contIndent: '   ',
             );
           }
-          b.textLn(separatorLine(width));
+          b
+            ..setSize(EscPos.fontNormal)
+            ..textLn(separatorLine(width));
         }
         b
           ..setSize(EscPos.fontNormal)
