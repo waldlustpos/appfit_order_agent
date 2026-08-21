@@ -27,7 +27,7 @@ class FleetConfig {
   /// dart-define 이나 `AppEnv`(gitignore 대상)에 두지 않는 이유는, 빌드마다
   /// 값이 달라지거나 레포에서 상태가 안 보이면 "지금 켜져 있나"를 코드로 확인할
   /// 수 없기 때문이다.
-  static const bool enabled = false;
+  static const bool enabled = true;
 
   /// OTA 아티팩트와 같은 정적 호스트(`OtaConfig`/`UpdateConfig` 와 동일 값).
   /// 저 둘은 브랜드 채널 규칙에 묶여 있어 재사용하지 않고 여기서 따로 든다.
