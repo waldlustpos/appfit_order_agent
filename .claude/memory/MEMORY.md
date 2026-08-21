@@ -72,3 +72,4 @@
 - [Fleet 매장 화이트리스트 게이트](project_fleet_store_allowlist_gate.md) — enabled=false 로 여전히 비활성. Windows 전용 가드 2곳(최종판정+조회) 분리, 되돌릴 땐 둘 다 (2026-08-21)
 - [appfit-fleet 백엔드 구조](project_appfit_fleet_backend.md) — Cloudflare Workers+D1, 이미 배포됨. 중첩 미추적 하위디렉터리 함정 주의 (2026-08-20)
 - [Fleet 저장공간/메모리 현황 추가 설계](project_fleet_resource_monitoring_plan.md) — 네이티브 코드 방식 확정(system_info2 게시자 미검증으로 기각), 앱+백엔드 계획 완료·구현 미착수 (2026-08-20)
+- [BIXOLON G30 40mm 레이아웃 완료+커밋](project_bixolon_g30_40mm_layout.md) — 인쇄시작위치 하드웨어고정 발견(margin으론 중앙정렬 불가). 58mm/Windows/설정UI 남음 (2026-08-21)

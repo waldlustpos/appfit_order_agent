@@ -697,13 +697,13 @@ class ApiService {
 
           // 서버가 실제로 내려주는 카테고리 원본 구조 확인용 로그.
           // items 는 카테고리당 다수라 요약(개수)만 남기고, 나머지 키는 그대로 찍는다.
-          logger.i('[AppFit API] 카테고리 응답 수신: ${categories.length}개\n'
+          /* logger.i('[AppFit API] 카테고리 응답 수신: ${categories.length}개\n'
               '${const JsonEncoder.withIndent('  ').convert(categories.map((c) {
             final m = Map<String, dynamic>.from(c as Map<String, dynamic>);
             final items = m['items'] as List<dynamic>?;
             if (items != null) m['items'] = '${items.length}개 (생략)';
             return m;
-          }).toList())}');
+          }).toList())}'); */
 
           for (var category in categories) {
             // 항목별 격리 — 1건 손상 시 해당 카테고리만 스킵하고 나머지는 유지.
