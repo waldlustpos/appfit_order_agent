@@ -17,6 +17,8 @@ import 'package:appfit_order_agent/services/output_queue_service.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/services/print_service.dart';
 import 'package:appfit_order_agent/utils/label_painter.dart';
+import 'package:appfit_order_agent/utils/continuous_label_painter.dart';
+import 'package:appfit_order_agent/services/label_printer/label_media_spec.dart';
 import 'package:appfit_order_agent/widgets/custom_switch.dart';
 
 /// 라벨 프린터 고급 설정 (개발자 옵션 내부).
@@ -336,18 +338,43 @@ class _SettingsLabelTestSectionState
 
     try {
       const int layoutVersion = 1; // 라벨 레이아웃 V2 고정 (선택 설정 폐지)
+      // G30(연속용지) 연결 시 별도 레이아웃 — output_service.dart 의 자동출력
+      // 경로와 동일 분기. 이 버튼으로 목업 대조/실기기 검증을 하므로 자동출력과
+      // 다른 레이아웃이 나가면 검증 자체가 무의미해진다.
+      final bool isG30 = status.labelPrinterModel == kBixolonG30ModelName;
+      // G30 은 세로 가변 레이아웃이라 3장을 일부러 짧음/보통/김 으로 다르게
+      // 구성한다 — 셋 다 같은 길이면 이 버튼으로는 가변 높이가 실제로
+      // 동작하는지 확인할 수 없다(실물 출력 피드백으로 발견).
+      const List<String> g30MenuNames = ['아메리카노', '아이스 바닐라 라떼', '딸기 스무디 (라지 사이즈, 얼음 적게)'];
+      final List<List<String>> g30Options = [
+        const [],
+        const ['옵션A', '옵션B'],
+        const ['옵션A', '옵션B', '옵션C', '옵션D', '옵션E'],
+      ];
+      const List<String?> g30Memos = [null, null, '얼음 적게, 빨대 2개, 포장 부탁드려요 감사합니다'];
       final sw = Stopwatch()..start();
       for (int i = 1; i <= 3; i++) {
         final labelSw = Stopwatch()..start();
-        final imageBytes = await LabelPainter.generateLabelImage(
-          menuName: '테스트 상품 $i',
-          options: ['옵션A', '옵션B'],
-          shopOrderNo: '0000',
-          orderTime: '03/26\n12:00:00',
-          orderIndex: i,
-          orderTotal: 3,
-          layoutVersion: layoutVersion,
-        );
+        final imageBytes = isG30
+            ? await ContinuousLabelPainter.generateContinuousLabelImage(
+                spec: LabelMediaSpec.continuous40,
+                menuName: g30MenuNames[i - 1],
+                options: g30Options[i - 1],
+                memo: g30Memos[i - 1],
+                shopOrderNo: '0000-$i',
+                legacyOrderTime: '03/26\n12:00:00',
+                orderIndex: i,
+                orderTotal: 3,
+              )
+            : await LabelPainter.generateLabelImage(
+                menuName: '테스트 상품 $i',
+                options: ['옵션A', '옵션B'],
+                shopOrderNo: '0000',
+                orderTime: '03/26\n12:00:00',
+                orderIndex: i,
+                orderTotal: 3,
+                layoutVersion: layoutVersion,
+              );
         logToFile(
             tag: LogTag.PLATFORM,
             message:

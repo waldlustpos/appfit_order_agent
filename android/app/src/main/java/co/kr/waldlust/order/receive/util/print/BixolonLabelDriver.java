@@ -445,8 +445,12 @@ public class BixolonLabelDriver {
      * 인쇄 전 사전 이진화 — luminance &lt; {@link #BINARIZE_THRESHOLD} → 순흑, 그 외 순백.
      * 결과 픽셀이 0/255 뿐이라 SDK level 이진화 의미론에서 완전히 독립된다.
      * 490x600 기준 수 ms (labelPrintExecutor 스레드에서 실행).
+     *
+     * <p>package-private — {@link BixolonPosDriver}(G30, UPOS SDK)도 같은 근거(SDK 자체
+     * 이진화가 저임계로 동작해 얇은 요소가 소실)로 재사용한다. 값 자체는 이 클래스가
+     * 진실의 근원이다.
      */
-    private static Bitmap binarizeForPrint(Bitmap src) {
+    static Bitmap binarizeForPrint(Bitmap src) {
         final int w = src.getWidth();
         final int h = src.getHeight();
         final int[] pixels = new int[w * h];

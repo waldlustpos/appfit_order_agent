@@ -56,13 +56,33 @@ class PrinterStatus {
   }
 }
 
+/// 라벨 프린터 표시명 중 G30 — [OutputService] 가 이 값으로 연속용지 레이아웃
+/// ([ContinuousLabelPainter] / [LabelMediaSpec.continuous40]) 분기를 탄다.
+/// 문자열을 여기저기 새로 쓰지 말고 항상 이 상수를 참조할 것.
+const String kBixolonG30ModelName = 'BIXOLON G30';
+
 /// 라벨 프린터 VID/PID → 사용자 표시용 기종명.
-/// LabelPrinter.java / BixolonLabelDriver.java 화이트리스트와 동기 유지.
-String? labelPrinterModelName({required int vendorId, required int productId}) {
+/// LabelPrinter.java / BixolonLabelDriver.java / BixolonPosDriver.java 화이트리스트와 동기 유지.
+///
+/// BIXOLON 은 XD5-40d(Label SDK)와 G30(UPOS SDK)이 VID 0x1504 를 공유해 PID로
+/// 갈라야 한다. G30 PID 는 실기기로 확인됨(0x0147) — Android
+/// `BixolonPosDriver.KNOWN_PRODUCT_IDS` 와 동기 유지. [productName] "G30" 부분일치는
+/// PID 미매칭 개체(리퍼브/다른 로트)를 위한 보조 판정.
+String? labelPrinterModelName({
+  required int vendorId,
+  required int productId,
+  String? productName,
+}) {
   if (vendorId == 0x4B43 && productId == 0x3538) return 'Caysn D2';
   if (vendorId == 0x4B43 && productId == 0x3830) return 'Caysn D3';
   if (vendorId == 0x0FE6 && productId == 0x811E) return 'REXOD RXLA-561';
-  if (vendorId == 0x1504) return 'BIXOLON XD5-40d';
+  if (vendorId == 0x1504) {
+    if (productId == 0x0147) return kBixolonG30ModelName;
+    if (productName != null && productName.toUpperCase().contains('G30')) {
+      return kBixolonG30ModelName;
+    }
+    return 'BIXOLON XD5-40d';
+  }
   return null;
 }
 
@@ -412,12 +432,14 @@ class PrintService {
 
           String identification = '';
 
-          // 1. 라벨 프린터 식별 (LabelPrinter.java / BixolonLabelDriver.java 와 동기화)
+          // 1. 라벨 프린터 식별 (LabelPrinter.java / BixolonLabelDriver.java /
+          //    BixolonPosDriver.java 와 동기화)
           // VID:0x4B43(19267), PID:0x3538(13624)  Caysn D2
           // VID:0x4B43(19267), PID:0x3830(14384)  Caysn D3
           // VID:0x0FE6(4070),  PID:0x811E(33054)  REXOD RXLA-561 (운영 모델)
-          // VID:0x1504(5380)                      BIXOLON XD5-40d (VID-only 매칭.
-          //   실기기 PID:0x0106(262) 확인 — 타 BIXOLON 라벨 기종 호환 위해 안 조임)
+          // VID:0x1504(5380)                      BIXOLON (VID-only 매칭 — XD5-40d 실기기
+          //   PID:0x0106(262) 확인, G30 은 PID 미확인. 타 BIXOLON 라벨 기종 호환 위해
+          //   VID-only 유지하고 기종 구분은 표시명(labelPrinterModelName)에서만 한다.)
           // 주의: 범용 USB-Serial 칩(PL2303 0x067B:0x2303 등) 은 넣지 말 것 —
           // 외부 ESC/POS 영수증 프린터를 라벨로 오인한다. (Windows 후보와 동일.)
           bool isKnownLabelPrinter = (vendorId == 0x4B43 &&
@@ -427,8 +449,10 @@ class PrintService {
 
           if (isKnownLabelPrinter) {
             isLabelConnected = true;
-            labelModel =
-                labelPrinterModelName(vendorId: vendorId, productId: productId);
+            labelModel = labelPrinterModelName(
+                vendorId: vendorId,
+                productId: productId,
+                productName: device['productName'] as String?);
             identification =
                 ' [라벨 프린터 식별됨${labelModel != null ? ' $labelModel' : ''}]'
                 ' VID:$vendorId / PID:$productId';

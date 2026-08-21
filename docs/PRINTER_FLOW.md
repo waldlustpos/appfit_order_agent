@@ -114,14 +114,16 @@ flowchart TD
     BMP --> BST["CheckStatus 동기 폴링<br/>(진입 게이트 + 완료 폴링)"]
 
     LMC --> RT{"VID 라우팅<br/>(매 인쇄 재평가)"}
-    RT -->|"BIXOLON 0x1504 연결됨 (우선)"| BXD["BixolonLabelDriver.java<br/>BIXOLON XD5-40d"]
+    RT -->|"BIXOLON 0x1504 + PID 0x0147 (G30, 우선)"| BPD["BixolonPosDriver.java<br/>BIXOLON G30 (UPOS/JavaPOS)"]
+    RT -->|"BIXOLON 0x1504 연결됨"| BXD["BixolonLabelDriver.java<br/>BIXOLON XD5-40d"]
     RT -->|그 외| LJ["LabelPrinter.java<br/>Caysn/REXOD 라벨 프린터"]
     LJ --> LCB["CP_OnPrinterStatusEvent 콜백<br/>volatile 비콘 캐시"]
     BXD --> BST["getStatus 동기 폴링<br/>(진입 게이트 + 완료 폴링)"]
+    BPD --> BTX["transactionPrint(NORMAL)<br/>동기 블로킹 — 완료 폴링 불필요"]
 ```
 
-- **Windows**: `WindowsLabelRouter`가 SetupAPI VID 스캔(win32, deferred import)으로 벤더를 매 인쇄 재평가 — BIXOLON(0x1504) 연결 시 `BixolonWindowsLabelBackend`(BXLLAPI_x64.dll FFI, 완전 동기·폴링 기반, PNG→사전 이진화 BMP 임시 파일→`PrintImageLibW`+`Prints`), 그 외 `WindowsLabelPrinterBackend`(AutoReplyPrint SDK FFI, Java 패턴 1:1 포팅, `NativeCallable.listener` 상태/완료 콜백, `QueryPrintResult` 타임아웃 1000ms, 라벨 모드는 포트 닫힐 때까지 유지). 두 백엔드 모두 Android 와 동일한 에러 의미론(복구대기·submit-wins) 공유.
-- **Android**: MethodChannel `printLabel` → `NativeMethodHandler` 가 연결된 USB VID 로 벤더 분기 — BIXOLON(0x1504) 연결 시 `BixolonLabelDriver.java`(BIXOLON Label SDK, 동기 API), 그 외 `LabelPrinter.java`(Caysn autoreplyprint). 인자 `autoReplyMode`/`useFeedToTear`/`useBackToPrint`/`useCalibrate` 는 Caysn 전용(BIXOLON 경로 무시), `orderNo`/`labelIndex`/`totalLabels` 는 공통. 두 드라이버는 동일한 에러 의미론 공유: 용지없음/커버열림=무한 복구대기, 기타 에러=0.5s 게이트 후 false(Dart 재시도), 전송 완료 후는 submit-wins(중복 인쇄 방지).
+- **Windows**: `WindowsLabelRouter`가 SetupAPI VID 스캔(win32, deferred import)으로 벤더를 매 인쇄 재평가 — BIXOLON(0x1504) 연결 시 `BixolonWindowsLabelBackend`(BXLLAPI_x64.dll FFI, 완전 동기·폴링 기반, PNG→사전 이진화 BMP 임시 파일→`PrintImageLibW`+`Prints`), 그 외 `WindowsLabelPrinterBackend`(AutoReplyPrint SDK FFI, Java 패턴 1:1 포팅, `NativeCallable.listener` 상태/완료 콜백, `QueryPrintResult` 타임아웃 1000ms, 라벨 모드는 포트 닫힐 때까지 유지). 두 백엔드 모두 Android 와 동일한 에러 의미론(복구대기·submit-wins) 공유. **G30 은 아직 미이식** — §3.5 "남은 작업" 참조.
+- **Android**: MethodChannel `printLabel` → `NativeMethodHandler` 가 연결된 USB VID/PID 로 벤더 분기 — BIXOLON(VID 0x1504) 중에서도 **PID 0x0147(G30)을 먼저 체크**하고(`BixolonPosDriver.isG30Attached`), 그 외 BIXOLON 은 `BixolonLabelDriver.java`(XD5-40d, Label SDK), 나머지는 `LabelPrinter.java`(Caysn autoreplyprint). G30 은 UPOS/JavaPOS SDK(`com.bxl.**`/`jpos.**`) 기반이라 XD5-40d 의 Label SDK/SLCS 와 완전히 다른 API 표면을 쓴다 — `setAsyncMode(false)` 동기 모드라 `transactionPrint(PTR_TP_NORMAL)` 자체가 물리 인쇄 완료까지 블로킹하므로 XD5-40d/Caysn 처럼 별도 완료 폴링 루프가 없다. 인자 `autoReplyMode`/`useFeedToTear`/`useBackToPrint`/`useCalibrate` 는 Caysn 전용(BIXOLON 경로 전부 무시), `orderNo`/`labelIndex`/`totalLabels` 는 공통. 세 드라이버 모두 동일한 에러 의미론 공유: 용지없음/커버열림=무한 복구대기, 기타 에러=0.5s 게이트 후 false(Dart 재시도), 전송 완료 후는 submit-wins(중복 인쇄 방지) — G30 은 `PTR_TP_TRANSACTION`(버퍼링)→`PTR_TP_NORMAL`(flush)이 그 경계.
 - **QR 페이로드**: `qrPayloadStrategyProvider`가 브랜드별 전략 선택(현재 모두 `DefaultQrPayloadStrategy` = `{OrderNo}-{ShopItemId}-{CupIdx}`). 자세한 흐름은 [docs/BRAND_I18N_FLOW.md](BRAND_I18N_FLOW.md).
 - FFI Isolate boxing·hot-reload 주의는 메모리 `ffi_isolate_boxing`, `hot_reload_cold_restart` 참조.
 
@@ -434,6 +436,77 @@ grep 키워드 `떼기대기` 는 Caysn 과 공통으로 유지하되, 이 기�
 
 ① `상태정상`(BASIC variant 폴백) 도달 여부 ② REXOD 무영향 ③ 이상 프레임 재현 시 가드 동작.
 
+### 3.5 BIXOLON G30 (UPOS) — 신규 기종 통합 + 40mm 연속용지 레이아웃 (2026-08-21)
+
+기존 3기종(Caysn/REXOD/XD5-40d)은 전부 **갭 라벨**(고정 크기 낱장)이라 490×600 고정 캔버스
+PNG 한 장이면 됐다. G30 은 **연속 용지 + 커터**라 그 전제가 깨진다 — 세로 가변 레이아웃이
+필요하고, SDK 도 완전히 다르다(UPOS/JavaPOS, `BixolonPosDriver.java` — §3 도입부 참조).
+
+**렌더링 방식**: 비트맵 확정(네이티브 텍스트 아님). 근거는 ① `printBitmap`/NV이미지 모두
+자기 래스터 라인을 점유해 목업의 "헤더 한 줄(로고+날짜+n/N)" 구조가 구조적으로 불가능
+② 1차 대상 매장이 일본어라 SDK 내장 폰트 ROM 의 일본어 지원이 미검증 위험 ③ Windows
+이식 시 명령셋을 또 짜지 않아도 됨(BMP 경로 재사용) ④ QR 은 기존 `LabelDrawOps.drawCrispQr`
+(정수픽셀+AA off)로 이미 네이티브 하드웨어 QR과 동등 품질이라 네이티브의 유일한 이점이 없음.
+
+**레이아웃 구현**: `ContinuousLabelPainter`(신규, `lib/utils/continuous_label_painter.dart`)가
+목업 순서(헤더→표시번호→QR→서브정보→메뉴명→옵션→구분선→메모)로 그리고, `paintAndMeasure`
+가 콘텐츠 하단 Y 를 반환 → `Picture.toImage(w, h)` 로 필요한 높이만 1-pass 래스터화(2-pass
+불필요). 저수준 draw 프리미티브(`drawText`/`drawAutoFitText`/`fitFontSize`/`drawCrispQr`/로고
+캐시)는 `LabelDrawOps` mixin(신규, `lib/utils/label_draw_ops.dart`)으로 뽑아 기존
+`LabelPainter`(490×600)와 공유 — Dart 프라이버시가 파일 단위라 언더스코어를 뗀 순수 이동.
+용지 규격은 `LabelMediaSpec`(신규, `lib/services/label_printer/label_media_spec.dart`) 값
+객체로 캔버스 폭/높이/좌우여백을 기종별로 분리(`gap490x600`은 기존 상수 그대로 — 3기종
+회귀 0, `continuous40`이 G30).
+
+#### 실기기 기하 확정 — 시행착오 기록
+
+여러 차례 실기기 왕복 끝에 도달한 결론이라 **다음에 58mm 를 잡을 때 같은 시행착오를 반복하지
+않도록** 순서대로 남긴다.
+
+1. `getRecLineWidth()`=576dots 는 헤드 물리 최대폭(≈72mm)이지 로드된 용지 폭이 아니다 —
+   40mm/58mm 는 용지 장착 시 끼우는 가이드 부품으로 고정되는 구조라 SDK 가 자동보고하지 않는다.
+2. `PTR_BM_CENTER` 정렬은 이 기기/펌웨어에서 **백지 출력**을 일으킨다(재현 확인) — `PTR_BM_LEFT`
+   확정.
+3. 임시로 만든 "눈금자 테스트"(0~40mm 눈금 + L/R 마커를 인쇄해 실물에서 mm 단위로 읽는 진단
+   이미지, `ContinuousLabelPainter.generateRulerTestImage` — 계산이 끝나 현재는 제거됨)로
+   실측한 결과: **인쇄 가능 영역은 항상 정확히 35mm(280dot)** — 좌우 margin 을 12/12, 48/48,
+   4/48 등 여러 조합으로 바꿔봐도 잘리는 경계는 매번 35mm 로 동일했다(3회 재현).
+4. **핵심 발견**: margin(좌측 padding)을 키워서 콘텐츠를 시각적으로 중앙에 맞추려는 시도는
+   전부 실패했다 — 오히려 키울수록 그만큼 그대로 더 오른쪽으로 밀렸다. 원인은 **인쇄 시작
+   위치 자체가 하드웨어에 고정**돼 있어서다 — padding 을 0.5mm 로 최소화한 상태에서도 "인쇄
+   자체가 이미 왼쪽 공백이 있는 상태로 시작"하는 게 실물에서 확인됐다. 즉 소프트웨어가 보내는
+   비트맵 안에 여백을 아무리 재배치해도 그 시작 위치는 움직이지 않는다 — **시각적 중앙 정렬은
+   이 기종/이 용지 조합에서 소프트웨어 영역 밖**이다(용지 가이드 재장착 등 하드웨어 쪽이 남은
+   유일한 레버).
+5. 그래서 접근을 바꿨다 — "40mm 캔버스 + margin 으로 중앙 맞추기" 대신 **캔버스 자체를 실측
+   유효 인쇄폭(272dot, 35mm 경계 대비 8dot 여유)으로 좁히고, 좌우 margin 은 "잘리지 않는 최대
+   폭 확보"용으로만 쓴다.** 최종값(`LabelMediaSpec.continuous40`): `widthDots=272`,
+   `sideMarginDots=0`(좌 — 하드웨어가 이미 여백을 두고 시작하므로 소프트웨어가 더 얹는 건
+   중복), `rightMarginDots=16`(우 — 콘텐츠가 캔버스 우측 끝에 바짝 붙어 보인다는 실물 피드백
+   으로 좌보다 크게).
+
+QR 겹침처럼 보였던 버그 두 건도 이 과정에서 같이 잡혔다 — `LabelDrawOps.drawCrispQr`의
+quiet zone(모듈 4개 폭 흰 배경)이 `clampQuietTopTo`/`clampQuietBottomTo` 없이는 인접 요소
+쪽으로 그냥 확장돼, 간격(gap)이 quiet zone 보다 좁으면 인접 텍스트를 흰색으로 덮어썼다(표시
+번호/QR, QR/subInfo 양쪽 다 겪음) — QR 박스 안으로 clamp 하도록 고쳐 gap 크기와 무관하게
+항상 안전하게 만들었다.
+
+#### 남은 작업
+
+- **58mm 레이아웃 — 미착수, 40mm 와 동일 레이아웃의 단순 확대가 아닐 것으로 예상.** 폭이
+  넓어지면 목업 비례(표시번호 크기, QR 크기, 옵션 줄바꿈 임계값 등)가 그대로 안 맞을 가능성이
+  높고, 위 §"실기기 기하 확정"의 인쇄 시작 위치/유효폭 관계도 40mm 전용 실측이라 58mm 용지에서
+  똑같이 성립한다는 보장이 없다 — **58mm 전용으로 처음부터 다시 실측**해야 한다(진단 이미지
+  패턴은 재사용 가능: mm 눈금 + spec 기반 CL/CR 마커). `LabelMediaSpec.continuous58` 슬롯을
+  추가해 채우면 된다(`continuous40` 은 손대지 않음).
+- **Windows(BXLPAPI) 이식 — 미착수.** Android UPOS 와는 별도 명령셋(BXLPAPI). 레이아웃(PNG
+  생성)은 `ContinuousLabelPainter`+`LabelMediaSpec`을 그대로 재사용 가능 — 이식 대상은 순수
+  전송 계층뿐.
+- **설정 화면에 용지 사이즈 선택 UI 필요.** G30 은 물리적으로 한 대가 40mm/58mm 를 가이드
+  부품 교체만으로 겸용하므로, 58mm 레이아웃이 준비되면 매장이 로그인/설정 화면에서 장착한
+  용지 사이즈를 선택해 그에 맞는 `LabelMediaSpec`(레이아웃도 함께)을 쓰도록 배선해야 한다 —
+  아직 40mm 단일 고정이라 이 선택 UI 자체가 없다.
+
 ---
 
 ## 4. PrintService 초기화·연결 점검
@@ -470,4 +543,8 @@ flowchart LR
 | [qr_payload_strategy.dart](../lib/services/label_printer/qr_payload_strategy.dart) | 라벨 QR 페이로드 브랜드 전략 |
 | [UsbReceiptPrinter.java](../android/app/src/main/java/co/kr/waldlust/order/receive/util/print/UsbReceiptPrinter.java) | Android USB bulkTransfer·`WriteResult` |
 | [LabelPrinter.java](../android/app/src/main/java/co/kr/waldlust/order/receive/util/print/LabelPrinter.java) | Android 라벨 프린터 (Caysn/REXOD) |
-| [BixolonLabelDriver.java](../android/app/src/main/java/co/kr/waldlust/order/receive/util/print/BixolonLabelDriver.java) | Android 라벨 프린터 (BIXOLON XD5-40d) |
+| [BixolonLabelDriver.java](../android/app/src/main/java/co/kr/waldlust/order/receive/util/print/BixolonLabelDriver.java) | Android 라벨 프린터 (BIXOLON XD5-40d, Label SDK) |
+| [BixolonPosDriver.java](../android/app/src/main/java/co/kr/waldlust/order/receive/util/print/BixolonPosDriver.java) | Android 라벨 프린터 (BIXOLON G30, UPOS/JavaPOS) — Windows 미이식 |
+| [label_media_spec.dart](../lib/services/label_printer/label_media_spec.dart) | 용지 규격 값 객체(`gap490x600`/`continuous40`) — 캔버스 폭·높이·좌우여백 |
+| [continuous_label_painter.dart](../lib/utils/continuous_label_painter.dart) | G30 40mm 연속용지 세로 가변 레이아웃 painter |
+| [label_draw_ops.dart](../lib/utils/label_draw_ops.dart) | 라벨 draw 프리미티브 mixin(`LabelPainter`/`ContinuousLabelPainter` 공유) |

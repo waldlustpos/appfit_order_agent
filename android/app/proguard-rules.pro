@@ -105,6 +105,21 @@
 -keep class com.bixolon.** { *; }
 -dontwarn com.bixolon.**
 
+# BIXOLON UPOS SDK (G30) - jpos.* 는 JposEntry 가 클래스명 문자열로 리플렉션
+# 인스턴스화한다 (ServiceInstanceFactory). keep 없이는 release 에서만 실패한다.
+# mf.javax.xml.** 는 JAXP 클래스를 통째로 리로케이트한 shim(FactoryFinder 의
+# DEFAULT_PROPERTY_NAME 폴백이 mf.org.apache.xerces.* 구현체를 Class.forName
+# 문자열로 찾음) - jpos.xml 저장/로드가 물고 있어 -dontwarn 만으론 release 에서
+# shrink 되어 ClassNotFoundException. 통째로 -keep.
+-keep class com.bxl.** { *; }
+-dontwarn com.bxl.**
+-keep class jpos.** { *; }
+-dontwarn jpos.**
+-keep class mf.org.apache.** { *; }
+-dontwarn mf.org.apache.**
+-keep class mf.javax.xml.** { *; }
+-dontwarn mf.javax.xml.**
+
 # JNA (Java Native Access)
 -keep class com.sun.jna.** { *; }
 -keep class * implements com.sun.jna.** { *; }

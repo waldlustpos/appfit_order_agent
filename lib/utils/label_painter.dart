@@ -1,14 +1,13 @@
-import 'dart:async';
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:qr/qr.dart';
 
 import 'package:appfit_order_agent/i18n/strings.g.dart';
 import 'package:appfit_order_agent/utils/brand_assets.dart';
-import 'package:appfit_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/utils/label_draw_ops.dart';
 
-class LabelPainter extends CustomPainter {
+class LabelPainter extends CustomPainter with LabelDrawOps {
   final String menuName;
   final List<String> options;
   final String? shopOrderNo;
@@ -59,11 +58,6 @@ class LabelPainter extends CustomPainter {
     this.qrSize = qrSizeDefault,
   });
 
-  // --- Logo Cache ---
-  static ui.Image? _cachedLogo;
-  static String? _cachedLogoPath;
-  static bool _logoLoadAttempted = false;
-
   // --- Constants (Layout & Sizes) ---
   static const double width = 490;
   static const double height = 600;
@@ -84,7 +78,7 @@ class LabelPainter extends CustomPainter {
   /// 기본 크기(28)로 [menuNameMaxLines] 줄까지 먼저 쓰고, 그래도 넘칠 때만
   /// 여기까지 축소한다. 더 내리면 subInfo(22)/옵션(21)보다 작아져 시각 위계가
   /// 역전되고, 490dot ≈ 61mm(≈8.0 dot/mm) 기준 20dot ≈ 2.5mm 로 감열 번짐
-  /// 한계에 근접한다. 하한 도달 후 초과분은 `_drawText` 의 ellipsis 가 처리한다.
+  /// 한계에 근접한다. 하한 도달 후 초과분은 `drawText` 의 ellipsis 가 처리한다.
   static const double fsMenuNameMin = 20;
 
   /// 메뉴명 최대 줄 수. 수용력(Pretendard 한글 advance ≈ 1.0em, maxWidth 340):
@@ -225,9 +219,6 @@ class LabelPainter extends CustomPainter {
   /// 2열 모드 최대 표시 개수. 초과분은 마지막 셀을 `+N` 으로 대체한다.
   static const int optionMaxShown = optionMaxRows * 2;
 
-  /// 자동 축소 시 원래 폰트 슬롯의 세로 중앙으로 내리는 계수 (line-height 1.2 / 2).
-  static const double _fitVerticalCenterFactor = 0.6;
-
   /// V2 콘텐츠 하단과 캔버스 하단 사이 여백 (offsetY 적용 후).
   ///
   /// 라벨은 CI 에서 눈으로 비교할 수 없어 "브랜드 X 에서 메모가 잘렸다" 를
@@ -295,7 +286,7 @@ class LabelPainter extends CustomPainter {
 
     // Order Time
     if (orderTime != null) {
-      _drawText(
+      drawText(
         canvas,
         orderTime!,
         Offset(defaultMargin, startY + 5),
@@ -322,7 +313,7 @@ class LabelPainter extends CustomPainter {
 
     // Order index (right side)
     if (orderIndex != null && orderTotal != null) {
-      _drawText(
+      drawText(
         canvas,
         '$orderIndex/$orderTotal',
         Offset(size.width - defaultMargin, startY + 5),
@@ -368,7 +359,7 @@ class LabelPainter extends CustomPainter {
     // 2. Menu Name — V1 은 **1줄 고정**. 아래 qrTopOffset(70) 지점에서 QR 이
     //    시작하는데 28px 2줄은 67.2 라 currentY+30 에서 그리면 QR 을 침범한다.
     //    2줄 슬롯은 헤더를 압축해 공간을 만든 V2 에서만 쓴다.
-    _drawAutoFitText(
+    drawAutoFitText(
       canvas,
       menuName,
       Offset(size.width - defaultMargin, currentY + 30),
@@ -411,7 +402,7 @@ class LabelPainter extends CustomPainter {
     // 3. 상품명: 기본 크기(28)로 menuNameMaxLines 줄까지 쓰고, 그래도 넘칠 때만
     //    fsMenuNameMin 까지 축소. 슬롯 하단 정렬이라 실제 상단 Y 는 줄 수에 따라
     //    달라진다 — 그 값을 받아 subinfo 를 바로 위에 붙인다.
-    final double menuTop = _drawAutoFitText(
+    final double menuTop = drawAutoFitText(
       canvas,
       menuName,
       Offset(size.width - defaultMargin, menuSlotTop),
@@ -500,89 +491,21 @@ class LabelPainter extends CustomPainter {
     return drawX;
   }
 
-  /// QR 을 모듈 = 정수 픽셀 + 안티앨리어싱 off + quiet zone 으로 직접 래스터화한다.
-  ///
-  /// 라벨 PNG(490x600)는 프린터 도트와 1:1 로 매핑되고 thresholding 이진화를
-  /// 거친다. `QrPainter` 는 120px 박스에 비정수 모듈 크기(예: 120/21=5.71px)로
-  /// 안티앨리어싱 렌더링을 해 모듈 경계에 회색이 생기고, 이를 thresholding 이
-  /// 흑백으로 강제하면서 모듈이 뭉개졌다. 여기서는 모듈 크기를 정수 픽셀로
-  /// 맞추고 AA 를 끄며 quiet zone(여백)을 둘러 생성 사이트 수준의 선명도를 낸다.
-  void _drawCrispQr(Canvas canvas, String data, Offset origin) {
-    final qrImage = QrImage(QrCode.fromData(
-      data: data,
-      errorCorrectLevel: qrErrorCorrectLevel, // 운영 기본 M (인쇄 번짐/긁힘 대비)
-    ));
-    final int moduleCount = qrImage.moduleCount;
-
-    const int quietModules = 4; // 표준 quiet zone (상하좌우 각 4모듈)
-
-    // 모듈당 정수 픽셀 — 핵심. round 로 데이터 모듈 영역이 박스(120)를 꽉 채우게
-    // 한다(레거시 QrPainter 와 동일한 시각 크기). 정수라서 모듈 경계가 칼같이 선명.
-    final int modulePx = (qrSize / moduleCount).round().clamp(1, 999);
-    final double dataPx = (modulePx * moduleCount).toDouble(); // ≈ qrSize
-    final double quietPx = (modulePx * quietModules).toDouble();
-
-    // 데이터 모듈 영역을 박스 중앙에 정렬(정수 픽셀 스냅). quiet zone 은 박스
-    // 바깥(주변 흰 여백)으로 확장되므로 레거시와 동일한 모듈 크기를 유지한다.
-    final double originX = (origin.dx + (qrSize - dataPx) / 2).roundToDouble();
-    final double originY = (origin.dy + (qrSize - dataPx) / 2).roundToDouble();
-
-    final whitePaint = Paint()
-      ..color = Colors.white
-      ..isAntiAlias = false;
-    final blackPaint = Paint()
-      ..color = Colors.black
-      ..isAntiAlias = false
-      ..style = PaintingStyle.fill;
-
-    // quiet zone 포함 흰 배경(데이터 영역 + 사방 4모듈). 라벨 배경이 흰색이라도
-    // 명시적으로 깔아 스캐너 여백을 보장한다.
-    //
-    // 단, 흰 배경 상단은 예약 박스 상단(origin.dy)까지만 확장하도록 clamp 한다.
-    // QR 은 헤더 다음에 그려지므로(paint(): _drawHeader → _drawBody), quiet zone 을
-    // 위로 무한정 펼치면 바로 위에 이미 그려진 헤더(로고/시각/순번)를 흰색으로 덮어
-    // "헤더 잘림"이 난다. 모듈 수가 적을수록(짧은 QR payload) quietPx(=modulePx*4)가
-    // 커져 침범 폭이 커진다. 박스 상단 위쪽은 어차피 라벨 흰 배경이라 스캐너 여백은
-    // 그대로 보장되므로 clamp 해도 인식률 손해는 없다.
-    final double quietTop = originY - quietPx;
-    final double clampedTop = quietTop < origin.dy ? origin.dy : quietTop;
-    canvas.drawRect(
-      Rect.fromLTRB(
-        originX - quietPx,
-        clampedTop,
-        originX + dataPx + quietPx,
-        originY + dataPx + quietPx,
-      ),
-      whitePaint,
-    );
-
-    canvas.save();
-    canvas.translate(originX, originY);
-    for (int r = 0; r < moduleCount; r++) {
-      for (int c = 0; c < moduleCount; c++) {
-        if (qrImage.isDark(r, c)) {
-          canvas.drawRect(
-            Rect.fromLTWH(
-              (c * modulePx).toDouble(),
-              (r * modulePx).toDouble(),
-              modulePx.toDouble(),
-              modulePx.toDouble(),
-            ),
-            blackPaint,
-          );
-        }
-      }
-    }
-    canvas.restore();
-  }
-
   void _drawQrAndOrderNo(Canvas canvas, Size size, double y,
       {bool qrOnLeft = true, bool centerOrderNoToQr = true}) {
     // qrOnLeft=true → QR 좌측(V1), false → QR 우측(V2). 좌우 여백 대칭 유지.
     final double qrX =
         qrOnLeft ? defaultMargin : (size.width - defaultMargin - qrSize);
     if (qrData != null) {
-      _drawCrispQr(canvas, qrData!, Offset(qrX, y));
+      // clampQuietTopTo: y — QR 은 헤더 다음에 그려지므로(paint(): _drawHeader →
+      // _drawBody), quiet zone 을 위로 무한정 펼치면 바로 위에 이미 그려진 헤더
+      // (로고/시각/순번)를 흰색으로 덮어 "헤더 잘림"이 난다. 예약 박스 상단(y)
+      // 까지만 확장되도록 clamp — 그 위는 어차피 라벨 흰 배경이라 스캐너 여백
+      // 손해는 없다. (LabelDrawOps.drawCrispQr 문서 참조)
+      drawCrispQr(canvas, qrData!, Offset(qrX, y),
+          qrSize: qrSize,
+          qrErrorCorrectLevel: qrErrorCorrectLevel,
+          clampQuietTopTo: y);
     }
 
     if (shopOrderNo != null) {
@@ -648,7 +571,7 @@ class LabelPainter extends CustomPainter {
           ? (size.width - defaultMargin - textPainter.width)
           : defaultMargin;
 
-      // _drawText 는 top 기준이라, 폰트를 줄이면 QR 상단에 붙어 보인다.
+      // drawText 는 top 기준이라, 폰트를 줄이면 QR 상단에 붙어 보인다.
       // QR 동반 + centerOrderNoToQr 시 텍스트 높이를 측정해 QR 세로 중앙에 맞춘다.
       double drawY = y;
       if (hasQr && centerOrderNoToQr) {
@@ -674,7 +597,7 @@ class LabelPainter extends CustomPainter {
     if (layoutVersion == 1) {
       optionStartY = startY + sectionGapTight;
     } else {
-      _drawText(canvas, optionTitleOverride ?? t.receipt.section_option,
+      drawText(canvas, optionTitleOverride ?? t.receipt.section_option,
           Offset(size.width / 2, startY + spacingSectionSmall),
           fontSize: fsSectionTitle, isBold: false, align: TextAlign.center);
       optionStartY =
@@ -691,7 +614,7 @@ class LabelPainter extends CustomPainter {
       final String text =
           isMoreCell ? '+${options.length - (optionMaxShown - 1)}' : options[i];
 
-      _drawAutoFitText(
+      drawAutoFitText(
         canvas,
         text,
         Offset(cell.x, optionStartY + cell.y),
@@ -762,7 +685,7 @@ class LabelPainter extends CustomPainter {
     if (layoutVersion == 1) {
       contentY = startY + sectionGapTight;
     } else {
-      _drawText(
+      drawText(
         canvas,
         detailTitleOverride ?? t.receipt.section_detail,
         Offset(size.width / 2, startY + spacingSectionSmall),
@@ -773,7 +696,7 @@ class LabelPainter extends CustomPainter {
       contentY =
           startY + spacingSectionSmall + fsSectionTitle + spacingSectionSmall;
     }
-    _drawText(
+    drawText(
       canvas,
       memo ?? "",
       Offset(size.width / 2, contentY),
@@ -785,74 +708,8 @@ class LabelPainter extends CustomPainter {
     );
   }
 
-  void _drawText(
-    Canvas canvas,
-    String text,
-    Offset offset, {
-    double fontSize = 20,
-    bool isBold = false,
-    bool underline = false,
-    double? maxWidth,
-    int? maxLines,
-    TextAlign align = TextAlign.left,
-    double? height,
-    Color textColor = Colors.black,
-    Color? backgroundColor,
-  }) {
-    final textStyle = TextStyle(
-      color: textColor,
-      fontSize: fontSize,
-      fontWeight: isBold ? FontWeight.w600 : FontWeight.normal,
-      decoration: underline ? TextDecoration.underline : TextDecoration.none,
-      fontFamily: 'Pretendard',
-      height: height,
-    );
-
-    final textSpan = TextSpan(text: text, style: textStyle);
-    final textPainter = TextPainter(
-      text: textSpan,
-      textDirection: TextDirection.ltr,
-      textAlign: align,
-      maxLines: maxLines,
-      ellipsis: '...',
-    );
-
-    textPainter.layout(minWidth: 0, maxWidth: maxWidth ?? double.infinity);
-
-    Offset drawOffset = offset;
-    if (align == TextAlign.center) {
-      drawOffset = Offset(offset.dx - textPainter.width / 2, offset.dy);
-    } else if (align == TextAlign.right) {
-      drawOffset = Offset(offset.dx - textPainter.width, offset.dy);
-    }
-
-    if (backgroundColor != null) {
-      final rect = Rect.fromLTWH(
-        drawOffset.dx - 4,
-        drawOffset.dy - 2,
-        textPainter.width + 8,
-        textPainter.height + 4,
-      );
-      canvas.drawRRect(RRect.fromRectAndRadius(rect, const Radius.circular(4)),
-          Paint()..color = backgroundColor);
-    }
-
-    textPainter.paint(canvas, drawOffset);
-  }
-
-  /// [maxWidth] × [maxLines] 안에 들어가는 최대 폰트 크기를 찾는다.
-  ///
-  /// **기본 크기를 먼저 쓰고, 줄 수를 다 소진한 뒤에야 축소한다.** 즉 메뉴명은
-  /// 28px 2줄까지 원본 크기로 가고 그래도 넘칠 때만 작아진다.
-  ///
-  /// base 에서 1px 씩 내리는 단순 하향 스캔이다. 탐색 범위가
-  /// `baseFontSize - minFontSize` (메뉴 8, 옵션 3) 로 좁아 최악 9회 layout 이며,
-  /// 같은 라벨의 QR 래스터화·PNG 인코딩(수십 ms)에 비하면 무시할 수준이다.
-  /// 비례 추정을 쓰지 않는 이유는 [maxLines] > 1 일 때 줄바꿈 낭비 때문에
-  /// 추정이 빗나가기 때문 — 정확성을 택했다.
-  ///
-  /// flutter test 에서는 Pretendard 가 로드되지 않아 반환값의 절대치가 폰트에
-  /// 의존한다. 테스트는 `[minFontSize, baseFontSize]` 범위·단조성만 검증할 것.
+  /// [LabelDrawOps.fitFontSize] 로 위임. 기존 `LabelPainter.fitFontSize(...)`
+  /// 호출부·테스트가 그대로 동작하도록 남긴 얇은 forwarder.
   @visibleForTesting
   static double fitFontSize(
     String text, {
@@ -862,122 +719,19 @@ class LabelPainter extends CustomPainter {
     bool isBold = false,
     int maxLines = 1,
     double? lineHeight,
-  }) {
-    if (text.isEmpty || maxWidth <= 0) return baseFontSize;
-
-    bool fits(double fs) {
-      final tp = TextPainter(
-        text: TextSpan(
-          text: text,
-          style: TextStyle(
-            fontSize: fs,
-            fontWeight: isBold ? FontWeight.w600 : FontWeight.normal,
-            fontFamily: 'Pretendard',
-            height: lineHeight,
-          ),
-        ),
-        textDirection: TextDirection.ltr,
+  }) =>
+      LabelDrawOps.fitFontSize(
+        text,
+        maxWidth: maxWidth,
+        baseFontSize: baseFontSize,
+        minFontSize: minFontSize,
+        isBold: isBold,
         maxLines: maxLines,
-      )..layout(maxWidth: maxWidth);
-      // ellipsis 를 주지 않았으므로 초과 시 didExceedMaxLines 가 선다.
-      return !tp.didExceedMaxLines;
-    }
-
-    for (double fs = baseFontSize; fs > minFontSize; fs -= 1) {
-      if (fits(fs)) return fs;
-    }
-    return minFontSize;
-  }
-
-  /// 폰트 자동 축소 후 그린다. 오버플로 wrap 이 구조적으로 불가능하도록
-  /// [maxLines] 를 항상 전달한다(하한까지 줄여도 넘치면 ellipsis).
-  ///
-  /// [slotHeight] 를 주면 **슬롯 하단 정렬**. 2줄 슬롯에 1줄짜리가 오면 남는
-  /// 한 줄이 위쪽으로 몰린다 — 호출부가 그 위에 subinfo 를 붙여 [상품명+subinfo]
-  /// 한 덩어리를 슬롯 아래쪽에 정렬하기 위한 것이다(중앙 정렬은 subinfo 와
-  /// 상품명 사이가 벌어져 subinfo 가 QR 에 붙어 보였다).
-  /// 주지 않으면 축소분의 절반만큼 내려 원래 폰트 슬롯의 세로 중앙에 맞춘다
-  /// (`_drawText` 가 dy 를 텍스트 박스 top 으로 쓰기 때문에 필요한 보정 —
-  /// `centerOrderNoToQr` 와 같은 패턴).
-  ///
-  /// 실제로 텍스트를 그린 상단 Y 를 반환한다 — 호출부가 그 위에 다른 요소를
-  /// 붙일 수 있도록.
-  double _drawAutoFitText(
-    Canvas canvas,
-    String text,
-    Offset offset, {
-    required double baseFontSize,
-    required double minFontSize,
-    required double maxWidth,
-    bool isBold = false,
-    TextAlign align = TextAlign.left,
-    int maxLines = 1,
-    double? lineHeight,
-    double? slotHeight,
-  }) {
-    final double fs = fitFontSize(
-      text,
-      maxWidth: maxWidth,
-      baseFontSize: baseFontSize,
-      minFontSize: minFontSize,
-      isBold: isBold,
-      maxLines: maxLines,
-      lineHeight: lineHeight,
-    );
-
-    final double dy;
-    if (slotHeight != null) {
-      // 실제 렌더 높이를 재서 슬롯 중앙에 놓는다. lineHeight 를 명시한 경우
-      // 높이가 fontSize × lineHeight × 줄수로 결정돼 폰트 메트릭에 흔들리지 않는다.
-      final probe = TextPainter(
-        text: TextSpan(
-          text: text,
-          style: TextStyle(
-            fontSize: fs,
-            fontWeight: isBold ? FontWeight.w600 : FontWeight.normal,
-            fontFamily: 'Pretendard',
-            height: lineHeight,
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-        textAlign: align,
-        maxLines: maxLines,
-        ellipsis: '...',
-      )..layout(maxWidth: maxWidth);
-      dy = offset.dy + (slotHeight - probe.height);
-    } else {
-      dy = offset.dy + (baseFontSize - fs) * _fitVerticalCenterFactor;
-    }
-
-    _drawText(
-      canvas,
-      text,
-      Offset(offset.dx, dy),
-      fontSize: fs,
-      isBold: isBold,
-      align: align,
-      maxWidth: maxWidth,
-      maxLines: maxLines,
-      height: lineHeight,
-    );
-    return dy;
-  }
+        lineHeight: lineHeight,
+      );
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
-
-  static Future<ui.Image?> _loadLogoImage(String assetPath) async {
-    try {
-      final ByteData data = await rootBundle.load(assetPath);
-      final Uint8List bytes = data.buffer.asUint8List();
-      final Completer<ui.Image> completer = Completer();
-      ui.decodeImageFromList(bytes, (img) => completer.complete(img));
-      return await completer.future;
-    } catch (e) {
-      logger.w('[LabelPainter] failed to load logo asset ($assetPath): $e');
-      return null;
-    }
-  }
 
   static Future<Uint8List> generateLabelImage({
     required String menuName,
@@ -1000,29 +754,10 @@ class LabelPainter extends CustomPainter {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
 
-    final String? targetPath = BrandAssets.labelLogoPath;
-    if (_cachedLogoPath != targetPath) {
-      // 브랜드 전환(또는 첫 로드) — 캐시 무효화 후 재시도.
-      _cachedLogo = null;
-      _logoLoadAttempted = false;
-      _cachedLogoPath = null;
-    }
-    if (targetPath == null) {
-      // hasLabelLogo=false 브랜드 — 로고 미표시(자산 준비 전 임시 비활성화).
-      _logoLoadAttempted = false;
-      _cachedLogoPath = null;
-    } else if (!_logoLoadAttempted) {
-      _logoLoadAttempted = true;
-      _cachedLogo = await _loadLogoImage(targetPath);
-      if (_cachedLogo == null &&
-          targetPath != BrandAssets.labelLogoFallbackPath) {
-        logger.w(
-            '[LabelPainter] primary logo load failed ($targetPath), falling back to tokyoplatz');
-        _cachedLogo = await _loadLogoImage(BrandAssets.labelLogoFallbackPath);
-      }
-      _cachedLogoPath = targetPath;
-    }
-    final ui.Image? logo = targetPath == null ? null : _cachedLogo;
+    // 브랜드 전환 감지 + 캐시 + 폴백 — LabelDrawOps 로 이동(ContinuousLabelPainter
+    // 와 캐시 공유, 중복 디코드 방지).
+    final ui.Image? logo = await LabelDrawOps.resolveLogo(
+        BrandAssets.labelLogoPath, BrandAssets.labelLogoFallbackPath);
 
     final painter = LabelPainter(
       menuName: menuName,
