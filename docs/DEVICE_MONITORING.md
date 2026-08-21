@@ -10,7 +10,7 @@
 >
 > **상태: 배포 완료(2026-07-31), appfit_core 승격 완료(2026-08-03), 대상 매장 화이트리스트 게이트 추가(2026-08-19), 실기기 파일럿 미실시.** 백엔드는 별도 레포 `appfit-fleet`(Cloudflare Workers + D1), 공통 리포터는 `appfit_core`(`appifit_agent_core` 레포, v1.0.18~), 앱 측 전용 코드는 `lib/services/fleet/`.
 >
-> 켜면 **관제는 대상 매장에서만 돈다** — `FleetConfig.enabled` AND `.env` 설정(§5) AND 원격 화이트리스트(§5-1) 세 게이트를 모두 통과해야 한다.
+> 켜면 **관제는 Windows 대상 매장에서만 돈다** — `FleetConfig.enabled` AND `.env` 설정(§5) AND **Windows 플랫폼**(`fleet_provider.dart` 의 `fleetEnabledProvider`, 우선 배포 범위 한정. 다음 업데이트에서 조건이 바뀔 수 있음) AND 원격 화이트리스트(§5-1) 네 게이트를 모두 통과해야 한다.
 >
 > 대시보드: https://appfit-fleet.sckim.workers.dev (자격정보는 `appfit-fleet/DEPLOYMENT.local.md`)
 >
@@ -168,6 +168,8 @@ fleetTargetedProvider ──▶ fleetEnabledProvider = hasFleetConfig && targete
 ### 조회 시점과 실패 처리
 
 조회는 **로그인 성공 시 1회**다(`login_screen.dart` 의 성공 블록, `setStoreModel()` 직후). 업데이트 채널 정책 재조정·브랜드 테마 reconcile 이 이미 모여 있는 자리이고, 수동/자동 로그인 두 경로가 모두 `_login()` 을 통과한다. 로그인을 막지 않도록 fire-and-forget 이다.
+
+**Windows 만 조회한다.** `reconcileFleetTarget` 이 `Platform.isWindows` 를 먼저 판별해 Android 는 로그인마다 나가는 이 요청 자체를 만들지 않는다 — 최종 판정(`fleetEnabledProvider`)에서 Android 는 어차피 OFF 이므로 도달하지 않을 활성화를 위해 요청을 낼 이유가 없다. Android 도 켤 때는 여기와 §상단 요약(`fleetEnabledProvider`) 두 곳의 `Platform.isWindows` 가드를 함께 지워야 한다.
 
 **조회 실패는 관제를 끄지 않는다.** 마지막으로 성공한 목록이 캐시에 남아 있으면 그걸로 판정한다. 매장 인터넷이 잠깐 끊겼다고 파일럿 기기가 대시보드에서 사라지면, 정작 관제가 필요한 상황에서 관제가 없어진다. 캐시조차 없는 기기(최초 설치)만 OFF 다.
 

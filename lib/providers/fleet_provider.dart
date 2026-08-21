@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:appfit_core/appfit_core.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -40,15 +42,21 @@ final fleetTargetedProvider = StateProvider<bool>((ref) {
   return service.isTargeted(storeId);
 });
 
-/// 관제 기동의 최종 판정 = **기능 스위치 AND 빌드 타임 설정 AND 대상 매장**.
+/// 관제 기동의 최종 판정 = **기능 스위치 AND 빌드 타임 설정 AND 플랫폼 AND 대상 매장**.
 ///
-/// 셋의 역할이 다르다. [FleetConfig.enabled] 는 "이 기능을 지금 쓰는가"(정식
+/// 넷의 역할이 다르다. [FleetConfig.enabled] 는 "이 기능을 지금 쓰는가"(정식
 /// 도입 전 차단), [AppEnv.hasFleetConfig] 는 "이 빌드가 관제를 말할 수
-/// 있는가"(`.env` 미주입 빌드 보호), [fleetTargetedProvider] 는 "이 매장이 지금
-/// 관제 대상인가"(파일럿 범위 제어)다.
+/// 있는가"(`.env` 미주입 빌드 보호), `Platform.isWindows` 는 "이 기기 종류를
+/// 지금 관제하는가"(우선 Windows 한정 배포), [fleetTargetedProvider] 는
+/// "이 매장이 지금 관제 대상인가"(파일럿 범위 제어)다.
+///
+/// Android 도 켤 때는 여기 `Platform.isWindows` 와 [reconcileFleetTarget] 의
+/// 동일 가드, 두 곳을 함께 지워야 한다 — 후자를 안 지우면 최종 판정은 Android
+/// 도 허용하는데 로그인 시 매장 조회만 계속 비어서 항상 비대상으로 막힌다.
 final fleetEnabledProvider = Provider<bool>((ref) {
   return FleetConfig.enabled &&
       AppEnv.hasFleetConfig &&
+      Platform.isWindows &&
       ref.watch(fleetTargetedProvider);
 });
 
@@ -64,6 +72,10 @@ Future<void> reconcileFleetTarget(
   // 기능이 꺼져 있으면 목록 조회 자체를 하지 않는다. 여기가 로그인마다 나가는
   // 유일한 관제 요청이라, 이 가드가 빠지면 "비활성"인데 통신은 계속된다.
   if (!FleetConfig.enabled) return;
+  // Windows 한정 배포 — Android 는 어차피 fleetEnabledProvider 에서 최종
+  // OFF 되므로, 도달하지 않을 활성화를 위해 로그인마다 조회 요청을 낼 이유가
+  // 없다. Android 도 켤 때는 이 줄만 지우면 된다.
+  if (!Platform.isWindows) return;
   await service.refresh();
   final next = service.isTargeted(storeId);
   if (targeted.state != next) {
