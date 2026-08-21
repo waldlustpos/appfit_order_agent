@@ -155,7 +155,6 @@ class _Translations$settings$ja extends Translations$settings$ko {
 	@override late final _Translations$settings$kds_ignore_status$ja kds_ignore_status = _Translations$settings$kds_ignore_status$ja._(_root);
 	@override late final _Translations$settings$kds_accept_orders$ja kds_accept_orders = _Translations$settings$kds_accept_orders$ja._(_root);
 	@override late final _Translations$settings$label_filter$ja label_filter = _Translations$settings$label_filter$ja._(_root);
-	@override late final _Translations$settings$label_qr_payload$ja label_qr_payload = _Translations$settings$label_qr_payload$ja._(_root);
 	@override late final _Translations$settings$developer_options$ja developer_options = _Translations$settings$developer_options$ja._(_root);
 	@override late final _Translations$settings$kiosk$ja kiosk = _Translations$settings$kiosk$ja._(_root);
 	@override late final _Translations$settings$local_server$ja local_server = _Translations$settings$local_server$ja._(_root);
@@ -617,7 +616,7 @@ class _Translations$settings$label_qr$ja extends Translations$settings$label_qr$
 
 	// Translations
 	@override String get title => 'QRコード出力';
-	@override String get desc => 'ラベルに注文識別用のQRコードを印刷します。';
+	@override String get desc => 'ラベルに注文識別用のQRコードを印刷します。AIピックアップテーブル導入時に使用します。';
 }
 
 // Path: settings.volume
@@ -806,20 +805,6 @@ class _Translations$settings$label_filter$ja extends Translations$settings$label
 	@override String get btn_all => '全注文印刷';
 	@override String get btn_waffle_only => 'ワッフルのみ';
 	@override String get btn_waffle_exclude => 'ワッフル除外';
-}
-
-// Path: settings.label_qr_payload
-class _Translations$settings$label_qr_payload$ja extends Translations$settings$label_qr_payload$ko {
-	_Translations$settings$label_qr_payload$ja._(TranslationsJa root) : this._root = root, super.internal(root);
-
-	final TranslationsJa _root; // ignore: unused_field
-
-	// Translations
-	@override String get title => 'ラベルQRフォーマット';
-	@override String get desc_legacy => '従来のフォーマットでQRを生成します。(注文番号-商品ID-カップ順番)';
-	@override String get desc_new => '新規(テスト)フォーマットでQRを生成します。(表示番号-カップ順番)';
-	@override String get btn_legacy => '従来';
-	@override String get btn_new => '新規';
 }
 
 // Path: settings.developer_options

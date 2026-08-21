@@ -116,7 +116,7 @@
         },
         "label_qr": {
             "title": "QR 코드 출력",
-            "desc": "라벨에 주문 식별용 QR 코드를 함께 인쇄합니다."
+            "desc": "라벨에 주문 식별용 QR 코드를 함께 인쇄합니다. AI픽업테이블 도입시 사용합니다."
         },
         "volume": {
             "title": "알림음 크기설정",
@@ -206,13 +206,6 @@
             "btn_all": "모든 주문 출력",
             "btn_waffle_only": "와플상품만 출력",
             "btn_waffle_exclude": "와플상품 제외"
-        },
-        "label_qr_payload": {
-            "title": "라벨 QR 포맷",
-            "desc_legacy": "기존 포맷으로 QR을 생성합니다. (주문번호-상품ID-컵순번)",
-            "desc_new": "신규(테스트) 포맷으로 QR을 생성합니다. (표시번호-컵순번)",
-            "btn_legacy": "기존",
-            "btn_new": "신규"
         },
         "developer_options": {
             "title": "개발자 옵션",

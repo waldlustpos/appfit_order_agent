@@ -116,7 +116,7 @@
         },
         "label_qr": {
             "title": "QRコード出力",
-            "desc": "ラベルに注文識別用のQRコードを印刷します。"
+            "desc": "ラベルに注文識別用のQRコードを印刷します。AIピックアップテーブル導入時に使用します。"
         },
         "volume": {
             "title": "通知音量設定",
@@ -206,13 +206,6 @@
             "btn_all": "全注文印刷",
             "btn_waffle_only": "ワッフルのみ",
             "btn_waffle_exclude": "ワッフル除外"
-        },
-        "label_qr_payload": {
-            "title": "ラベルQRフォーマット",
-            "desc_legacy": "従来のフォーマットでQRを生成します。(注文番号-商品ID-カップ順番)",
-            "desc_new": "新規(テスト)フォーマットでQRを生成します。(表示番号-カップ順番)",
-            "btn_legacy": "従来",
-            "btn_new": "新規"
         },
         "developer_options": {
             "title": "開発者オプション",

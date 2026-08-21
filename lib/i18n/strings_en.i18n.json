@@ -116,7 +116,7 @@
         },
         "label_qr": {
             "title": "Print QR Code",
-            "desc": "Print an order-identification QR code on each label."
+            "desc": "Print an order-identification QR code on each label. Used when adopting AI pickup tables."
         },
         "volume": {
             "title": "Volume",
@@ -206,13 +206,6 @@
             "btn_all": "All Orders",
             "btn_waffle_only": "Waffle Only",
             "btn_waffle_exclude": "Exclude Waffle"
-        },
-        "label_qr_payload": {
-            "title": "Label QR Format",
-            "desc_legacy": "Generate the QR with the original format. (orderNo-itemId-cupIndex)",
-            "desc_new": "Generate the QR with the new (test) format. (displayNo-cupIndex)",
-            "btn_legacy": "Legacy",
-            "btn_new": "New"
         },
         "developer_options": {
             "title": "Developer Options",

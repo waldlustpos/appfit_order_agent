@@ -244,7 +244,6 @@ class Translations$settings$ko {
 	late final Translations$settings$kds_ignore_status$ko kds_ignore_status = Translations$settings$kds_ignore_status$ko.internal(_root);
 	late final Translations$settings$kds_accept_orders$ko kds_accept_orders = Translations$settings$kds_accept_orders$ko.internal(_root);
 	late final Translations$settings$label_filter$ko label_filter = Translations$settings$label_filter$ko.internal(_root);
-	late final Translations$settings$label_qr_payload$ko label_qr_payload = Translations$settings$label_qr_payload$ko.internal(_root);
 	late final Translations$settings$developer_options$ko developer_options = Translations$settings$developer_options$ko.internal(_root);
 	late final Translations$settings$kiosk$ko kiosk = Translations$settings$kiosk$ko.internal(_root);
 	late final Translations$settings$local_server$ko local_server = Translations$settings$local_server$ko.internal(_root);
@@ -1104,8 +1103,8 @@ class Translations$settings$label_qr$ko {
 	/// ko: 'QR 코드 출력'
 	String get title => 'QR 코드 출력';
 
-	/// ko: '라벨에 주문 식별용 QR 코드를 함께 인쇄합니다.'
-	String get desc => '라벨에 주문 식별용 QR 코드를 함께 인쇄합니다.';
+	/// ko: '라벨에 주문 식별용 QR 코드를 함께 인쇄합니다. AI픽업테이블 도입시 사용합니다.'
+	String get desc => '라벨에 주문 식별용 QR 코드를 함께 인쇄합니다. AI픽업테이블 도입시 사용합니다.';
 }
 
 // Path: settings.volume
@@ -1399,30 +1398,6 @@ class Translations$settings$label_filter$ko {
 
 	/// ko: '와플상품 제외'
 	String get btn_waffle_exclude => '와플상품 제외';
-}
-
-// Path: settings.label_qr_payload
-class Translations$settings$label_qr_payload$ko {
-	Translations$settings$label_qr_payload$ko.internal(this._root);
-
-	final Translations _root; // ignore: unused_field
-
-	// Translations
-
-	/// ko: '라벨 QR 포맷'
-	String get title => '라벨 QR 포맷';
-
-	/// ko: '기존 포맷으로 QR을 생성합니다. (주문번호-상품ID-컵순번)'
-	String get desc_legacy => '기존 포맷으로 QR을 생성합니다. (주문번호-상품ID-컵순번)';
-
-	/// ko: '신규(테스트) 포맷으로 QR을 생성합니다. (표시번호-컵순번)'
-	String get desc_new => '신규(테스트) 포맷으로 QR을 생성합니다. (표시번호-컵순번)';
-
-	/// ko: '기존'
-	String get btn_legacy => '기존';
-
-	/// ko: '신규'
-	String get btn_new => '신규';
 }
 
 // Path: settings.developer_options

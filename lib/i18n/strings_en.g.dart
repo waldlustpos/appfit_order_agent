@@ -155,7 +155,6 @@ class _Translations$settings$en extends Translations$settings$ko {
 	@override late final _Translations$settings$kds_ignore_status$en kds_ignore_status = _Translations$settings$kds_ignore_status$en._(_root);
 	@override late final _Translations$settings$kds_accept_orders$en kds_accept_orders = _Translations$settings$kds_accept_orders$en._(_root);
 	@override late final _Translations$settings$label_filter$en label_filter = _Translations$settings$label_filter$en._(_root);
-	@override late final _Translations$settings$label_qr_payload$en label_qr_payload = _Translations$settings$label_qr_payload$en._(_root);
 	@override late final _Translations$settings$developer_options$en developer_options = _Translations$settings$developer_options$en._(_root);
 	@override late final _Translations$settings$kiosk$en kiosk = _Translations$settings$kiosk$en._(_root);
 	@override late final _Translations$settings$local_server$en local_server = _Translations$settings$local_server$en._(_root);
@@ -626,7 +625,7 @@ class _Translations$settings$label_qr$en extends Translations$settings$label_qr$
 
 	// Translations
 	@override String get title => 'Print QR Code';
-	@override String get desc => 'Print an order-identification QR code on each label.';
+	@override String get desc => 'Print an order-identification QR code on each label. Used when adopting AI pickup tables.';
 }
 
 // Path: settings.volume
@@ -815,20 +814,6 @@ class _Translations$settings$label_filter$en extends Translations$settings$label
 	@override String get btn_all => 'All Orders';
 	@override String get btn_waffle_only => 'Waffle Only';
 	@override String get btn_waffle_exclude => 'Exclude Waffle';
-}
-
-// Path: settings.label_qr_payload
-class _Translations$settings$label_qr_payload$en extends Translations$settings$label_qr_payload$ko {
-	_Translations$settings$label_qr_payload$en._(TranslationsEn root) : this._root = root, super.internal(root);
-
-	final TranslationsEn _root; // ignore: unused_field
-
-	// Translations
-	@override String get title => 'Label QR Format';
-	@override String get desc_legacy => 'Generate the QR with the original format. (orderNo-itemId-cupIndex)';
-	@override String get desc_new => 'Generate the QR with the new (test) format. (displayNo-cupIndex)';
-	@override String get btn_legacy => 'Legacy';
-	@override String get btn_new => 'New';
 }
 
 // Path: settings.developer_options

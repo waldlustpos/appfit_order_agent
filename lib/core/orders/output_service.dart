@@ -186,16 +186,12 @@ class OutputService {
       // 메뉴별 라벨 번호 계산을 모두 LabelPrintData.fromOrder() 가 처리.
       final allProducts = await ref.read(productProvider.future);
       final prefService = ref.read(preferenceServiceProvider);
-      // QR 페이로드 포맷 토글: 0=기존(브랜드 전략), 1=신규(displayNum-cupIdx 테스트 포맷, 전역 오버라이드)
-      final qrStrategy = prefService.getLabelQrPayloadFormat() == 1
-          ? const DisplayNumIndexQrPayloadStrategy()
-          : ref.read(qrPayloadStrategyProvider);
       final labels = LabelPrintData.fromOrder(
         orderToPrint,
         products: allProducts,
         filterMode: prefService.getLabelFilterMode(),
         strategy: ref.read(labelFilterStrategyProvider),
-        qrStrategy: qrStrategy,
+        qrStrategy: const DisplayNumIndexQrPayloadStrategy(),
         isReprint: isReprint,
       );
 

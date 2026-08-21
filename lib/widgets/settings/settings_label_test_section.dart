@@ -387,15 +387,15 @@ class _SettingsLabelTestSectionState
   /// [LabelPrintData.fromOrder] / 브랜드 필터 전략을 거치지 않고
   /// [LabelPainter.generateLabelImage] 를 직접 호출한다 → 임의 옵션/메모가
   /// 그대로 인쇄된다. QR 토글(getLabelUseQrPrint)을 반영해 ON 이면 QR 도 함께 출력하며,
-  /// QR 페이로드는 운영과 동일한 브랜드 전략([qrPayloadStrategyProvider])으로
-  /// {OrderNo}-{ShopItemId}-{CupIdx} 포맷을 담는다 → 실제 스캔/레이아웃을 동일하게 검증.
+  /// QR 페이로드는 운영과 동일한 [DisplayNumIndexQrPayloadStrategy] 포맷을
+  /// 담는다 → 실제 스캔/레이아웃을 동일하게 검증.
   Future<void> _printOrderNoTest() async {
     final printService = ref.read(printServiceProvider);
     final status = ref.read(printerStatusProvider);
     // QR 토글 반영 — ON 이면 각 라벨에 운영과 동일 포맷의 QR 페이로드를 넘긴다.
     final useQr = ref.read(preferenceServiceProvider).getLabelUseQrPrint();
     const int layoutVersion = 1; // 라벨 레이아웃 V2 고정 (선택 설정 폐지)
-    final qrStrategy = ref.read(qrPayloadStrategyProvider);
+    const qrStrategy = DisplayNumIndexQrPayloadStrategy();
 
     if (!status.isLabelConnected) {
       if (mounted) {

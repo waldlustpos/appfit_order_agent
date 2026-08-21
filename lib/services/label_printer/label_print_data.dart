@@ -8,8 +8,8 @@
 //   LabelFilterStrategy 에 위임 (TPCP=TpcpLabelFilterStrategy, 그 외=NoOp).
 //   products 카탈로그 필요.
 // - 메뉴 qty 만큼 라벨 펼치기
-// - QR 페이로드 생성 — 라벨마다 다름. 포맷은 브랜드별 QrPayloadStrategy 에 위임
-//   (기본 DefaultQrPayloadStrategy = "{OrderNo}-{ShopItemId}-{CupIdx}").
+// - QR 페이로드 생성 — 라벨마다 다름. QrPayloadStrategy 에 위임
+//   (고정 DisplayNumIndexQrPayloadStrategy = "{DisplayNum}-{CupIdx}").
 //   상세 포맷은 qr_payload_strategy.dart 참고.
 
 import 'package:intl/intl.dart';
@@ -170,15 +170,15 @@ class LabelPrintData {
   /// [filterMode]: 0=전체, 1=와플만, 2=와플제외 (필터를 쓰는 브랜드에서만 의미).
   /// [strategy]: 브랜드별 메뉴 필터/옵션 분류 동작. 기본 [NoOpLabelFilterStrategy]
   ///             는 필터 없이 단순 평면화 (기존 kokonut 등 동작 유지).
-  /// [qrStrategy]: 브랜드별 QR 페이로드 포맷. 기본 [DefaultQrPayloadStrategy]
-  ///              는 "{OrderNo}-{ShopItemId}-{CupIdx}" (현재 코드 포맷).
+  /// [qrStrategy]: QR 페이로드 포맷. 기본 [DisplayNumIndexQrPayloadStrategy]
+  ///              는 "{DisplayNum}-{CupIdx}".
   /// [isReprint]: true 면 카테고리 필터링 우회 (재출력은 전체 라벨 인쇄).
   static List<LabelPrintData> fromOrder(
     OrderModel order, {
     List<ProductModel> products = const [],
     int filterMode = 0,
     LabelFilterStrategy strategy = const NoOpLabelFilterStrategy(),
-    QrPayloadStrategy qrStrategy = const DefaultQrPayloadStrategy(),
+    QrPayloadStrategy qrStrategy = const DisplayNumIndexQrPayloadStrategy(),
     bool isReprint = false,
   }) {
     // 1) 메뉴 카테고리 필터링 — 브랜드 전략에 위임 (기본 NoOp = 전체).

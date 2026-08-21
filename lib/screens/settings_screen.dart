@@ -58,7 +58,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _labelUseCalibrate = false;
   bool _labelUseQrPrint = false;
   int _labelFilterMode = 0;
-  int _labelQrPayloadFormat = 1;
 
   bool _isKioskOrderVisible = false;
   bool _isKioskOrderSoundEnabled = false;
@@ -129,7 +128,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _labelUseCalibrate = _preferenceService.getLabelUseCalibrate();
       _labelUseQrPrint = _preferenceService.getLabelUseQrPrint();
       _labelFilterMode = _preferenceService.getLabelFilterMode();
-      _labelQrPayloadFormat = _preferenceService.getLabelQrPayloadFormat();
 
       _isKioskOrderVisible = _preferenceService.getShowKioskOrder();
       _isKioskOrderSoundEnabled = _preferenceService.getKioskPrintAndSound();
@@ -175,7 +173,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await _preferenceService.setLabelUseCalibrate(_labelUseCalibrate);
       await _preferenceService.setLabelUseQrPrint(_labelUseQrPrint);
       await _preferenceService.setLabelFilterMode(_labelFilterMode);
-      await _preferenceService.setLabelQrPayloadFormat(_labelQrPayloadFormat);
       await _preferenceService.setShowKioskOrder(_isKioskOrderVisible);
       await _preferenceService.setKioskPrintAndSound(_isKioskOrderSoundEnabled);
       await _preferenceService
@@ -568,7 +565,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               builtinPrintCall: _builtinPrintCall,
               externalPrintCall: _externalPrintCall,
               labelFilterMode: _labelFilterMode,
-              labelQrPayloadFormat: _labelQrPayloadFormat,
               isShowOrderTypeBadge: _isShowOrderTypeBadge,
               isOrderSourceColor: _isOrderSourceColor,
               printShowOrderType: _printShowOrderType,
@@ -613,8 +609,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   _setAndSave(() => _externalPrintCall = v),
               onLabelFilterModeChanged: (v) =>
                   _setAndSave(() => _labelFilterMode = v),
-              onLabelQrPayloadFormatChanged: (v) =>
-                  _setAndSave(() => _labelQrPayloadFormat = v),
               onShowOrderTypeBadgeChanged: (v) =>
                   _setAndSave(() => _isShowOrderTypeBadge = v),
               onOrderSourceColorChanged: (v) =>
