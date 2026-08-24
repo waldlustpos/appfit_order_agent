@@ -15,8 +15,14 @@ class OrderHelperMethods {
     return classifyOrderSource(order.source) == OrderSourceType.kiosk;
   }
 
+  /// 주문이 POS 주문인지 확인하는 Helper
+  bool isPosOrder(OrderModel order) {
+    return classifyOrderSource(order.source) == OrderSourceType.pos;
+  }
+
   /// 주문을 UI에 표시할지 여부 확인 (모든 주문 통일 처리)
-  bool shouldShowOrder(OrderModel order, bool isKioskOrderVisible) {
+  bool shouldShowOrder(
+      OrderModel order, bool isKioskOrderVisible, bool isPosOrderVisible) {
     // 오늘 날짜가 아닌 주문은 표시하지 않음
     final today = DateTime.now();
     final todayStart = DateTime(today.year, today.month, today.day);
@@ -32,6 +38,12 @@ class OrderHelperMethods {
     // 키오스크 주문 노출 설정에 따라 필터링
     if (isKioskOrder(order) && !isKioskOrderVisible) {
       logger.d('[Filter] 키오스크 주문 노출 OFF로 제외: ${order.orderNo}');
+      return false;
+    }
+
+    // POS 주문 노출 설정에 따라 필터링
+    if (isPosOrder(order) && !isPosOrderVisible) {
+      logger.d('[Filter] POS 주문 노출 OFF로 제외: ${order.orderNo}');
       return false;
     }
 
@@ -61,7 +73,8 @@ class OrderHelperMethods {
   }
 
   /// 주문에 대해 소리/알림/인쇄를 할지 여부 확인 (모든 주문 통일 처리)
-  bool shouldNotifyForOrder(OrderModel order, bool isKioskOrderSoundEnabled) {
+  bool shouldNotifyForOrder(OrderModel order, bool isKioskOrderSoundEnabled,
+      bool isPosOrderSoundEnabled) {
     // KDS 모드일 때는 모든 주문에 대해 항상 알림/출력
     final isKdsMode = ref.read(kdsModeProvider);
     if (isKdsMode) {
@@ -75,6 +88,14 @@ class OrderHelperMethods {
         isKioskOrder(order) &&
         !isKioskOrderSoundEnabled) {
       logger.d('[Notify] 키오스크 주문 출력/알람 OFF로 스킵: ${order.orderNo}');
+      return false;
+    }
+
+    // POS 주문 출력/알람 설정에 따라 필터링 (NEW 주문에 한함)
+    if (order.status == OrderStatus.NEW &&
+        isPosOrder(order) &&
+        !isPosOrderSoundEnabled) {
+      logger.d('[Notify] POS 주문 출력/알람 OFF로 스킵: ${order.orderNo}');
       return false;
     }
 

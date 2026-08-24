@@ -72,7 +72,8 @@
         "section_general": "General",
         "section_printer": "Printer",
         "section_sound": "Notifications",
-        "section_kiosk": "Kiosk & POS Orders",
+        "section_kiosk": "Kiosk",
+        "section_pos": "POS Orders",
         "section_server": "Server",
         "section_print_count": "Print",
         "section_update": "Updates",
@@ -221,9 +222,13 @@
             "sound_title": "Kiosk Order Ticket & Sound",
             "sound_desc": "Print ticket and play notification sound when a kiosk order is received.",
             "auto_accept_title": "Auto-Accept Kiosk Orders",
-            "auto_accept_desc": "Kiosk orders are always accepted immediately, regardless of the 'Auto-Accept Pickup Orders' setting.",
-            "pos_print_order_title": "Print POS Order Ticket",
-            "pos_print_order_desc": "Print an order ticket when a POS order is received."
+            "auto_accept_desc": "Kiosk orders are always accepted immediately, regardless of the 'Auto-Accept Pickup Orders' setting."
+        },
+        "pos": {
+            "visible_title": "Show POS Orders",
+            "visible_desc": "Display POS orders on screen.",
+            "sound_title": "POS Order Ticket & Sound",
+            "sound_desc": "Print ticket and play notification sound when a POS order is received."
         },
         "local_server": {
             "title": "Enable Local Server",

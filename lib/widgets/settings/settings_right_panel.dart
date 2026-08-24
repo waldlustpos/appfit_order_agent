@@ -30,7 +30,8 @@ class SettingsRightPanel extends ConsumerStatefulWidget {
     required this.isKioskOrderVisible,
     required this.isKioskOrderSoundEnabled,
     required this.isKioskAlwaysAutoAccept,
-    required this.isPosPrintOrder,
+    required this.isPosOrderVisible,
+    required this.isPosOrderSoundEnabled,
     required this.isLocalServerEnabled,
     required this.isLocalServerRunning,
     required this.printCount,
@@ -54,7 +55,8 @@ class SettingsRightPanel extends ConsumerStatefulWidget {
     required this.onKioskOrderVisibleChanged,
     required this.onKioskOrderSoundChanged,
     required this.onKioskAlwaysAutoAcceptChanged,
-    required this.onPosPrintOrderChanged,
+    required this.onPosOrderVisibleChanged,
+    required this.onPosOrderSoundChanged,
     required this.onLocalServerChanged,
     required this.onPrintCountChanged,
     required this.onAutoCheckUpdateChanged,
@@ -78,7 +80,8 @@ class SettingsRightPanel extends ConsumerStatefulWidget {
   final bool isKioskOrderVisible;
   final bool isKioskOrderSoundEnabled;
   final bool isKioskAlwaysAutoAccept;
-  final bool isPosPrintOrder;
+  final bool isPosOrderVisible;
+  final bool isPosOrderSoundEnabled;
   final bool isLocalServerEnabled;
   final bool isLocalServerRunning;
   final int printCount;
@@ -101,7 +104,8 @@ class SettingsRightPanel extends ConsumerStatefulWidget {
   final void Function(bool) onKioskOrderVisibleChanged;
   final void Function(bool) onKioskOrderSoundChanged;
   final void Function(bool) onKioskAlwaysAutoAcceptChanged;
-  final void Function(bool) onPosPrintOrderChanged;
+  final void Function(bool) onPosOrderVisibleChanged;
+  final void Function(bool) onPosOrderSoundChanged;
   final void Function(bool) onLocalServerChanged;
   final void Function(int) onPrintCountChanged;
   final void Function(bool) onAutoCheckUpdateChanged;
@@ -446,7 +450,9 @@ class _SettingsRightPanelState extends ConsumerState<SettingsRightPanel> {
                           tag: LogTag.UI_ACTION,
                           message: '키오스크 주문 노출 변경 -> $v');
                       widget.onKioskOrderVisibleChanged(v);
-                      ref.read(orderProvider.notifier).updateKioskSettings();
+                      ref
+                          .read(orderProvider.notifier)
+                          .refreshOrderVisibilitySettings();
                     },
                   ),
                 ),
@@ -473,6 +479,7 @@ class _SettingsRightPanelState extends ConsumerState<SettingsRightPanel> {
                 SettingsItemWidget(
                   title: t.settings.kiosk.auto_accept_title,
                   description: t.settings.kiosk.auto_accept_desc,
+                  showDivider: false,
                   trailing: CustomSwitch(
                     value: widget.isKioskAlwaysAutoAccept,
                     activeColor: AppStyles.kMainColor,
@@ -487,22 +494,51 @@ class _SettingsRightPanelState extends ConsumerState<SettingsRightPanel> {
                     },
                   ),
                 ),
-                // POS 주문 접수 시 주문서 출력 (기본 OFF)
+              ],
+            ),
+            const SizedBox(height: AppSpacing.s16),
+
+            // ── POS 주문 설정 카드 ─────────────────────────────────────────
+            SettingsSectionCard(
+              title: t.settings.section_pos,
+              icon: Icons.point_of_sale_outlined,
+              children: [
                 SettingsItemWidget(
-                  title: t.settings.kiosk.pos_print_order_title,
-                  description: t.settings.kiosk.pos_print_order_desc,
-                  showDivider: false,
+                  title: t.settings.pos.visible_title,
+                  description: t.settings.pos.visible_desc,
                   trailing: CustomSwitch(
-                    value: widget.isPosPrintOrder,
+                    value: widget.isPosOrderVisible,
                     activeColor: AppStyles.kMainColor,
                     inactiveColor: AppStyles.gray4,
                     activeText: t.settings.auto_start.on,
                     inactiveText: t.settings.auto_start.off,
                     onChanged: (v) {
                       logToFile(
+                          tag: LogTag.UI_ACTION, message: 'POS 주문 노출 변경 -> $v');
+                      widget.onPosOrderVisibleChanged(v);
+                      ref
+                          .read(orderProvider.notifier)
+                          .refreshOrderVisibilitySettings();
+                    },
+                  ),
+                ),
+                SettingsItemWidget(
+                  title: t.settings.pos.sound_title,
+                  description: t.settings.pos.sound_desc,
+                  enabled: widget.isPosOrderVisible,
+                  showDivider: false,
+                  trailing: CustomSwitch(
+                    value: widget.isPosOrderSoundEnabled,
+                    activeColor: AppStyles.kMainColor,
+                    inactiveColor: AppStyles.gray4,
+                    activeText: t.settings.auto_start.on,
+                    inactiveText: t.settings.auto_start.off,
+                    onChanged: (v) {
+                      if (!widget.isPosOrderVisible) return;
+                      logToFile(
                           tag: LogTag.UI_ACTION,
-                          message: 'POS 주문 주문서 출력 변경 -> $v');
-                      widget.onPosPrintOrderChanged(v);
+                          message: 'POS 주문 출력/알람 변경 -> $v');
+                      widget.onPosOrderSoundChanged(v);
                     },
                   ),
                 ),

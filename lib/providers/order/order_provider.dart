@@ -357,21 +357,24 @@ class Order extends _$Order {
 
   // 소켓/폴링 관련 메서드들은 OrderSocketPolling 클래스로 이동됨
 
-  // 주문을 UI에 표시할지 여부 확인 (키오스크 노출 설정 반영)
+  // 주문을 UI에 표시할지 여부 확인 (키오스크/POS 노출 설정 반영)
   bool _shouldShowOrder(OrderModel order) {
     final showKiosk = _preferenceService.getShowKioskOrder();
-    return _helper.shouldShowOrder(order, showKiosk);
+    final showPos = _preferenceService.getShowPosOrder();
+    return _helper.shouldShowOrder(order, showKiosk, showPos);
   }
 
-  // 주문에 대해 소리/알림/인쇄를 할지 여부 확인 (키오스크 출력/알람 설정 반영)
+  // 주문에 대해 소리/알림/인쇄를 할지 여부 확인 (키오스크/POS 출력/알람 설정 반영)
   bool _shouldNotifyForOrder(OrderModel order) {
     final kioskPrintAndSound = _preferenceService.getKioskPrintAndSound();
-    return _helper.shouldNotifyForOrder(order, kioskPrintAndSound);
+    final posPrintAndSound = _preferenceService.getPosPrintAndSound();
+    return _helper.shouldNotifyForOrder(
+        order, kioskPrintAndSound, posPrintAndSound);
   }
 
-  /// 키오스크 설정 변경 시 호출 — 현재 주문 목록을 재필터링하여 UI 갱신
-  Future<void> updateKioskSettings() async {
-    logger.i('[OrderProvider] 키오스크 설정 변경으로 주문 목록 갱신');
+  /// 키오스크/POS 노출 설정 변경 시 호출 — 현재 주문 목록을 재필터링하여 UI 갱신
+  Future<void> refreshOrderVisibilitySettings() async {
+    logger.i('[OrderProvider] 노출 설정 변경으로 주문 목록 갱신');
     await refreshOrders();
   }
 
