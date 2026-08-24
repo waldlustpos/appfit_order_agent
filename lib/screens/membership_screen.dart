@@ -603,17 +603,17 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
     final loadingActionId =
         ref.watch(membershipProvider.select((state) => state.loadingActionId));
 
-    return MembershipHistoryList<StampInfo>(
+    return MembershipHistoryList<StampHistoryEntry>(
       items: items,
       hasMore: hasMore,
       onLoadMore: () =>
           ref.read(membershipProvider.notifier).loadMoreStampHistory(),
       emptyIcon: Icons.stars_outlined,
       emptyMessage: t.membership.history.no_stamps,
-      itemBuilder: (_, stamp, __) => StampHistoryCard(
-        stamp: stamp,
-        isLoading: loadingActionId == stamp.seq,
-        onCancel: () => _cancelSavedStamp(stamp),
+      itemBuilder: (_, entry, __) => StampHistoryCard(
+        entry: entry,
+        isLoading: loadingActionId == entry.primary.rewardId,
+        onCancel: () => _cancelSavedStamp(entry.primary),
       ),
     );
   }
@@ -923,9 +923,9 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
   // ─── 스탬프 처리 ──────────────────────────────────────────────────────────
 
   Future<void> _cancelSavedStamp(StampInfo stamp) async {
-    if (stamp.rewardId.isEmpty || stamp.seq.isEmpty) {
+    if (stamp.rewardId.isEmpty) {
       logger.w(
-          'Cannot cancel stamp: rewardId or seq is empty for stamp at ${stamp.logDate}');
+          'Cannot cancel stamp: rewardId is empty for stamp at ${stamp.logDate}');
       CommonDialog.showInfoDialog(
           context: context,
           title: t.common.error,
@@ -936,7 +936,7 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
     logToFile(
         tag: LogTag.UI_ACTION,
         message:
-            'Cancel Saved Stamp button pressed. Reward ID: ${stamp.rewardId}, Seq: ${stamp.seq}');
+            'Cancel Saved Stamp button pressed. Reward ID: ${stamp.rewardId}');
 
     final confirmed = await CommonDialog.showConfirmDialog(
       context: context,
@@ -947,7 +947,9 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
     );
 
     if (confirmed == true && mounted) {
-      await ref.read(membershipProvider.notifier).cancelStamp(stamp.rewardId);
+      await ref
+          .read(membershipProvider.notifier)
+          .cancelSavedStamp(stamp.rewardId);
     }
   }
 

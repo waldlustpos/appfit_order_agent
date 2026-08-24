@@ -16,7 +16,7 @@ class MembershipState {
   final int couponCount;
   final int totalPoint;
   final MembershipInfo? membershipInfo;
-  final List<StampInfo> stampHistory;
+  final List<StampHistoryEntry> stampHistory;
   final List<CouponHistoryInfo> couponHistory;
   final List<PointHistoryInfo> pointSaveHistory;
   final List<PointHistoryInfo> pointUseHistory;
@@ -62,7 +62,7 @@ class MembershipState {
     int? couponCount,
     int? totalPoint,
     MembershipInfo? membershipInfo,
-    List<StampInfo>? stampHistory,
+    List<StampHistoryEntry>? stampHistory,
     List<CouponHistoryInfo>? couponHistory,
     List<PointHistoryInfo>? pointSaveHistory,
     List<PointHistoryInfo>? pointUseHistory,
@@ -114,7 +114,7 @@ class MembershipState {
   // 서버가 전체 목록을 한 번에 돌려주므로, 클라이언트 측에서 visibleCount 만큼
   // 잘라서 보여주고 스크롤 하단 도달 시 pageSize 씩 늘린다.
 
-  List<StampInfo> get visibleStampHistory =>
+  List<StampHistoryEntry> get visibleStampHistory =>
       stampHistory.take(stampHistoryVisibleCount).toList();
   bool get hasMoreStampHistory =>
       stampHistoryVisibleCount < stampHistory.length;
@@ -204,11 +204,11 @@ class Membership extends _$Membership {
       final stampData = results[0] as List<StampInfo>;
       final couponData = results[1] as List<CouponHistoryInfo>;
 
-      stampData.sort((a, b) => b.logDate.compareTo(a.logDate));
+      final mergedStampHistory = StampHistoryEntry.mergeAndSort(stampData);
       couponData.sort((a, b) => b.useDate.compareTo(a.useDate));
 
       state = state.copyWith(
-        stampHistory: stampData,
+        stampHistory: mergedStampHistory,
         couponHistory: couponData,
         isLoadingRewardHistory: false,
         stampHistoryVisibleCount: MembershipState.pageSize,
@@ -320,52 +320,6 @@ class Membership extends _$Membership {
       logger.e('Unexpected error during coupon cancel: $e');
       state = state.copyWith(
           errorMessage: '쿠폰 취소 중 오류가 발생했습니다.', clearLoadingActionId: true);
-      return false;
-    }
-  }
-
-  Future<bool> cancelStamp(String rewardId) async {
-    if (_storeId.isEmpty) {
-      state = state.copyWith(
-          errorMessage: '매장 ID를 찾을 수 없습니다.', clearSuccessMessage: true);
-      return false;
-    }
-    state = state.copyWith(
-      isLoading: true,
-      clearErrorMessage: true,
-      clearSuccessMessage: true,
-    );
-
-    try {
-      final success = await _apiService.cancelStamp(rewardId);
-      if (success) {
-        logger.i('스탬프 적립 취소 성공: $rewardId');
-        state = state.copyWith(
-          successMessage: '스탬프 적립이 취소되었습니다.',
-          isLoading: false,
-        );
-        final userId =
-            state.customerPhone; // Using customerPhone as userId for now
-        if (userId.isNotEmpty) {
-          await search(userId); // Refresh data
-        }
-        return true;
-      } else {
-        logger.w('스탬프 적립 취소 실패: $rewardId');
-        state = state.copyWith(
-          errorMessage: '스탬프 적립 취소에 실패했습니다.',
-          isLoading: false,
-        );
-        return false;
-      }
-    } on ApiException catch (e) {
-      logger.e('API Exception during cancelStamp: ${e.message}');
-      state = state.copyWith(errorMessage: e.message, isLoading: false);
-      return false;
-    } catch (e, s) {
-      logger.e('Unexpected error during cancelStamp: $e');
-      state = state.copyWith(
-          errorMessage: '스탬프 적립 취소 중 오류가 발생했습니다.', isLoading: false);
       return false;
     }
   }

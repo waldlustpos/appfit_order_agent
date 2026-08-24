@@ -127,7 +127,6 @@ class MembershipInfo {
   }
 }
 
-// TODO: 스탬프 내역 모델 추가 (API 확인 후)
 class StampInfo {
   final DateTime logDate; // 이벤트 발생 일시 (적립 또는 사용)
   final int stampCount; // 관련된 스탬프 개수
@@ -135,6 +134,7 @@ class StampInfo {
   final String memo; // 비고 (상태 또는 유형)
   final String seq; // 취소 시 사용할 고유 시퀀스 번호
   final String rewardId; // 취소 시 사용할 리워드 ID
+  final bool isCancelable; // 적립 취소 가능 여부 (status ISSUED일 때만 의미 있음)
 
   StampInfo({
     required this.logDate,
@@ -143,6 +143,7 @@ class StampInfo {
     required this.memo, // memo 유지 (API 응답에 따라 결정)
     required this.seq, // seq 추가
     required this.rewardId, // rewardId 추가
+    this.isCancelable = false,
   });
 
   factory StampInfo.fromJson(Map<String, dynamic> json) {
@@ -167,7 +168,75 @@ class StampInfo {
       memo: json['memo']?.toString() ?? '',
       seq: json['seq']?.toString() ?? '',
       rewardId: json['referenceId']?.toString() ?? '',
+      isCancelable: json['isCancelable'] as bool? ?? false,
     );
+  }
+}
+
+/// 스탬프 내역 카드 표시 단위.
+///
+/// `/v0/stamps/history`는 상태 전이마다 별도 행을 내려준다(같은 rewardId로
+/// ISSUED 행과 CANCELED/EXPIRED 행이 각각 존재, 실측 확인됨). [primary]는
+/// ISSUED 행, [resolution]은 그 짝이 되는 CANCELED/EXPIRED 행이다. 짝이 없는
+/// 단일 행(USED는 rewardId 대신 쿠폰 ID를 쓰므로 애초에 짝이 맞지 않음, 혹은
+/// 상대 행이 없는 경우)은 [resolution]이 null인 채로 기존처럼 단독 표시된다.
+class StampHistoryEntry {
+  final StampInfo primary;
+  final StampInfo? resolution;
+
+  const StampHistoryEntry({required this.primary, this.resolution});
+
+  /// 정렬 기준 시각(최근 이벤트 우선): 짝이 있으면 취소/만료 시각, 없으면 적립 시각.
+  DateTime get sortDate => resolution?.logDate ?? primary.logDate;
+
+  static const Set<String> _terminalStatuses = {
+    'CANCELED',
+    'CANCELLED',
+    'EXPIRED',
+  };
+
+  /// 원본 스탬프 내역을 rewardId 기준으로 묶어 ISSUED + CANCELED/EXPIRED 짝을
+  /// 하나의 표시 항목으로 병합하고, 최근 이벤트 순으로 정렬해 반환한다.
+  /// 짝이 정확히 맞는 2건 그룹만 병합하고, 그 외(단일 건, 예상 밖 형태의
+  /// 그룹)는 데이터 유실 없이 각각 단독 항목으로 넣는다.
+  static List<StampHistoryEntry> mergeAndSort(List<StampInfo> raw) {
+    final byRewardId = <String, List<StampInfo>>{};
+    final standalone = <StampInfo>[];
+
+    for (final stamp in raw) {
+      if (stamp.rewardId.isEmpty) {
+        standalone.add(stamp);
+      } else {
+        byRewardId.putIfAbsent(stamp.rewardId, () => []).add(stamp);
+      }
+    }
+
+    final entries = <StampHistoryEntry>[
+      for (final stamp in standalone) StampHistoryEntry(primary: stamp),
+    ];
+
+    for (final group in byRewardId.values) {
+      if (group.length == 2) {
+        final statuses = group.map((s) => s.status.toUpperCase()).toList();
+        final issuedIndex = statuses.indexOf('ISSUED');
+        final terminalIndex = statuses.indexWhere(_terminalStatuses.contains);
+        if (issuedIndex != -1 &&
+            terminalIndex != -1 &&
+            issuedIndex != terminalIndex) {
+          entries.add(StampHistoryEntry(
+            primary: group[issuedIndex],
+            resolution: group[terminalIndex],
+          ));
+          continue;
+        }
+      }
+      for (final stamp in group) {
+        entries.add(StampHistoryEntry(primary: stamp));
+      }
+    }
+
+    entries.sort((a, b) => b.sortDate.compareTo(a.sortDate));
+    return entries;
   }
 }
 
