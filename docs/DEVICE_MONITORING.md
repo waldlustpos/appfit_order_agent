@@ -2,15 +2,15 @@
 
 매장 기기(Sunmi D3 MINI 주문접수기, D2s_KDS, Windows POS)의 **① 앱 실행 상태 ② 기기 정보 ③ 원격 로그 요청**을 다루는 최소 관제 시스템.
 
-> ## ⛔ 현재 비활성 (2026-08-19~)
+> ## ✅ 활성 — Windows 한정 (2026-08-21~)
 >
-> **`FleetConfig.enabled = false` 로 앱 측 관제를 통째로 꺼 뒀다.** 정식 도입 전까지 서버 통신을 하지 않는다 — 대상 매장 목록 조회도, register/heartbeat 도 나가지 않는다. 대상 매장 정책은 도입 시점에 다시 세운다.
+> **`FleetConfig.enabled = true`**(커밋 9483998, "fleet 윈도우에서 활성화"). 다만 실제로 관제가 도는 범위는 이 상수 하나가 아니라 아래 네 게이트 전부다 — Windows 플랫폼 게이트가 여전히 걸려 있어 **Android 기기는 이 상수와 무관하게 관제 대상이 아니다.**
 >
-> 배선과 코드는 그대로 남아 있으므로 **되돌릴 때는 `lib/config/fleet_config.dart` 의 상수 하나만 true 로** 바꾸면 된다. 아래 문서는 켠 뒤의 동작을 기술한다.
+> 되돌릴 땐 `lib/config/fleet_config.dart` 의 이 상수 하나만 false 로 바꾸면 된다.
 >
-> **상태: 배포 완료(2026-07-31), appfit_core 승격 완료(2026-08-03), 대상 매장 화이트리스트 게이트 추가(2026-08-19), 실기기 파일럿 미실시.** 백엔드는 별도 레포 `appfit-fleet`(Cloudflare Workers + D1), 공통 리포터는 `appfit_core`(`appifit_agent_core` 레포, v1.0.18~), 앱 측 전용 코드는 `lib/services/fleet/`.
+> **상태: 배포 완료(2026-07-31), appfit_core 승격 완료(2026-08-03), 대상 매장 화이트리스트 게이트 추가(2026-08-19), Windows 대상 활성화(2026-08-21), 실기기 파일럿 미실시.** 백엔드는 별도 레포 `appfit-fleet`(Cloudflare Workers + D1), 공통 리포터는 `appfit_core`(`appifit_agent_core` 레포, v1.0.18~), 앱 측 전용 코드는 `lib/services/fleet/`.
 >
-> 켜면 **관제는 Windows 대상 매장에서만 돈다** — `FleetConfig.enabled` AND `.env` 설정(§5) AND **Windows 플랫폼**(`fleet_provider.dart` 의 `fleetEnabledProvider`, 우선 배포 범위 한정. 다음 업데이트에서 조건이 바뀔 수 있음) AND 원격 화이트리스트(§5-1) 네 게이트를 모두 통과해야 한다.
+> **관제는 Windows 대상 매장에서만 돈다** — `FleetConfig.enabled` AND `.env` 설정(§5) AND **Windows 플랫폼**(`fleet_provider.dart` 의 `fleetEnabledProvider`, 우선 배포 범위 한정. 다음 업데이트에서 조건이 바뀔 수 있음) AND 원격 화이트리스트(§5-1) 네 게이트를 모두 통과해야 한다.
 >
 > 대시보드: https://appfit-fleet.sckim.workers.dev (자격정보는 `appfit-fleet/DEPLOYMENT.local.md`)
 >
@@ -36,11 +36,33 @@ FleetReporter                      POST /v1/device/register  ──┐
  └ 결과는 다음 heartbeat body 의 results[]                       │
                                     GET  /               ────────▶ 단일 페이지 대시보드
                                     POST /api/commands   ◀──────── "로그 요청"
+
+[Lightsail 정적 호스트]             GET /api/deployed-versions ◀─── 서버 배포 버전 바
+ OTA version JSON ×4  ─────────────▶   (Worker 가 pull, 5분 캐시)
+ fleet_sunmi_mammoth_version.json ─▶
 ```
 
 명령은 **heartbeat 응답에 실어 보낸다(piggyback)**. AppFit 의 WebSocket 은 수신 전용(`sink.add` 없음)이라 push 채널을 새로 뚫으려면 서버팀 의존이 생긴다.
 
 로그 파일은 관제 서버에 저장하지 않는다. 기기가 기존 `SlackDirectSink` 로 zip 을 올리고, 서버는 요청·진행·결과 상태만 들고 있는다.
+
+### 서버 배포 버전 표기 (대시보드 상단 바)
+
+기기가 보고한 버전 옆에 **"지금 서버에 올라가 있는 최신"** 을 같이 띄운다. 표기 단위는 5개이며 정본은 `appfit-fleet/src/types.ts` 의 `RELEASE_ARTIFACTS` 다.
+
+| | Appfit (Tier 0) | Mammoth (Tier 1) | Sunmi Mammoth |
+|---|---|---|---|
+| **Android** | OTA `_release` | OTA `_mammoth_release` | Sunmi App Store |
+| **Windows** | OTA 무접미 | OTA `_mammoth_windows` | — 해당 없음 (Sunmi 는 Android 전용 하드웨어) |
+
+- **Worker 가 정적 호스트를 직접 읽는다(pull).** 배포 스크립트가 fleet 로 보고(push)하게 하지 않은 이유는, 보고가 실패하면 "배포는 됐는데 표기는 옛날 값"이라는 조용한 거짓말이 남기 때문이다. OTA version JSON 은 앱이 업데이트를 판정할 때 보는 바로 그 파일이라 그대로 읽는 쪽이 정의상 맞다. **`deploy_apk.sh`/`deploy_windows.ps1` 은 이 기능과 무관하다 — 수정하지 않았다.**
+- 표기 단위는 **빌드번호**다. OTA version JSON 에 semver 가 없고(`{"version": 189}`), 그게 앱이 업데이트를 판정하는 단위이기도 하다.
+- 배포 시각은 별도로 기록하지 않고 정적 파일의 `Last-Modified` 를 쓴다 — 업로드가 곧 배포다.
+- Windows 채널 2개는 `deploy_windows.ps1` 의 `Out-File -Encoding utf8` 때문에 응답 앞에 **UTF-8 BOM** 이 붙는다. Worker 가 파싱 전에 벗겨낸다(BOM 을 그대로 두면 `JSON.parse` 가 터진다).
+- **Sunmi 칸만 조회 지점이 없다.** `/store-upload` 스킬 5-1단계가 같은 호스트에 `fleet_sunmi_mammoth_version.json` 을 올린다. 아직 한 번도 안 올렸으면 "배포 기록 없음"으로 뜬다(404 는 장애가 아니다). **이 파일은 채널이 아니다** — 앱이 폴링하지 않고 아티팩트도 딸려 있지 않아, `fleet_stores.json`(§5-1) 과 같은 성격의 수동 자산이라 `fleet_` 접두사를 쓴다.
+- 기기 목록 필터에 **OS(Android/Windows)** 가 함께 추가됐다. 판정 근거는 기기가 register 시 보내는 `platform` 필드다.
+
+이 기능은 **`FleetConfig.enabled` 와 무관하게 동작한다** — 앱이 아무것도 보고하지 않아도 대시보드는 배포 버전을 보여준다. 앱 측 코드는 전혀 관여하지 않는다.
 
 ## 2. 파일 맵
 

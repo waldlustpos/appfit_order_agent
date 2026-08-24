@@ -56,8 +56,41 @@ Sunmi 콘솔에서 매장/기기 단위로 단계 배포가 가능하다는 점�
 (플랫폼 무관하게 `$HOME/Documents/!Project Files/...` — Windows Git Bash 는
 `/c/Users/<user>/Documents/...`).
 
-> 이 파일이 스토어 업로드의 **유일한 기록**이다 — 서버 JSON 처럼 자동 생성되는
+> 이 파일이 스토어 업로드의 **유일한 정본**이다 — 서버 JSON 처럼 자동 생성되는
 > 이력이 없다(OTA 채널과 달리 스토어 업로드는 앱이 조회할 방법이 없다).
+
+## 5-1단계 — Fleet 대시보드에 배포 버전 게시 (**mammoth 만**)
+
+`common` 이면 이 단계를 건너뛴다 — Fleet 이 표기하는 Sunmi 칸은 매머드 하나뿐이다
+(`docs/RELEASE.md`: Sunmi App Store 관리 함대 = `sunmiAppStoreUpdate` 브랜드 = 매머드).
+
+Sunmi 스토어에는 OTA 의 version JSON 같은 조회 지점이 없다. 이 단계가 같은 정보를
+정적 호스트에 한 벌 올려, Fleet 대시보드가 나머지 4개 OTA 채널과 **같은 방식으로**
+읽게 한다(`appfit-fleet` 의 `RELEASE_ARTIFACTS`).
+
+> **이 파일은 채널이 아니다.** 앱은 폴링하지 않고 아티팩트도 딸려 있지 않다 —
+> `fleet_stores.json` 과 같은 성격의 수동 자산이라 `fleet_` 접두사를 쓴다.
+> `docs/RELEASE.md` 의 채널 불변식("아티팩트 없이 채널만 늘리지 않는다")과 무관하다.
+
+Bash 툴로 아래를 그대로 실행한다. `<...>` 는 앞 단계에서 **이미 확정된 값**으로
+채운다(5단계에 append 한 이력 라인과 같은 값이어야 한다).
+
+```bash
+cat > /tmp/fleet_sunmi_mammoth_version.json <<EOF
+{"version": <versionCode>, "versionName": "<pubspec x.y.z>", "gray": "<gray 범위>", "uploadedAt": "<ISO8601 일시>", "committer": "<커밋 해시>"}
+EOF
+scp -o StrictHostKeyChecking=no -i ~/.ssh/LightsailDefaultKey-ap-northeast-3.pem \
+  /tmp/fleet_sunmi_mammoth_version.json \
+  ec2-user@52.78.172.188:/var/www/docs/waldpay_html/fleet_sunmi_mammoth_version.json \
+  && curl -s https://waldpay.kokonutstamp2.com/fleet_sunmi_mammoth_version.json
+```
+
+- `version` 키 이름은 OTA version JSON 과 **일부러 같게** 둔다 — Fleet 이 5개를 한
+  파서로 읽는다. 나머지 키는 Fleet 이 선택적으로 표기하는 부가 정보다.
+- 배포 시각은 넣지 않아도 된다 — Fleet 은 파일의 `Last-Modified` 를 쓴다.
+- **실패해도 중단하지 않는다.** 5단계의 로컬 로그가 여전히 유일한 정본이고 이
+  파일은 대시보드 표기용 사본일 뿐이다. 사용자에게 "Fleet 표기만 갱신 안 됨"으로
+  알리고 다음으로 넘어간다.
 
 ## 실행 후
 

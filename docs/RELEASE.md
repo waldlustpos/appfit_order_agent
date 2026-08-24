@@ -17,6 +17,12 @@
 | Sunmi App Store (수동 업로드, gray 기기 타깃, `/store-upload`) | `sunmiAppStoreUpdate` 브랜드의 Sunmi 기기 (현재 **매머드**가 유일 대상) | gray 타깃으로 매장/기기 단위 단계 배포 가능 |
 | OTA `_mammoth_release` (`deploy_apk.sh mammoth` → Lightsail) | 매머드(Tier 1) 아티팩트의 비-Sunmi 단말 + 수동 체크 안전망. **실제 운영 정책은 Sunmi 스토어 경로** — 이 채널은 구조적 대비 + 안전망이다 | 위와 동일(비율 제어 불가). 빈 채널은 안전망이 아니므로(404 는 조용히 삼켜진다) 릴리즈마다 함께 채운다 |
 
+### `fleet_sunmi_mammoth_version.json` 은 채널이 아니다
+
+Fleet 관제 대시보드가 상단에 "지금 서버에 올라간 버전"을 표기한다. OTA 4채널은 각자의 version JSON 을 Worker 가 그대로 읽으면 되지만, **Sunmi App Store 는 조회 지점이 없다.** 그래서 `/store-upload` 5-1단계가 같은 Lightsail 호스트에 이 파일을 한 벌 올려, 대시보드가 5개를 같은 방식으로 읽게 한다.
+
+이 파일에는 **아티팩트가 딸려 있지 않고 앱도 폴링하지 않는다.** 위의 채널 불변식("아티팩트 없이 채널만 늘리지 않는다")이 적용되는 대상이 아니며, `fleet_stores.json` 과 같은 성격의 수동 자산이라 `fleet_` 접두사를 쓴다 — OTA 채널 이름 규칙(`appfit_order_agent_*`)과 섞이지 않게 하기 위해서다. 상세는 [DEVICE_MONITORING.md](DEVICE_MONITORING.md) §1.
+
 ## 기기별 업데이트 정책 (코드에 이미 구현됨)
 
 - **정책(2026-07-22 반전)**: `sunmiAppStoreUpdate` 브랜드(현재 **매머드** — `MMTH`/`MHST` 프리픽스 둘 다) + Sunmi = Sunmi App Store 채널(자동 OTA 체크 OFF), **그 외 모든 조합 = OTA 채널(자동 체크 ON)**. 이전엔 "Sunmi 전부 OFF + TPCP 만 ON 예외" 였으나, "전부 ON + 해당 브랜드만 OFF 예외" 로 뒤집혔다.
