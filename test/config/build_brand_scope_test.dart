@@ -37,6 +37,10 @@ const Set<String> kAllowedBuildBrandReferences = {
   'lib/screens/login_screen.dart',
   // Windows OTA 채널 — ota_config.dart 의 Windows 대응.
   'lib/config/update_config.dart',
+  // 트레이 아이콘 — Runner.rc(창/작업표시줄) 아이콘과 동일 축의 OS 셸
+  // 아이덴티티. rootBundle 로 읽는 Flutter asset이라 컴파일 리소스와 별도로
+  // 브랜드 분기가 필요하다.
+  'lib/services/windows_bubble_service.dart',
 };
 
 void main() {
