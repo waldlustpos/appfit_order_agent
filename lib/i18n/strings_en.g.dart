@@ -128,7 +128,8 @@ class _Translations$settings$en extends Translations$settings$ko {
 	@override String get section_general => 'General';
 	@override String get section_printer => 'Printer';
 	@override String get section_sound => 'Notifications';
-	@override String get section_kiosk => 'Kiosk & POS Orders';
+	@override String get section_kiosk => 'Kiosk';
+	@override String get section_pos => 'POS Orders';
 	@override String get section_server => 'Server';
 	@override String get section_print_count => 'Print';
 	@override String get section_update => 'Updates';
@@ -157,6 +158,7 @@ class _Translations$settings$en extends Translations$settings$ko {
 	@override late final _Translations$settings$label_filter$en label_filter = _Translations$settings$label_filter$en._(_root);
 	@override late final _Translations$settings$developer_options$en developer_options = _Translations$settings$developer_options$en._(_root);
 	@override late final _Translations$settings$kiosk$en kiosk = _Translations$settings$kiosk$en._(_root);
+	@override late final _Translations$settings$pos$en pos = _Translations$settings$pos$en._(_root);
 	@override late final _Translations$settings$local_server$en local_server = _Translations$settings$local_server$en._(_root);
 	@override late final _Translations$settings$connection$en connection = _Translations$settings$connection$en._(_root);
 	@override late final _Translations$settings$soundgraph$en soundgraph = _Translations$settings$soundgraph$en._(_root);
@@ -840,8 +842,19 @@ class _Translations$settings$kiosk$en extends Translations$settings$kiosk$ko {
 	@override String get sound_desc => 'Print ticket and play notification sound when a kiosk order is received.';
 	@override String get auto_accept_title => 'Auto-Accept Kiosk Orders';
 	@override String get auto_accept_desc => 'Kiosk orders are always accepted immediately, regardless of the \'Auto-Accept Pickup Orders\' setting.';
-	@override String get pos_print_order_title => 'Print POS Order Ticket';
-	@override String get pos_print_order_desc => 'Print an order ticket when a POS order is received.';
+}
+
+// Path: settings.pos
+class _Translations$settings$pos$en extends Translations$settings$pos$ko {
+	_Translations$settings$pos$en._(TranslationsEn root) : this._root = root, super.internal(root);
+
+	final TranslationsEn _root; // ignore: unused_field
+
+	// Translations
+	@override String get visible_title => 'Show POS Orders';
+	@override String get visible_desc => 'Display POS orders on screen.';
+	@override String get sound_title => 'POS Order Ticket & Sound';
+	@override String get sound_desc => 'Print ticket and play notification sound when a POS order is received.';
 }
 
 // Path: settings.local_server

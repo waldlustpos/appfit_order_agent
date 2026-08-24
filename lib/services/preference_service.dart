@@ -42,8 +42,10 @@ class PreferenceService {
   static const String KEY_KIOSK_PRINT_AND_SOUND = "IS_KIOSK_PRINT_AND_SOUND";
   static const String KEY_KIOSK_ALWAYS_AUTO_ACCEPT =
       "KEY_KIOSK_ALWAYS_AUTO_ACCEPT"; // bool (기본 true): 키오스크 주문은 픽업 자동접수 설정과 무관하게 항상 즉시 접수
-  static const String KEY_POS_PRINT_ORDER =
-      "KEY_POS_PRINT_ORDER"; // bool (기본 false): POS 주문 접수 시 주문서 출력 여부
+  static const String KEY_SHOW_POS_ORDER =
+      "KEY_SHOW_POS_ORDER"; // bool (기본 false): POS 주문 노출 여부
+  static const String KEY_POS_PRINT_AND_SOUND =
+      "KEY_POS_PRINT_AND_SOUND"; // bool (기본 false): POS 주문 출력 및 알람소리 재생 여부
   static const String KEY_USE_PRINT = "KEY_USE_PRINT";
   static const String KEY_PRINTED_ORDERS = "KEY_PRINTED_ORDERS";
   static const String KEY_SOUNDGRAPH_ON = "KEY_SOUNDGRAPH_ON";
@@ -605,6 +607,8 @@ class PreferenceService {
   bool getIsNewOrder() => _prefs.getBool(KEY_IS_NEW_ORDER) ?? false; //
   bool getShowKioskOrder() =>
       _prefs.getBool(KEY_SHOW_KIOSK_ORDER) ?? true; //키오스크주문 노출여부
+  bool getShowPosOrder() =>
+      _prefs.getBool(KEY_SHOW_POS_ORDER) ?? false; //POS주문 노출여부 (기본 OFF)
 
   /// 키오스크 주문 항상 자동접수 (기본 ON): 픽업 오더 자동 접수(getAutoReceipt) 와
   /// 무관하게 키오스크 주문은 항상 NEW→PREPARING 즉시 전이시킨다.
@@ -613,9 +617,9 @@ class PreferenceService {
   bool getKioskPrintAndSound() =>
       _prefs.getBool(KEY_KIOSK_PRINT_AND_SOUND) ??
       true; //키오스크주문 출력 및 알람소리 재생 여부
-  bool getPosPrintOrder() =>
-      _prefs.getBool(KEY_POS_PRINT_ORDER) ??
-      false; //POS 주문 접수 시 주문서 출력 여부 (기본 OFF)
+  bool getPosPrintAndSound() =>
+      _prefs.getBool(KEY_POS_PRINT_AND_SOUND) ??
+      false; //POS주문 출력 및 알람소리 재생 여부 (기본 OFF)
   bool getUsePrint() => _prefs.getBool(KEY_USE_PRINT) ?? true; //주문서 출력 여부
 
   // New printer settings getters
@@ -795,14 +799,19 @@ class PreferenceService {
     await _prefs.setBool(KEY_SHOW_KIOSK_ORDER, value);
   }
 
+  // POS 주문 노출 설정
+  Future<void> setShowPosOrder(bool value) async {
+    await _prefs.setBool(KEY_SHOW_POS_ORDER, value);
+  }
+
   // 키오스크 주문 출력 및 소리 설정
   Future<void> setKioskPrintAndSound(bool value) async {
     await _prefs.setBool(KEY_KIOSK_PRINT_AND_SOUND, value);
   }
 
-  // POS 주문 접수 시 주문서 출력 설정
-  Future<void> setPosPrintOrder(bool value) async {
-    await _prefs.setBool(KEY_POS_PRINT_ORDER, value);
+  // POS 주문 출력 및 소리 설정
+  Future<void> setPosPrintAndSound(bool value) async {
+    await _prefs.setBool(KEY_POS_PRINT_AND_SOUND, value);
   }
 
   // 키오스크 주문 항상 자동접수 설정 (픽업 오더 자동접수와 별개 축)

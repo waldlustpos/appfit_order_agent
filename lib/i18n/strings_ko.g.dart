@@ -209,8 +209,11 @@ class Translations$settings$ko {
 	/// ko: '알림 설정'
 	String get section_sound => '알림 설정';
 
-	/// ko: '키오스크주문 및 POS주문 설정'
-	String get section_kiosk => '키오스크주문 및 POS주문 설정';
+	/// ko: '키오스크 설정'
+	String get section_kiosk => '키오스크 설정';
+
+	/// ko: 'POS 주문 설정'
+	String get section_pos => 'POS 주문 설정';
 
 	/// ko: '서버 설정'
 	String get section_server => '서버 설정';
@@ -246,6 +249,7 @@ class Translations$settings$ko {
 	late final Translations$settings$label_filter$ko label_filter = Translations$settings$label_filter$ko.internal(_root);
 	late final Translations$settings$developer_options$ko developer_options = Translations$settings$developer_options$ko.internal(_root);
 	late final Translations$settings$kiosk$ko kiosk = Translations$settings$kiosk$ko.internal(_root);
+	late final Translations$settings$pos$ko pos = Translations$settings$pos$ko.internal(_root);
 	late final Translations$settings$local_server$ko local_server = Translations$settings$local_server$ko.internal(_root);
 	late final Translations$settings$connection$ko connection = Translations$settings$connection$ko.internal(_root);
 	late final Translations$settings$soundgraph$ko soundgraph = Translations$settings$soundgraph$ko.internal(_root);
@@ -1439,12 +1443,27 @@ class Translations$settings$kiosk$ko {
 
 	/// ko: '키오스크 주문은 '픽업 오더 자동 접수' 설정과 무관하게 항상 즉시 접수합니다.'
 	String get auto_accept_desc => '키오스크 주문은 \'픽업 오더 자동 접수\' 설정과 무관하게 항상 즉시 접수합니다.';
+}
 
-	/// ko: 'POS 주문 주문서 출력'
-	String get pos_print_order_title => 'POS 주문 주문서 출력';
+// Path: settings.pos
+class Translations$settings$pos$ko {
+	Translations$settings$pos$ko.internal(this._root);
 
-	/// ko: 'POS 주문 접수 시 주문서를 출력합니다.'
-	String get pos_print_order_desc => 'POS 주문 접수 시 주문서를 출력합니다.';
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// ko: 'POS 주문 노출'
+	String get visible_title => 'POS 주문 노출';
+
+	/// ko: 'POS 주문을 화면에 표시합니다.'
+	String get visible_desc => 'POS 주문을 화면에 표시합니다.';
+
+	/// ko: 'POS 주문 주문서 및 알림소리'
+	String get sound_title => 'POS 주문 주문서 및 알림소리';
+
+	/// ko: 'POS 주문 수신 시 주문서 출력과 알림음을 재생합니다.'
+	String get sound_desc => 'POS 주문 수신 시 주문서 출력과 알림음을 재생합니다.';
 }
 
 // Path: settings.local_server

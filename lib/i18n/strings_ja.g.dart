@@ -128,7 +128,8 @@ class _Translations$settings$ja extends Translations$settings$ko {
 	@override String get section_general => '一般設定';
 	@override String get section_printer => 'プリンター設定';
 	@override String get section_sound => '通知設定';
-	@override String get section_kiosk => 'キオスク注文・POS注文設定';
+	@override String get section_kiosk => 'キオスク設定';
+	@override String get section_pos => 'POS注文設定';
 	@override String get section_server => 'サーバー設定';
 	@override String get section_print_count => '印刷設定';
 	@override String get section_update => 'アップデート';
@@ -157,6 +158,7 @@ class _Translations$settings$ja extends Translations$settings$ko {
 	@override late final _Translations$settings$label_filter$ja label_filter = _Translations$settings$label_filter$ja._(_root);
 	@override late final _Translations$settings$developer_options$ja developer_options = _Translations$settings$developer_options$ja._(_root);
 	@override late final _Translations$settings$kiosk$ja kiosk = _Translations$settings$kiosk$ja._(_root);
+	@override late final _Translations$settings$pos$ja pos = _Translations$settings$pos$ja._(_root);
 	@override late final _Translations$settings$local_server$ja local_server = _Translations$settings$local_server$ja._(_root);
 	@override late final _Translations$settings$connection$ja connection = _Translations$settings$connection$ja._(_root);
 	@override late final _Translations$settings$soundgraph$ja soundgraph = _Translations$settings$soundgraph$ja._(_root);
@@ -831,8 +833,19 @@ class _Translations$settings$kiosk$ja extends Translations$settings$kiosk$ko {
 	@override String get sound_desc => 'キオスク注文受信時に注文票を出力し、通知音を再生します。';
 	@override String get auto_accept_title => 'キオスク注文の自動受付';
 	@override String get auto_accept_desc => 'キオスク注文は「ピックアップ注文の自動受付」設定に関わらず、常に即時受付します。';
-	@override String get pos_print_order_title => 'POS注文の注文票出力';
-	@override String get pos_print_order_desc => 'POS注文受信時に注文票を出力します。';
+}
+
+// Path: settings.pos
+class _Translations$settings$pos$ja extends Translations$settings$pos$ko {
+	_Translations$settings$pos$ja._(TranslationsJa root) : this._root = root, super.internal(root);
+
+	final TranslationsJa _root; // ignore: unused_field
+
+	// Translations
+	@override String get visible_title => 'POS注文の表示';
+	@override String get visible_desc => 'POS注文を画面に表示します。';
+	@override String get sound_title => 'POS注文の注文票と通知音';
+	@override String get sound_desc => 'POS注文受信時に注文票を出力し、通知音を再生します。';
 }
 
 // Path: settings.local_server
