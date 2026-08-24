@@ -62,6 +62,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _isKioskOrderVisible = false;
   bool _isKioskOrderSoundEnabled = false;
   bool _isKioskAlwaysAutoAccept = true;
+  bool _isPosPrintOrder = false;
   bool _isShowOrderTypeBadge = false;
   bool _isOrderSourceColor = false;
   bool _printShowOrderType = true;
@@ -132,6 +133,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _isKioskOrderVisible = _preferenceService.getShowKioskOrder();
       _isKioskOrderSoundEnabled = _preferenceService.getKioskPrintAndSound();
       _isKioskAlwaysAutoAccept = _preferenceService.getKioskAlwaysAutoAccept();
+      _isPosPrintOrder = _preferenceService.getPosPrintOrder();
       _isShowOrderTypeBadge = _preferenceService.getShowOrderTypeBadge();
       _isOrderSourceColor = _preferenceService.getOrderSourceColor();
       _printShowOrderType = _preferenceService.getPrintShowOrderType();
@@ -177,6 +179,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await _preferenceService.setKioskPrintAndSound(_isKioskOrderSoundEnabled);
       await _preferenceService
           .setKioskAlwaysAutoAccept(_isKioskAlwaysAutoAccept);
+      await _preferenceService.setPosPrintOrder(_isPosPrintOrder);
       await _preferenceService.setShowOrderTypeBadge(_isShowOrderTypeBadge);
       await _preferenceService.setOrderSourceColor(_isOrderSourceColor);
       await _preferenceService.setPrintShowOrderType(_printShowOrderType);
@@ -633,6 +636,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               isKioskOrderVisible: _isKioskOrderVisible,
               isKioskOrderSoundEnabled: _isKioskOrderSoundEnabled,
               isKioskAlwaysAutoAccept: _isKioskAlwaysAutoAccept,
+              isPosPrintOrder: _isPosPrintOrder,
               isLocalServerEnabled: _isLocalServerEnabled,
               isLocalServerRunning: _isLocalServerRunning,
               printCount: _printCount,
@@ -659,6 +663,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   _setAndSave(() => _isKioskOrderSoundEnabled = v),
               onKioskAlwaysAutoAcceptChanged: (v) =>
                   _setAndSave(() => _isKioskAlwaysAutoAccept = v),
+              onPosPrintOrderChanged: (v) =>
+                  _setAndSave(() => _isPosPrintOrder = v),
               onLocalServerChanged: _handleLocalServerChanged,
               onPrintCountChanged: (v) => _setAndSave(() => _printCount = v),
               onAutoCheckUpdateChanged: (v) {

@@ -30,6 +30,7 @@ class SettingsRightPanel extends ConsumerStatefulWidget {
     required this.isKioskOrderVisible,
     required this.isKioskOrderSoundEnabled,
     required this.isKioskAlwaysAutoAccept,
+    required this.isPosPrintOrder,
     required this.isLocalServerEnabled,
     required this.isLocalServerRunning,
     required this.printCount,
@@ -53,6 +54,7 @@ class SettingsRightPanel extends ConsumerStatefulWidget {
     required this.onKioskOrderVisibleChanged,
     required this.onKioskOrderSoundChanged,
     required this.onKioskAlwaysAutoAcceptChanged,
+    required this.onPosPrintOrderChanged,
     required this.onLocalServerChanged,
     required this.onPrintCountChanged,
     required this.onAutoCheckUpdateChanged,
@@ -76,6 +78,7 @@ class SettingsRightPanel extends ConsumerStatefulWidget {
   final bool isKioskOrderVisible;
   final bool isKioskOrderSoundEnabled;
   final bool isKioskAlwaysAutoAccept;
+  final bool isPosPrintOrder;
   final bool isLocalServerEnabled;
   final bool isLocalServerRunning;
   final int printCount;
@@ -98,6 +101,7 @@ class SettingsRightPanel extends ConsumerStatefulWidget {
   final void Function(bool) onKioskOrderVisibleChanged;
   final void Function(bool) onKioskOrderSoundChanged;
   final void Function(bool) onKioskAlwaysAutoAcceptChanged;
+  final void Function(bool) onPosPrintOrderChanged;
   final void Function(bool) onLocalServerChanged;
   final void Function(int) onPrintCountChanged;
   final void Function(bool) onAutoCheckUpdateChanged;
@@ -469,7 +473,6 @@ class _SettingsRightPanelState extends ConsumerState<SettingsRightPanel> {
                 SettingsItemWidget(
                   title: t.settings.kiosk.auto_accept_title,
                   description: t.settings.kiosk.auto_accept_desc,
-                  showDivider: false,
                   trailing: CustomSwitch(
                     value: widget.isKioskAlwaysAutoAccept,
                     activeColor: AppStyles.kMainColor,
@@ -481,6 +484,25 @@ class _SettingsRightPanelState extends ConsumerState<SettingsRightPanel> {
                           tag: LogTag.UI_ACTION,
                           message: '키오스크 항상 자동접수 변경 -> $v');
                       widget.onKioskAlwaysAutoAcceptChanged(v);
+                    },
+                  ),
+                ),
+                // POS 주문 접수 시 주문서 출력 (기본 OFF)
+                SettingsItemWidget(
+                  title: t.settings.kiosk.pos_print_order_title,
+                  description: t.settings.kiosk.pos_print_order_desc,
+                  showDivider: false,
+                  trailing: CustomSwitch(
+                    value: widget.isPosPrintOrder,
+                    activeColor: AppStyles.kMainColor,
+                    inactiveColor: AppStyles.gray4,
+                    activeText: t.settings.auto_start.on,
+                    inactiveText: t.settings.auto_start.off,
+                    onChanged: (v) {
+                      logToFile(
+                          tag: LogTag.UI_ACTION,
+                          message: 'POS 주문 주문서 출력 변경 -> $v');
+                      widget.onPosPrintOrderChanged(v);
                     },
                   ),
                 ),

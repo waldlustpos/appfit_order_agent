@@ -72,7 +72,7 @@
         "section_general": "一般設定",
         "section_printer": "プリンター設定",
         "section_sound": "通知設定",
-        "section_kiosk": "キオスク設定",
+        "section_kiosk": "キオスク注文・POS注文設定",
         "section_server": "サーバー設定",
         "section_print_count": "印刷設定",
         "section_update": "アップデート",
@@ -221,7 +221,9 @@
             "sound_title": "キオスク注文の注文票と通知音",
             "sound_desc": "キオスク注文受信時に注文票を出力し、通知音を再生します。",
             "auto_accept_title": "キオスク注文の自動受付",
-            "auto_accept_desc": "キオスク注文は「ピックアップ注文の自動受付」設定に関わらず、常に即時受付します。"
+            "auto_accept_desc": "キオスク注文は「ピックアップ注文の自動受付」設定に関わらず、常に即時受付します。",
+            "pos_print_order_title": "POS注文の注文票出力",
+            "pos_print_order_desc": "POS注文受信時に注文票を出力します。"
         },
         "local_server": {
             "title": "ローカルサーバー有効化",

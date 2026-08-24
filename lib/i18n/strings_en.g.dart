@@ -128,7 +128,7 @@ class _Translations$settings$en extends Translations$settings$ko {
 	@override String get section_general => 'General';
 	@override String get section_printer => 'Printer';
 	@override String get section_sound => 'Notifications';
-	@override String get section_kiosk => 'Kiosk';
+	@override String get section_kiosk => 'Kiosk & POS Orders';
 	@override String get section_server => 'Server';
 	@override String get section_print_count => 'Print';
 	@override String get section_update => 'Updates';
@@ -840,6 +840,8 @@ class _Translations$settings$kiosk$en extends Translations$settings$kiosk$ko {
 	@override String get sound_desc => 'Print ticket and play notification sound when a kiosk order is received.';
 	@override String get auto_accept_title => 'Auto-Accept Kiosk Orders';
 	@override String get auto_accept_desc => 'Kiosk orders are always accepted immediately, regardless of the \'Auto-Accept Pickup Orders\' setting.';
+	@override String get pos_print_order_title => 'Print POS Order Ticket';
+	@override String get pos_print_order_desc => 'Print an order ticket when a POS order is received.';
 }
 
 // Path: settings.local_server

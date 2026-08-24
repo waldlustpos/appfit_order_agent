@@ -128,7 +128,7 @@ class _Translations$settings$ja extends Translations$settings$ko {
 	@override String get section_general => '一般設定';
 	@override String get section_printer => 'プリンター設定';
 	@override String get section_sound => '通知設定';
-	@override String get section_kiosk => 'キオスク設定';
+	@override String get section_kiosk => 'キオスク注文・POS注文設定';
 	@override String get section_server => 'サーバー設定';
 	@override String get section_print_count => '印刷設定';
 	@override String get section_update => 'アップデート';
@@ -831,6 +831,8 @@ class _Translations$settings$kiosk$ja extends Translations$settings$kiosk$ko {
 	@override String get sound_desc => 'キオスク注文受信時に注文票を出力し、通知音を再生します。';
 	@override String get auto_accept_title => 'キオスク注文の自動受付';
 	@override String get auto_accept_desc => 'キオスク注文は「ピックアップ注文の自動受付」設定に関わらず、常に即時受付します。';
+	@override String get pos_print_order_title => 'POS注文の注文票出力';
+	@override String get pos_print_order_desc => 'POS注文受信時に注文票を出力します。';
 }
 
 // Path: settings.local_server

@@ -72,7 +72,7 @@
         "section_general": "일반 설정",
         "section_printer": "프린터 설정",
         "section_sound": "알림 설정",
-        "section_kiosk": "키오스크 설정",
+        "section_kiosk": "키오스크주문 및 POS주문 설정",
         "section_server": "서버 설정",
         "section_print_count": "출력 설정",
         "section_update": "업데이트",
@@ -221,7 +221,9 @@
             "sound_title": "키오스크 주문 주문서 및 알림소리",
             "sound_desc": "키오스크 주문 수신 시 주문서 출력과 알림음을 재생합니다.",
             "auto_accept_title": "키오스크 주문 자동 접수",
-            "auto_accept_desc": "키오스크 주문은 '픽업 오더 자동 접수' 설정과 무관하게 항상 즉시 접수합니다."
+            "auto_accept_desc": "키오스크 주문은 '픽업 오더 자동 접수' 설정과 무관하게 항상 즉시 접수합니다.",
+            "pos_print_order_title": "POS 주문 주문서 출력",
+            "pos_print_order_desc": "POS 주문 접수 시 주문서를 출력합니다."
         },
         "local_server": {
             "title": "로컬 서버 활성화",

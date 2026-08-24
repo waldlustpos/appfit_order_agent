@@ -209,8 +209,8 @@ class Translations$settings$ko {
 	/// ko: '알림 설정'
 	String get section_sound => '알림 설정';
 
-	/// ko: '키오스크 설정'
-	String get section_kiosk => '키오스크 설정';
+	/// ko: '키오스크주문 및 POS주문 설정'
+	String get section_kiosk => '키오스크주문 및 POS주문 설정';
 
 	/// ko: '서버 설정'
 	String get section_server => '서버 설정';
@@ -1439,6 +1439,12 @@ class Translations$settings$kiosk$ko {
 
 	/// ko: '키오스크 주문은 '픽업 오더 자동 접수' 설정과 무관하게 항상 즉시 접수합니다.'
 	String get auto_accept_desc => '키오스크 주문은 \'픽업 오더 자동 접수\' 설정과 무관하게 항상 즉시 접수합니다.';
+
+	/// ko: 'POS 주문 주문서 출력'
+	String get pos_print_order_title => 'POS 주문 주문서 출력';
+
+	/// ko: 'POS 주문 접수 시 주문서를 출력합니다.'
+	String get pos_print_order_desc => 'POS 주문 접수 시 주문서를 출력합니다.';
 }
 
 // Path: settings.local_server

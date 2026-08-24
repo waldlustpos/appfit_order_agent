@@ -65,8 +65,16 @@ class OutputService {
       // forceOrderReceipt: 외부 디바이스가 접수한 PREPARING 이벤트가 KDS 에 도달했을 때
       // 자동접수 OFF 라도 주문서를 인쇄해야 하는 케이스용.
       final isKdsAcceptOrders = ref.read(orderProvider).isKdsAcceptOrders;
+      // POS 주문은 POS 단말이 이미 자체 출력한다는 전제로, 기본적으로 이 앱에서
+      // 주문서를 중복 출력하지 않는다. forceOrderReceipt(KDS 외부접수 강제 출력)로도
+      // 이 억제는 우회하지 않는다 — KDS 여부와 무관하게 POS 측 중복 출력 방지가 목적.
+      final isPosOrder =
+          classifyOrderSource(order.source) == OrderSourceType.pos;
+      final posPrintOrderEnabled =
+          ref.read(preferenceServiceProvider).getPosPrintOrder();
       final shouldPrintOrderReceipt =
-          !isKdsMode || isKdsAcceptOrders || forceOrderReceipt;
+          (!isKdsMode || isKdsAcceptOrders || forceOrderReceipt) &&
+              (!isPosOrder || posPrintOrderEnabled);
 
       // 블링크 상태 업데이트 (주문 수 변화 반영)
       _orderNotifier.updateBlinkStateExternal();
