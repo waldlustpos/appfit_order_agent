@@ -445,10 +445,10 @@ class ApiService {
 
       final response = await dio.post(ApiRoutes.orderCancel(orderId), data: {
         'action': OrderAction.REJECT.name,
-        'reason': reason.name,
+        'reason': _cancelReasonCode(reason),
         'message': _cancelReasonMessage(reason),
       });
-      logger.i('[AppFit API] cancelOrder message 안보내기 ${reason.name}');
+      logger.i('[AppFit API] cancelOrder ${reason.name}');
 
       return response.statusCode == 200;
     } catch (e, s) {
@@ -457,23 +457,46 @@ class ApiService {
     }
   }
 
+  /// 서버 `OrderCancelReason` enum 이 현재 승인하는 코드 화이트리스트.
+  ///
+  /// 앱이 서버보다 먼저 새 사유(예: ORDER_SURGE, 2026-08 기준 서버 미반영)를
+  /// 추가하면 그대로 보낼 경우 서버가 JSON parse error 로 400 을 낸다. 목록에
+  /// 없는 코드는 `OTHER` 로 폴백해서 보내되, 사유 구분은 message 문구가
+  /// 담당하므로 표시상 정보 손실은 없다. 서버가 새 코드를 지원하면 이 목록에
+  /// 추가한다.
+  static const Set<String> _serverCancelReasonCodes = {
+    'SHOP_REQUEST',
+    'SHOP_CLOSED',
+    'CUSTOMER_REQUEST',
+    'SOLD_OUT',
+    'INGREDIENT_SHORTAGE',
+    'SYSTEM_ERROR',
+    'OTHER',
+  };
+
+  String _cancelReasonCode(OrderCancelReason reason) {
+    final name = reason.name;
+    if (_serverCancelReasonCodes.contains(name)) return name;
+    logger.w('[AppFit API] cancelOrder reason $name 서버 미지원 — OTHER 로 폴백');
+    return 'OTHER';
+  }
+
   String _cancelReasonMessage(OrderCancelReason reason) {
     switch (reason) {
       case OrderCancelReason.SHOP_REQUEST:
-        return '매장 사정으로 인해 취소되었습니다.';
+        return '매장 사정으로 인해 주문이 취소되었습니다.';
       case OrderCancelReason.SHOP_CLOSED:
         return '금일 영업 종료로 인해 주문이 취소되었습니다.';
       case OrderCancelReason.CUSTOMER_REQUEST:
         return '고객 요청으로 취소되었습니다.';
       case OrderCancelReason.SOLD_OUT:
-        return '원재료 소진으로 인한 메뉴 일시 품절';
+        return '원재료 소진으로 인한 메뉴 일시 품절 되었습니다.';
       case OrderCancelReason.INGREDIENT_SHORTAGE:
         return '재료 소진으로 취소되었습니다.';
       case OrderCancelReason.SYSTEM_ERROR:
         return '시스템 오류로 취소되었습니다.';
-      // '주문량 폭증' 선택지가 OTHER 코드로 전송된다 (common_dialog 의 _selectableCancelReasons 참고).
-      case OrderCancelReason.OTHER:
-        return '주문량 폭증으로 인한 주문 취소';
+      case OrderCancelReason.ORDER_SURGE:
+        return '주문량 폭증으로 인한 주문 취소되었습니다.';
     }
   }
 

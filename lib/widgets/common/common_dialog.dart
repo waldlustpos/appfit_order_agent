@@ -520,12 +520,9 @@ Widget _dialogTitleWithClose({
 }
 
 /// 취소 사유 다이얼로그에 노출할 항목(표시 순서 고정).
-/// 서버로 보내는 reason 코드는 기존 enum 을 그대로 쓰고,
-/// '주문량 폭증'은 별도 코드가 없어 [OrderCancelReason.OTHER] 로 매핑한다
-/// (구분은 `ApiService._cancelReasonMessage` 의 message 문구가 담당).
 const List<OrderCancelReason> _selectableCancelReasons = [
   OrderCancelReason.SOLD_OUT,
-  OrderCancelReason.OTHER,
+  OrderCancelReason.ORDER_SURGE,
   OrderCancelReason.SHOP_CLOSED,
   OrderCancelReason.SHOP_REQUEST,
 ];
@@ -544,7 +541,7 @@ String _cancelReasonLabel(OrderCancelReason reason) {
       return t.order_detail.cancel_reason_ingredient_shortage;
     case OrderCancelReason.SYSTEM_ERROR:
       return t.order_detail.cancel_reason_system_error;
-    case OrderCancelReason.OTHER:
+    case OrderCancelReason.ORDER_SURGE:
       return t.order_detail.cancel_reason_order_surge;
   }
 }

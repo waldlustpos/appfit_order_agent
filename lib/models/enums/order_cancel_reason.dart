@@ -5,5 +5,5 @@ enum OrderCancelReason {
   SOLD_OUT,
   INGREDIENT_SHORTAGE,
   SYSTEM_ERROR,
-  OTHER,
+  ORDER_SURGE,
 }
