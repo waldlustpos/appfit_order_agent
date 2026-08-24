@@ -40,6 +40,7 @@ FleetReporter                      POST /v1/device/register  ──┐
 [Lightsail 정적 호스트]             GET /api/deployed-versions ◀─── 서버 배포 버전 바
  OTA version JSON ×4  ─────────────▶   (Worker 가 pull, 5분 캐시)
  fleet_sunmi_mammoth_version.json ─▶
+ apk/zip ×4            ◀───────────  GET /api/download/:id (요청마다 즉시 프록시, 저장 안 함)
 ```
 
 명령은 **heartbeat 응답에 실어 보낸다(piggyback)**. AppFit 의 WebSocket 은 수신 전용(`sink.add` 없음)이라 push 채널을 새로 뚫으려면 서버팀 의존이 생긴다.
@@ -63,6 +64,14 @@ FleetReporter                      POST /v1/device/register  ──┐
 - 기기 목록 필터에 **OS(Android/Windows)** 가 함께 추가됐다. 판정 근거는 기기가 register 시 보내는 `platform` 필드다.
 
 이 기능은 **`FleetConfig.enabled` 와 무관하게 동작한다** — 앱이 아무것도 보고하지 않아도 대시보드는 배포 버전을 보여준다. 앱 측 코드는 전혀 관여하지 않는다.
+
+### 설치 파일 다운로드
+
+배포 버전 카드 중 4개(Android/Windows × common/mammoth)에는 다운로드 링크가 붙는다 — `GET /api/download/:id`. 최초 설치 등 수동 배포 시 대시보드 로그인 한 번으로 apk/zip 을 바로 받을 수 있게 하려는 용도다.
+
+- **fleet 이 파일을 들고 있지 않는다.** Worker 가 요청마다 Lightsail 원본을 그대로 스트리밍(passthrough)한다 — R2 미러를 두지 않은 이유는 배포 스크립트를 안 건드리기 위해서다(위 pull 설계와 같은 논리: 사본을 만들면 사본만 갱신 실패할 여지가 생긴다).
+- Sunmi Mammoth 는 다운로드가 없다. 실제 배포 파일이 Sunmi 콘솔 내부에 있어 URL 자체가 없고, `android_mammoth` 와 바이트가 같다고 대신 내려주면("같은 서명키+versionCode" 불변식, 위 채널 표) "Sunmi 전용 다운로드"라는 표시가 거짓이 된다 — 그 카드는 다운로드 없이 버전 표기만 한다.
+- 접근 권한은 나머지 `/api/*` 와 동일하게 대시보드 세션 로그인이 필요하다 — 인증 없는 공개 링크가 아니다.
 
 ## 2. 파일 맵
 
