@@ -5,6 +5,7 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter/widgets.dart' show WidgetsBinding;
+import 'package:appfit_order_agent/config/build_brand.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:screen_retriever/screen_retriever.dart';
@@ -309,12 +310,15 @@ class WindowsBubbleService with WindowListener, TrayListener {
 
   Future<String?> _extractTrayIcon() async {
     // Windows 트레이는 멀티 사이즈 ICO를 가장 정확히 표시한다.
-    // flutter_launcher_icons가 생성한 app_icon.ico를 우선 사용하고,
-    // 로드 실패 시 PNG 폴백.
+    // flutter_launcher_icons(또는 tool/gen_brand_icon.dart)가 생성한
+    // app_icon(_<slug>).ico를 우선 사용하고, 로드 실패 시 PNG 폴백.
+    // 아티팩트 브랜드(BuildBrand)에 맞춰 선택 — Runner.rc의 창/작업표시줄
+    // 아이콘과 동일 축(OS 셸 아이덴티티)이라 여기서만 브랜드 분기한다.
     final dir = await getApplicationSupportDirectory();
+    final suffix = BuildBrand.isCommon ? '' : '_${BuildBrand.slug}';
     final candidates = <({String asset, String fileName})>[
-      (asset: 'assets/icons/app_icon.ico', fileName: 'tray_icon.ico'),
-      (asset: 'assets/icons/app_icon.png', fileName: 'tray_icon.png'),
+      (asset: 'assets/icons/app_icon$suffix.ico', fileName: 'tray_icon.ico'),
+      (asset: 'assets/icons/app_icon$suffix.png', fileName: 'tray_icon.png'),
     ];
 
     for (final c in candidates) {

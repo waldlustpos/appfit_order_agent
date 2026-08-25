@@ -10,13 +10,18 @@
 // 산출물 (<slug>=mammoth 기준):
 //   assets/icons/app_icon_mammoth.png            - 레거시(비-adaptive) 런처: 흰 배경 + 로고
 //   assets/icons/app_icon_mammoth_fg.png         - adaptive 전경: 투명 배경 + 로고
-//   windows/runner/resources/app_icon_mammoth.ico - Windows 런처/설치 아이콘(256px)
+//   windows/runner/resources/app_icon_mammoth.ico - Windows 런처/설치 아이콘(256px, Runner.rc 컴파일용)
+//   assets/icons/app_icon_mammoth.ico             - 위와 동일 바이트의 Flutter asset 사본
+//                                                    (WindowsBubbleService 트레이 아이콘 런타임 로드용)
 //
 // adaptive 배경은 단색이라 PNG 가 필요 없다 — flutter_launcher_icons-<slug>.yaml 의
 // adaptive_icon_background 에 hex 로 준다.
-// .ico 는 windows/runner/Runner.rc 의 APPFIT_BRAND_MAMMOTH 분기가 직접 참조하므로
-// flutter_launcher_icons 실행과 무관하게 이 스크립트만으로 완성된다
-// (tool/gen_korea_icon.dart 의 공통 .ico 생성 패턴과 동일).
+// windows/runner/resources/*.ico 는 windows/runner/Runner.rc 의 APPFIT_BRAND_MAMMOTH
+// 분기가 직접 참조하므로 flutter_launcher_icons 실행과 무관하게 이 스크립트만으로
+// 완성된다(tool/gen_korea_icon.dart 의 공통 .ico 생성 패턴과 동일). assets/icons/*.ico 는
+// 컴파일 리소스가 아니라 rootBundle 로 읽는 Flutter asset이라 별도 사본이 필요하다 —
+// 두 경로가 갈라져 있던 탓에 mammoth 빌드에서 창/작업표시줄 아이콘은 브랜드가 반영됐지만
+// 트레이 아이콘만 공통 아이콘으로 남았던 사고가 있었다.
 //
 // 실행:
 //   dart run tool/gen_brand_icon.dart mammoth "C:/Users/.../mammoth_icon.png"
@@ -96,6 +101,7 @@ void main(List<String> args) {
   final legacyPath = 'assets/icons/app_icon_$slug.png';
   final foregroundPath = 'assets/icons/app_icon_${slug}_fg.png';
   final windowsIcoPath = 'windows/runner/resources/app_icon_$slug.ico';
+  final trayIcoPath = 'assets/icons/app_icon_$slug.ico';
 
   final legacyImage = _place(logo, kLegacyScale, background: _white);
   File(legacyPath).writeAsBytesSync(img.encodePng(legacyImage));
@@ -104,13 +110,19 @@ void main(List<String> args) {
   );
 
   // Windows 런처/설치 아이콘: 레거시(흰 배경) 합성본을 256px ICO 로 인코딩.
+  // 동일 바이트를 assets/icons/ 에도 복사 — Runner.rc 는 컴파일 리소스로 직접
+  // 참조하지만, WindowsBubbleService 트레이 아이콘은 rootBundle 로 Flutter
+  // asset 을 읽으므로 별도 사본이 있어야 트레이 아이콘도 브랜드가 반영된다.
   final ico = img.copyResize(legacyImage, width: 256, height: 256);
-  File(windowsIcoPath).writeAsBytesSync(img.encodeIco(ico));
+  final icoBytes = img.encodeIco(ico);
+  File(windowsIcoPath).writeAsBytesSync(icoBytes);
+  File(trayIcoPath).writeAsBytesSync(icoBytes);
 
   stdout.writeln('생성 완료:');
   stdout.writeln('  $legacyPath        (레거시 런처, 로고 ${(kLegacyScale * 100).round()}%)');
   stdout.writeln('  $foregroundPath  (adaptive 전경, 로고 ${(kAdaptiveScale * 100).round()}%)');
   stdout.writeln('  $windowsIcoPath (Windows 런처/설치 아이콘, 256px)');
+  stdout.writeln('  $trayIcoPath (트레이 아이콘용 Flutter asset 사본)');
   stdout.writeln('');
   stdout.writeln('다음: flutter pub run flutter_launcher_icons '
       '-f flutter_launcher_icons-$slug.yaml');
