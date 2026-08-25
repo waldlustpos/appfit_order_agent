@@ -72,3 +72,4 @@
 - [Fleet 매장 화이트리스트 게이트](project_fleet_store_allowlist_gate.md) — enabled=false 로 여전히 비활성. Windows 전용 가드 2곳(최종판정+조회) 분리, 되돌릴 땐 둘 다 (2026-08-21)
 - [appfit-fleet 백엔드 구조](project_appfit_fleet_backend.md) — Cloudflare Workers+D1, 이미 배포됨. 중첩 미추적 하위디렉터리 함정 주의 (2026-08-20)
 - [Fleet 저장공간/메모리 현황 추가 설계](project_fleet_resource_monitoring_plan.md) — 네이티브 코드 방식 확정(system_info2 게시자 미검증으로 기각), 앱+백엔드 계획 완료·구현 미착수 (2026-08-20)
+- [Sunmi App Store 패키지](reference_sunmi_app_store_package.md) — woyou.market 단일. market:// 는 Play 로 샘. <queries> 검증은 dumpsys package queries, 판정 기기는 D3MINI(A13).
