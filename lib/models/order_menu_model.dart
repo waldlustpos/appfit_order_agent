@@ -97,7 +97,8 @@ class OrderMenuModel {
 
   Map<String, dynamic> toJsonForSoundGraph() {
     return {
-      'skuNo': shopItemId,
+      // POS 상품코드가 정본. v1 주문상세 미경유 등으로 없을 때만 내부 ID 폴백.
+      'skuNo': itemPosId ?? shopItemId,
       'menuTitle': itemName,
       'amount': itemPrice.toInt(),
       'cnt': qty,

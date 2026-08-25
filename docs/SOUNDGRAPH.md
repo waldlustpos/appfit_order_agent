@@ -77,7 +77,7 @@ As-Is 에는 없던 "주문 상태 변경마다 소켓 이벤트 수신"이 To-B
 | `orderChannel` | paymentCode 에 `KIOSK` 포함 시 1, 아니면 2 |
 | `vibBell` | displayNum 파싱 정수 (진동벨 번호) |
 | `orderId` | `orderNo` |
-| `orders` | 메뉴 목록 (`order_menu_model.dart:92`, 옵션 포함) |
+| `orders` | 메뉴 목록 (`order_menu_model.dart:92`, 옵션 포함). 항목별 `skuNo`/`optSku` 는 `itemPosId`(POS 상품코드) 우선, 없으면 `shopItemId`/`shopOptionId` 폴백 |
 | `kioskId` | `kioskId` |
 
 ## 6. 미정 / 확인 필요
