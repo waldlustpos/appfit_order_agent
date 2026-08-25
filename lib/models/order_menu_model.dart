@@ -15,6 +15,9 @@ class OrderMenuModel {
   final double vatPrc; // vatAmount
   final List<MenuOptionModel> options;
 
+  /// POS 상품코드(예: 'M009000'). **v1 주문상세 응답에만 존재**하므로 nullable.
+  final String? itemPosId;
+
   OrderMenuModel({
     required this.orderNo,
     required this.shopItemId,
@@ -25,6 +28,7 @@ class OrderMenuModel {
     required this.discPrc,
     required this.vatPrc,
     required this.options,
+    this.itemPosId,
   });
 
   factory OrderMenuModel.fromJson(Map<String, dynamic> json) {
@@ -59,6 +63,7 @@ class OrderMenuModel {
       discPrc: double.tryParse(json['discPrc']?.toString() ?? '0') ?? 0.0,
       vatPrc: double.tryParse(json['vatPrc']?.toString() ?? '0') ?? 0.0,
       options: options,
+      itemPosId: json['itemPosId']?.toString(),
     );
 
     return result;
@@ -79,6 +84,7 @@ class OrderMenuModel {
       'vatPrc': vatPrc,
       'options': options.map((e) => e.toJson()).toList(),
       'optPrdList': options.map((e) => e.toJson()).toList(), // Sunmi 호환용 추가
+      if (itemPosId != null) 'itemPosId': itemPosId,
     };
   }
 
@@ -116,6 +122,7 @@ class OrderMenuModel {
         totalAmount == other.totalAmount &&
         discPrc == other.discPrc &&
         vatPrc == other.vatPrc &&
+        itemPosId == other.itemPosId &&
         listEquals(options, other.options);
   }
 
@@ -129,6 +136,7 @@ class OrderMenuModel {
         totalAmount,
         discPrc,
         vatPrc,
+        itemPosId,
         Object.hashAll(options),
       );
 }

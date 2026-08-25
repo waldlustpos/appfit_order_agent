@@ -333,6 +333,7 @@ class ApiService {
                   optionGroupId: opt['optionGroupId']?.toString(),
                   optionGroupPosId: opt['optionGroupPosId']?.toString(),
                   optionGroupName: opt['optionGroupName']?.toString(),
+                  itemPosId: opt['itemPosId']?.toString(),
                 );
               }).toList();
             }
@@ -347,6 +348,7 @@ class ApiService {
               discPrc: (line['discPrc'] as num?)?.toDouble() ?? 0.0,
               vatPrc: (line['vatPrc'] as num?)?.toDouble() ?? 0.0,
               options: optionList,
+              itemPosId: line['itemPosId']?.toString(),
             );
           }).toList();
         }
@@ -475,6 +477,7 @@ class ApiService {
     'INGREDIENT_SHORTAGE',
     'SYSTEM_ERROR',
     'OTHER',
+    'ORDER_SURGE'
   };
 
   String _cancelReasonCode(OrderCancelReason reason) {

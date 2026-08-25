@@ -14,6 +14,9 @@ class MenuOptionModel {
   final String? optionGroupPosId;
   final String? optionGroupName;
 
+  /// POS 상품코드(예: 'M009000'). **v1 주문상세 응답에만 존재**하므로 nullable.
+  final String? itemPosId;
+
   MenuOptionModel({
     required this.shopOptionId,
     required this.optionName,
@@ -22,6 +25,7 @@ class MenuOptionModel {
     this.optionGroupId,
     this.optionGroupPosId,
     this.optionGroupName,
+    this.itemPosId,
   });
 
   factory MenuOptionModel.fromJson(Map<String, dynamic> json) {
@@ -34,6 +38,7 @@ class MenuOptionModel {
       optionGroupId: json['optionGroupId'] as String?,
       optionGroupPosId: json['optionGroupPosId'] as String?,
       optionGroupName: json['optionGroupName'] as String?,
+      itemPosId: json['itemPosId'] as String?,
     );
   }
 
@@ -50,6 +55,7 @@ class MenuOptionModel {
       if (optionGroupId != null) 'optionGroupId': optionGroupId,
       if (optionGroupPosId != null) 'optionGroupPosId': optionGroupPosId,
       if (optionGroupName != null) 'optionGroupName': optionGroupName,
+      if (itemPosId != null) 'itemPosId': itemPosId,
     };
   }
 
@@ -78,10 +84,11 @@ class MenuOptionModel {
         qty == other.qty &&
         optionGroupId == other.optionGroupId &&
         optionGroupPosId == other.optionGroupPosId &&
-        optionGroupName == other.optionGroupName;
+        optionGroupName == other.optionGroupName &&
+        itemPosId == other.itemPosId;
   }
 
   @override
   int get hashCode => Object.hash(shopOptionId, optionName, optionPrice, qty,
-      optionGroupId, optionGroupPosId, optionGroupName);
+      optionGroupId, optionGroupPosId, optionGroupName, itemPosId);
 }

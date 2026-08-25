@@ -15,6 +15,7 @@ void main() {
         'optionGroupId': '0q341bfbaa2eq',
         'optionGroupPosId': 'TKP004',
         'optionGroupName': 'サイズを選ぶ',
+        'itemPosId': 'M009000',
       });
 
       expect(opt.shopOptionId, '0pp75p4cgxabf');
@@ -22,6 +23,7 @@ void main() {
       expect(opt.optionGroupId, '0q341bfbaa2eq');
       expect(opt.optionGroupPosId, 'TKP004');
       expect(opt.optionGroupName, 'サイズを選ぶ');
+      expect(opt.itemPosId, 'M009000');
     });
 
     test('v0 응답 — 옵션그룹 필드가 없으면 null', () {
@@ -36,6 +38,7 @@ void main() {
       expect(opt.optionGroupId, isNull);
       expect(opt.optionGroupPosId, isNull);
       expect(opt.optionGroupName, isNull);
+      expect(opt.itemPosId, isNull);
     });
 
     test('toJson → fromJson 왕복에서 옵션그룹이 보존된다 (캐시 경로)', () {
@@ -47,12 +50,14 @@ void main() {
         optionGroupId: 'g1',
         optionGroupPosId: 'TKP012',
         optionGroupName: '豆の種類選択',
+        itemPosId: 'M009000',
       );
 
       final restored = MenuOptionModel.fromJson(original.toJson());
 
       expect(restored, original);
       expect(restored.optionGroupPosId, 'TKP012');
+      expect(restored.itemPosId, 'M009000');
     });
 
     test('옵션그룹 없는 옵션의 toJson 은 해당 키를 넣지 않는다', () {
@@ -68,6 +73,7 @@ void main() {
       expect(json.containsKey('optionGroupId'), isFalse);
       expect(json.containsKey('optionGroupPosId'), isFalse);
       expect(json.containsKey('optionGroupName'), isFalse);
+      expect(json.containsKey('itemPosId'), isFalse);
       expect(MenuOptionModel.fromJson(json), opt);
     });
 
@@ -84,6 +90,22 @@ void main() {
       expect(withGroup('TKP004'), isNot(withGroup(null)));
       expect(withGroup('TKP004'), withGroup('TKP004'));
       expect(withGroup('TKP004').hashCode, withGroup('TKP004').hashCode);
+    });
+
+    test('itemPosId 가 다르면 서로 다른 값으로 취급한다', () {
+      MenuOptionModel withItemPosId(String? posId) => MenuOptionModel(
+            shopOptionId: 'o1',
+            optionName: 'L',
+            optionPrice: 0,
+            qty: 1,
+            itemPosId: posId,
+          );
+
+      expect(withItemPosId('M009000'), isNot(withItemPosId('M009001')));
+      expect(withItemPosId('M009000'), isNot(withItemPosId(null)));
+      expect(withItemPosId('M009000'), withItemPosId('M009000'));
+      expect(
+          withItemPosId('M009000').hashCode, withItemPosId('M009000').hashCode);
     });
   });
 }

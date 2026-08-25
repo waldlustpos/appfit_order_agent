@@ -22,6 +22,7 @@ OrderMenuModel _build({
   String itemName = '아메리카노',
   double itemPrice = 4500,
   List<MenuOptionModel> options = const [],
+  String? itemPosId,
 }) {
   return OrderMenuModel(
     orderNo: 'order-1',
@@ -33,6 +34,7 @@ OrderMenuModel _build({
     discPrc: 0,
     vatPrc: 0,
     options: options,
+    itemPosId: itemPosId,
   );
 }
 
@@ -53,6 +55,12 @@ void main() {
 
     test('shopItemId 변경 → !=', () {
       expect(_build(shopItemId: 'a') == _build(shopItemId: 'b'), isFalse);
+    });
+
+    test('itemPosId 변경 → !=', () {
+      expect(_build(itemPosId: 'M009000') == _build(itemPosId: 'M009001'),
+          isFalse);
+      expect(_build(itemPosId: 'M009000') == _build(itemPosId: null), isFalse);
     });
 
     test('options 내용만 다르면 != (개수 동일, 깊은 비교)', () {
