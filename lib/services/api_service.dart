@@ -474,10 +474,10 @@ class ApiService {
     'SHOP_CLOSED',
     'CUSTOMER_REQUEST',
     'SOLD_OUT',
-    'INGREDIENT_SHORTAGE',
+    'ORDER_SURGE'
+        'INGREDIENT_SHORTAGE',
     'SYSTEM_ERROR',
     'OTHER',
-    'ORDER_SURGE'
   };
 
   String _cancelReasonCode(OrderCancelReason reason) {
