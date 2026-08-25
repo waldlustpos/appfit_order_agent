@@ -128,12 +128,21 @@ class ApiService {
   /// 응답에서 복호화된 projectId/apiKey를 반환합니다.
   /// apiKey는 호출 직후 즉시 사용(예: WebSocket connect)되며, 영구 저장은
   /// 패키지 내부의 [AppFitTokenManager.saveProjectCredentials]가 담당합니다.
+  ///
+  /// [storeId]는 인증 인터셉터가 Authorization 헤더에 쓸 shopCode를
+  /// extra로 명시하기 위함이다 — 이 엔드포인트는 경로에 shopCode가 없는
+  /// 유일한 인증 필요 호출이라, 인터셉터가 PreferenceService(KEY_MID)로
+  /// 폴백하는 경로에 의존하면 "아이디저장/자동로그인" 모두 OFF인 신규
+  /// 매장 최초 로그인에서 KEY_MID 가 비어 있어 헤더가 아예 안 붙는다.
   Future<({String projectId, String apiKey, Map<String, dynamic> data})>
-      getProjectInfo() async {
+      getProjectInfo(String storeId) async {
     try {
       final dio = _ref.read(appFitDioProvider);
       // getProjectInfo는 Project ID 헤더가 필요 없음
-      final response = await dio.get(ApiRoutes.projectInfo);
+      final response = await dio.get(
+        ApiRoutes.projectInfo,
+        options: Options(extra: {'shopCode': storeId}),
+      );
 
       if (response.statusCode == 200) {
         final data = response.data['data'] as Map<String, dynamic>;
@@ -170,6 +179,18 @@ class ApiService {
         throw Exception('프로젝트 정보 조회 실패: ${response.statusCode}');
       }
     } catch (e, s) {
+      // 진단 로그: Authorization 헤더 부착 여부를 남겨, 이후 401 재발 시
+      // "헤더가 애초에 안 붙었는지(클라이언트 버그 회귀)" 와 "헤더는 붙었는데
+      // 서버가 거부했는지(서버 측 문제)"를 로그만으로 즉시 구분한다.
+      if (e is DioException) {
+        final hasAuthHeader =
+            e.requestOptions.headers.containsKey('Authorization');
+        logToFile(
+          tag: LogTag.API,
+          message: '[AppFit API] getProjectInfo 실패 진단: storeId=$storeId '
+              'status=${e.response?.statusCode} hasAuthHeader=$hasAuthHeader',
+        );
+      }
       // 서버가 내려준 친화 message(서버별 로케일)를 추출해 ApiException 으로
       // 변환한다. raw DioException.toString() 의 긴 영문이 다이얼로그까지
       // 노출되던 문제를 차단(서버 응답 body 없으면 i18n 폴백).

@@ -157,7 +157,8 @@ class OrderSocketManager {
 
       // 2. dispatcher classify — 파싱·페이로드·shopCode·정책 단일 진입점.
       final dispatcher = appfit_core.SocketEventDispatcher(
-        resolveStoreId: () => ref.read(preferenceServiceProvider).getId(),
+        resolveStoreId: () =>
+            ref.read(preferenceServiceProvider).getActiveStoreId(),
         shouldIgnore: _shouldIgnoreByDomainPolicy,
       );
       final outcome = dispatcher.classify(data);
@@ -192,8 +193,8 @@ class OrderSocketManager {
       logger.i('[AppFit] 주문 실시간 알림 수신 ($eventType): $orderId');
 
       final isKdsMode = ref.read(kdsModeProvider);
-      final targetShopCode =
-          payload.shopCode ?? ref.read(preferenceServiceProvider).getId();
+      final targetShopCode = payload.shopCode ??
+          ref.read(preferenceServiceProvider).getActiveStoreId();
       if (targetShopCode == null) {
         logger.w('[AppFit Event] shopCode를 특정할 수 없습니다.');
         return;
@@ -294,7 +295,7 @@ class OrderSocketManager {
   /// 무시 비교와 동일). 문구는 [deviceCallType] enum 으로 분기하며 미지 값은 원문
   /// (또는 기본 문구)으로 fallback 해 silent drop 을 방지한다.
   Future<void> _handleDeviceCall(Map<String, dynamic> payload) async {
-    final myShop = ref.read(preferenceServiceProvider).getId();
+    final myShop = ref.read(preferenceServiceProvider).getActiveStoreId();
     final eventShop = payload['shopCode']?.toString();
     if (myShop != null &&
         myShop.isNotEmpty &&

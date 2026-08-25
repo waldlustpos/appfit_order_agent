@@ -38,7 +38,7 @@ final fleetStoreAllowlistServiceProvider =
 final fleetTargetedProvider = StateProvider<bool>((ref) {
   if (!FleetConfig.enabled) return false;
   final service = ref.watch(fleetStoreAllowlistServiceProvider);
-  final storeId = ref.watch(preferenceServiceProvider).getId();
+  final storeId = ref.watch(preferenceServiceProvider).getActiveStoreId();
   return service.isTargeted(storeId);
 });
 

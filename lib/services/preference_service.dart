@@ -22,6 +22,9 @@ class PreferenceService {
 
   static const String KEY_MID = "KOKONUT_M_ID";
   static const String KEY_PWD = "KOKONUT_M_PWD";
+  // 현재 로그인 세션의 매장 ID. KEY_MID 와 달리 "아이디 저장" 체크박스와 무관하게
+  // 로그인 성공 시 항상 기록된다. (신규 키 — 구앱 KOKONUT_* 잔존값 오염 방지)
+  static const String KEY_SESSION_STORE_ID = "APPFIT_SESSION_STORE_ID";
   static const String KEY_STORE_ID = "KOKONUT_STORE_ID";
   static const String KEY_STORE_NAME = "KOKONUT_STORE_NAME";
   // 프로젝트명(=브랜드명). /v0/project/info 의 projectName. 로그인 시 저장.
@@ -362,6 +365,35 @@ class PreferenceService {
     final raw = _prefs.getString(KEY_MID);
     if (raw == null) return null;
     return raw.trim().toUpperCase();
+  }
+
+  // 세션 매장 ID 저장 — 로그인 성공 시 항상 호출한다.
+  //
+  // KEY_MID(saveId)는 "아이디 저장" 체크박스에 종속돼 clearLoginInfo()에서
+  // 지워진다. 반면 Dio 인터셉터(currentStoreId)·소켓 매장 검증·브랜드 해석·
+  // Fleet 보고는 체크박스와 무관하게 "지금 로그인된 매장"을 알아야 하므로
+  // 별도 키로 분리한다. 두 체크박스가 모두 꺼진 신규 매장 최초 로그인에서
+  // KEY_MID 가 비어 인증 헤더가 누락되던 사고가 이 분리의 이유다.
+  Future<void> setSessionStoreId(String id) async {
+    await _prefs.setString(KEY_SESSION_STORE_ID, id.trim().toUpperCase());
+  }
+
+  // 세션 매장 ID 삭제 — 로그아웃/자격증명 정리 시에만 호출한다.
+  // (clearLoginInfo() 에 넣으면 로그인 직전 경로에서 다시 지워져 버그가 재발한다)
+  Future<void> clearSessionStoreId() async {
+    await _prefs.remove(KEY_SESSION_STORE_ID);
+  }
+
+  /// 현재 로그인된 매장 ID (런타임 정본).
+  ///
+  /// 세션 값이 우선이고, 없으면 저장된 로그인 ID(KEY_MID)로 폴백한다.
+  /// 폴백은 이 키가 없던 버전에서 업데이트돼 이미 로그인 상태인 기기를 위한 것.
+  String? getActiveStoreId() {
+    final session = _prefs.getString(KEY_SESSION_STORE_ID);
+    if (session != null && session.trim().isNotEmpty) {
+      return session.trim().toUpperCase();
+    }
+    return getId();
   }
 
   // 비밀번호 저장 (FlutterSecureStorage 사용)
