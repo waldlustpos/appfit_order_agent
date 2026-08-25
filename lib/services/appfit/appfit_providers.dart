@@ -46,8 +46,12 @@ final appFitNotifierServiceProvider =
 class _AgentAuthStateProvider implements AuthStateProvider {
   final _preferenceService = PreferenceService();
 
+  // getId()(=KEY_MID) 가 아니라 세션 매장 ID 를 본다. KEY_MID 는 "아이디 저장"
+  // 체크박스가 꺼지면 clearLoginInfo() 가 비우는 값이라, 그 상태에서는 요청 경로에
+  // shopCode 가 없는 엔드포인트(/v0/shops/... , /v1/orders/{id} 등)의 인증 헤더가
+  // 통째로 누락된다.
   @override
-  String? get currentStoreId => _preferenceService.getId();
+  String? get currentStoreId => _preferenceService.getActiveStoreId();
 
   @override
   String? get currentPassword => null;

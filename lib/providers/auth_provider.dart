@@ -134,6 +134,12 @@ class Auth extends _$Auth {
         // 추가: 장시간 세션 토큰 갱신용 - SecureStorage에 비밀번호 보안 저장
         await tokenManager.savePassword(password);
 
+        // 세션 매장 ID 기록 — 이후 모든 인증 요청의 shopCode 정본.
+        // 반드시 첫 인증 API 호출(getProjectInfo) 전에 기록해야 한다. Dio
+        // 인터셉터는 요청에서 shopCode 를 못 찾으면 이 값으로 폴백하는데,
+        // 비어 있으면 Authorization 헤더를 아예 붙이지 않고 요청을 내보낸다.
+        await ref.read(preferenceServiceProvider).setSessionStoreId(storeId);
+
         logToFile(
             tag: LogTag.API,
             message: '[Auth] V2 Token Acquired (shopCode=$storeId)');
@@ -148,7 +154,7 @@ class Auth extends _$Auth {
         final String projectId;
         final String apiKey;
         try {
-          final projectInfo = await appFitApiService.getProjectInfo();
+          final projectInfo = await appFitApiService.getProjectInfo(storeId);
           projectId = projectInfo.projectId;
           apiKey = projectInfo.apiKey;
           // projectName(=브랜드명)을 로그 전송/식별 표기용으로 영속화.
@@ -282,6 +288,9 @@ class Auth extends _$Auth {
       await secureStorage.delete(SecureStorageService.appFitProjectId);
       await secureStorage.delete(SecureStorageService.appFitProjectApiKey);
     } catch (_) {}
+    try {
+      await ref.read(preferenceServiceProvider).clearSessionStoreId();
+    } catch (_) {}
   }
 
   /// 로그아웃 — credentials/토큰/소켓을 모두 정리하는 단일 진입점
@@ -314,6 +323,8 @@ class Auth extends _$Auth {
 
       // 4. 로그인 정보(SharedPreferences) 정리 (캐시된 preferenceService 사용)
       await preferenceService.clearLoginInfo();
+      // 세션 매장 ID 는 "아이디 저장" 설정과 무관하게 로그아웃에서만 지운다.
+      await preferenceService.clearSessionStoreId();
 
       // 5. 전면(듀얼) 모니터 검은 화면 처리 (흰 이미지 배경 등이 남지 않도록)
       await PlatformService.clearDualMonitor();
@@ -333,7 +344,8 @@ class Auth extends _$Auth {
     logger.i('[Auth] 수동/라이프사이클 재연결 요청');
     try {
       final aesKey = AppEnv.aesKey;
-      final storeId = ref.read(preferenceServiceProvider).getId() ?? '';
+      final storeId =
+          ref.read(preferenceServiceProvider).getActiveStoreId() ?? '';
 
       if (storeId.isEmpty || aesKey.isEmpty) {
         logger.w('[Auth] 재연결 실패: storeId/aesKey 없음');
@@ -342,7 +354,8 @@ class Auth extends _$Auth {
 
       // apiKey는 프로젝트가 보관하지 않으므로, getProjectInfo()를 다시 호출해
       // 신선한 projectId/apiKey를 받아 connect에 사용한다.
-      final projectInfo = await ref.read(apiServiceProvider).getProjectInfo();
+      final projectInfo =
+          await ref.read(apiServiceProvider).getProjectInfo(storeId);
       final projectId = projectInfo.projectId;
       final apiKey = projectInfo.apiKey;
       // projectName(=브랜드명) 최신값 영속화(로그인 이후 변경 반영).

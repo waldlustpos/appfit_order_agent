@@ -90,7 +90,7 @@ class DeviceIdentityService {
 
     final projectName = _prefs.getProjectName();
     final shopName = _prefs.getStoreName();
-    final shopCode = _prefs.getId();
+    final shopCode = _prefs.getActiveStoreId();
 
     // 플랫폼 판정은 info 조회 성공 여부와 무관하게 확정할 수 있다.
     final platform = Platform.isAndroid

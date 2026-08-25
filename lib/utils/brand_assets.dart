@@ -12,7 +12,7 @@ class BrandAssets {
   BrandAssets._();
 
   static BrandMeta _current() =>
-      BrandRegistry.resolve(PreferenceService().getId());
+      BrandRegistry.resolve(PreferenceService().getActiveStoreId());
 
   static String? get labelLogoPath => _current().labelLogoPath;
 

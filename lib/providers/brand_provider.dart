@@ -11,7 +11,7 @@ import 'package:appfit_order_agent/utils/brand_registry.dart';
 /// 하나도 없는 상태로 다뤄야 하므로 자산용 fallback(tpcp)을 쓰지 않는다.
 /// ref 가 없는 서비스/모델 계층에서 사용한다.
 BrandMeta? currentBrandMeta() =>
-    BrandRegistry.resolveOrNull(PreferenceService().getId());
+    BrandRegistry.resolveOrNull(PreferenceService().getActiveStoreId());
 
 /// 현재 브랜드 [BrandMeta]? 를 노출하는 Riverpod Provider (미지의 매장은 null).
 ///
@@ -21,5 +21,6 @@ BrandMeta? currentBrandMeta() =>
 /// 없다. 상태를 보유하지 않으므로 `Auth.logout()`/`disconnect()` 이후
 /// dependency 가 outdated 되는 문제(서버 전환 재로그인 크래시)와 무관하다.
 final currentBrandProvider = Provider<BrandMeta?>((ref) =>
-    BrandRegistry.resolveOrNull(ref.read(preferenceServiceProvider).getId()));
+    BrandRegistry.resolveOrNull(
+        ref.read(preferenceServiceProvider).getActiveStoreId()));
 

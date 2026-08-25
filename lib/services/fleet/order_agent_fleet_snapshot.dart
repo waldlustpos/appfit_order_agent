@@ -55,7 +55,7 @@ class OrderAgentFleetSnapshotBuilder {
       // storeId 는 저장값(getId)을 정본으로 쓴다. storeProvider 는 로그인 후
       // 로드되지만 저장값은 재시작 직후에도 남아 있어, 부팅하자마자 올바른
       // 매장으로 보고된다.
-      final storeId = store?.storeId ?? _prefs.getId() ?? '';
+      final storeId = store?.storeId ?? _prefs.getActiveStoreId() ?? '';
       final storeName = store?.name ?? _prefs.getStoreName() ?? '';
 
       return FleetSnapshot(
