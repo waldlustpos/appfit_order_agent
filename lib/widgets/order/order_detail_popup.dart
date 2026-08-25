@@ -159,10 +159,12 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
     buffer.writeln('메뉴 (${order.menus.length}건):');
     for (final menu in order.menus) {
       buffer.writeln(
-          '- ${menu.itemName} x${menu.qty} (${menu.totalAmount.toInt()}원)');
+          '- ${menu.itemName} x${menu.qty} (${menu.totalAmount.toInt()}원)'
+          ' [shopItemId=${menu.shopItemId}, itemPosId=${menu.itemPosId ?? '-'}]');
       for (final opt in menu.options) {
         buffer.writeln('  └ 옵션: ${opt.optionName} x${opt.qty}'
-            '${opt.optionPrice > 0 ? ' (+${opt.optionPrice.toInt()}원)' : ''}');
+            '${opt.optionPrice > 0 ? ' (+${opt.optionPrice.toInt()}원)' : ''}'
+            ' [shopOptionId=${opt.shopOptionId}, itemPosId=${opt.itemPosId ?? '-'}]');
       }
     }
     buffer.write('==========================');

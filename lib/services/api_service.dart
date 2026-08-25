@@ -323,6 +323,12 @@ class ApiService {
       if (response.statusCode == 200) {
         final data = response.data['data'] as Map<String, dynamic>;
 
+        logToFile(
+          tag: LogTag.API,
+          message:
+              '[getOrder] orderId=$orderId 원본 응답:\n${const JsonEncoder.withIndent('  ').convert(response.data)}',
+        );
+
         // 1. 주문 기본 정보 매핑
         // 사용자 정보는 v0 가 평면(userNickname/userPhone/userId), v1 이 중첩
         // (user.nickname/user.phone/user.userId) 이라 양쪽을 모두 본다.
@@ -354,7 +360,8 @@ class ApiService {
                   optionGroupId: opt['optionGroupId']?.toString(),
                   optionGroupPosId: opt['optionGroupPosId']?.toString(),
                   optionGroupName: opt['optionGroupName']?.toString(),
-                  itemPosId: opt['itemPosId']?.toString(),
+                  // 옵션은 아이템과 필드명이 다르다 — 서버가 optionPosId 로 내려줌.
+                  itemPosId: opt['optionPosId']?.toString(),
                 );
               }).toList();
             }
