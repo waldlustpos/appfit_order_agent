@@ -495,8 +495,8 @@ class ApiService {
     'SHOP_CLOSED',
     'CUSTOMER_REQUEST',
     'SOLD_OUT',
-    'ORDER_SURGE'
-        'INGREDIENT_SHORTAGE',
+    'ORDER_SURGE',
+    'INGREDIENT_SHORTAGE',
     'SYSTEM_ERROR',
     'OTHER',
   };
