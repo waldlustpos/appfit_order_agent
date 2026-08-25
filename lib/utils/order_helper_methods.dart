@@ -72,31 +72,35 @@ class OrderHelperMethods {
     return true;
   }
 
+  /// 주문 출처(키오스크/POS)의 출력·알람 설정이 꺼져 있는지 확인 — 상태·KDS 모드와
+  /// 무관하게 항상 적용되는 억제 판정. KDS 모드의 "다른 기기 접수(PREPARING) 감지"처럼
+  /// [shouldNotifyForOrder] 를 거치지 않는 강제 출력 경로(forceOrderReceipt)에서도
+  /// 이 출처 억제만은 우회하지 않아야 하는 곳에 쓴다.
+  bool isSourceNotifyEnabled(OrderModel order, bool isKioskOrderSoundEnabled,
+      bool isPosOrderSoundEnabled) {
+    if (isKioskOrder(order) && !isKioskOrderSoundEnabled) return false;
+    if (isPosOrder(order) && !isPosOrderSoundEnabled) return false;
+    return true;
+  }
+
   /// 주문에 대해 소리/알림/인쇄를 할지 여부 확인 (모든 주문 통일 처리)
   bool shouldNotifyForOrder(OrderModel order, bool isKioskOrderSoundEnabled,
       bool isPosOrderSoundEnabled) {
-    // KDS 모드일 때는 모든 주문에 대해 항상 알림/출력
+    // 출처(키오스크/POS) 출력/알람 설정은 KDS 모드 여부와 무관하게 최우선 적용
+    // (NEW 주문에 한함 — 상태가 이미 바뀐 주문에 대한 알림은 항상 받는다).
+    if (order.status == OrderStatus.NEW &&
+        !isSourceNotifyEnabled(
+            order, isKioskOrderSoundEnabled, isPosOrderSoundEnabled)) {
+      logger.d('[Notify] 주문 출처 출력/알람 OFF로 스킵: ${order.orderNo}');
+      return false;
+    }
+
+    // KDS 모드일 때는 나머지 모든 주문에 대해 항상 알림/출력
     final isKdsMode = ref.read(kdsModeProvider);
     if (isKdsMode) {
       logger.d(
           '[Notify] shouldNotifyForOrder isKdsMode=true -> notify (orderId=${order.orderNo})');
-      return true; // KDS 모드에서는 모든 주문에 대해 항상 알림/출력
-    }
-
-    // 키오스크 주문 출력/알람 설정에 따라 필터링 (NEW 주문에 한함)
-    if (order.status == OrderStatus.NEW &&
-        isKioskOrder(order) &&
-        !isKioskOrderSoundEnabled) {
-      logger.d('[Notify] 키오스크 주문 출력/알람 OFF로 스킵: ${order.orderNo}');
-      return false;
-    }
-
-    // POS 주문 출력/알람 설정에 따라 필터링 (NEW 주문에 한함)
-    if (order.status == OrderStatus.NEW &&
-        isPosOrder(order) &&
-        !isPosOrderSoundEnabled) {
-      logger.d('[Notify] POS 주문 출력/알람 OFF로 스킵: ${order.orderNo}');
-      return false;
+      return true; // KDS 모드에서는 나머지 모든 주문에 대해 항상 알림/출력
     }
 
     // 일반 모드에서도 상태 변경 알림은 항상 받음
