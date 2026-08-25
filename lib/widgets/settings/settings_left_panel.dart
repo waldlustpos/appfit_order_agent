@@ -660,7 +660,7 @@ class _SettingsLeftPanelState extends ConsumerState<SettingsLeftPanel> {
             ),
             const SizedBox(height: AppSpacing.s16),
 
-            // ── SoundGraph 설정 카드 (MHST 전용) ───────────────────────────
+            // ── SoundGraph 설정 카드 (매머드: MMTH/MHST 전용) ───────────────
             if (!widget.isKdsMode && canSoundGraph)
               SettingsSectionCard(
                 title: t.settings.soundgraph.title,

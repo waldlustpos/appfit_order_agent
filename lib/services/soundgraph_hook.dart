@@ -8,16 +8,18 @@ import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/services/preference_service.dart';
 import 'package:appfit_order_agent/services/soundgraph_service.dart';
 
-/// 자동접수 성공 직후 발화하는 주문 라이프사이클 외부 통합 hook.
+/// 주문 접수(자동·수동 공통) 성공 직후 발화하는 주문 라이프사이클 외부 통합 hook.
 ///
 /// 게이팅(어느 브랜드가 외부 통합을 쓰는지)은 [soundGraphHookProvider] 가
 /// capability([BrandFeature.soundGraphSend])로 결정한다. hook 자체는
-/// "자동접수된 주문으로 무엇을 하는가"라는 동작만 담는다.
+/// "접수된 주문으로 무엇을 하는가"라는 동작만 담는다.
 abstract class SoundGraphHook {
   const SoundGraphHook();
 
-  /// 자동접수가 성공한 주문에 대해 호출된다. 실패해도 주문 처리를 막지 않는다.
-  void onAutoAccepted(OrderModel order);
+  /// 주문이 접수(PREPARING)된 직후 호출된다 — 자동접수·수동접수 공통 단일
+  /// 진입점(updateOrderStatus)에서 발화하므로 호출부가 어느 쪽인지는 구분하지
+  /// 않는다. 실패해도 주문 처리를 막지 않는다.
+  void onAccepted(OrderModel order);
 }
 
 /// 아무것도 하지 않는 기본 hook (사운드그래프 미지원 브랜드).
@@ -25,13 +27,13 @@ class NoOpSoundGraphHook extends SoundGraphHook {
   const NoOpSoundGraphHook();
 
   @override
-  void onAutoAccepted(OrderModel order) {}
+  void onAccepted(OrderModel order) {}
 }
 
-/// MHST(매머드) 전용 사운드그래프 주문 전송 hook.
+/// 매머드(MMTH 운영/MHST 스테이징) 전용 사운드그래프 주문 전송 hook.
 ///
 /// 토글(getSoundGraphOn) + marketId 검증 후 [SoundGraphService] 로 외부 전송.
-/// brandId('mmth')는 MHST 식별자이며 본 hook 이 모델에 주입한다(모델은 브랜드 무관).
+/// brandId('mmth')는 매머드 브랜드 식별자이며 본 hook 이 모델에 주입한다(모델은 브랜드 무관).
 class MhstSoundGraphHook extends SoundGraphHook {
   MhstSoundGraphHook({required this.service, this.brandId = 'mmth'});
 
@@ -39,7 +41,7 @@ class MhstSoundGraphHook extends SoundGraphHook {
   final String brandId;
 
   @override
-  void onAutoAccepted(OrderModel order) {
+  void onAccepted(OrderModel order) {
     final prefs = PreferenceService();
     if (!prefs.getSoundGraphOn()) return;
     final marketId = prefs.getSoundGraphMarketId();
@@ -59,6 +61,10 @@ class MhstSoundGraphHook extends SoundGraphHook {
       return;
     }
     final payload = order.toJsonForSoundGraph(marketId, brandId: brandId);
+    logToFile(
+      tag: LogTag.SOUNDGRAPH,
+      message: '[SoundGraph] sending ${order.orderNo} payload: $payload',
+    );
     service.sendOrder(payload).then((ok) {
       logToFile(
         tag: LogTag.SOUNDGRAPH,

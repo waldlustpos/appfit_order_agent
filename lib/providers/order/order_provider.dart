@@ -596,9 +596,21 @@ class Order extends _$Order {
             // 또 발화시키지 않도록 _selfAcceptedOrderIds hit 시 알림+출력 통째 스킵.
             final alreadyHandled =
                 _selfAcceptedOrderIds.contains(order.orderId);
+            // 출처(키오스크/POS) 출력·알람 설정 억제 — forceOrderReceipt 강제 출력
+            // 경로라도 이 판정만은 KDS 여부와 무관하게 우회하지 않는다(다른 기기가
+            // 이미 자체 출력했다는 전제로 이 앱에서는 중복 출력하지 않기 위함).
+            final sourceNotifyEnabled = _helper.isSourceNotifyEnabled(
+                order,
+                _preferenceService.getKioskPrintAndSound(),
+                _preferenceService.getPosPrintAndSound());
             if (alreadyHandled) {
               logger.d(
                   'KDS 모드: ${order.orderId} (PREPARING) 자가 자동접수 흔적 감지 — 알림/라벨 중복 차단');
+            } else if (!sourceNotifyEnabled) {
+              logger.d(
+                  'KDS 모드: ${order.orderId} (PREPARING) 출처 출력/알람 OFF로 외부 접수 알림/출력 스킵');
+              // 후행 PREPARING 이벤트마다 재평가하지 않도록 동일하게 dedup 등록.
+              _selfAcceptedOrderIds.add(order.orderId);
             } else {
               logger.d(
                   'KDS 모드: 접수된 주문에 대해 알림 발생 (Sound/Overlay/AppBar): ${order.orderId}');
@@ -734,8 +746,6 @@ class Order extends _$Order {
                 '$modeText: 키오스크 출력/알람 OFF로 주문서 출력 스킵 - 주문: ${order.orderId}');
           }
 
-          _triggerSoundGraphSend(order);
-
           // 첫 주문 자동접수 성공 시 초기 알람 플래그 비활성화
           if (_shouldPlayInitialAlarm) {
             logger.d('$modeText: 첫 주문 자동접수 성공으로 초기 알람 플래그 비활성화');
@@ -789,11 +799,15 @@ class Order extends _$Order {
 
   // (정리) _processAcceptedKioskOrder: 사용되지 않아 제거
 
+  // updateOrderStatus 의 PREPARING 성공 분기에서만 호출 — 자동접수·수동접수
+  // 모두 그 단일 진입점을 거치므로 호출부를 늘릴 필요가 없다. 소켓 echo 로
+  // 관찰만 하는 _processOrderByStatus 쪽에서는 호출하지 않는다(다른 기기가
+  // 접수한 주문까지 중복 전송되는 것을 막기 위함).
   void _triggerSoundGraphSend(OrderModel order) {
-    // 브랜드 게이팅(MHST 전용)·marketId 검증·외부 전송 동작은 모두
+    // 브랜드 게이팅(매머드: MMTH/MHST)·marketId 검증·외부 전송 동작은 모두
     // SoundGraphHook 에 위임. 비대상 브랜드는 NoOpSoundGraphHook 이라 무동작
     // (크로스-브랜드 누수 차단).
-    ref.read(soundGraphHookProvider).onAutoAccepted(order);
+    ref.read(soundGraphHookProvider).onAccepted(order);
   }
 
   // 리팩토링 후:
@@ -1667,6 +1681,11 @@ class Order extends _$Order {
 
         // 4. 즉시 UI 업데이트 (사용자 반응성 향상을 위한 미리보기 업데이트)
         _performImmediateUIUpdate(orderToQueue, index);
+
+        // 5. 사운드그래프 외부 전송 (접수 성공 시, 자동/수동 공통)
+        if (newStatus == OrderStatus.PREPARING) {
+          _triggerSoundGraphSend(orderToQueue);
+        }
 
         return true;
       } else {
