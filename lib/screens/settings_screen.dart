@@ -58,6 +58,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _labelUseCalibrate = false;
   bool _labelUseQrPrint = false;
   int _labelFilterMode = 0;
+  int _labelPaperSizeMm = 40;
 
   bool _isKioskOrderVisible = false;
   bool _isKioskOrderSoundEnabled = false;
@@ -128,6 +129,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _labelUseCalibrate = _preferenceService.getLabelUseCalibrate();
       _labelUseQrPrint = _preferenceService.getLabelUseQrPrint();
       _labelFilterMode = _preferenceService.getLabelFilterMode();
+      _labelPaperSizeMm = _preferenceService.getLabelPaperSizeMm();
 
       _isKioskOrderVisible = _preferenceService.getShowKioskOrder();
       _isKioskOrderSoundEnabled = _preferenceService.getKioskPrintAndSound();
@@ -173,6 +175,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await _preferenceService.setLabelUseCalibrate(_labelUseCalibrate);
       await _preferenceService.setLabelUseQrPrint(_labelUseQrPrint);
       await _preferenceService.setLabelFilterMode(_labelFilterMode);
+      await _preferenceService.setLabelPaperSizeMm(_labelPaperSizeMm);
       await _preferenceService.setShowKioskOrder(_isKioskOrderVisible);
       await _preferenceService.setKioskPrintAndSound(_isKioskOrderSoundEnabled);
       await _preferenceService
@@ -565,6 +568,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               builtinPrintCall: _builtinPrintCall,
               externalPrintCall: _externalPrintCall,
               labelFilterMode: _labelFilterMode,
+              labelPaperSizeMm: _labelPaperSizeMm,
               isShowOrderTypeBadge: _isShowOrderTypeBadge,
               isOrderSourceColor: _isOrderSourceColor,
               printShowOrderType: _printShowOrderType,
@@ -609,6 +613,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   _setAndSave(() => _externalPrintCall = v),
               onLabelFilterModeChanged: (v) =>
                   _setAndSave(() => _labelFilterMode = v),
+              onLabelPaperSizeChanged: (v) =>
+                  _setAndSave(() => _labelPaperSizeMm = v),
               onShowOrderTypeBadgeChanged: (v) =>
                   _setAndSave(() => _isShowOrderTypeBadge = v),
               onOrderSourceColorChanged: (v) =>

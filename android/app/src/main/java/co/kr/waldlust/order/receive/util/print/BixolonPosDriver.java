@@ -79,6 +79,20 @@ public class BixolonPosDriver {
     private static final int PRINT_THRESHOLD = 210;
 
     /**
+     * 전송폭 상한 — **헤드 물리 최대폭**(getRecLineWidth() 보고값 576dot ≈ 72mm)이다.
+     * 용지별 인쇄폭이 아니다.
+     *
+     * <p>이 값이 용지폭(40mm=320dot)이면 안 되는 이유: G30 은 한 대가 가이드 부품 교체만으로
+     * 40mm/58mm 겸용이라 58mm 비트맵(320dot 초과)이 정상적으로 들어온다. 상한을 320 으로
+     * 두면 그 비트맵이 조용히 잘려 나가고, 눈금자 진단조차 항상 320dot 에서 끊겨 "58mm
+     * 유효폭 = 320dot" 이라는 가짜 실측값을 만든다(2026-08-26 수정 전 상태).
+     *
+     * <p>용지별 실제 인쇄폭은 Dart 측 {@code LabelMediaSpec}(continuous40 / continuous58)이
+     * 결정한다 — 여기서는 헤드 밖 인쇄만 막는 안전망이다.
+     */
+    private static final int MAX_PRINT_WIDTH_DOTS = 576;
+
+    /**
      * BIXOLON POS 커스텀 명령 프리픽스 (ESC + '|' = 0x1B 0x7C). UPOS SDK 샘플의
      * {@code EscapeSequence.ESCAPE_CHARACTERS} 와 동일 값이지만 그 클래스는 샘플 소스에만
      * 있고 SDK jar 에는 없어(컴파일 불가) 값만 가져와 로컬 상수로 둔다.
@@ -135,12 +149,12 @@ public class BixolonPosDriver {
      * 라벨 한 장을 인쇄한다. 전 구간 동기 블로킹 — labelPrintExecutor(단일 스레드)에서
      * 호출되므로 라벨 간 직렬화는 executor + synchronized 로 이중 보장된다.
      *
-     * <p>width 는 호출자가 넘긴 비트맵의 실제 폭을 그대로 쓴다(용지 최대폭 320 안전망
-     * clamp 포함). Dart 측 {@code ContinuousLabelPainter}(40mm 연속용지 전용 레이아웃)는
-     * 캔버스 자체를 실측 유효 인쇄폭(280dot=35mm, {@code LabelMediaSpec.continuous40}
-     * 참조)으로 생성해 넘긴다 — 용지 물리폭(320)이 아니다. 인쇄 시작 위치 자체가
-     * 하드웨어에 고정돼 있어(아래 주석 참조) 캔버스를 물리폭으로 넓게 잡아도 시각적
-     * 중앙 보정에 못 쓰기 때문. 별도 스케일링 없이 그대로 맞는다.
+     * <p>width 는 호출자가 넘긴 비트맵의 실제 폭을 그대로 쓴다({@link #MAX_PRINT_WIDTH_DOTS}
+     * 안전망 clamp 포함). Dart 측 연속용지 painter 는 캔버스 자체를 용지별 실측 유효
+     * 인쇄폭({@code LabelMediaSpec.continuous40} = 272dot / {@code continuous58})으로
+     * 생성해 넘긴다 — 용지 물리폭이 아니다. 인쇄 시작 위치 자체가 하드웨어에 고정돼
+     * 있어(아래 주석 참조) 캔버스를 물리폭으로 넓게 잡아도 시각적 중앙 보정에 못 쓰기
+     * 때문. 별도 스케일링 없이 그대로 맞는다.
      */
     public static synchronized boolean printBitmap(Bitmap bitmap,
                                                     String orderNo,
@@ -181,9 +195,9 @@ public class BixolonPosDriver {
             // 그래서 Dart 측은 40mm 캔버스에 margin 으로 중앙을 맞추는 접근을 버리고,
             // 캔버스 자체를 실측 유효 인쇄폭(280dot=35mm) 그대로 잡는다(안전마진은 좌우
             // 4dot 씩만, LabelMediaSpec.continuous40 참조) — "잘리지 않는 최대 폭"만
-            // 보장한다. 아래 clamp 는 320(용지 물리 최대폭)을 상한으로 — 다른 폭의
-            // 비트맵이 실수로 들어와도 헤드 밖 인쇄를 시도하지 않게 막는 안전망이다.
-            final int width = Math.min(bitmap.getWidth(), 320);
+            // 보장한다. 아래 clamp 는 헤드 물리 최대폭(MAX_PRINT_WIDTH_DOTS=576)이 상한
+            // — 용지폭이 아니다(58mm 비트맵을 잘라내지 않기 위함, 상수 주석 참조).
+            final int width = Math.min(bitmap.getWidth(), MAX_PRINT_WIDTH_DOTS);
             final Bitmap prepared = BixolonLabelDriver.binarizeForPrint(bitmap);
 
             // 원본/이진화 비트맵 크기와 검정 픽셀 비율을 남긴다 — blackRatio=0 이면

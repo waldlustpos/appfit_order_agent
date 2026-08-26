@@ -88,5 +88,37 @@ class LabelMediaSpec {
     variableHeight: true,
   );
 
-  // 58mm 는 계획 미확정 — 값을 채우지 않는다(요청 시 continuous58 추가).
+  /// BIXOLON G30, 58mm 용지. 눈금자 테스트([LabelRulerTestImage])로 실기기 판독
+  /// 확정(2026-08-26):
+  ///
+  /// - **인쇄 가능 영역은 52.5mm(≈420dot)** — 물리 용지폭 58mm(464dot)이 아니다.
+  /// - 손실 5.5mm 로, 40mm 용지의 손실 5mm(40 → 35mm)와 거의 같다. 용지 장착 가이드가
+  ///   만드는 고정 오프셋이라는 [continuous40] 의 해석과 일관된다 — 다만 이건 **결과가
+  ///   비슷했던 것**이지 비례 확대로 유도한 값이 아니다(그렇게 했다면 58×(35/40)=50.75mm
+  ///   로 1.75mm 어긋났다).
+  ///
+  /// [widthDots]=412 는 판독 경계 420 에서 8dot(1mm) 여유를 뺀 값 — [continuous40] 이
+  /// 280 경계에서 272 를 쓴 것과 같은 규칙이다.
+  /// [sideMarginDots](좌)=0 / [rightMarginDots](우)=16 은 40mm 과 동일 — 인쇄 시작 위치가
+  /// 하드웨어에 고정돼 좌측 여백은 이미 하드웨어가 만들고 있고(소프트웨어가 더 얹으면
+  /// 중복), 우측만 콘텐츠가 캔버스 끝에 붙어 보이지 않도록 둔다.
+  ///
+  /// 세로 cap 640(80mm)은 40mm 과 동일. 옵션 2열 배치라 세로가 40mm 보다 짧아져
+  /// 하한은 300 으로 낮춘다.
+  static const continuous58 = LabelMediaSpec(
+    widthDots: 412,
+    maxHeightDots: 640,
+    minHeightDots: 300,
+    sideMarginDots: 0,
+    rightMarginDots: 16,
+    variableHeight: true,
+  );
+
+  /// 사용자가 설정에서 고른 용지 사이즈(mm) → 연속용지 spec.
+  ///
+  /// G30 은 한 대가 가이드 부품 교체만으로 40/58 을 겸용하고 SDK 가 로드된 용지 폭을
+  /// 보고하지 않으므로(자동 감지 불가), 매장이 고른 값이 유일한 근거다. 알 수 없는
+  /// 값은 40mm 로 떨어뜨린다 — 좁은 쪽이 잘릴 위험이 없는 안전한 폴백이다.
+  static LabelMediaSpec continuousForPaperMm(int mm) =>
+      mm == 58 ? continuous58 : continuous40;
 }

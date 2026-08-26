@@ -244,6 +244,7 @@ class Translations$settings$ko {
 	late final Translations$settings$kds_ignore_status$ko kds_ignore_status = Translations$settings$kds_ignore_status$ko.internal(_root);
 	late final Translations$settings$kds_accept_orders$ko kds_accept_orders = Translations$settings$kds_accept_orders$ko.internal(_root);
 	late final Translations$settings$label_filter$ko label_filter = Translations$settings$label_filter$ko.internal(_root);
+	late final Translations$settings$label_paper$ko label_paper = Translations$settings$label_paper$ko.internal(_root);
 	late final Translations$settings$developer_options$ko developer_options = Translations$settings$developer_options$ko.internal(_root);
 	late final Translations$settings$kiosk$ko kiosk = Translations$settings$kiosk$ko.internal(_root);
 	late final Translations$settings$local_server$ko local_server = Translations$settings$local_server$ko.internal(_root);
@@ -1398,6 +1399,30 @@ class Translations$settings$label_filter$ko {
 
 	/// ko: '와플상품 제외'
 	String get btn_waffle_exclude => '와플상품 제외';
+}
+
+// Path: settings.label_paper
+class Translations$settings$label_paper$ko {
+	Translations$settings$label_paper$ko.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// ko: '라벨 용지 사이즈'
+	String get title => '라벨 용지 사이즈';
+
+	/// ko: '40mm 용지 레이아웃으로 출력합니다.'
+	String get desc_40 => '40mm 용지 레이아웃으로 출력합니다.';
+
+	/// ko: '58mm 용지 레이아웃으로 출력합니다.'
+	String get desc_58 => '58mm 용지 레이아웃으로 출력합니다.';
+
+	/// ko: '40mm'
+	String get btn_40 => '40mm';
+
+	/// ko: '58mm'
+	String get btn_58 => '58mm';
 }
 
 // Path: settings.developer_options

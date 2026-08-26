@@ -207,6 +207,13 @@
             "btn_waffle_only": "ワッフルのみ",
             "btn_waffle_exclude": "ワッフル除外"
         },
+        "label_paper": {
+            "title": "ラベル用紙サイズ",
+            "desc_40": "40mm用紙のレイアウトで印刷します。",
+            "desc_58": "58mm用紙のレイアウトで印刷します。",
+            "btn_40": "40mm",
+            "btn_58": "58mm"
+        },
         "developer_options": {
             "title": "開発者オプション",
             "appfit_test": {

@@ -99,6 +99,13 @@ class PreferenceService {
   static const String KEY_LABEL_USE_QR_PRINT =
       "KOKONUT_LABEL_USE_QR_PRINT"; // bool (기본 false)
 
+  /// 장착한 라벨 용지 폭(mm). 현재 의미가 있는 기종은 BIXOLON G30 하나 —
+  /// 한 대가 가이드 부품 교체만으로 40/58 을 겸용하는데 SDK 가 로드된 용지 폭을
+  /// 보고하지 않아(자동 감지 불가) 매장이 고른 값이 유일한 근거다.
+  /// 기본 40 — 기존 매장은 아무것도 안 해도 종전 레이아웃 그대로다.
+  static const String KEY_LABEL_PAPER_SIZE =
+      "KOKONUT_LABEL_PAPER_SIZE"; // int mm (40 | 58, 기본 40)
+
   static const String KEY_IS_SOCKET_ENABLED =
       "KEY_IS_SOCKET_ENABLED"; // 소켓 사용 여부
   static const String KEY_FORCE_SOCKET_RECONNECT =
@@ -660,6 +667,9 @@ class PreferenceService {
   /// 라벨 필터 모드 (0: 전체, 1: 와플만, 2: 와플제외)
   int getLabelFilterMode() => _prefs.getInt(KEY_LABEL_FILTER_MODE) ?? 0;
 
+  /// 장착한 라벨 용지 폭(mm). 기본 40 — [KEY_LABEL_PAPER_SIZE] 참조.
+  int getLabelPaperSizeMm() => _prefs.getInt(KEY_LABEL_PAPER_SIZE) ?? 40;
+
   // 영업 상태 저장
   Future<void> setOrderOn(bool value) async {
     await _prefs.setBool(KEY_ORDER_ON, value);
@@ -783,6 +793,10 @@ class PreferenceService {
 
   Future<void> setLabelFilterMode(int value) async {
     await _prefs.setInt(KEY_LABEL_FILTER_MODE, value);
+  }
+
+  Future<void> setLabelPaperSizeMm(int value) async {
+    await _prefs.setInt(KEY_LABEL_PAPER_SIZE, value);
   }
 
   // 키오스크 주문 노출 설정

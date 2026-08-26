@@ -155,6 +155,7 @@ class _Translations$settings$en extends Translations$settings$ko {
 	@override late final _Translations$settings$kds_ignore_status$en kds_ignore_status = _Translations$settings$kds_ignore_status$en._(_root);
 	@override late final _Translations$settings$kds_accept_orders$en kds_accept_orders = _Translations$settings$kds_accept_orders$en._(_root);
 	@override late final _Translations$settings$label_filter$en label_filter = _Translations$settings$label_filter$en._(_root);
+	@override late final _Translations$settings$label_paper$en label_paper = _Translations$settings$label_paper$en._(_root);
 	@override late final _Translations$settings$developer_options$en developer_options = _Translations$settings$developer_options$en._(_root);
 	@override late final _Translations$settings$kiosk$en kiosk = _Translations$settings$kiosk$en._(_root);
 	@override late final _Translations$settings$local_server$en local_server = _Translations$settings$local_server$en._(_root);
@@ -814,6 +815,20 @@ class _Translations$settings$label_filter$en extends Translations$settings$label
 	@override String get btn_all => 'All Orders';
 	@override String get btn_waffle_only => 'Waffle Only';
 	@override String get btn_waffle_exclude => 'Exclude Waffle';
+}
+
+// Path: settings.label_paper
+class _Translations$settings$label_paper$en extends Translations$settings$label_paper$ko {
+	_Translations$settings$label_paper$en._(TranslationsEn root) : this._root = root, super.internal(root);
+
+	final TranslationsEn _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'Label Paper Size';
+	@override String get desc_40 => 'Prints with the 40mm paper layout.';
+	@override String get desc_58 => 'Prints with the 58mm paper layout.';
+	@override String get btn_40 => '40mm';
+	@override String get btn_58 => '58mm';
 }
 
 // Path: settings.developer_options

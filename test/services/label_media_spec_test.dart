@@ -63,4 +63,64 @@ void main() {
           spec.widthDots - spec.sideMarginDots - spec.rightMarginDots);
     });
   });
+
+  group('LabelMediaSpec.continuous58 — G30 58mm', () {
+    // 눈금자 테스트 실기기 판독(2026-08-26): 인쇄 가능 영역 **52.5mm(≈420dot)**.
+    // widthDots=412 는 거기서 8dot(1mm) 여유를 뺀 값 — continuous40 이 280 경계에서
+    // 272 를 쓴 것과 같은 규칙. 값을 바꾸는 순간 이 테스트가 실패해 근거(실측 판독)를
+    // 남기도록 강제한다.
+    test('실측 확정값(유효 인쇄폭 52.5mm=420dot 경계에서 8dot 여유)', () {
+      expect(LabelMediaSpec.continuous58.widthDots, 412);
+      expect(LabelMediaSpec.continuous58.maxHeightDots, 640);
+      expect(LabelMediaSpec.continuous58.minHeightDots, 300);
+      expect(LabelMediaSpec.continuous58.variableHeight, isTrue);
+    });
+
+    test('40mm 값의 비례 확대가 아니다', () {
+      // docs/PRINTER_FLOW.md §3.5 가 명시적으로 금지한 것 — 40mm 는 40mm 가이드
+      // 전용 실측이라 58mm 에서 같은 비율이 성립한다는 보장이 없다. 실제로
+      // 비례 확대(58×35/40=50.75mm)와 실측(52.5mm)은 1.75mm 어긋났다.
+      final ratio = LabelMediaSpec.continuous58.widthDots /
+          LabelMediaSpec.continuous40.widthDots;
+      expect(ratio, isNot(closeTo(58 / 40, 0.01)));
+    });
+
+    test('유효 인쇄폭 경계(52.5mm=420dot) 안쪽이다 — 콘텐츠 우측 끝까지', () {
+      final spec = LabelMediaSpec.continuous58;
+      expect(spec.widthDots, lessThan(420));
+      expect(spec.widthDots - spec.rightMarginDots, lessThan(420));
+    });
+
+    test('40mm 보다 넓다 — 콘텐츠 폭도 마찬가지', () {
+      expect(LabelMediaSpec.continuous58.widthDots,
+          greaterThan(LabelMediaSpec.continuous40.widthDots));
+      expect(LabelMediaSpec.continuous58.contentWidthDots,
+          greaterThan(LabelMediaSpec.continuous40.contentWidthDots));
+    });
+
+    test('물리 용지폭(58mm=464dot)과 헤드 최대폭(576dot)을 넘지 않는다', () {
+      expect(LabelMediaSpec.continuous58.widthDots, lessThanOrEqualTo(464));
+      expect(LabelMediaSpec.continuous58.widthDots, lessThanOrEqualTo(576));
+    });
+
+    test('contentWidthDots 는 좌우 여백을 뺀 값이다', () {
+      final spec = LabelMediaSpec.continuous58;
+      expect(spec.contentWidthDots,
+          spec.widthDots - spec.sideMarginDots - spec.rightMarginDots);
+    });
+  });
+
+  group('continuousForPaperMm — 설정값 → spec', () {
+    test('58 만 continuous58, 나머지는 전부 40mm 폴백', () {
+      expect(LabelMediaSpec.continuousForPaperMm(58),
+          same(LabelMediaSpec.continuous58));
+      expect(LabelMediaSpec.continuousForPaperMm(40),
+          same(LabelMediaSpec.continuous40));
+      // 알 수 없는 값은 좁은 쪽(잘릴 위험 없음)으로 떨어뜨린다.
+      expect(LabelMediaSpec.continuousForPaperMm(0),
+          same(LabelMediaSpec.continuous40));
+      expect(LabelMediaSpec.continuousForPaperMm(80),
+          same(LabelMediaSpec.continuous40));
+    });
+  });
 }

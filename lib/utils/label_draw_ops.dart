@@ -33,26 +33,28 @@ mixin LabelDrawOps {
     double? height,
     Color textColor = Colors.black,
     Color? backgroundColor,
+    double? strokeWidth,
   }) {
-    final textStyle = TextStyle(
-      color: textColor,
-      fontSize: fontSize,
-      fontWeight: isBold ? FontWeight.w600 : FontWeight.normal,
-      decoration: underline ? TextDecoration.underline : TextDecoration.none,
-      fontFamily: 'Pretendard',
-      height: height,
-    );
+    TextStyle styleWith(Paint? foreground) => TextStyle(
+          color: foreground == null ? textColor : null,
+          foreground: foreground,
+          fontSize: fontSize,
+          fontWeight: isBold ? FontWeight.w600 : FontWeight.normal,
+          decoration:
+              underline ? TextDecoration.underline : TextDecoration.none,
+          fontFamily: 'Pretendard',
+          height: height,
+        );
 
-    final textSpan = TextSpan(text: text, style: textStyle);
-    final textPainter = TextPainter(
-      text: textSpan,
-      textDirection: TextDirection.ltr,
-      textAlign: align,
-      maxLines: maxLines,
-      ellipsis: '...',
-    );
+    TextPainter painterWith(TextStyle style) => TextPainter(
+          text: TextSpan(text: text, style: style),
+          textDirection: TextDirection.ltr,
+          textAlign: align,
+          maxLines: maxLines,
+          ellipsis: '...',
+        )..layout(minWidth: 0, maxWidth: maxWidth ?? double.infinity);
 
-    textPainter.layout(minWidth: 0, maxWidth: maxWidth ?? double.infinity);
+    final textPainter = painterWith(styleWith(null));
 
     Offset drawOffset = offset;
     if (align == TextAlign.center) {
@@ -70,6 +72,26 @@ mixin LabelDrawOps {
       );
       canvas.drawRRect(RRect.fromRectAndRadius(rect, const Radius.circular(4)),
           Paint()..color = backgroundColor);
+    }
+
+    // 의사 볼드(faux bold) — 같은 색 stroke 를 깔고 그 위에 fill 을 얹어 글자
+    // 획을 strokeWidth/2 만큼 사방으로 부풀린다. 반전 인쇄(검정 바 + 흰 글씨)
+    // 전용 대책이다: 흰 획은 ① threshold 이진화가 안티앨리어싱 경계를 검정으로
+    // 밀어 한 번 얇아지고 ② 감열지에서 주변 검정이 번져 들어와 또 얇아진다.
+    //
+    // ⚠️ **키우면 획 사이 간격도 같은 양만큼 좁아진다.** 획이 촘촘한 문자
+    // (한글 '블'/'없', 한자)에서는 counter(속빈 공간)가 먼저 메워져 글자가
+    // 덩어리로 뭉개진다 — threshold 210 이진화 시뮬레이션에서 fs24 기준
+    // strokeWidth 1.2 가 이미 실패했다(0.8 은 깨끗). 굵기가 더 필요하면
+    // strokeWidth 가 아니라 **fontSize** 를 올릴 것 — 폰트는 획과 간격이 함께
+    // 커져 counter 를 잃지 않는다.
+    if (strokeWidth != null && strokeWidth > 0) {
+      painterWith(styleWith(Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = strokeWidth
+            ..strokeJoin = StrokeJoin.round
+            ..color = textColor))
+          .paint(canvas, drawOffset);
     }
 
     textPainter.paint(canvas, drawOffset);
@@ -208,6 +230,12 @@ mixin LabelDrawOps {
   /// 동작대로 [origin.dy] + [qrSize] 아래로 확장되면, 호출부가 잡아둔 다음
   /// 요소와의 간격(gap)보다 넓을 때 바로 아래 요소의 상단을 흰 배경으로
   /// 덮어써 버린다(표시번호/QR 겹침과 같은 유형의 버그).
+  ///
+  /// [clampQuietLeftTo]/[clampQuietRightTo] 는 같은 문제의 **가로 방향** 대응이다.
+  /// QR 을 세로로 쌓지 않고 다른 요소와 **같은 행에 나란히** 두는 레이아웃
+  /// (58mm: 표시번호 좌 + QR 우)에서는 quiet zone 이 옆 요소 쪽으로 30dot 넘게
+  /// 확장돼 표시번호 끝을 흰색으로 지운다 — 세로 clamp 와 정확히 같은 사고다.
+  /// 지워도 되는 영역(이미 흰 배경)만 남기려면 QR 박스 경계로 clamp 한다.
   void drawCrispQr(
     Canvas canvas,
     String data,
@@ -216,6 +244,8 @@ mixin LabelDrawOps {
     required int qrErrorCorrectLevel,
     double? clampQuietTopTo,
     double? clampQuietBottomTo,
+    double? clampQuietLeftTo,
+    double? clampQuietRightTo,
   }) {
     final qrImage = QrImage(QrCode.fromData(
       data: data,
@@ -252,13 +282,16 @@ mixin LabelDrawOps {
     final double bottom = clampQuietBottomTo != null
         ? (quietBottom > clampQuietBottomTo ? clampQuietBottomTo : quietBottom)
         : quietBottom;
+    final double quietLeft = originX - quietPx;
+    final double left = clampQuietLeftTo != null
+        ? (quietLeft < clampQuietLeftTo ? clampQuietLeftTo : quietLeft)
+        : quietLeft;
+    final double quietRight = originX + dataPx + quietPx;
+    final double right = clampQuietRightTo != null
+        ? (quietRight > clampQuietRightTo ? clampQuietRightTo : quietRight)
+        : quietRight;
     canvas.drawRect(
-      Rect.fromLTRB(
-        originX - quietPx,
-        top,
-        originX + dataPx + quietPx,
-        bottom,
-      ),
+      Rect.fromLTRB(left, top, right, bottom),
       whitePaint,
     );
 
@@ -280,6 +313,50 @@ mixin LabelDrawOps {
       }
     }
     canvas.restore();
+  }
+
+  /// 옵션 개수에 따른 셀 배치를 계산한다 (렌더 없는 순수 함수).
+  ///
+  /// - `count <= singleColumnMax`: **1열 n행**, 셀 폭 = [contentWidth].
+  /// - 그 외: **2열**, 셀 폭 `(contentWidth - gutter) / 2`. 마지막 열의 우측 끝이
+  ///   콘텐츠 우측 끝(구분선 끝)과 정확히 일치한다.
+  /// - `count > maxShown` 이면 [maxShown] 개만 반환하고, 마지막 셀을 `+N` 으로
+  ///   대체하는 것은 **호출부 책임**이다(여기서는 기하만 계산한다).
+  ///
+  /// 반환 `y` 는 옵션 영역 시작 기준 상대값이다.
+  ///
+  /// [LabelPainter](갭 라벨 490×600)와 [Continuous58LabelPainter](G30 58mm)가
+  /// 같은 규칙을 쓰되 상수만 다르므로 여기로 올렸다 — 갭 라벨 쪽은
+  /// `LabelPainter.optionCells` 가 기존 시그니처 그대로 이 함수로 위임한다.
+  static List<LabelOptionCell> optionCells({
+    required int count,
+    required double left,
+    required double contentWidth,
+    required double rowHeight,
+    required double gutter,
+    required int singleColumnMax,
+    required int maxShown,
+  }) {
+    if (count <= 0) return const [];
+
+    if (count <= singleColumnMax) {
+      return List.generate(
+        count,
+        (i) => LabelOptionCell(left, i * rowHeight, contentWidth),
+      );
+    }
+
+    final double cellWidth = (contentWidth - gutter) / 2;
+    final int shown = count > maxShown ? maxShown : count;
+    return List.generate(shown, (i) {
+      final int row = i ~/ 2;
+      final int col = i % 2;
+      return LabelOptionCell(
+        left + col * (cellWidth + gutter),
+        row * rowHeight,
+        cellWidth,
+      );
+    });
   }
 
   // --- Logo Cache (mixin 전역 — LabelPainter/ContinuousLabelPainter 공유) ---
@@ -330,4 +407,17 @@ mixin LabelDrawOps {
       return null;
     }
   }
+}
+
+/// 라벨 옵션 셀 1개의 배치 — 좌상단 좌표 + 허용 폭.
+///
+/// [y] 는 옵션 영역 시작(`optionStartY`) 기준 상대값이다.
+/// [LabelDrawOps.optionCells] 가 생성하며, 렌더와 분리된 순수 값이라
+/// 폰트 로딩 없이 단위 테스트로 기하학을 고정할 수 있다.
+class LabelOptionCell {
+  final double x;
+  final double y;
+  final double maxWidth;
+
+  const LabelOptionCell(this.x, this.y, this.maxWidth);
 }

@@ -17,7 +17,9 @@ import 'package:appfit_order_agent/services/output_queue_service.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/services/print_service.dart';
 import 'package:appfit_order_agent/utils/label_painter.dart';
+import 'package:appfit_order_agent/utils/continuous58_label_painter.dart';
 import 'package:appfit_order_agent/utils/continuous_label_painter.dart';
+import 'package:appfit_order_agent/utils/label_ruler_test_image.dart';
 import 'package:appfit_order_agent/services/label_printer/label_media_spec.dart';
 import 'package:appfit_order_agent/widgets/custom_switch.dart';
 
@@ -342,22 +344,35 @@ class _SettingsLabelTestSectionState
       // 경로와 동일 분기. 이 버튼으로 목업 대조/실기기 검증을 하므로 자동출력과
       // 다른 레이아웃이 나가면 검증 자체가 무의미해진다.
       final bool isG30 = status.labelPrinterModel == kBixolonG30ModelName;
+      // 40mm/58mm 도 서로 다른 레이아웃이라 설정값을 그대로 따라간다 — 자동출력과
+      // 다른 용지 레이아웃이 나가면 이 버튼으로 하는 검증이 무의미해진다.
+      final int paperMm =
+          ref.read(preferenceServiceProvider).getLabelPaperSizeMm();
+      final bool isG30Wide = isG30 && paperMm == 58;
       // G30 은 세로 가변 레이아웃이라 3장을 일부러 짧음/보통/김 으로 다르게
       // 구성한다 — 셋 다 같은 길이면 이 버튼으로는 가변 높이가 실제로
       // 동작하는지 확인할 수 없다(실물 출력 피드백으로 발견).
-      const List<String> g30MenuNames = ['아메리카노', '아이스 바닐라 라떼', '딸기 스무디 (라지 사이즈, 얼음 적게)'];
+      const List<String> g30MenuNames = [
+        '아메리카노',
+        '아이스 바닐라 라떼',
+        '딸기 스무디 (라지 사이즈, 얼음 적게)'
+      ];
       final List<List<String>> g30Options = [
         const [],
         const ['옵션A', '옵션B'],
         const ['옵션A', '옵션B', '옵션C', '옵션D', '옵션E'],
       ];
-      const List<String?> g30Memos = [null, null, '얼음 적게, 빨대 2개, 포장 부탁드려요 감사합니다'];
+      const List<String?> g30Memos = [
+        null,
+        null,
+        '얼음 적게, 빨대 2개, 포장 부탁드려요 감사합니다'
+      ];
       final sw = Stopwatch()..start();
       for (int i = 1; i <= 3; i++) {
         final labelSw = Stopwatch()..start();
-        final imageBytes = isG30
-            ? await ContinuousLabelPainter.generateContinuousLabelImage(
-                spec: LabelMediaSpec.continuous40,
+        final imageBytes = isG30Wide
+            ? await Continuous58LabelPainter.generateContinuous58LabelImage(
+                spec: LabelMediaSpec.continuous58,
                 menuName: g30MenuNames[i - 1],
                 options: g30Options[i - 1],
                 memo: g30Memos[i - 1],
@@ -366,15 +381,26 @@ class _SettingsLabelTestSectionState
                 orderIndex: i,
                 orderTotal: 3,
               )
-            : await LabelPainter.generateLabelImage(
-                menuName: '테스트 상품 $i',
-                options: ['옵션A', '옵션B'],
-                shopOrderNo: '0000',
-                orderTime: '03/26\n12:00:00',
-                orderIndex: i,
-                orderTotal: 3,
-                layoutVersion: layoutVersion,
-              );
+            : isG30
+                ? await ContinuousLabelPainter.generateContinuousLabelImage(
+                    spec: LabelMediaSpec.continuous40,
+                    menuName: g30MenuNames[i - 1],
+                    options: g30Options[i - 1],
+                    memo: g30Memos[i - 1],
+                    shopOrderNo: '0000-$i',
+                    legacyOrderTime: '03/26\n12:00:00',
+                    orderIndex: i,
+                    orderTotal: 3,
+                  )
+                : await LabelPainter.generateLabelImage(
+                    menuName: '테스트 상품 $i',
+                    options: ['옵션A', '옵션B'],
+                    shopOrderNo: '0000',
+                    orderTime: '03/26\n12:00:00',
+                    orderIndex: i,
+                    orderTotal: 3,
+                    layoutVersion: layoutVersion,
+                  );
         logToFile(
             tag: LogTag.PLATFORM,
             message:
@@ -586,6 +612,58 @@ class _SettingsLabelTestSectionState
     }
   }
 
+  /// 눈금자 진단 출력 — **용지의 실제 인쇄 가능폭을 자로 읽기 위한** 것이다.
+  ///
+  /// 물리 용지폭 전체를 캔버스로 잡으므로 잘리는 게 정상이고, **어디서** 잘리는지가
+  /// 곧 측정값이다. 설정에서 고른 용지 사이즈를 물리폭으로 쓰고, 그 용지의 spec 을
+  /// 오버레이해 "계획한 콘텐츠 폭이 인쇄 가능 영역 안에 들어가는가" 를 함께 본다.
+  ///
+  /// 1회 판독을 신뢰하지 않는다 — 40mm 확정 때도 3회 재현이 필요했다.
+  Future<void> _printRulerTest() async {
+    final printService = ref.read(printServiceProvider);
+    final status = ref.read(printerStatusProvider);
+    if (!status.isLabelConnected) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('라벨 프린터가 연결되어 있지 않습니다.')),
+        );
+      }
+      return;
+    }
+
+    final int paperMm =
+        ref.read(preferenceServiceProvider).getLabelPaperSizeMm();
+    logToFile(
+        tag: LogTag.PLATFORM,
+        message: '[RulerTest] ====== 눈금자 출력 (${paperMm}mm) ======');
+    try {
+      final bytes = await LabelRulerTestImage.generate(
+        paperWidthMm: paperMm.toDouble(),
+        overlaySpec: LabelMediaSpec.continuousForPaperMm(paperMm),
+      );
+      final ok = await printService.printLabel(bytes,
+          orderNo: 'RULER${paperMm}mm', labelIndex: 1, totalLabels: 1);
+      logToFile(
+          tag: ok ? LogTag.PLATFORM : LogTag.WARNING,
+          message: '[RulerTest] ${ok ? "출력끝" : "실패"} (${bytes.length} bytes)');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text(ok
+                  ? '눈금자 출력 (${paperMm}mm) — 상단 바가 끊기는 지점을 자로 읽으세요'
+                  : '눈금자 출력 실패')),
+        );
+      }
+    } catch (e) {
+      logToFile(tag: LogTag.ERROR, message: '[RulerTest] 출력 실패: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('눈금자 출력 실패: $e')),
+        );
+      }
+    }
+  }
+
   /// QR 오류 정정 레벨 4종 (qr 패키지 상수 + 복원율 라벨). 셀렉터 + 라벨 표기 공용.
   static const List<({int level, String name, String recover})> _qrLevels = [
     (level: QrErrorCorrectLevel.L, name: 'L', recover: '7%'),
@@ -782,6 +860,22 @@ class _SettingsLabelTestSectionState
                       label: const Text('테스트 출력 (3장)'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.deepOrange,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.s24,
+                          vertical: AppSpacing.s12,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.s12),
+                  Center(
+                    child: ElevatedButton.icon(
+                      onPressed: _printRulerTest,
+                      icon: const Icon(Icons.straighten, size: 18),
+                      label: const Text('눈금자 테스트 (유효 인쇄폭 실측 — 잘리는 게 정상)'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.brown,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(
                           horizontal: AppSpacing.s24,

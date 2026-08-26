@@ -493,19 +493,104 @@ quiet zone(모듈 4개 폭 흰 배경)이 `clampQuietTopTo`/`clampQuietBottomTo`
 
 #### 남은 작업
 
-- **58mm 레이아웃 — 미착수, 40mm 와 동일 레이아웃의 단순 확대가 아닐 것으로 예상.** 폭이
-  넓어지면 목업 비례(표시번호 크기, QR 크기, 옵션 줄바꿈 임계값 등)가 그대로 안 맞을 가능성이
-  높고, 위 §"실기기 기하 확정"의 인쇄 시작 위치/유효폭 관계도 40mm 전용 실측이라 58mm 용지에서
-  똑같이 성립한다는 보장이 없다 — **58mm 전용으로 처음부터 다시 실측**해야 한다(진단 이미지
-  패턴은 재사용 가능: mm 눈금 + spec 기반 CL/CR 마커). `LabelMediaSpec.continuous58` 슬롯을
-  추가해 채우면 된다(`continuous40` 은 손대지 않음).
 - **Windows(BXLPAPI) 이식 — 미착수.** Android UPOS 와는 별도 명령셋(BXLPAPI). 레이아웃(PNG
-  생성)은 `ContinuousLabelPainter`+`LabelMediaSpec`을 그대로 재사용 가능 — 이식 대상은 순수
-  전송 계층뿐.
-- **설정 화면에 용지 사이즈 선택 UI 필요.** G30 은 물리적으로 한 대가 40mm/58mm 를 가이드
-  부품 교체만으로 겸용하므로, 58mm 레이아웃이 준비되면 매장이 로그인/설정 화면에서 장착한
-  용지 사이즈를 선택해 그에 맞는 `LabelMediaSpec`(레이아웃도 함께)을 쓰도록 배선해야 한다 —
-  아직 40mm 단일 고정이라 이 선택 UI 자체가 없다.
+  생성)은 `ContinuousLabelPainter`/`Continuous58LabelPainter`+`LabelMediaSpec`을 그대로 재사용
+  가능 — 이식 대상은 순수 전송 계층뿐. 첫 수정 대상 두 곳: `print_service.dart` 가 Windows
+  경로에 `LabelPainter.width/height`(490/600)를 하드코딩하는 지점과,
+  `windows_label_router.dart` 의 `connectedModelName` 이 `'BIXOLON XD5-40d'` 로 하드코딩돼
+  Windows 에서는 G30 분기 자체가 안 타는 지점.
+
+### 3.6 BIXOLON G30 — 58mm 연속용지 레이아웃 (2026-08-26)
+
+40mm 과 **별개 레이아웃**이다(확대판이 아니다). 목업 기준 요소 배치가 다르다:
+
+| | 40mm (`ContinuousLabelPainter`) | 58mm (`Continuous58LabelPainter`) |
+| --- | --- | --- |
+| 헤더 | 로고 좌 / 날짜 1줄 중앙 / n·N 우 | 날짜 **2줄 좌** / 로고 중앙 / n·N 우 |
+| 표시번호·QR | 둘 다 중앙, 세로로 쌓임 | 번호 좌 + QR 우, **한 행에 나란히** |
+| 서브정보 | 평문 1줄(원두/온도/사이즈 순) | **콘텐츠 폭 전체 검정 바 + 흰 굵은 글씨**(온도/사이즈/원두 순) |
+| 옵션 | 1열 최대 5행 | **2열 최대 4행**(3개 이하는 1열), 초과 시 `+N` |
+
+세로 가변 계약(`paintAndMeasure` → `Picture.toImage(w, h)` 1-pass)과 저수준 draw 프리미티브
+(`LabelDrawOps`)는 40mm 과 공유한다. `continuous40` 및 갭 라벨 경로는 **한 줄도 건드리지 않았다.**
+
+#### 폰트 크기는 목업 비율이 아니라 40mm 검증값에 맞췄다
+
+목업 비례를 그대로 dot 으로 환산하면 메뉴명이 19dot 수준으로 나와 **40mm(26dot)보다 작아진다** —
+넓은 용지가 오히려 덜 보이는 역전이라 채택하지 않았다. 목업은 배치·비례의 기준으로만 쓰고,
+가독성이 걸린 폰트(메뉴명 26 / 옵션 20 / 메모 22)는 40mm 에서 실물 검증된 값을 그대로 가져왔다.
+
+#### 선행 수정 — Java 전송폭 clamp 320 → 576 (이게 먼저여야 한다)
+
+`BixolonPosDriver.printBitmap` 의 `Math.min(bitmap.getWidth(), 320)` 은 **40mm 물리 용지폭**을
+상한으로 쓰고 있었다. 58mm 비트맵(320dot 초과)은 여기서 조용히 잘린다. 더 나쁜 것은 **눈금자
+진단조차 항상 320dot 에서 끊겨 "58mm 유효폭 = 320dot" 이라는 가짜 실측값**을 만든다는 점이다 —
+측정보다 이 수정이 앞서야 하는 이유. 상한을 헤드 물리 최대폭(`MAX_PRINT_WIDTH_DOTS = 576`,
+`getRecLineWidth()` 보고값)으로 올렸다. 용지별 실제 인쇄폭은 Dart `LabelMediaSpec` 이 결정한다.
+
+#### QR quiet zone 가로 clamp (`clampQuietLeftTo`/`clampQuietRightTo`)
+
+40mm 에서 세로로 겪었던 겹침 사고의 **가로 버전**이 58mm 에서 그대로 재현되는 구조였다. QR 을
+표시번호와 같은 행에 두면 quiet zone(모듈 4개 폭 흰 배경)이 QR 박스 밖으로 30dot 넘게 확장돼
+바로 옆 표시번호의 끝자리를 흰색으로 지운다. `drawCrispQr` 에 좌우 clamp 를 추가해(기존 상하
+clamp 와 대칭) QR 박스 안으로 가둔다 — 간격(gap)으로 막으려면 32dot 이상이 필요해 가로 폭이
+아깝고, `modulePx` 에 따라 흔들리는 취약한 불변식이 된다.
+
+#### 용지 사이즈 선택 배선
+
+G30 은 한 대가 가이드 부품 교체만으로 40/58 을 겸용하는데 **SDK 가 로드된 용지 폭을 보고하지
+않는다**(자동 감지 불가) — 매장이 고른 값이 유일한 근거다. `PreferenceService.KEY_LABEL_PAPER_SIZE`
+(int mm, 기본 **40**)에 저장하고, 설정 화면의 "라벨 프린터 사용" 하위 설정에서 **G30 연결 시에만**
+40mm/58mm 선택 버튼을 노출한다(다른 기종은 전부 고정 크기 갭 라벨이라 선택지를 보여주면 오설정을
+유도한다). 기본이 40 이라 기존 매장은 아무것도 안 해도 종전 레이아웃 그대로다.
+`output_service.dart` 와 개발자 옵션의 "테스트 출력(3장)" 이 **같은 분기**를 쓴다 — 자동출력과
+다른 레이아웃이 나가면 그 버튼으로 하는 검증 자체가 무의미해지기 때문.
+
+#### 실기기 기하 확정 — 유효 인쇄폭 52.5mm
+
+개발자 옵션의 **"눈금자 테스트"** 버튼(`LabelRulerTestImage`, `label_ruler_test_image.dart`)으로
+판독했다. 물리 용지폭 전체(464dot)를 캔버스로 잡아 폭 전체를 채우는 검정 바를 인쇄하므로 **잘리는
+게 정상**이고, 어디서 잘리는지가 곧 측정값이다(5mm 교대 블록 스트립이 세기 보조).
+
+| | 물리 용지폭 | 실측 인쇄 가능폭 | 손실 | 확정 `widthDots` |
+| --- | --- | --- | --- | --- |
+| 40mm | 320dot | 280dot (35mm) | 5mm | 272 |
+| **58mm** | 464dot | **420dot (52.5mm)** | **5.5mm** | **412** |
+
+손실이 두 용지에서 5mm / 5.5mm 로 거의 같다 — 용지 장착 가이드가 만드는 고정 오프셋이라는
+§3.5 의 해석과 일관된다. **다만 이건 결과가 비슷했던 것이지 비례로 유도한 값이 아니다** —
+비례 확대였다면 58×(35/40)=50.75mm 로 1.75mm(14dot) 어긋났고, 그만큼 콘텐츠가 손해였다.
+`widthDots`=412 는 판독 경계 420 에서 8dot(1mm) 여유를 뺀 값으로, 40mm 이 280 경계에서 272 를
+쓴 것과 같은 규칙이다. `test/services/label_media_spec_test.dart` 가 이 값을 고정한다 — 바꾸면
+테스트가 실패해 근거(실측 판독)를 남기도록 강제한다.
+
+#### 검정 반전 바 가독성 — 폰트 크기가 지렛대이지 stroke 가 아니다
+
+1차 실기기 출력에서 흰 글씨 가독성이 떨어진다는 피드백을 받았다. 반전 인쇄의 흰 획은 **두 번
+얇아진다** — ① threshold 210 이진화가 안티앨리어싱 경계를 검정으로 밀고 ② 감열지에서 주변 검정이
+번져 들어온다.
+
+Pretendard 는 **Bold(700)가 번들에 없어**(pubspec 이 Medium/Regular/SemiBold 만 선언 — Bold 추가는
+APK +1.6MB) `FontWeight.w700` 을 줘도 w600 으로 폴백한다. 그래서 자산을 늘리지 않는 두 가지 수단만
+남는다: 폰트 크기와 **의사 볼드(같은 색 stroke 를 깔고 fill 을 얹어 획을 부풀리는 것,
+`LabelDrawOps.drawText` 의 `strokeWidth`)**.
+
+threshold 210 이진화를 그대로 재현해 후보를 비교한 결과가 결정적이었다:
+
+> **stroke 는 획을 굵게 하는 만큼 획 사이 간격도 같은 양만큼 좁힌다.** 획이 촘촘한 문자
+> (한글 '블'/'없', 한자)에서는 counter(속빈 공간)가 먼저 메워져 글자가 흰 덩어리로 뭉개진다 —
+> fs24 기준 `strokeWidth` **1.2 에서 이미 실패**했고 0.8 은 깨끗했다. 반면 **fontSize 는 획과
+> 간격이 함께 커져** counter 를 잃지 않는다.
+
+최종: `subInfoFontSize` 20 → **24**, `subInfoBarHeight` 34 → **42**, `subInfoStrokeWidth`
+**1.0**(검증된 깨끗한 0.8 과 실패한 1.2 사이 — 실제 감열 번짐은 시뮬레이션보다 획을 더 얇게
+만들므로 0.8 보다 위를 택했다). **더 굵게 필요하면 stroke 가 아니라 fontSize 를 올릴 것.**
+
+#### 남은 확인 — 실물
+
+- 위 폰트/stroke 조합의 실물 판정(시뮬레이션은 이진화까지만 재현하고 감열 번짐은 재현 못 한다).
+  여전히 약하면 다음 지렛대는 `subInfoFontSize` 26, 그 다음이 Pretendard-Bold 번들(+1.6MB).
+- 좌측 여백 0 전제 — 눈금자에서 좌측 공백이 40mm 때와 다르게 나오면 `sideMarginDots` 재검토.
 
 ---
 
@@ -545,6 +630,8 @@ flowchart LR
 | [LabelPrinter.java](../android/app/src/main/java/co/kr/waldlust/order/receive/util/print/LabelPrinter.java) | Android 라벨 프린터 (Caysn/REXOD) |
 | [BixolonLabelDriver.java](../android/app/src/main/java/co/kr/waldlust/order/receive/util/print/BixolonLabelDriver.java) | Android 라벨 프린터 (BIXOLON XD5-40d, Label SDK) |
 | [BixolonPosDriver.java](../android/app/src/main/java/co/kr/waldlust/order/receive/util/print/BixolonPosDriver.java) | Android 라벨 프린터 (BIXOLON G30, UPOS/JavaPOS) — Windows 미이식 |
-| [label_media_spec.dart](../lib/services/label_printer/label_media_spec.dart) | 용지 규격 값 객체(`gap490x600`/`continuous40`) — 캔버스 폭·높이·좌우여백 |
+| [label_media_spec.dart](../lib/services/label_printer/label_media_spec.dart) | 용지 규격 값 객체(`gap490x600`/`continuous40`/`continuous58`) — 캔버스 폭·높이·좌우여백 |
 | [continuous_label_painter.dart](../lib/utils/continuous_label_painter.dart) | G30 40mm 연속용지 세로 가변 레이아웃 painter |
-| [label_draw_ops.dart](../lib/utils/label_draw_ops.dart) | 라벨 draw 프리미티브 mixin(`LabelPainter`/`ContinuousLabelPainter` 공유) |
+| [continuous58_label_painter.dart](../lib/utils/continuous58_label_painter.dart) | G30 58mm 연속용지 painter (번호+QR 가로 배치·검정 반전 바·옵션 2열) |
+| [label_ruler_test_image.dart](../lib/utils/label_ruler_test_image.dart) | 유효 인쇄폭 실측용 mm 눈금자 진단 이미지 (개발자 옵션에서 출력) |
+| [label_draw_ops.dart](../lib/utils/label_draw_ops.dart) | 라벨 draw 프리미티브 mixin + 옵션 셀 기하(3개 painter 공유) |

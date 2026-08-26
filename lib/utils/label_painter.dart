@@ -638,37 +638,24 @@ class LabelPainter extends CustomPainter with LabelDrawOps {
   ///
   /// 반환 y 는 `optionStartY` 기준 상대값이며, `max(y) + optionRowHeight` 는
   /// 항상 [optionReservedHeight] 이하다(하단 섹션 침범 불가).
+  ///
+  /// 기하 계산 자체는 [LabelDrawOps.optionCells] 로 올려 58mm 연속용지 painter 와
+  /// 공유한다 — 여기는 갭 라벨 상수를 바인딩하는 얇은 forwarder 다(시그니처·산술
+  /// 모두 종전 그대로라 `label_option_layout_test.dart` 가 회귀 가드로 동작한다).
   @visibleForTesting
   static List<LabelOptionCell> optionCells(
     int count, {
     double canvasWidth = width,
-  }) {
-    if (count <= 0) return const [];
-    final double contentWidth = canvasWidth - (defaultMargin * 2);
-
-    if (count <= optionSingleColumnMax) {
-      return List.generate(
-        count,
-        (i) => LabelOptionCell(
-          defaultMargin,
-          i * optionRowHeight,
-          contentWidth,
-        ),
+  }) =>
+      LabelDrawOps.optionCells(
+        count: count,
+        left: defaultMargin,
+        contentWidth: canvasWidth - (defaultMargin * 2),
+        rowHeight: optionRowHeight,
+        gutter: optionColGutter,
+        singleColumnMax: optionSingleColumnMax,
+        maxShown: optionMaxShown,
       );
-    }
-
-    final double cellWidth = (contentWidth - optionColGutter) / 2;
-    final int shown = count > optionMaxShown ? optionMaxShown : count;
-    return List.generate(shown, (i) {
-      final int row = i ~/ 2;
-      final int col = i % 2;
-      return LabelOptionCell(
-        defaultMargin + col * (cellWidth + optionColGutter),
-        row * optionRowHeight,
-        cellWidth,
-      );
-    });
-  }
 
   void _drawDetail(Canvas canvas, Size size, double startY) {
     final paint = Paint()..color = Colors.black;
@@ -799,15 +786,5 @@ class _SubInfoItem {
   _SubInfoItem({required this.text, required this.isHighlighted});
 }
 
-/// 라벨 옵션 셀 1개의 배치 — 좌상단 좌표 + 허용 폭.
-///
-/// [y] 는 옵션 영역 시작(`optionStartY`) 기준 상대값이다.
-/// `LabelPainter.optionCells` 가 생성하며, 렌더와 분리된 순수 값이라
-/// 폰트 로딩 없이 단위 테스트로 기하학을 고정할 수 있다.
-class LabelOptionCell {
-  final double x;
-  final double y;
-  final double maxWidth;
-
-  const LabelOptionCell(this.x, this.y, this.maxWidth);
-}
+// LabelOptionCell 은 label_draw_ops.dart 로 이동(58mm 연속용지 painter 와 공유).
+// 이 파일을 import 하는 쪽은 label_draw_ops.dart 도 함께 import 해야 한다.

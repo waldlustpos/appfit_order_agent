@@ -207,6 +207,13 @@
             "btn_waffle_only": "와플상품만 출력",
             "btn_waffle_exclude": "와플상품 제외"
         },
+        "label_paper": {
+            "title": "라벨 용지 사이즈",
+            "desc_40": "40mm 용지 레이아웃으로 출력합니다.",
+            "desc_58": "58mm 용지 레이아웃으로 출력합니다.",
+            "btn_40": "40mm",
+            "btn_58": "58mm"
+        },
         "developer_options": {
             "title": "개발자 옵션",
             "appfit_test": {
