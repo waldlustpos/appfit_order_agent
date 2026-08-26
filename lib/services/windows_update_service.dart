@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:path_provider/path_provider.dart';
 
 import 'package:appfit_order_agent/config/update_config.dart';
 import 'package:appfit_order_agent/models/update_info.dart';
@@ -76,8 +75,10 @@ class WindowsUpdateService {
     if (!Platform.isWindows) return;
 
     try {
-      final dir = await getTemporaryDirectory();
-      _zipPath = '${dir.path}\\${UpdateConfig.zipFileName}';
+      // %TEMP% 가 아니라 앱 소유 스테이징 폴더. ZIP·압축해제본·bat·vbs·로그를
+      // 한 폴더로 모아야 Defender 예외 1개가 OTA 전 경로를 덮는다.
+      final stagingPath = await UpdateConfig.ensureStagingDir();
+      _zipPath = '$stagingPath\\${UpdateConfig.zipFileName}';
       _cancelToken = CancelToken();
 
       onStatus(UpdateStatus.downloading, 0.0);
@@ -126,8 +127,8 @@ class WindowsUpdateService {
       final appDir = File(exePath).parent.path;
       final exeName = File(exePath).uri.pathSegments.last;
 
-      final tempDir = Directory.systemTemp.path;
-      final extractDir = '$tempDir\\${UpdateConfig.extractDirName}';
+      final stagingPath = await UpdateConfig.ensureStagingDir();
+      final extractDir = '$stagingPath\\${UpdateConfig.extractDirName}';
 
       final extractDirObj = Directory(extractDir);
       if (extractDirObj.existsSync()) {
@@ -152,8 +153,7 @@ class WindowsUpdateService {
         exeName: exeName,
       );
 
-      final vbsPath =
-          '${Directory.systemTemp.path}\\${UpdateConfig.updaterVbsName}';
+      final vbsPath = '$stagingPath\\${UpdateConfig.updaterVbsName}';
       // Program Files 설치 시 robocopy 가 관리자 권한을 요구하므로
       // Shell.Application.ShellExecute("runas") 로 UAC 상승 실행한다.
       // LocalAppData 설치라도 runas 는 정상 동작한다.
