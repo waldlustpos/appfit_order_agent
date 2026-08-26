@@ -137,12 +137,21 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 [Tasks]
 Name: "desktopicon"; Description: "바탕화면에 바로가기 만들기"; \
     GroupDescription: "추가 아이콘:"; Flags: checkedonce
+Name: "defenderexclusion"; \
+    Description: "Windows 보안(Defender) 검사 예외 등록 (권장)"; \
+    GroupDescription: "보안 설정:"
 
 [Files]
 ; Flutter Windows Release output (exe, dlls, data/ recursively).
 ; VC++ runtime DLLs pre-bundled by build_installer.ps1.
 Source: "..\build\windows\x64\runner\Release\*"; DestDir: "{app}"; \
     Flags: ignoreversion recursesubdirs createallsubdirs
+
+; Defender exclusion helper. Shipped into {app} rather than {tmp} so that the
+; same script can be re-run by hand on a store PC later. Brand-agnostic - both
+; brands ship the identical script and pass different paths.
+Source: "register_defender_exclusion.ps1"; DestDir: "{app}"; \
+    Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; \
@@ -152,8 +161,50 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; \
     IconFilename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]
+; Register the Defender scan exclusions.
+;
+; Setup itself is NOT elevated any more (PrivilegesRequired=lowest) but
+; Add-MpPreference needs admin, so the work is pushed into an elevated child
+; through the "runas" verb. That costs exactly one UAC prompt, at install time
+; only, on a PC being prepared before shipment. OTA updates stay prompt-free,
+; which is the point of the per-user layout.
+;
+; The install paths are passed as arguments instead of being re-derived inside
+; the script: if the UAC prompt is answered with a DIFFERENT administrator
+; account, $env:LOCALAPPDATA in that elevated process points at the
+; administrator's profile and the operator account stays uncovered.
+;
+; The staging path must match UpdateConfig.installDirName in
+; lib/config/update_config.dart - test/config/build_brand_scope_test.dart
+; asserts the two agree, because a mismatch leaves the OTA working folder
+; unprotected with no visible symptom.
+;
+; Refusing the UAC prompt is not an install failure -- the app runs fine
+; without the exclusion, it is just unprotected against a repeat of the
+; 2026-08 false positive. The outcome is recorded in
+; {app}\defender_exclusion.log.
+;
+; This entry must precede the "run now" entry so the exclusion is already in
+; place the first time the app starts.
+Filename: "powershell.exe"; \
+    Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\register_defender_exclusion.ps1"" -AppDir ""{app}"" -StagingDir ""{localappdata}\{#MyAppDirName}"" -LogPath ""{app}\defender_exclusion.log"""; \
+    Verb: "runas"; \
+    StatusMsg: "Windows 보안 예외 등록 중..."; \
+    Flags: shellexec waituntilterminated runhidden; \
+    Tasks: defenderexclusion
+
 Filename: "{app}\{#MyAppExeName}"; Description: "지금 실행"; \
     Flags: nowait postinstall skipifsilent
+
+[UninstallRun]
+; Drop the exclusions again so an uninstalled app leaves no standing scan
+; exemption behind. Needs the same elevation as the registration.
+; RunOnceId is mandatory for [UninstallRun] entries.
+Filename: "powershell.exe"; \
+    Parameters: "-NoProfile -ExecutionPolicy Bypass -Command ""Remove-MpPreference -ExclusionPath '{app}','{localappdata}\{#MyAppDirName}' -ErrorAction SilentlyContinue"""; \
+    Verb: "runas"; \
+    Flags: shellexec waituntilterminated runhidden; \
+    RunOnceId: "RemoveDefenderExclusion"
 
 [UninstallDelete]
 ; Remove the install folder only. User settings in
