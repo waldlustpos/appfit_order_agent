@@ -1,4 +1,4 @@
-/// 매장 상품 카테고리 (`/v0/shops/{shopCode}/categories` 응답의 `categories[]` 항목).
+/// 매장 상품 카테고리 (`/v0/shops/{shopCode}/categories/items` 응답의 `categories[]` 항목).
 ///
 /// 서버는 소속 상품(`items`)이 0개인 카테고리도 내려주지만, 응답을 `ProductModel`
 /// 목록으로 평탄화하면 빈 카테고리는 흔적이 남지 않아 사라진다. 상품관리 좌측

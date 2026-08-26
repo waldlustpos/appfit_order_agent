@@ -6,6 +6,7 @@ import 'package:appfit_core/appfit_core.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
 import 'package:appfit_order_agent/models/membership_model.dart';
+import 'package:appfit_order_agent/models/product_model.dart';
 import 'package:appfit_order_agent/utils/common_util.dart';
 import 'package:intl/intl.dart';
 import 'package:appfit_order_agent/utils/label_painter.dart';
@@ -915,8 +916,13 @@ ${orders.length > 5 ? '...외 ${orders.length - 5}개 더 있음' : ''}
     }
   }
 
-  /// 옵션 마이그레이션 조회 테스트
-  Future<void> _testMigrationOptions() async {
+  /// 옵션 버킷 조회 테스트.
+  ///
+  /// `/categories/items` 는 옵션을 상품×옵션그룹마다 반복해 내려주므로, 화면에
+  /// 뜨는 개수는 **중복 제거 후의 고유 옵션 수**여야 한다. 원본 등장 수 대비
+  /// 몇 건으로 접혔는지는 파싱 단계 로그(`[카탈로그] 파싱 완료`)에서 확인한다.
+  /// 각 줄 앞의 코드는 옵션그룹 POS 코드(`optionGroupPosId`)다.
+  Future<void> _testCatalogOptions() async {
     if (!AppFitConfig.isConfigured()) {
       _showError('환경 변수가 올바르게 설정되지 않았습니다.');
       return;
@@ -924,7 +930,7 @@ ${orders.length > 5 ? '...외 ${orders.length - 5}개 더 있음' : ''}
 
     setState(() {
       _isLoading = true;
-      _result = '옵션 마이그레이션 정보 조회 중...';
+      _result = '옵션 목록 조회 중...';
     });
 
     try {
@@ -932,35 +938,35 @@ ${orders.length > 5 ? '...외 ${orders.length - 5}개 더 있음' : ''}
       final testShopCode = pref.getId() ?? 'TPCP00002';
       final apiService = ref.read(apiServiceProvider);
 
-      final data = await apiService.getMigrationOptions(
-        type: 'SHOP',
-        shopCode: testShopCode,
-      );
+      final products = await apiService.getShopCategories(testShopCode);
+      final options =
+          products.where((p) => p.type == ProductType.option).toList();
 
       setState(() {
         final buffer = StringBuffer();
-        buffer.writeln('✅ 옵션 마이그레이션 조회 성공!');
-        buffer.writeln('총 옵션 수: ${data.length}개');
+        buffer.writeln('✅ 옵션 목록 조회 성공!');
+        buffer.writeln('고유 옵션 수(중복 제거 후): ${options.length}개');
         buffer.writeln('\n옵션 목록 (상위 10개):');
 
-        for (var item in data.take(10)) {
+        for (var option in options.take(10)) {
           buffer.writeln(
-              '- [${item['posCategoryId'] ?? 'N/A'}] ${item['name']} (${item['salePrice']?.toInt() ?? 0}원) [${item['status']}]');
+              '- [${option.categoryCode.isEmpty ? 'N/A' : option.categoryCode}] '
+              '${option.productName} (${option.menuPrice}원) [${option.status.code}]');
         }
-        if (data.length > 10) {
-          buffer.writeln('...외 ${data.length - 10}개 더 있음');
+        if (options.length > 10) {
+          buffer.writeln('...외 ${options.length - 10}개 더 있음');
         }
 
-        buffer.writeln('\n상세 데이터는 로그를 확인하세요.');
+        buffer.writeln('\n중복 등장 건수는 로그의 "[카탈로그] 파싱 완료" 줄을 확인하세요.');
         _result = buffer.toString();
       });
 
-      logger.i('[AppFit 테스트] 옵션 마이그레이션 조회 성공: ${data.length}개');
+      logger.i('[AppFit 테스트] 옵션 목록 조회 성공: ${options.length}개(고유)');
     } catch (e, s) {
-      logger.e('[AppFit 테스트] 옵션 마이그레이션 조회 실패', error: e, stackTrace: s);
+      logger.e('[AppFit 테스트] 옵션 목록 조회 실패', error: e, stackTrace: s);
       setState(() {
         _result = '''
-❌ 옵션 마이그레이션 조회 실패
+❌ 옵션 목록 조회 실패
 
 에러: $e
 
@@ -1146,9 +1152,9 @@ ${orders.length > 5 ? '...외 ${orders.length - 5}개 더 있음' : ''}
                     onPressed: _isLoading ? null : _testOrderDetail,
                   ),
                   _buildTestButton(
-                    icon: Icons.swap_calls,
-                    label: '옵션 마이그레이션',
-                    onPressed: _isLoading ? null : _testMigrationOptions,
+                    icon: Icons.tune,
+                    label: '옵션 목록',
+                    onPressed: _isLoading ? null : _testCatalogOptions,
                     backgroundColor: Colors.indigo,
                   ),
                   _buildTestButton(

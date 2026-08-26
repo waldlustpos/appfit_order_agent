@@ -10,7 +10,7 @@ import 'package:appfit_order_agent/utils/logger.dart'; // logger import 추가
 
 part 'product_provider.g.dart';
 
-/// 매장 카탈로그(카테고리 + 상품) 로드 — 서버 응답의 정본.
+/// 매장 카탈로그(카테고리 + 상품 + 옵션) 로드 — 서버 응답의 정본.
 ///
 /// 상품이 0개인 카테고리는 상품 목록에 흔적이 남지 않으므로(서버 `categories[]`
 /// 의 `items` 가 빈 배열), 카테고리를 상품과 분리해 함께 보존한다.
@@ -50,47 +50,14 @@ Future<({List<ProductModel> products, List<ShopCategoryModel> categories})>
       'ShopCatalog build: StoreId ready ($finalStoreId). Loading products...');
   final apiService = ref.read(apiServiceProvider);
   try {
-    // 1. 상품 카테고리/상품 목록 로드 (카탈로그 본체 — 실패하면 치명적)
+    // 카탈로그(카테고리 + 상품 + 옵션) 로드 — 실패하면 치명적.
+    // 옵션의 categoryCode(= 옵션그룹 POS 코드)는 응답에 함께 실려 오므로
+    // 별도의 마이그레이션 조회/병합 단계가 없다.
     final catalog = await apiService.getShopCatalog(finalStoreId);
+    final products = catalog.products;
 
-    // 2. 옵션 마이그레이션 데이터는 **보조 정보**라 실패를 삼킨다.
-    //    라벨 sub-info 분류는 주문 응답의 optionGroupPosId 가 정본이 되어
-    //    이 값에 의존하지 않는다. 과거에는 이 호출이 timeout 되면 catch 로
-    //    빠지면서 상품 목록 전체가 빈 배열이 됐다(카탈로그 통째 유실).
-    List<Map<String, dynamic>> migrationOptions = const [];
-    try {
-      migrationOptions = await apiService.getMigrationOptions(
-          type: 'SHOP', shopCode: finalStoreId);
-    } catch (e) {
-      logger.w('ShopCatalog build: 옵션 마이그레이션 조회 실패 — 카탈로그는 유지', error: e);
-    }
-
-    final baseProducts = catalog.products;
-
-    logger.i('ShopCatalog build: Loaded ${baseProducts.length} base products, '
-        '${catalog.categories.length} categories and ${migrationOptions.length} migration options.');
-
-    // 3. 마이그레이션 데이터를 맵으로 변환 (ID -> posCategoryId)
-    final migrationMap = {
-      for (var item in migrationOptions)
-        item['id'].toString(): item['posCategoryId']?.toString() ?? ''
-    };
-
-    // 4. 기존 상품 목록과 병합 (옵션 상품의 카테고리 코드 보완)
-    int mergedCount = 0;
-    final products = baseProducts.map((product) {
-      if (product.type == ProductType.option) {
-        final migrationCategoryCode = migrationMap[product.productId.trim()];
-        if (migrationCategoryCode != null && migrationCategoryCode.isNotEmpty) {
-          mergedCount++;
-          return product.copyWith(categoryCode: migrationCategoryCode);
-        }
-      }
-      return product;
-    }).toList();
-
-    logger.i(
-        'ShopCatalog build: Merged $mergedCount options with migration data. Total products: ${products.length}');
+    logger.i('ShopCatalog build: Loaded ${products.length} products and '
+        '${catalog.categories.length} categories.');
 
     // LocalServerService 캐시 업데이트
     try {

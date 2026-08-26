@@ -1,6 +1,7 @@
 // import 'package:flutter_dotenv/flutter_dotenv.dart'; // Removed
 import 'dart:convert'; // JsonEncoder.withIndent (카테고리 원본 응답 로깅)
 import 'package:appfit_order_agent/config/app_env.dart'; // AppEnv 추가
+import 'package:appfit_order_agent/core/products/shop_catalog_parser.dart';
 import 'package:appfit_order_agent/providers/api_health_provider.dart'; // HTTP 건강도 기록
 import 'package:dio/dio.dart'; // Added for DioException
 import 'package:appfit_order_agent/dev/net_fault_injector.dart';
@@ -712,116 +713,49 @@ class ApiService {
   Future<List<ProductModel>> getShopCategories(String storeId) async =>
       (await getShopCatalog(storeId)).products;
 
-  /// 매장 카테고리 + 상품 조회.
+  /// 매장 카테고리 + 상품 + 옵션 조회.
   ///
   /// 서버 `categories[]` 는 소속 상품(`items`)이 0개인 카테고리도 내려준다. 상품
   /// 목록으로 평탄화하면 빈 카테고리는 흔적이 남지 않아 사라지므로, 카테고리를
   /// 상품과 분리해 함께 반환한다(상품관리 좌측 목록 정본).
+  ///
+  /// 응답 → 모델 변환은 [parseShopCatalog] (순수 함수)가 담당한다.
   Future<({List<ProductModel> products, List<ShopCategoryModel> categories})>
       getShopCatalog(String storeId) async {
     try {
       final dio = _ref.read(appFitDioProvider);
-      // AppFit: /v0/shops/{shopCode}/categories
-      final response = await dio.get(ApiRoutes.shopCategories(storeId));
+      // AppFit: /v0/shops/{shopCode}/categories/items
+      //   구 `/categories` 의 매장 전역 평면 `options[]` 대신 상품별 optionGroups
+      //   중첩을 내려준다. 옵션 그룹 POS 코드가 응답에 실려 오므로 별도의
+      //   `/v0/migration/options` 조인이 필요 없다.
+      //   ApiRoutes(appfit_core, 태그 핀)에 아직 전용 상수가 없어 기존 라우트에서
+      //   파생시킨다 — 다음 core 릴리즈에서 shopCategoryItems 로 승격할 것.
+      final response =
+          await dio.get('${ApiRoutes.shopCategories(storeId)}/items');
 
       if (response.statusCode == 200) {
         final data = response.data['data'] as Map<String, dynamic>;
-        final List<ProductModel> allProducts = [];
-        final List<ShopCategoryModel> shopCategories = [];
 
-        // 1. 카테고리별 상품(items) 처리
-        if (data.containsKey('categories')) {
-          final categories = data['categories'] as List<dynamic>;
+        // 서버가 실제로 내려주는 카테고리 원본 구조 확인용 로그.
+        // items 는 카테고리당 다수인 데다 옵션그룹까지 중첩돼 있어, 요약(개수)만
+        // 남기고 나머지 키는 그대로 찍는다.
+        final rawCategories =
+            (data['categories'] as List<dynamic>?) ?? const [];
+        logger.i('[AppFit API] 카테고리 응답 수신: ${rawCategories.length}개\n'
+            '${const JsonEncoder.withIndent('  ').convert(rawCategories.map((c) {
+          if (c is! Map<String, dynamic>) return c;
+          final m = Map<String, dynamic>.from(c);
+          final items = m['items'] as List<dynamic>?;
+          if (items != null) m['items'] = '${items.length}개 (생략)';
+          return m;
+        }).toList())}');
 
-          // 서버가 실제로 내려주는 카테고리 원본 구조 확인용 로그.
-          // items 는 카테고리당 다수라 요약(개수)만 남기고, 나머지 키는 그대로 찍는다.
-          logger.i('[AppFit API] 카테고리 응답 수신: ${categories.length}개\n'
-              '${const JsonEncoder.withIndent('  ').convert(categories.map((c) {
-            final m = Map<String, dynamic>.from(c as Map<String, dynamic>);
-            final items = m['items'] as List<dynamic>?;
-            if (items != null) m['items'] = '${items.length}개 (생략)';
-            return m;
-          }).toList())}');
-
-          for (var category in categories) {
-            // 항목별 격리 — 1건 손상 시 해당 카테고리만 스킵하고 나머지는 유지.
-            final ShopCategoryModel shopCategory;
-            try {
-              shopCategory =
-                  ShopCategoryModel.fromJson(category as Map<String, dynamic>);
-            } catch (e) {
-              logger.e('[AppFit API] 카테고리 파싱 실패 — 해당 항목 스킵', error: e);
-              continue;
-            }
-            shopCategories.add(shopCategory);
-
-            final categoryName = shopCategory.categoryName;
-            final categoryCode = shopCategory.categoryCode;
-            final items = (category['items'] as List<dynamic>?) ?? const [];
-
-            for (var item in items) {
-              allProducts.add(ProductModel(
-                productId: item['itemPosId'] as String, // prdId용 (POS ID)
-                internalId: item['shopItemId'] as String, // API용 (UUID)
-                productName: item['itemName'] as String,
-                categoryName: categoryName,
-                categoryCode: categoryCode,
-                menuPrice: (item['salePrice'] as num).toInt(),
-                status: _mapAppFitStatus(item['status'] as String),
-                type: ProductType.item,
-                displayOrder: (item['displayOrder'] as num).toInt(),
-              ));
-            }
-          }
-        }
-
-        // 2. 상위 레벨 옵션(options) 처리
-        if (data.containsKey('options')) {
-          final options = data['options'] as List<dynamic>;
-          // options 는 서버 스키마에 displayOrder 가 없어 응답 배열 순서를
-          // 대신 쓰되, 큰 오프셋을 더해 아이템(실제 displayOrder) 뒤로 보낸다.
-          var optionOrder = 0;
-          for (var option in options) {
-            allProducts.add(ProductModel(
-              productId: option['optionPosId'] as String, // prdId용 (POS ID)
-              internalId: option['optionId'] as String, // API용 (UUID)
-              productName: option['optionName'] as String,
-              categoryName: '옵션', // 옵션 전용 카테고리명
-              categoryCode: (option['categoryCode'] ??
-                      option['optionCategoryId'] ??
-                      option['categoryPosId'] ??
-                      '')
-                  .toString(),
-              menuPrice: (option['salePrice'] as num).toInt(),
-              status: _mapAppFitStatus(option['status'] as String),
-              type: ProductType.option,
-              displayOrder: 1000000 + optionOrder++,
-            ));
-          }
-        }
-
-        return (products: allProducts, categories: shopCategories);
+        return parseShopCatalog(data);
       } else {
         throw Exception('상품 목록 조회 실패: ${response.statusCode}');
       }
     } catch (e, s) {
       rethrow;
-    }
-  }
-
-  /// AppFit 상태 코드를 ProductStatus로 매핑
-  ProductStatus _mapAppFitStatus(String appFitStatus) {
-    switch (appFitStatus.toUpperCase()) {
-      case 'ON_SALE':
-      case 'SALE':
-        return ProductStatus.sale; // OS
-      case 'SOLD_OUT':
-        return ProductStatus.soldOut; // SO
-      case 'DISCONTINUED':
-      case 'HIDDEN':
-      case 'PENDING':
-      default:
-        return ProductStatus.hidden; // HD
     }
   }
 
@@ -1222,31 +1156,10 @@ class ApiService {
     }
   }
 
-  Future<List<Map<String, dynamic>>> getMigrationOptions({
-    required String type,
-    String? shopCode,
-  }) async {
-    try {
-      final dio = _ref.read(appFitDioProvider);
-      final Map<String, dynamic> queryParams = {
-        'type': type,
-      };
-      if (shopCode != null) queryParams['shopCode'] = shopCode;
-
-      final response = await dio.get(ApiRoutes.migrationOptions,
-          queryParameters: queryParams);
-
-      if (response.statusCode == 200) {
-        final List<dynamic> data = response.data['data'] as List<dynamic>;
-        return data.cast<Map<String, dynamic>>();
-      } else {
-        throw Exception('옵션 마이그레이션 정보 조회 실패: ${response.statusCode}');
-      }
-    } catch (e, s) {
-      logger.e('[AppFit API] getMigrationOptions 오류: $e');
-      rethrow;
-    }
-  }
+  // getMigrationOptions(`/v0/migration/options`) 는 제거됨.
+  //   옵션의 categoryCode(= 옵션그룹 POS 코드)를 채우려고 카탈로그 조회 뒤에
+  //   한 번 더 호출하던 조인이었으나, `/categories/items` 응답이 optionGroupPosId
+  //   를 직접 실어주면서 불필요해졌다. 필요해지면 git 이력에서 복원할 것.
 
   /// AppFit API 공통 에러 핸들링
   /// 서버에서 반환한 구체적인 에러 메시지가 있다면 이를 포함하여 ApiException 발생

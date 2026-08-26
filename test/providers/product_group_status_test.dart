@@ -46,13 +46,6 @@ class _FakeApiService implements ApiService {
   }
 
   @override
-  Future<List<Map<String, dynamic>>> getMigrationOptions({
-    required String type,
-    String? shopCode,
-  }) async =>
-      <Map<String, dynamic>>[];
-
-  @override
   Future<bool> updateItemsStatus({
     required String storeId,
     required ProductType type,
