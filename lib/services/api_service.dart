@@ -728,10 +728,7 @@ class ApiService {
       //   구 `/categories` 의 매장 전역 평면 `options[]` 대신 상품별 optionGroups
       //   중첩을 내려준다. 옵션 그룹 POS 코드가 응답에 실려 오므로 별도의
       //   `/v0/migration/options` 조인이 필요 없다.
-      //   ApiRoutes(appfit_core, 태그 핀)에 아직 전용 상수가 없어 기존 라우트에서
-      //   파생시킨다 — 다음 core 릴리즈에서 shopCategoryItems 로 승격할 것.
-      final response =
-          await dio.get('${ApiRoutes.shopCategories(storeId)}/items');
+      final response = await dio.get(ApiRoutes.shopCategoryItems(storeId));
 
       if (response.statusCode == 200) {
         final data = response.data['data'] as Map<String, dynamic>;
