@@ -70,6 +70,12 @@
 
 #define MyAppId          "{" + MyAppIdRaw
 
+; Registry value name written by the launch_at_startup package. Must match the
+; appName passed to LaunchAtStartup.instance.setup() in lib/main.dart, which is
+; a BRAND-INDEPENDENT constant - one machine only ever runs one artifact, so
+; the two brands never contend for this value name.
+#define MyAutoRunValue   "AppfitOrderAgent"
+
 #define MyAppPublisher  "waldlust"
 #define MyAppURL        "http://waldpay.kokonutstamp2.com/"
 
@@ -159,6 +165,20 @@ Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; \
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; \
     IconFilename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+
+[Registry]
+; The app writes its own auto-start entry here through the launch_at_startup
+; package when the operator turns the setting on. Claim the value so that an
+; uninstall does not leave a Run entry pointing at a deleted exe. ValueType
+; none means Setup does not create anything itself.
+;
+; deletevalue is deliberately NOT set (kokonut_order_agent_v2 does set it).
+; That flag deletes the value at INSTALL time, so every reinstall or upgrade
+; would silently switch off an auto-start the operator had turned on. Only the
+; uninstall-time cleanup is wanted here.
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; \
+    ValueType: none; ValueName: "{#MyAutoRunValue}"; \
+    Flags: uninsdeletevalue
 
 [Run]
 ; Register the Defender scan exclusions.
