@@ -1,17 +1,13 @@
-# Windows per-user 설치 전환 이식 계획
+# Windows per-user 설치 전환
 
-> STATUS (2026-08-26 작성 — **계획 문서, 구현 미착수**)
-> kokonut_order_agent_v2 가 `2.2.0+111` 에서 먼저 구현했고, 같은 날 클린 설치 +
-> 구설치 이관 실기 검증까지 완료했다(구 Program Files 설치 PC → 구설치 자동감지 →
-> UAC 1회 → 이관 → per-user 설치 → 구설치 소멸 → Defender 예외 2경로 등록 정상).
-> **아직 미검증인 것**: OTA 회귀(양쪽 설치 형태), 표준 사용자 계정 뮤텍스 폴백,
-> UAC 거부 시 설치 중단 흐름 — 이 세 가지는 appfit 이식 후 이 저장소 기준으로 직접
-> 검증해야 한다.
+> STATUS (2026-08-27 — **구현 완료, 공통 브랜드 실기 검증 완료 / 미배포**)
+> 이식 5단계(업데이터 견고화+HTTPS → per-user 전환 → Defender 예외 → 자가진단 →
+> `-SkipBuild`)를 모두 구현하고, 공통 브랜드 기준으로 이 PC 에서 실기 검증했다.
+> 검증 중 **코드 결함 4건**을 발견해 함께 고쳤다 — 8절 참조.
 >
 > kokonut 정본: `kokonut_order_agent_v2/docs/WINDOWS_PERUSER_INSTALL.md`
 > (브랜치 `feature/windows-localappdata-install`, 별도 레포이므로 상대 링크 불가).
-> 이 문서는 그 계약을 appfit 의 멀티 브랜드 구조에 맞게 옮긴 것이며, kokonut 문서의
-> "불변 조건" 절 항목은 이식 시 그대로 지켜야 한다.
+> **8절의 결함 2·3번은 kokonut 정본에도 그대로 있다 — 그쪽에도 반영이 필요하다.**
 
 ---
 
@@ -313,10 +309,39 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; \
 
 ---
 
-## 6. 검증 계획
+## 6. 검증 계획 / 결과
 
 **common / mammoth 각각 전부 반복한다** — AppId·뮤텍스·exe명·AppDirName 이
 브랜드마다 독립이라 한쪽 검증이 다른 쪽을 보증하지 않는다.
+
+### 실측 결과 요약 (2026-08-27, 공통 브랜드)
+
+운영 OTA 서버는 건드리지 않았다 — `UpdateConfig._base` 를 `127.0.0.1:8099` 로
+돌린 **커밋하지 않는 임시 패치**로 테스트 빌드를 만들고, 로컬 정적 서버(Dart)가
+버전 JSON/ZIP 을 서빙했다. 설치본 195 ↔ 페이로드 196.
+
+| 항목 | 결과 | 근거 |
+| --- | --- | --- |
+| 레거시(Program Files) OTA — 상승 경로 | ✅ | 앱 로그 `(관리자 권한 필요 — UAC 프롬프트 발생)` → UAC 1회 → `rc=3` → 재기동 |
+| per-user OTA — 무상승 | ✅ | 앱 로그 `(관리자 권한 불필요)` + 생성된 VBS 의 verb 인자가 빈 문자열 |
+| 상승 판정이 실제 쓰기 시도 기반인가 | ✅ | 비상승 셸 probe: PF 쓰기 실패 / `%LOCALAPPDATA%\Programs` 쓰기 성공 |
+| updater 견고화 | ✅ | `tasklist` 폴링, `/R:3 /W:2` 재시도 2회 후 포기, 로그 append + `rc=` |
+| `:fail → :launch` | ✅ | 파일 잠금 유도 → `rc=11` → 앱 재기동. **단 롤백은 아님**(아래 주의) |
+| 이관(machine-wide → per-user) | ✅ | HKLM64 키·PF 폴더 소멸, HKCU 등록, 설치 경로 이동 |
+| 설정 보존 | ✅ | `shared_preferences.json` 2517 bytes 이관 전후 동일, 로그인 유지 |
+| Defender 예외 2경로 등록 | ✅ | `defender_exclusion.log` 의 `addError=` 공백, `exclusions=` 에 설치 폴더 + 스테이징 |
+| per-user 설치 모드 계약 | ✅ | Setup 로그 `User privileges: None` / `Administrative install mode: No` / `Install mode root key: HKEY_CURRENT_USER` |
+| 자동실행 경로 갱신 | ✅ | stale Run 값(삭제된 PF 경로) → per-user 경로로 자동 교체 |
+| 뮤텍스 `Local\` 폴백 | ✅ | `Global\` 을 거부 DACL 로 선점 → 앱 정상 기동 + 2회차 실행은 여전히 1인스턴스 |
+| 구설치 감지 키(HKLM64) | ✅ | 진단 전용 Setup 으로 두 브랜드 GUID 모두 `RegKeyExists(HKLM64)=1` + UninstallString 확인 |
+| UAC 거부 시 설치 중단 | ✅ | 1차 실행에서 거부 → 중단 안내 노출 |
+| 매머드 브랜드 | ⏳ | 미검증 |
+
+> **`:fail` 은 롤백이 아니다.** robocopy 는 exit code 8 이상이어도 일부 파일은 이미
+> 복사한 뒤다. 실측(rc=11)에서 exe·`app.so` 는 교체되고 잠긴 파일 하나만 구버전으로
+> 남았다. 보장되는 것은 "앱이 다시 뜬다"까지이며, 어떤 파일이 실패했는지는 로그의
+> robocopy 오류 줄로만 알 수 있다. 원자적 교체가 필요하면 스테이징 후 폴더 스왑으로
+> 바꿔야 하고, 그건 별도 설계 변경이다.
 
 ### A. 클린 PC (신규 출고)
 1. 설치 — UAC 는 **Defender 예외 단계에서 1회만** 떠야 한다
@@ -363,10 +388,55 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; \
 
 - `pubspec.yaml` 의 `version` 상향 필요(현재 `3.0.0+195`). Android·Windows 가 버전
   정본을 공유하므로 Windows 만 배포해도 번호는 함께 올라간다.
-- 설치본과 OTA exe 해시를 통일하려면 kokonut 선례대로
-  `build_installer.ps1` → `deploy_windows.ps1 -SkipBuild` 순서가 필요한데,
-  **appfit 의 `deploy_windows.ps1` 에는 아직 `-SkipBuild` 가 없다.** 두 스크립트가
-  각각 `flutter build` 를 돌리면 MSVC 링커가 PE `TimeDateStamp`/PDB GUID 를 새로
-  새겨 같은 소스인데 해시가 달라진다(Defender 평판이 해시 단위로 쌓이므로 오탐
-  표면이 릴리스마다 2배가 된다). 이 스위치를 이번 이식 범위에 포함할지는 배포
-  시점에 별도 판단한다(기능 이식과는 독립적인 개선).
+- 설치본과 OTA exe 해시를 통일하려면 **반드시** 아래 순서로 돌린다(`-SkipBuild`
+  는 이번 이식에서 추가됐다):
+
+  ```
+  .\build_installer.ps1 -Brand <brand>
+  .\deploy_windows.ps1  -Brand <brand> -SkipBuild
+  ```
+
+  두 스크립트가 각각 `flutter build` 를 돌리면 MSVC 링커가 PE `TimeDateStamp`/PDB
+  GUID 를 새로 새겨 같은 소스인데 해시가 달라진다. Defender 평판은 해시 단위로
+  쌓이므로 오탐 표면이 릴리스마다 2배가 된다. `deploy_windows.ps1` 의
+  `1-0) 산출물 버전 검증` 게이트가 낡은 Release 폴더를 새 번호로 올리는 사고를
+  막는다.
+
+- **첫 배포 전 확인**: 이 전환은 매장 PC 에서 구설치 제거(UAC 1회)를 동반하므로,
+  기존 매장은 OTA 로 자동 이관되지 않는다. OTA 는 계속 Program Files 설치본을
+  갱신할 뿐이고(그 경로는 검증됨), per-user 로 옮기려면 **새 설치본을 한 번
+  실행**해야 한다. 롤아웃 계획을 여기에 맞춰 잡을 것.
+
+---
+
+## 8. 이식 중 발견해 고친 결함 (2026-08-27 실기 검증)
+
+계획대로 이식만 했으면 넘어갔을 것들이다. **2·3번은 kokonut 정본에도 그대로
+있으므로 그쪽에도 반영이 필요하다.**
+
+1. **`install()` 이 flush 없이 `exit(0)` → 진단 로그 통째 유실**
+   파일 기록은 버퍼(30줄/2초)를 거치는데 `install()` 은 로그 직후 종료한다.
+   하필 그 안에 상승 경로 판정 결과가 있어, "매장 로그만 받아도 이관 여부를
+   판별한다"는 목적 자체가 무효였다. `flushLogBuffer()` 호출로 해결.
+
+2. **비상승 `Get-MpPreference` 를 "미등록"으로 오판** ⚠️
+   앱은 상승되지 않은 채 도는데, 그 상태에서 Defender 는 목록 대신 안내 문자열
+   한 줄(`N/A: Must be an administrator to view exclusions`)을 돌려준다.
+   **exitCode 는 0 이고 목록도 비어 있지 않다.** 그래서 3상태 가드 두 개를 모두
+   통과해, 예외가 정상 등록된 PC 가 매일 ERROR 레벨로 "미등록"을 남겼다 —
+   불변조건 9가 막으려던 바로 그 오판이다. 항목이 경로 모양인지로 판정하도록
+   수정(문구는 로캘에 따라 달라질 수 있어 문자열 매칭은 쓰지 않는다).
+   덧붙여, 라이브 조회가 사실상 늘 막히므로 설치본이 남긴
+   `{app}\defender_exclusion.log` 를 함께 읽어 "설치 시점 기록"을 날짜와 함께
+   병기한다(그것으로 "정상"이라 단정하지는 않는다).
+
+3. **Defender 로그 6키가 한 줄로 뭉침** ⚠️
+   PowerShell 의 쉼표 연산자가 `+` 보다 강하게 묶여, `@('a='+$x, 'b='+$y)` 가
+   `'a=' + ($x,'b=') + $y` 로 파싱된다. 배열이 `$OFS`(공백)로 평탄화되어 요소
+   1개짜리 문자열이 되고, 로그 전체가 공백으로 이어진 한 줄이 된다(실측
+   `Count=1`). 각 요소를 괄호로 묶어 해결.
+
+4. **`:fail` 로그가 롤백처럼 읽힘**
+   "Relaunching previous version" 이라고 적혀 있었지만 robocopy 는 rc≥8 에서도
+   일부 파일을 이미 복사한 뒤다. 혼합 상태가 남을 수 있음을 로그에 명시하도록
+   문구 정정(6절 주의 참조).

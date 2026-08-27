@@ -37,7 +37,7 @@
 - 아키텍처(데이터 흐름·Riverpod·서비스·UI·네이티브·브랜드 테마·주요 패턴): [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - 사운드그래프(MHST) 연동 흐름 도식(As-Is kokonut 왕복 ↔ To-Be 구서버 중계안·Firestore 제거 권고): [docs/SOUNDGRAPH.md](docs/SOUNDGRAPH.md)
 - 빌드/배포/환경설정/다국어(Slang): [docs/BUILD.md](docs/BUILD.md)
-- Windows per-user 설치 전환 이식 계획(Defender 오탐 대응 — `%LOCALAPPDATA%\Programs` 설치, 구설치 자동 이관, Defender 예외 자동등록, updater 견고화. kokonut_order_agent_v2 정본 이식. **미구현 — 계획 문서**): [docs/WINDOWS_PERUSER_INSTALL.md](docs/WINDOWS_PERUSER_INSTALL.md)
+- Windows per-user 설치 전환(Defender 오탐 대응 — `%LOCALAPPDATA%\Programs` 설치, 구설치 자동 이관, Defender 예외 자동등록, updater 견고화, 기동 시 자가진단. **구현 완료·공통 브랜드 실기 검증 완료, 미배포**. 배포는 `build_installer.ps1` → `deploy_windows.ps1 -SkipBuild` 순서 필수 — 설치본/OTA exe 해시 통일): [docs/WINDOWS_PERUSER_INSTALL.md](docs/WINDOWS_PERUSER_INSTALL.md)
 - 릴리즈/배포 정책(단일 코드·단일 아티팩트·이중 채널: OTA `_release` + Sunmi App Store gray, 롤아웃 순서·핫픽스·브랜드 온보딩 규칙): [docs/RELEASE.md](docs/RELEASE.md)
 - Flutter/Dart 코드 스타일·Riverpod·라우팅·로깅·테마·테스트·접근성 규약: [docs/FLUTTER_GUIDELINES.md](docs/FLUTTER_GUIDELINES.md)
 - 테스트 작성·실행 방법(characterization 전략·PreferenceService seam·fake 패턴): [docs/TESTING.md](docs/TESTING.md)
