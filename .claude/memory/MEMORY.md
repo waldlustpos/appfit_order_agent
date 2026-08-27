@@ -77,4 +77,6 @@
 - [Defender 예외 조회는 기기마다 다름](reference_defender_exclusion_query.md) — 비상승 Get-MpPreference 가 안내 문자열 1줄을 exitCode 0 으로 반환. 경로 모양으로 판정할 것.
 - [주문 강제완료(PREPARING→DONE)](project_order_force_done.md) — force/bulk-done 단건 호출로 구현 완료(core v1.5.0). 실기기 검증 대기. 기간 단위 bulk-done 과 DTO 혼동 주의 (2026-08-27)
 - [로그·Sentry 개인정보 정책](project_pii_logging_policy.md) — 전화번호=마스킹 / 바코드·쿠폰번호=원문(가명 추적키) / 실명 가능 닉네임=미기록. 서버 message 는 6자리+ 숫자열 마스킹 (2026-08-27)
+- [Windows Debug 가 firebase_core 등록에서 크래시](project_windows_debug_firebase_crash.md) — 범인은 코드가 아니라 낡은 CMake 생성 상태. wipe 후 exe 2.15→3.49MB. 헛짚은 판별자 2건 포함 (2026-08-27)
+- [낡은 CMakeCache 가 INSTALL_PREFIX 를 Release 로 굳힘](reference_windows_cmake_install_prefix_pinned.md) — 구성 불문 모든 번들이 Release 로 install. 정상값은 제네레이터 표현식.
 - [쿠폰란 전화번호 오입력 → Sentry 유출](project_coupon_input_phone_misentry.md) — 입력란 공유가 구조적 원인. 앱 차단 + core v1.4.0 마스킹/경로단위 benign. 배포 완료 (2026-08-27)
