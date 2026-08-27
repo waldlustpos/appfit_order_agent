@@ -219,6 +219,31 @@ if (-not (Test-Path $BUILD_OUTPUT) -or -not (Get-ChildItem $BUILD_OUTPUT -ErrorA
 New-Item -ItemType Directory -Force -Path "build\windows" | Out-Null
 Set-Content -Path $BrandSentinel -Value $Brand -NoNewline
 
+# 2-0) Drop the OTHER brand's runner artifacts, unconditionally.
+#
+# The sentinel check above only fires when THIS script sees the brand change.
+# A plain "flutter build windows" run in between never touches the sentinel, so
+# the previous brand's exe can survive into the package with the sentinel still
+# reading "no change". Measured 2026-08-27: a mammoth installer shipped with a
+# stale appfit_order_agent.exe (common runner) inside it.
+#
+# The package rule is "Release\* recursive", so anything left here ships. Match
+# the base names exactly -- "appfit_order_agent" is a PREFIX of
+# "appfit_order_agent_mammoth", so a wildcard sweep would delete the wrong one.
+$ExpectedBase = if ($Brand -eq 'mammoth') { 'appfit_order_agent_mammoth' } else { 'appfit_order_agent' }
+$ForeignBase  = if ($Brand -eq 'mammoth') { 'appfit_order_agent' } else { 'appfit_order_agent_mammoth' }
+foreach ($ext in @('exe','exp','lib','pdb')) {
+    $foreign = Join-Path $BUILD_OUTPUT "$ForeignBase.$ext"
+    if (Test-Path $foreign) {
+        Write-Host "[WARN] Removing other brand's leftover: $ForeignBase.$ext"
+        Remove-Item $foreign -Force -ErrorAction SilentlyContinue
+    }
+}
+if (-not (Test-Path (Join-Path $BUILD_OUTPUT "$ExpectedBase.exe"))) {
+    Write-Error "[ERROR] Expected runner missing: $ExpectedBase.exe"
+    exit 1
+}
+
 # 3) Bundle VC++ runtime DLLs (mirrors deploy_windows.ps1 L87-153)
 Write-Host "==== 2) Bundle VC++ runtime DLLs ===="
 

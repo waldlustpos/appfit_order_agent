@@ -224,6 +224,25 @@ Write-Host ("     exe 링크 시각: {0}" -f (Get-Item $exePath).LastWriteTime)
 New-Item -ItemType Directory -Force -Path "build\windows" | Out-Null
 Set-Content -Path $BrandSentinel -Value $Brand -NoNewline
 
+# 1-2) 다른 브랜드 러너 산출물 제거 (무조건)
+#
+# 위쪽 sentinel 검사는 "이 스크립트가 브랜드 변경을 목격했을 때"만 발동한다.
+# 중간에 flutter build 를 직접 돌리면 sentinel 이 갱신되지 않으므로, 이전 브랜드
+# 의 exe 가 "변경 없음" 판정 아래 그대로 살아남아 ZIP 에 함께 담긴다. 2026-08-27
+# 실측: 매머드 설치본에 공통 러너(appfit_order_agent.exe)가 섞여 들어갔다.
+# -SkipBuild 경로에서는 빌드 자체를 건너뛰므로 위험이 더 크다.
+#
+# 이름을 정확히 매칭한다 — "appfit_order_agent" 는
+# "appfit_order_agent_mammoth" 의 접두사라, 와일드카드로 쓸면 반대쪽을 지운다.
+$ForeignBase = if ($Brand -eq 'mammoth') { 'appfit_order_agent' } else { 'appfit_order_agent_mammoth' }
+foreach ($ext in @('exe','exp','lib','pdb')) {
+    $foreign = Join-Path $BUILD_OUTPUT "$ForeignBase.$ext"
+    if (Test-Path $foreign) {
+        Write-Host "[경고] 다른 브랜드 잔재 제거: $ForeignBase.$ext"
+        Remove-Item $foreign -Force -ErrorAction SilentlyContinue
+    }
+}
+
 # 1-1) VC++ 런타임 DLL 번들링 (대상 PC에 Visual C++ Redistributable이 없어도 동작하도록)
 Write-Host "==== 1-1) Bundle VC++ Runtime DLLs ===="
 
