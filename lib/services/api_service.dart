@@ -25,6 +25,7 @@ import 'package:appfit_order_agent/models/enums/order_cancel_reason.dart';
 import 'package:appfit_order_agent/exceptions/api_exceptions.dart'; // Added for precise error catching
 import 'package:appfit_order_agent/exceptions/api_error_mapper.dart'; // DioException → 친화 ApiException 변환
 import 'package:appfit_order_agent/services/platform_service.dart'; // logToFile, LogTag 사용 위해 추가
+import 'package:appfit_order_agent/utils/common_util.dart'; // 로그용 연락처 마스킹
 
 part 'api_service.g.dart';
 
@@ -327,7 +328,7 @@ class ApiService {
         logToFile(
           tag: LogTag.API,
           message:
-              '[getOrder] orderId=$orderId 원본 응답:\n${const JsonEncoder.withIndent('  ').convert(response.data)}',
+              '[getOrder] orderId=$orderId 원본 응답:\n${const JsonEncoder.withIndent('  ').convert(_maskOrderResponseForLog(response.data))}',
         );
 
         // 1. 주문 기본 정보 매핑
@@ -426,6 +427,33 @@ class ApiService {
       _recordApiFailure(e);
       rethrow;
     }
+  }
+
+  /// [getOrder] 원본 응답 로그용 마스킹 사본. 파싱에 쓰는 원본 `response.data`
+  /// (data/data.user 맵)는 그대로 두고, 로그로 남길 최상위+중첩 맵만 얕은
+  /// 복사해서 연락처(`userPhone`/`user.phone`)를 치환한다.
+  static dynamic _maskOrderResponseForLog(dynamic raw) {
+    if (raw is! Map) return raw;
+    final masked = Map<String, dynamic>.from(raw);
+    final data = masked['data'];
+    if (data is! Map) return masked;
+
+    final maskedData = Map<String, dynamic>.from(data);
+    final phone = maskedData['userPhone'];
+    if (phone is String && phone.isNotEmpty) {
+      maskedData['userPhone'] = CommonUtil.maskTail(phone);
+    }
+    final user = maskedData['user'];
+    if (user is Map) {
+      final maskedUser = Map<String, dynamic>.from(user);
+      final userPhone = maskedUser['phone'];
+      if (userPhone is String && userPhone.isNotEmpty) {
+        maskedUser['phone'] = CommonUtil.maskTail(userPhone);
+      }
+      maskedData['user'] = maskedUser;
+    }
+    masked['data'] = maskedData;
+    return masked;
   }
 
   /// 상세 응답의 리스트 필드 공통 파서. List 가 아니거나 원소가 Map 이 아니면

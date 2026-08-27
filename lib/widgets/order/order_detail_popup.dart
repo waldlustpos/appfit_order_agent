@@ -11,6 +11,7 @@ import 'package:appfit_order_agent/widgets/common/common_dialog.dart';
 import 'package:appfit_order_agent/widgets/common/print_action_button.dart';
 import 'package:appfit_order_agent/exceptions/api_exceptions.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
+import 'package:appfit_order_agent/utils/common_util.dart'; // 로그용 연락처 마스킹
 import 'package:appfit_order_agent/models/order_model.dart';
 import 'package:appfit_order_agent/models/enums/order_cancel_reason.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
@@ -132,9 +133,12 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
         '상태: ${order.status.name} (${order.orderStatus}) / 소스: ${order.source} / 유형: ${order.orderType}');
     buffer.writeln(
         '주문시각: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(order.orderedAt)}');
-    buffer.writeln('주문자: ${order.ordererName}'
-        '${order.customerName != null && order.customerName!.isNotEmpty ? ' (${order.customerName})' : ''}'
-        ' / 연락처: ${order.tel ?? '-'}');
+    // 주문자는 userName(닉네임)이다. ordererName 은 이름이 아니라 대표 상품명
+    // (서버 orderName, 예: "아메리카노 1개")이라 여기 붙이면 안 된다 — 아래 메뉴
+    // 목록과 중복이기도 하다. 화면 상단 인사말(order_info_panel_widget)과 같은 필드.
+    buffer.writeln(
+        '주문자: ${order.userName != null && order.userName!.isNotEmpty ? order.userName : '-'}'
+        ' / 연락처: ${order.tel != null && order.tel!.isNotEmpty ? CommonUtil.maskTail(order.tel!) : '-'}');
     if (order.note != null && order.note!.isNotEmpty) {
       buffer.writeln('요청사항: ${order.note}');
     }
