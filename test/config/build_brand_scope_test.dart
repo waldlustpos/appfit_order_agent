@@ -119,13 +119,17 @@ void main() {
     // Android 와 반대로 공통이 "레거시 무접미"고 매머드가 신설이다 — Windows
     // 는 패키지 개념이 없어 기존 설치본이 무접미 채널로 자연 업데이트되므로
     // 동결이 아니라 계속 사용이 정책이다(update_config.dart 클래스 doc 참조).
-    test('공통 슬러그면 모든 상수가 이 파일 신설 이전과 바이트 단위로 동일하다', () {
+    // URL 스킴은 2026-08 per-user 전환에서 https 로 올렸다(중간자가 앱 자리에
+    // 임의 코드를 앉히는 것을 막기 위함). **Android OtaConfig 는 이번 스코프
+    // 밖이라 여전히 http 다** — 위 그룹의 http 단언을 함께 고치지 말 것.
+    test('공통 슬러그면 채널·파일명이 이 파일 신설 이전과 동일하다 (스킴 제외)', () {
       if (!BuildBrand.isCommon) return;
       expect(UpdateConfig.downloadUrl,
-          'http://waldpay.kokonutstamp2.com/appfit_order_agent_windows.zip');
+          'https://waldpay.kokonutstamp2.com/appfit_order_agent_windows.zip');
       expect(
         UpdateConfig.versionUrl,
-        'http://waldpay.kokonutstamp2.com/appfit_order_agent_windows_version.json',
+        'https://waldpay.kokonutstamp2.com/'
+            'appfit_order_agent_windows_version.json',
       );
       expect(UpdateConfig.zipFileName, 'appfit_order_agent_windows.zip');
       expect(UpdateConfig.extractDirName, 'appfit_order_agent_update_extracted');
@@ -139,11 +143,12 @@ void main() {
       if (!BuildBrand.isMammoth) return;
       expect(
         UpdateConfig.downloadUrl,
-        'http://waldpay.kokonutstamp2.com/appfit_order_agent_mammoth_windows.zip',
+        'https://waldpay.kokonutstamp2.com/'
+            'appfit_order_agent_mammoth_windows.zip',
       );
       expect(
         UpdateConfig.versionUrl,
-        'http://waldpay.kokonutstamp2.com/'
+        'https://waldpay.kokonutstamp2.com/'
             'appfit_order_agent_mammoth_windows_version.json',
       );
       expect(UpdateConfig.zipFileName, 'appfit_order_agent_mammoth_windows.zip');
@@ -151,6 +156,65 @@ void main() {
       // 진행해도 서로의 updater 배치 파일을 밟지 않는다.
       expect(UpdateConfig.updaterBatName,
           'appfit_order_agent_mammoth_updater.bat');
+    });
+
+    test('OTA URL 은 https 다 (다운그레이드 방지)', () {
+      // HTTP 폴백을 두지 않는 것이 전환의 핵심이다. 폴백이 있으면 중간자가
+      // 평문 응답을 강제해 임의 exe 를 앱 자리에 앉힐 수 있다.
+      expect(UpdateConfig.versionUrl, startsWith('https://'));
+      expect(UpdateConfig.downloadUrl, startsWith('https://'));
+    });
+  });
+
+  group('설치 폴더명 — Dart 와 Inno Setup 스크립트가 일치한다', () {
+    // installer/appfit_order_agent.iss 는 Defender 예외를
+    // `{localappdata}\{#MyAppDirName}` 에 건다. UpdateConfig.installDirName 이
+    // 그 값과 어긋나면 예외가 실제 OTA 스테이징 폴더를 덮지 못하는데, **아무
+    // 증상도 나타나지 않는다** — 업데이트는 그대로 되고 오탐이 났을 때에야
+    // 드러난다. 사람이 두 파일을 나란히 놓고 볼 일이 없으므로 여기서 고정한다.
+    const issPath = 'installer/appfit_order_agent.iss';
+
+    /// 브랜드 `#if` 블록에서 현재 빌드 브랜드에 해당하는 `MyAppDirName` 을
+    /// 뽑는다. `.iss` 는 브랜드당 별도 컴파일이라 두 정의가 한 파일에 있다.
+    String issAppDirName() {
+      final source = File(issPath).readAsStringSync();
+      final ifAt = source.indexOf('#if AppfitBrand == "mammoth"');
+      final elseAt = source.indexOf('#else', ifAt);
+      final endAt = source.indexOf('#endif', elseAt);
+      expect(
+        ifAt >= 0 && elseAt > ifAt && endAt > elseAt,
+        isTrue,
+        reason: '$issPath 의 브랜드 #if/#else/#endif 블록을 찾지 못했습니다. '
+            '구조가 바뀌었다면 이 테스트도 함께 고치세요.',
+      );
+
+      final block = BuildBrand.isMammoth
+          ? source.substring(ifAt, elseAt)
+          : source.substring(elseAt, endAt);
+      final match =
+          RegExp(r'#define\s+MyAppDirName\s+"([^"]+)"').firstMatch(block);
+      expect(match, isNotNull,
+          reason: '$issPath 의 ${BuildBrand.slug} 블록에 MyAppDirName 정의가 없습니다.');
+      return match!.group(1)!;
+    }
+
+    test('installDirName 이 .iss 의 MyAppDirName 과 같다', () {
+      expect(
+        UpdateConfig.installDirName,
+        issAppDirName(),
+        reason: 'UpdateConfig.installDirName 과 $issPath 의 MyAppDirName 이 '
+            '어긋났습니다. 이 상태로 배포하면 Defender 예외가 OTA 스테이징 '
+            '폴더를 덮지 못한 채 조용히 무효화됩니다.',
+      );
+    });
+
+    test('스테이징 폴더가 installDirName 아래에 있다', () {
+      // .iss 가 거는 예외는 `{localappdata}\{#MyAppDirName}` 하나이고, 앱은 그
+      // 아래 `\update` 를 쓴다. 이 부모-자식 관계가 깨지면 예외가 빗나간다.
+      expect(
+        UpdateConfig.stagingDir().parent.path,
+        endsWith(UpdateConfig.installDirName),
+      );
     });
   });
 }
