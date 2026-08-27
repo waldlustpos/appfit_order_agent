@@ -7,6 +7,7 @@ import 'package:appfit_order_agent/config/update_config.dart';
 import 'package:appfit_order_agent/models/update_info.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/services/windows_updater_script.dart';
+import 'package:appfit_order_agent/utils/logger.dart';
 
 /// Windows 전용 OTA 자동업데이트 서비스.
 ///
@@ -193,6 +194,12 @@ class WindowsUpdateService {
         tag: LogTag.SYSTEM,
         message: '업데이트 설치 스크립트 실행 완료 — 앱 종료',
       );
+
+      // 파일 기록은 버퍼(30줄/2초)를 거치므로 flush 없이 exit(0) 하면 이 함수가
+      // 남긴 로그가 통째로 사라진다. 하필 그 안에 상승 경로 판정 결과가 있어
+      // **매장 로그로 이관 여부를 판별한다는 목적 자체가 무효화된다.**
+      // (2026-08-27 실기 검증에서 실제로 유실을 확인하고 추가.)
+      await flushLogBuffer();
 
       exit(0);
     } catch (e, s) {
