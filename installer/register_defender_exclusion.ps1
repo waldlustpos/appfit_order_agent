@@ -55,17 +55,25 @@ $av      = (Get-CimInstance -Namespace root\SecurityCenter2 `
                 -ClassName AntiVirusProduct -ErrorAction SilentlyContinue).displayName
 $effective = (Get-MpPreference -ErrorAction SilentlyContinue).ExclusionPath
 
+# Each element is parenthesised ON PURPOSE. PowerShell's comma operator binds
+# TIGHTER than "+", so the unparenthesised form
+#     @( 'a=' + $x, 'b=' + $y )
+# parses as  'a=' + ($x,'b=') + $y  -- one string with the array flattened by
+# $OFS. The whole log then lands on a single space-separated line and the
+# per-key format below is silently lost. Measured 2026-08-27: the array came
+# out with Count=1. (kokonut_order_agent_v2 still has the unparenthesised
+# form; its log files are single-line for the same reason.)
 $lines = @(
-    'time='            + (Get-Date -Format s),
-    'user='            + $env:USERNAME,
-    'appDir='          + $AppDir,
-    'stagingDir='      + $StagingDir,
-    'addError='        + ($addErr -join ' | '),
-    'winDefend='       + $service.Status,
-    'av='              + ($av -join ' ; '),
-    'runningMode='     + $status.AMRunningMode,
-    'tamperProtected=' + $status.IsTamperProtected,
-    'exclusions='      + ($effective -join ' ; ')
+    ('time='            + (Get-Date -Format s)),
+    ('user='            + $env:USERNAME),
+    ('appDir='          + $AppDir),
+    ('stagingDir='      + $StagingDir),
+    ('addError='        + ($addErr -join ' | ')),
+    ('winDefend='       + $service.Status),
+    ('av='              + ($av -join ' ; ')),
+    ('runningMode='     + $status.AMRunningMode),
+    ('tamperProtected=' + $status.IsTamperProtected),
+    ('exclusions='      + ($effective -join ' ; '))
 )
 
 try {

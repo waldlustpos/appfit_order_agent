@@ -99,7 +99,25 @@ Future<void> _logDefenderExclusionState(PreferenceService prefs) async {
       // 똑같이 빈 값으로 보인다. 구분할 방법이 없으므로 단정하지 않는다.
       logToFile(
         tag: LogTag.SYSTEM,
-        message: '$_defenderLogPrefix: 판정 불가 (목록이 비어 있음)',
+        message: '$_defenderLogPrefix: 판정 불가 (목록이 비어 있음) '
+            '${await _installerLogSummary()}',
+      );
+      return;
+    }
+
+    // 비상승 프로세스에서는 Defender 가 목록 대신 안내 문자열 한 줄을 돌려준다
+    // ("N/A: Must be an administrator to view exclusions"). **exitCode 는 0 이고
+    // 목록도 비어 있지 않다** — 그래서 위의 두 가드로는 걸러지지 않고, 정상
+    // 등록된 PC 가 매일 "미등록" 으로 오보된다(2026-08-27 실측).
+    //
+    // 문구는 로캘에 따라 달라질 수 있으므로 문자열을 매칭하지 않고, 항목이
+    // 경로 모양인지로 본다. 경로가 하나도 없으면 조회가 막힌 것이다.
+    final paths = registered.where(_looksLikeWindowsPath).toList();
+    if (paths.isEmpty) {
+      logToFile(
+        tag: LogTag.SYSTEM,
+        message: '$_defenderLogPrefix: 판정 불가 (조회 권한 부족) '
+            '${await _installerLogSummary()}',
       );
       return;
     }
@@ -110,8 +128,8 @@ Future<void> _logDefenderExclusionState(PreferenceService prefs) async {
     final stagingParent = UpdateConfig.stagingDir().parent.path;
 
     final missing = <String>[
-      if (!_containsPath(registered, appDir)) appDir,
-      if (!_containsPath(registered, stagingParent)) stagingParent,
+      if (!_containsPath(paths, appDir)) appDir,
+      if (!_containsPath(paths, stagingParent)) stagingParent,
     ];
 
     if (missing.isEmpty) {
@@ -133,6 +151,53 @@ Future<void> _logDefenderExclusionState(PreferenceService prefs) async {
       tag: LogTag.SYSTEM,
       message: '$_defenderLogPrefix: 판정 불가 (점검 실패) $e\n$s',
     );
+  }
+}
+
+/// `C:\...` 또는 UNC(`\\server\share`) 모양인지. 조회가 실제 목록을 돌려줬는지
+/// 판단하는 데만 쓴다.
+bool _looksLikeWindowsPath(String entry) =>
+    RegExp(r'^([a-z]:\\|\\\\)').hasMatch(entry);
+
+/// 설치본이 남긴 `defender_exclusion.log` 요약. 라이브 조회가 막혔을 때 "그때는
+/// 등록됐었다"는 정황을 함께 남기기 위한 것이다.
+///
+/// **이것으로 "정상"이라고 단정하지 않는다** — 설치 시점 기록이라 그 뒤에 예외가
+/// 지워졌을 수 있다. 날짜를 함께 남겨 사람이 판단하게 한다. 라이브 조회는 앱이
+/// 상승되지 않은 채 도는 한 대부분의 PC 에서 막히므로, 이 정황이 없으면 진단이
+/// 늘 "판정 불가" 한 줄로 끝나 아무 값도 주지 못한다.
+Future<String> _installerLogSummary() async {
+  try {
+    final file = File('${File(Platform.resolvedExecutable).parent.path}'
+        '\\defender_exclusion.log');
+    if (!await file.exists()) return '/ 설치 기록 없음';
+
+    // BOM 을 떼지 않으면 첫 키가 `﻿time=` 이 되어 매칭되지 않는다.
+    final text = (await file.readAsString()).replaceFirst('﻿', '');
+
+    // 키를 줄 머리에 고정하지 않는다 — 한 줄로 뭉친 로그(과거 스크립트의
+    // PowerShell 우선순위 버그 산물)와 줄 단위 로그를 모두 읽기 위해서다.
+    String match(RegExp re) => re.firstMatch(text)?.group(1)?.trim() ?? '';
+
+    final when = match(RegExp(r'time=(\S+)'));
+    // addError 값에는 공백이 들어갈 수 있으므로 다음 키까지로 끊는다.
+    final addError =
+        match(RegExp(r'addError=(.*?)(?=\s+winDefend=|[\r\n]|$)', dotAll: false));
+    if (addError.isNotEmpty) {
+      return '/ 설치 기록($when): 등록 실패 — $addError';
+    }
+    // exclusions 는 마지막 필드라 줄 끝(또는 파일 끝)까지가 값이다.
+    final exclusions =
+        match(RegExp(r'exclusions=([^\r\n]*)')).toLowerCase();
+    final appDir = File(Platform.resolvedExecutable).parent.path;
+    final stagingParent = UpdateConfig.stagingDir().parent.path;
+    final covered = exclusions.contains(appDir.toLowerCase()) &&
+        exclusions.contains(stagingParent.toLowerCase());
+    return covered
+        ? '/ 설치 기록($when): 2경로 등록됨'
+        : '/ 설치 기록($when): 등록 경로 불일치';
+  } catch (e) {
+    return '/ 설치 기록 읽기 실패($e)';
   }
 }
 
