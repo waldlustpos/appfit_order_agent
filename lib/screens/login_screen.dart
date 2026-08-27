@@ -851,11 +851,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   Widget _buildHeroPanel() {
     final locale = ref.watch(localeNotifierProvider);
 
-    final String heroSubTitle = switch (locale) {
-      AppLocale.ko => '주문 에이전트',
-      AppLocale.en => 'Order Agent',
-      AppLocale.ja => 'オーダーエージェント',
-    };
+    // 히어로 부제 = 앱 이름. 매머드 전용 아티팩트는 런처 label
+    // (android/app/src/mammoth/res/values/strings.xml)과 동일한 고유명사를
+    // 쓰며, 로고/아이콘과 같은 아티팩트 정체성 요소이므로 선택된 테마·로캘과
+    // 무관하게 고정한다(런처 label 자체도 로캘 변형이 없다).
+    final String heroSubTitle = BuildBrand.isMammoth
+        ? '매머드오더 에이전트'
+        : switch (locale) {
+            AppLocale.ko => '주문 에이전트',
+            AppLocale.en => 'Order Agent',
+            AppLocale.ja => 'オーダーエージェント',
+          };
 
     final brand = AppStyles.activeBrand;
     return Container(
