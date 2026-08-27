@@ -29,7 +29,7 @@
 - [주문흐름·출력 누락/몰림 점검 완료](project_order_output_audit_2026_07.md) — P1 3건(최종실패 무통지·재시작 유실·emit 이중기동) 검증. 실패통지=앱내 배너/배지 확정, 수정은 별도 (2026-07-07)
 - [Plane(waldsupport.com) 이슈 벌크 생성 도구](project_plane_issue_sync.md) — plane_sync/plane_sync.py + /plane 명령. 토큰 PLANE_API_TOKEN(.env), 프로젝트 SX. 미커밋 (2026-07-09)
 - [변형 폐기 → 단일 빌드 + 런타임 서버선택](project_variant_rename_japan_korea.md) — APPFIT_VARIANT 완전 제거, 단일 APK/exe 가 한/일 서빙. 서버=저장값+매장ID 프리픽스 자동전환. 폐기된 변형 기계는 이력용 보존: [두 변형 빌드 골격](project_dual_variant_build.md)·[launch.json dart-define](reference_launch_json_variant_dart_define.md)·[standalone OTA 채널](project_standalone_ota_channel.md) (2026-07-09)
-- [Sentry 알림 라우팅](project_sentry_alert_routing.md) — store_id→Slack 채널 분기. TPCP+PAIK+TLJP+MHST(live 한정) 라이브 적용. env 로 좁히면 나머지가 무음 폐기 → spillover 규칙 필수.
+- [Sentry 알림 라우팅](project_sentry_alert_routing.md) — store_id→Slack 채널 분기. TPCP+PAIK+TLJP+MMTH(신규채널) 라이브 적용, MHST는 catch-all. legacy rules GET 엔드포인트 죽음(PUT/POST/DELETE는 재시도로 생존) 함정 (2026-08-27)
 - [intra-order 라벨 300ms 딜레이](project_label_inter_label_delay.md) — 동일 주문 라벨 사이 firmware '종이 안 뗌' 감지 미동작(장비편차) 대응. Android 한정 고정 딜레이 (2026-07-21)
 - [brand 로고 solid 배경 = 색상 마스크](reference_brand_logo_solid_bg_color_mask.md) — 알파 없는 solid 배경은 docs alpha 매핑 대신 ImageChops.subtract(b,r) 파랑 마스크. PAIK 새 BI 교체 이력 (2026-07-21)
 - [COM 재시도 계층 경계](feedback_com_startup_retry_scope.md) — sendRaw 는 큐 backoff 가 상위 호환이라 내부 재시도 금지. 시작 연결확인만 StartupProbeScheduler (2026-07-21)

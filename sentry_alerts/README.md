@@ -32,7 +32,7 @@ API 로 재현 가능하게 만든다. `add-brand` 스킬이 이 스크립트를
 | branded | `store_id == TPCP00001` | 전체 | appfit-alert-tpc (C0B02RCJSJ0) |
 | branded | `store_id sw PAIK` | 전체 | appfit-alert-paik (C0BM48A7PUP) |
 | branded | `store_id sw TLJP` | 전체 | appfit-alert-tljp (C0BMQCJMB62) |
-| branded | `store_id sw MMTH` | **live** | appfit-alert-mhst (C0BPSFVEM9S) |
+| branded | `store_id sw MMTH` | **live** | appfit-alert-mmth (C0BTUPM420Y) |
 | spillover(자동) | `store_id sw MMTH` + `environment ne live` | 전체 | appfit-alert-test (C0AV9RDTTT7) |
 | catch-all | 위 branded 4개를 `store_id` 로 전부 제외 | 전체 | appfit-alert-test (C0AV9RDTTT7) |
 
@@ -40,7 +40,8 @@ API 로 재현 가능하게 만든다. `add-brand` 스킬이 이 스크립트를
 > **MMTH 만** 라우팅한다. `MHST` 는 규칙을 두지 않아 catch-all(appfit-alert-test)로
 > 떨어지는데, 이게 원래 `environment: live` 로 좁혔던 의도("사내 QA 노이즈를 브랜드
 > 채널에서 뺀다")를 그대로 실현한다 — 이제 MHST 가 곧 그 QA 프리픽스다.
-> Slack 채널명(`appfit-alert-mhst`)은 Slack 측 자산이라 그대로 두고 채널 ID 를 유지한다.
+> `appfit-alert-mmth`(C0BTUPM420Y)는 옛 `appfit-alert-mhst` 채널을 재사용하지 않고
+> 2026-08-27 신규로 만든 전용 채널이다.
 
 > WHEN(트리거)=`when: "every"`(빈 conditions = **모든 이벤트마다 발화**, Sentry 사양),
 > 모든 환경, 액션 간격 5분.

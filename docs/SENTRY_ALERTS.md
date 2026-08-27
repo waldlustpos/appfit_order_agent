@@ -22,16 +22,18 @@ Sentry Issue Alert 라우팅. 규칙은 대시보드 수동이 아니라
 | `[auto] TPCP00001 -> #appfit-alert-tpc` | `store_id == TPCP00001` | 전체 | appfit-alert-tpc (C0B02RCJSJ0) |
 | `[auto] PAIK -> #appfit-alert-paik` | `store_id sw PAIK` | 전체 | appfit-alert-paik (C0BM48A7PUP) |
 | `[auto] TLJP -> #appfit-alert-tljp` | `store_id sw TLJP` | 전체 | appfit-alert-tljp (C0BMQCJMB62) |
-| `[auto] MHST -> #appfit-alert-mhst` | `store_id sw MHST` | **live** | appfit-alert-mhst (C0BPSFVEM9S) |
-| `[auto] MHST(non-live) -> #appfit-alert-test` | `store_id sw MHST` + `environment ne live` | 전체 | appfit-alert-test (C0AV9RDTTT7) |
-| `[auto] catch-all -> #appfit-alert-test` | `store_id != TPCP00001` (+ PAIK, TLJP, MHST 제외) | 전체 | appfit-alert-test (C0AV9RDTTT7) |
+| `[auto] MMTH -> #appfit-alert-mmth` | `store_id sw MMTH` | **live** | appfit-alert-mmth (C0BTUPM420Y) |
+| `[auto] MMTH(non-live) -> #appfit-alert-test` | `store_id sw MMTH` + `environment ne live` | 전체 | appfit-alert-test (C0AV9RDTTT7) |
+| `[auto] catch-all -> #appfit-alert-test` | `store_id != TPCP00001` (+ PAIK, TLJP, MMTH 제외) | 전체 | appfit-alert-test (C0AV9RDTTT7) |
 
-**MHST 만 `environment: "live"` 로 좁힌 이유** — MHST 는 사내 QA 브랜드(`MHST00084` 본사 테스트,
-`MHST01070~` 온보딩)라 실측상 staging 이 압도적이다(30일 기준 staging 404 / live 40 / japanLive 19).
-전체 환경으로 열면 브랜드 채널의 90% 이상이 개발·테스트 노이즈가 된다.
-`[auto] MHST(non-live)` 는 그 **잔여 환경을 받아주는 spillover** — catch-all 은 `store_id` 로 브랜드를
-통째 제외하므로 이 규칙이 없으면 MHST staging/japanLive 이벤트가 어느 규칙에도 안 걸려 **무음 폐기**된다.
-스크립트가 `environment` 가 있는 branded 항목마다 자동 생성한다.
+**매머드 프리픽스 2종, 브랜드 채널은 MMTH 만** — 매머드는 `MMTH`(실제 운영, live)와
+`MHST`(사내 QA/스테이징) 두 프리픽스를 쓴다(둘 다 같은 브랜드). `MHST` 는 실측상 staging 이
+압도적이라(30일 기준 staging 625 / live 8 / japanLive 12) 전용 규칙을 두지 않고 **catch-all
+(appfit-alert-test)로 떨어뜨린다** — 이게 원래 "사내 QA 노이즈를 브랜드 채널에서 뺀다"는 의도를
+그대로 실현한다. `[auto] MMTH(non-live)` 는 MMTH 자체의 **잔여 환경(staging 등)을 받아주는
+spillover** — catch-all 은 `store_id` 로 브랜드를 통째 제외하므로 이 규칙이 없으면 MMTH
+non-live 이벤트가 어느 규칙에도 안 걸려 **무음 폐기**된다. 스크립트가 `environment` 가 있는
+branded 항목마다 자동 생성한다.
 
 - WHEN(트리거): `when: "every"` — 빈 conditions = **모든 이벤트마다 발화**(Sentry 사양상
   트리거 미지정 = 모든 이벤트 충족). `actionMatch=any`. 모든 환경. 액션 간격 5분.

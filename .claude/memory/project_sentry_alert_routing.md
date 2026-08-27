@@ -1,11 +1,11 @@
 ---
 name: project_sentry_alert_routing
-description: "Sentry 매장/브랜드별 에러 알림 라우팅 — sentry_alerts/ 스크립트로 코드화, MCP는 규칙 생성 불가, 라이브 적용은 토큰 대기"
+description: "Sentry 매장/브랜드별 에러 알림 라우팅 — sentry_alerts/ 스크립트로 코드화. TPCP/PAIK/TLJP/MMTH 라이브 적용 완료. 레거시 rules GET 엔드포인트 죽음(PUT/POST/DELETE는 재시도로 생존)"
 metadata: 
   node_type: memory
   type: project
   originSessionId: 0bc1b321-0c0b-48ed-9e40-f73903b4b7c7
-  modified: 2026-08-03T23:41:57.702Z
+  modified: 2026-08-27T02:06:59.828Z
 ---
 
 **목표**: TPCP00001 에러 → Slack `appfit-alert-tpc`(C0B02RCJSJ0), 그 외 전부 → `appfit-alert-test`(C0AV9RDTTT7). 브랜드 추가 시 반복 가능하게(add-brand 통합).
@@ -45,3 +45,9 @@ metadata:
 **비자명한 함정 — env 로 좁히면 나머지가 무음 폐기됨**: catch-all 은 branded 각 항목의 **`store_id` 부정 필터**로 구성된다(`nsw MHST`). branded 를 `environment=live` 로 좁혀도 catch-all 은 여전히 MHST **전체**를 제외하므로, MHST staging/japanLive 이벤트가 branded 에도 catch-all 에도 안 걸려 **어느 채널에도 안 감**(기존엔 test 채널로 갔음 → QA 가시성 상실). Sentry 규칙 필터는 `all`/`any` 뿐이라 `NOT(A AND B)` 를 한 규칙에 못 담는 게 근본 원인. 해결: `sentry_alerts.py` 에 **spillover 규칙 자동 생성** 추가 — `spillover_payload()` 가 `store_id sw MHST` + `environment ne live` 태그필터로 잔여 환경을 catchall 채널에 보낸다. 규칙 레벨 `environment` 는 부정을 표현할 수 없어 **environment 를 태그 필터로** 씀(`_applyScope` 가 `options.environment` 와 동명 태그를 둘 다 심어서 가능). `desired_payloads()` 는 env 가 있는 branded 마다 spillover 를 끼워넣고 `catchall_payload()` 는 무변경. 결과 규칙 4→6개(#17408554 MHST, #17408555 MHST(non-live)), 재실행 멱등 확인.
 
 **Slack MCP 로는 alert 채널 검증 불가**: 알림 채널들이 전부 비공개라 `slack_search_channels`/`slack_read_channel` 이 `channel_not_found`(워크스페이스는 맞음 — 다른 appfit-* 채널은 조회됨). 채널명 검증 수단은 `apply` 뿐(이름이 틀리면 Sentry 가 거부하므로 **잘못 라우팅될 위험은 없음**). 단 **branded POST 만 실패하고 spillover+catch-all 이 성공하면 그 브랜드 운영 이벤트가 무음 폐기**되므로 apply 출력을 반드시 확인할 것.
+
+**MMTH 채널 신설 + 실적용 완료(2026-08-27)**: 매머드 실제 운영 프리픽스는 `MMTH`(`MHST`는 사내 QA/staging — 실측 30일 MMTH: live 6·staging 1 / MHST: staging 625·live 8·japanLive 12). 지난 세션(2026-08-18, [[project_mammoth_dedicated_build]])이 `routes.json`의 `branded[]`를 MHST→MMTH로 이미 교체했었으나 **`apply`를 한 번도 실행하지 않아**, 라이브 Sentry 규칙은 계속 `store_id sw MHST`로 필터링 중이었다 — 그래서 실제 `MMTH*` 매장 에러가 전부 catch-all(`appfit-alert-test`, C0AV9RDTTT7)로 떨어지고 있었다(사용자 보고 증상 그대로). 이번 세션에서 사용자가 **기존 `appfit-alert-mhst`(C0BPSFVEM9S) 재사용 대신 신규 채널 `appfit-alert-mmth`(C0BTUPM420Y)를 새로 만들어** routes.json 채널을 교체 후 적용. 결과: `[auto] MMTH -> #appfit-alert-mmth`(REST 신규 생성)·`[auto] MMTH(non-live) -> #appfit-alert-test`(신규)·catch-all 갱신(`nsw MHST`→`nsw MMTH`), 옛 `[auto] MHST`/`MHST(non-live)` 규칙(REST id 17408554/17408555)은 `delete-legacy`로 삭제. `get_alert_rule` MCP로 필터·액션 내용 직접 확인 완료(정상).
+
+**중대 함정 — 레거시 `/projects/{org}/{project}/rules/` REST 엔드포인트가 GET 은 죽고 PUT/POST/DELETE 는 살아있는데 그마저 간헐적으로 튄다**: 이번 세션에서 `list`/`apply`가 전부 `410 This API no longer exists`로 실패(GET 컬렉션·GET 단건 둘 다 확인). 그런데 **PUT/POST/DELETE 는 살아있음** — 단 최초 시도에서 3개 규칙(TPCP00001/PAIK/TLJP PUT)이 410로 실패하고 catch-all PUT 은 같은 루프에서 성공, 실패했던 3개도 즉시 재시도하니 전부 1차 성공. **결론: GET 계열은 영구 사망, 쓰기 계열은 살아있되 세션 내 무작위로 개별 요청이 튐(백엔드 라우팅/카나리 추정) — 재시도로 해결됨, 진짜 죽은 게 아니라 요청 단위 flakiness.** 우회: `api.list_rules()`(GET)에 의존하는 `cmd_apply`/`cmd_list`/`cmd_capture`는 이제 항상 죽는다 — by_name 인덱스를 **Sentry MCP `find_alert_rules`(다른 코드 경로, 살아있음)로 얻은 이름→REST id 매핑을 수동 하드코딩**해 `sa._apply_one(api, payload, by_name, False)`를 직접 호출하는 방식으로 우회했다(`delete-legacy`는 list 의존 없이 DELETE만 하므로 그대로 동작). **스크립트 자체의 근본 수정은 아직 안 함** — 다음에 또 쓰려면 이 우회를 다시 하거나 `sentry_alerts.py`의 `list_rules()`를 MCP 경유 또는 재시도 로직으로 고쳐야 한다. 참고로 REST id 체계와 MCP id 체계는 여전히 이중(예 MMTH 규칙: REST 17425782 vs MCP 3905138) — [[reference_sentry_dual_rule_id_schemes]] 로 분리 예정이면 그쪽에, 아니면 이 메모에 계속 축적.
+
+**정정 — `get_alert_rule` 이 이제 필터 내용을 보여줌**: 2026-07-16 메모의 "get_alert_rule 콘덴스드 출력은 IF 필터 내용을 안 보여줌" 주장은 더 이상 사실이 아니다. 이번 세션 `get_alert_rule(kind='issue', ...)` 응답에 `Conditions: Tagged event (key: store_id, match: sw, value: MMTH...)`, `Actions: Slack(...)`까지 전부 노출됨 — 이제 filter/action 확인용으로 `capture`(GET 의존, 죽음) 대신 이 MCP 도구를 1순위로 쓸 것.

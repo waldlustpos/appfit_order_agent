@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 189e1561-e4e8-4434-b4f8-17a8e4dc7c9d
-  modified: 2026-08-18T12:47:18.200Z
+  modified: 2026-08-27T02:07:14.694Z
 ---
 
 매머드커피에 전용 앱 이름·아이콘을 입힌 빌드를 만들고 공통 빌드와 구분해 배포하는 체계. 설계는 `.claude/plans/mammoth-dedicated-build.md`(커밋 `605ac09`).
@@ -49,7 +49,7 @@ metadata:
 ## 다음 세션 시작점
 
 - Windows 인스톨러 실제 설치 검증(common+mammoth 병존, 제어판 항목 분리, mutex 독립, `%APPDATA%` 샌드박스 분리)
-- Sentry `routes.json` 반영 스크립트 실행(`sentry_alerts.py apply`) — 아직 정본 파일만 수정, 미반영
+- ~~Sentry `routes.json` 반영 스크립트 실행~~ — **완료(2026-08-27)**. 신규 채널 `appfit-alert-mmth`(C0BTUPM420Y)로 라이브 적용, 상세는 [[project_sentry_alert_routing]].
 - Sunmi App Store 매머드 전용 리스팅 등록(콘솔 수동 작업, 롤아웃 임계 경로일 수 있음)
 - 로그인 화면 매머드 로고 배경 조합(로고=매머드, 배경=기본 핑크 그라데이션 섞임 가능) 실기기 시각 확인
 - 드로어 로고 폭(975×640 워드마크를 36px 높이로 넣으면 실사용 폭 ~55px) 좁은 드로어에서 답답해 보이는지 확인 — 답답하면 정사각 심볼 자산(`app_icon_mammoth_fg.png`)로 교체 검토
