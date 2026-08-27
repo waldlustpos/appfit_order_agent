@@ -16,8 +16,15 @@ class WindowsUpdaterScript {
   /// 2. taskkill 후 고정 대기 대신 `tasklist` 폴링. `timeout` 커맨드는 숨겨진
   ///    콘솔에서 입력 리다이렉션 오류로 즉시 반환될 수 있어 신뢰할 수 없다.
   ///    대기는 `ping` 루프백으로 대체한다.
-  /// 3. robocopy 실패(`:fail`) 시에도 `:launch` 로 fall-through 하여 기존 버전
-  ///    앱을 반드시 다시 띄운다. 업데이트 실패가 영업 중단이 되면 안 된다.
+  /// 3. robocopy 실패(`:fail`) 시에도 `:launch` 로 fall-through 하여 앱을 반드시
+  ///    다시 띄운다. 업데이트 실패가 영업 중단이 되면 안 된다.
+  ///
+  ///    **이것은 롤백이 아니다.** robocopy 는 exit code 8 이상이어도 일부 파일은
+  ///    이미 복사한 뒤라, 설치 폴더에 구/신 파일이 섞여 남는다(2026-08-27 실측:
+  ///    rc=11 에서 exe·app.so 는 교체되고 잠긴 파일 하나만 구버전 유지).
+  ///    보장하는 것은 "앱이 다시 뜬다"까지이고, 어떤 파일이 실패했는지는 로그의
+  ///    robocopy 오류 줄로만 판별할 수 있다. 깨끗한 원자적 교체가 필요하면
+  ///    스테이징 후 폴더 스왑으로 바꿔야 하는데, 그건 별도 설계 변경이다.
   /// 4. 로그는 append. 회차별 기록이 남아야 사후 진단이 가능하다.
   /// 5. errorlevel 은 `RC` 변수로 즉시 복사. `if` 블록 안의 `%errorlevel%` 은
   ///    블록 진입 시점 값으로 확장되어 실제 robocopy 결과와 달라진다.
@@ -68,7 +75,10 @@ class WindowsUpdaterScript {
       '',
       ':fail',
       'echo [FAIL] robocopy error code: %RC% >> "$logPath"',
-      'echo Relaunching previous version so the store is not left down. >> "$logPath"',
+      'echo WARNING: copy incomplete. The app folder may now hold a MIX of old >> "$logPath"',
+      'echo and new files - robocopy code 8+ still means some files were copied. >> "$logPath"',
+      'echo See the robocopy errors above for exactly which files failed. >> "$logPath"',
+      'echo Relaunching anyway so the store is not left down. >> "$logPath"',
       '',
       ':launch',
       'echo Starting app... >> "$logPath"',
