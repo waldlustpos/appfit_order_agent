@@ -122,6 +122,25 @@ if ($exitCode -ne 0 -or -not (Test-BuildArtifactComplete)) {
 New-Item -ItemType Directory -Force -Path "build\windows" | Out-Null
 Set-Content -Path $BrandSentinel -Value $Brand -NoNewline
 
+# 다른 브랜드 러너 산출물 제거 (무조건) — build_installer.ps1 /
+# deploy_windows.ps1 과 동일한 가드.
+#
+# 위쪽 sentinel 검사는 "이 스크립트가 브랜드 변경을 목격했을 때"만 발동한다.
+# 중간에 flutter build 를 직접 돌리면 sentinel 이 갱신되지 않으므로, 이전 브랜드
+# 의 exe 가 "변경 없음" 판정 아래 살아남아 아카이브 ZIP 에 함께 담긴다.
+# 2026-08-27 실측: 매머드 설치본에 공통 러너가 섞여 들어갔다.
+#
+# 이름을 정확히 매칭한다 — "appfit_order_agent" 는
+# "appfit_order_agent_mammoth" 의 접두사라 와일드카드로 쓸면 반대쪽을 지운다.
+$ForeignBase = if ($Brand -eq 'mammoth') { 'appfit_order_agent' } else { 'appfit_order_agent_mammoth' }
+foreach ($ext in @('exe','exp','lib','pdb')) {
+    $foreign = Join-Path $buildOutput "$ForeignBase.$ext"
+    if (Test-Path $foreign) {
+        Write-Host "[경고] 다른 브랜드 잔재 제거: $ForeignBase.$ext" -ForegroundColor Yellow
+        Remove-Item $foreign -Force -ErrorAction SilentlyContinue
+    }
+}
+
 Write-Host ""
 Write-Host "✅ 빌드 완료!" -ForegroundColor Green
 Write-Host "📂 출력 폴더: $buildOutput"

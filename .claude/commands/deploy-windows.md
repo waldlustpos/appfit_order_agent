@@ -28,6 +28,24 @@ OTA 채널은 아티팩트마다 하나다 (`lib/config/update_config.dart`):
 > ⚠️ **한국/일본 동시 롤아웃**: 한 채널 안에서는 지역 구분이 없으므로 업로드
 > 즉시 양국 매장이 같은 빌드로 업데이트된다. 지역별 시차 배포는 불가능하다.
 
+## OTA 는 설치 위치를 옮기지 않는다 (per-user 전환 이후)
+
+2026-08 per-user 전환 이후에도 **OTA 는 매장의 현재 설치 위치를 그대로 갱신한다.**
+
+| 매장 설치 형태 | OTA 동작 |
+| --- | --- |
+| per-user (`%LOCALAPPDATA%\Programs\...`) | UAC **없이** 갱신 |
+| 구 machine-wide (`C:\Program Files\...`) | 기존대로 갱신되지만 **점주 화면에 UAC 1회** |
+
+앱이 설치 폴더에 실제로 써 보고 상승 여부를 정하므로 두 경우 모두 동작한다(검증
+완료). 하지만 **아직 방문하지 않은 매장이 있는 상태로 채널을 올리면 그 매장 점주가
+예정에 없던 UAC 를 보게 된다.** 거부해도 `:fail → :launch` 로 구버전이 계속 도니
+장애는 아니지만, 이관 작업 중이라면 **설치본을 전 매장에 먼저 깔고 채널을 나중에
+올리는 순서**를 지킬 것.
+
+per-user 로 옮기려면 새 설치본을 매장마다 한 번 실행해야 한다 — OTA 로는 이관되지
+않는다. 상세: [docs/WINDOWS_PERUSER_INSTALL.md](../../docs/WINDOWS_PERUSER_INSTALL.md)
+
 ## 1단계 — 브랜드 선택
 
 `AskUserQuestion` 으로 묻는다: **common**(기본)/**mammoth**.
@@ -44,10 +62,15 @@ git log --oneline -3
 - 업데이트할 버전: `pubspec.yaml` 의 `version` 값(예: `3.0.0+161` → 빌드번호 `161`)을 읽는다. (**버전 정본 = `pubspec.yaml`**, Android/Windows 공통, 브랜드 무관. 형식 `x.y.z+n`, `+` 뒤가 빌드번호. 구 `version_windows.txt` 는 폐지)
 - 현재 서버 버전:
   ```
-  curl -fsS --max-time 10 http://waldpay.kokonutstamp2.com/appfit_order_agent_windows_version.json          # common
-  curl -fsS --max-time 10 http://waldpay.kokonutstamp2.com/appfit_order_agent_mammoth_windows_version.json  # mammoth
+  curl -fsS --max-time 10 https://waldpay.kokonutstamp2.com/appfit_order_agent_windows_version.json          # common
+  curl -fsS --max-time 10 https://waldpay.kokonutstamp2.com/appfit_order_agent_mammoth_windows_version.json  # mammoth
   ```
   (응답 `{"version": <int>}` = 현재 배포된 빌드번호)
+
+  > **https 로 확인한다.** 앱의 `UpdateConfig` 가 2026-08 부터 https 고정이고
+  > HTTP 폴백을 두지 않으므로(다운그레이드 공격 방지), TLS 로 실제 응답이 오는지가
+  > 곧 매장이 업데이트를 받을 수 있는지다. Android `OtaConfig` 는 아직 http 라
+  > 혼동하지 말 것.
 - 조회 실패(네트워크/404 등) 시: 실패 사실만 알리고 차단하지 않는다(서버에 아직 파일이 없는 첫 배포일 수 있음 — 매머드 채널은 아직 한 번도 채워지지 않았을 수 있다).
 
 아래 형식으로 **현재 서버 버전 → 업데이트할 버전** 을 보여준다:
@@ -70,6 +93,28 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./deploy_windows.ps1 -Br
 ```
 
 > 에이전트 셸에서 PowerShell 호출이 거부/실패하면, 사용자에게 **레포 루트의 PowerShell 터미널에서 직접** `.\deploy_windows.ps1 -Brand <브랜드>` 을 실행하도록 안내한다.
+
+### 설치본과 같은 릴리즈를 낼 때는 `-SkipBuild`
+
+같은 버전의 **설치본(Setup.exe)과 OTA ZIP 을 함께 낼 때**는 이 순서로 돌린다:
+
+```
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./build_installer.ps1 -Brand <브랜드>
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./deploy_windows.ps1 -Brand <브랜드> -SkipBuild
+```
+
+두 스크립트가 각각 `flutter build` 를 돌리면 러너 exe 가 두 번 링크되는데, MSVC
+링커는 링크마다 PE 헤더의 `TimeDateStamp` 와 PDB 서명 GUID 를 새로 새긴다.
+소스가 같아도 두 산출물의 해시가 달라지고(크기는 같다), **Defender 평판은 해시
+단위로 쌓이므로** 릴리즈마다 평판 0 인 바이너리가 둘 생겨 오탐 신고도 두 건을
+내야 한다. `-SkipBuild` 는 그 두 번째 빌드를 생략해 설치본과 ZIP 이 문자 그대로
+같은 exe 를 담게 한다.
+
+> `-SkipBuild` 의 위험은 **낡은 Release 폴더를 새 버전 번호로 올리는 것**이다.
+> 그러면 version JSON 은 새 빌드번호를 가리키는데 매장이 받는 바이너리는
+> 구버전이라, 업데이트를 받아도 같은 팝업을 계속 본다. 스크립트의
+> `1-0) 산출물 버전 검증` 단계가 exe 의 `ProductVersion` 과 `pubspec.yaml` 의
+> `version` 을 대조해 업로드 전에 중단시킨다(두 모드 모두에서 동작).
 
 ## 실행 후
 

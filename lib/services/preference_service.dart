@@ -1097,6 +1097,18 @@ class PreferenceService {
   /// 현재 저장된 매장 ID가 마하테이스트(mahataste) 매장인지 반환.
   bool isMataStore() => isMATAStoreId(getId());
 
+  // ── Windows 전용 설치 환경 점검 ─────────────────────────────────────────────
+
+  /// Defender 예외 상태를 마지막으로 점검한 날짜(`yyyy-MM-dd`).
+  ///
+  /// 점검은 powershell 프로세스를 띄우므로 하루 1회로 제한한다 —
+  /// `windows_startup_maintenance.dart` 참조.
+  static const String _keyDefenderCheckDate = 'APPFIT_DEFENDER_CHECK_DATE';
+
+  String? getDefenderCheckDate() => _prefs.getString(_keyDefenderCheckDate);
+  Future<void> setDefenderCheckDate(String date) async =>
+      _prefs.setString(_keyDefenderCheckDate, date);
+
   // ── Windows 전용 프린터 설정 ────────────────────────────────────────────────
 
   static const String _keyComPortName = 'APPFIT_COM_PORT_NAME';

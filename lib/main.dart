@@ -15,6 +15,7 @@ import 'package:appfit_order_agent/services/windows_bubble_service.dart';
 import 'package:appfit_order_agent/services/windows_log_file_writer.dart';
 import 'package:appfit_order_agent/dev/rebuild_counter_observer.dart';
 import 'package:appfit_order_agent/utils/app_startup_updater.dart';
+import 'package:appfit_order_agent/utils/windows_startup_maintenance.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:appfit_order_agent/widgets/windows_bubble_overlay.dart';
 import 'package:appfit_core/appfit_core.dart'; // AppFit Core 추가
@@ -177,6 +178,13 @@ void main() async {
     final preferenceService = PreferenceService();
     await preferenceService.init();
     logger.i('PreferenceService 초기화 완료');
+
+    // Windows per-user 설치 전환 뒤처리 — 자동실행 레지스트리 경로 갱신 +
+    // Defender 예외 자가진단. 어느 작업도 실패가 기동을 막지 않는다.
+    //
+    // 이 위치는 runStartupUpdateFlow()(업데이트 설치 시 exit(0)) **이후**라,
+    // 실제 업데이트가 설치되는 회차에는 실행되지 않고 정상 기동 회차에만 돈다.
+    await runWindowsStartupMaintenance(preferenceService);
 
     // Windows: 라벨 프린터 사용 ON 이면 시작 시점에 USB 포트를 미리 연다.
     // 첫 인쇄 지연 제거 + 설정 화면 연결 상태가 즉시 정확히 표시되도록 함.
