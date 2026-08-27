@@ -140,8 +140,11 @@ class Auth extends _$Auth {
         // 비어 있으면 Authorization 헤더를 아예 붙이지 않고 요청을 내보낸다.
         await ref.read(preferenceServiceProvider).setSessionStoreId(storeId);
 
+        // 로그인 흐름은 LIFECYCLE — [API] 로 두면 파일 화이트리스트의 [API] 분기가
+        // ERROR/실패/오류 줄만 통과시켜서 "성공했다"는 기록만 통째로 사라진다.
+        // 장애 분석에서 "이 기기가 언제 로그인했나"가 안 잡히는 원인이었다.
         logToFile(
-            tag: LogTag.API,
+            tag: LogTag.LIFECYCLE,
             message: '[Auth] V2 Token Acquired (shopCode=$storeId)');
 
         // 프로젝트 정보 및 매장 정보 조회 (API 연동 테스트)
@@ -165,10 +168,10 @@ class Auth extends _$Auth {
                 .setProjectName(projectName);
           }
           logToFile(
-              tag: LogTag.API,
+              tag: LogTag.LIFECYCLE,
               message: '[Auth] V2 Project Info Validation Success');
           logToFile(
-              tag: LogTag.API,
+              tag: LogTag.LIFECYCLE,
               message: '[Auth] V2 Store Info Validation Success');
         } catch (e, s) {
           logger.e('[Auth] V2 Data Fetch Failed', error: e, stackTrace: s);
@@ -203,8 +206,10 @@ class Auth extends _$Auth {
                 projectId: projectId,
                 apiKey: apiKey,
                 aesKey: aesKey);
+            // 소켓 연결/해제는 전용 WEBSOCKET 태그가 파일 화이트리스트에 있다.
             logToFile(
-                tag: LogTag.API, message: '[Auth] AppFit WebSocket Connected');
+                tag: LogTag.WEBSOCKET,
+                message: '[Auth] AppFit WebSocket Connected');
           } else {
             logger.w('[Auth] Missing credentials for WebSocket connection');
             logToFile(
@@ -215,7 +220,7 @@ class Auth extends _$Auth {
         } else {
           logger.i('[Auth] WebSocket connection skipped by user setting');
           logToFile(
-              tag: LogTag.API,
+              tag: LogTag.WEBSOCKET,
               message: '[Auth] WebSocket connection skipped details');
         }
 
@@ -371,7 +376,7 @@ class Auth extends _$Auth {
               apiKey: apiKey,
               aesKey: aesKey,
             );
-        logToFile(tag: LogTag.API, message: '[Auth] 재연결 완료');
+        logToFile(tag: LogTag.WEBSOCKET, message: '[Auth] 재연결 완료');
       } else {
         logger.w('[Auth] 재연결 실패: 자격증명 불충분');
       }

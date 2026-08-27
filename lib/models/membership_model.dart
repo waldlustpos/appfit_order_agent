@@ -123,7 +123,10 @@ class MembershipInfo {
 
   @override
   String toString() {
-    return 'MembershipInfo{isAppMember: $isAppMember, userName: $userName, phoneNumber: ${CommonUtil.maskTail(phoneNumber)}, stampCount: $stampCount, couponCount: $couponCount, coupons: $coupons, totalPoint: $totalPoint}';
+    // userName(실명일 수 있음)은 넣지 않는다 — toString 은 로그에 통째로 실리는
+    // 값이라(멤버십 조회 성공 logToFile 등), 식별 키는 가명인 barcode 원문으로 남긴다.
+    // 전화번호는 그 자체로 사람을 지목하므로 마스킹 유지.
+    return 'MembershipInfo{isAppMember: $isAppMember, barcode: $barcode, phoneNumber: ${CommonUtil.maskTail(phoneNumber)}, stampCount: $stampCount, couponCount: $couponCount, coupons: $coupons, totalPoint: $totalPoint}';
   }
 }
 

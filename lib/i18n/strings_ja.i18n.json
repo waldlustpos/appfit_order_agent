@@ -570,6 +570,7 @@
             "use_coupon_code_content": "クーポンコード [{code}] を使用しますか？",
             "scanner_not_supported": "QRバーコードをサポートしていない端末です。",
             "enter_coupon_code": "クーポンコードを入力してください。",
+            "coupon_code_looks_like_phone": "電話番号が入力されています。会員照会をご希望の場合は[会員照会]を押してください。クーポンをご利用の場合はクーポンコードを入力してください。",
             "store_info_missing": "店舗情報がありません。再度ログインしてください。",
             "input_error_title": "入力エラー",
             "stamp_input_error": "スタンプ個数は1以上の数字で入力してください。",

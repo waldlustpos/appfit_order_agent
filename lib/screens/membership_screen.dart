@@ -55,7 +55,9 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
         final String scanResult = call.arguments as String;
         logToFile(
           tag: LogTag.UI_ACTION,
-          message: '바코드 스캔 결과: ${CommonUtil.maskTail(scanResult)}',
+          // 회원바코드는 원문 유지 — 주문 상세 로그의 `회원바코드:` 와 같은 키로
+          // 맞대조해야 스캔→조회→주문 경로를 추적할 수 있다.
+          message: '바코드 스캔 결과: $scanResult',
         );
         // 자동 라우팅하지 않는다. 스캔 결과를 입력란에 채우고, 사용자가
         // [회원조회]/[쿠폰사용] 버튼으로 명시 조작한다.
@@ -767,8 +769,12 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
   void _searchMembership({String memberId = ''}) async {
     final phoneNumber =
         memberId.isEmpty ? _inputController.text.trim() : memberId.trim();
+    // 태그는 UI_ACTION — 이 화면의 다른 버튼(초기화·바코드스캔·쿠폰사용/취소·
+    // 스탬프적립/취소)과 같다. LogTag.API 로 두면 logger.d 로 떨어지는데,
+    // 파일 화이트리스트의 [API] 분기는 ERROR/실패/오류 를 포함한 줄만 통과시켜서
+    // 정상 조회는 콘솔에만 남고 로그파일에는 아예 기록되지 않는다.
     logToFile(
-        tag: LogTag.API,
+        tag: LogTag.UI_ACTION,
         message:
             'Search membership. Input: ${CommonUtil.maskTail(phoneNumber)}');
     if (phoneNumber.isEmpty) {
@@ -821,10 +827,9 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
         await ref.read(waldposScanProvider.notifier).requestBarcode();
     if (!mounted) return;
     if (result.success && result.barcode.isNotEmpty) {
-      // 회원바코드는 뒤 4자리만 노출하여 마스킹(쿠폰번호는 정책상 원문 유지).
+      // 회원바코드는 원문 유지 — 가명 식별자라 로그 대조 키로 쓴다(쿠폰번호도 원문).
       logToFile(
-          tag: LogTag.UI_ACTION,
-          message: 'waldpos 스캔 결과: ${CommonUtil.maskTail(result.barcode)}');
+          tag: LogTag.UI_ACTION, message: 'waldpos 스캔 결과: ${result.barcode}');
       _fillInput(result.barcode);
       return;
     }
@@ -845,6 +850,23 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
         context: context,
         title: t.membership.dialog.notification,
         content: t.membership.dialog.enter_coupon_code,
+      );
+      return;
+    }
+
+    // 전화번호를 넣은 채 [쿠폰사용]을 누른 오조작 — 서버에 보내지 않고 여기서 끊는다.
+    // 보내면 400 INVALID_REQUEST 가 나는데, 서버 메시지가 입력값을 그대로 되돌려줘서
+    // (`Invalid couponNo: 010…`) 그 문구가 Sentry 이슈 제목 → Slack 알림까지 흘러가
+    // 고객 전화번호가 노출된다. 로그에도 원문을 남기지 않으려고 마스킹해서 기록한다.
+    if (CommonUtil.isLikelyPhoneNumber(couponCode)) {
+      logToFile(
+          tag: LogTag.UI_ACTION,
+          message: '쿠폰사용 버튼 클릭 — 전화번호 오입력으로 차단: '
+              '${CommonUtil.maskTail(couponCode)}');
+      CommonDialog.showInfoDialog(
+        context: context,
+        title: t.membership.dialog.notification,
+        content: t.membership.dialog.coupon_code_looks_like_phone,
       );
       return;
     }

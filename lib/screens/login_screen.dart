@@ -437,7 +437,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     // 먼저 끝나는 구간에서 연타하면 두 번째 로그인 시도가 겹쳐 들어간다.
     if (_isLoading) return;
 
-    logToFile(tag: LogTag.API, message: '로그인시도');
+    // 로그인 시도/성공/실패 3줄 모두 LIFECYCLE 로 통일한다. [API] 였을 때는
+    // 화이트리스트가 ERROR/실패/오류 줄만 통과시켜서 '로그인실패'만 파일에 남고
+    // 시도·성공은 콘솔에서 증발했다 — 기기가 언제 로그인했는지 추적 불가.
+    logToFile(tag: LogTag.LIFECYCLE, message: '로그인시도');
 
     // 첫 await 이전에 즉시 로딩 상태로 전환해 버튼을 비활성화한다.
     setState(() {
@@ -539,7 +542,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           final appInfo = await ref.read(appInfoProvider.future);
 
           logToFile(
-              tag: LogTag.API,
+              tag: LogTag.LIFECYCLE,
               message:
                   '로그인성공: $storeId ${storeName ?? ''}, AppVersion: ${appInfo.version} (${appInfo.buildNumber}), KDS모드: $_isKdsMode');
 
@@ -582,7 +585,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       } else {
         if (mounted) {
           logToFile(
-              tag: LogTag.API,
+              tag: LogTag.LIFECYCLE,
               message: '로그인실패: ${errorMessage ?? '로그인에 실패했습니다.'}');
           CommonDialog.showErrorDialog(
               context: context,

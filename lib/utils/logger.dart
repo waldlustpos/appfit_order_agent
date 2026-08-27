@@ -128,13 +128,10 @@ class CustomLogOutput extends LogOutput {
       }
 
       // API 관련: 에러만 기록 (정상 요청/응답은 파일 기록에서 제외)
-      // 단, getOrder 원본 응답 진단 로그는 예외 — 옵션/아이템 POS 코드 필드명이
-      // 서버 응답에서만 확인 가능해 (예: optionPosId vs itemPosId) 정상 응답도 보존한다.
       else if (line.contains('[API]') &&
           (line.contains('ERROR') ||
               line.contains('실패') ||
-              line.contains('오류') ||
-              line.contains('[getOrder]'))) {
+              line.contains('오류'))) {
         shouldLogToFile = true;
       }
 

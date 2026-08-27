@@ -80,16 +80,24 @@ ApiException mapDioErrorToApiException(
         ? serverMessage!.trim()
         : (_fallbackForDioType(error.type) ?? _fallbackForStatus(status));
 
+    // breadcrumb 은 Sentry 로 나간다 — 서버 메시지가 입력값을 되돌려주는 경우
+    // (`Invalid couponNo: 010…`)가 있어 6자리 이상 숫자열을 마스킹한다.
+    // 규칙은 core 의 [ApiHttpException.redactDigitRuns] 하나만 쓴다(두 벌로
+    // 갈라지면 한쪽만 새는 구멍이 생긴다). 사용자에게 노출하는 [friendly] 원문은
+    // 그대로 두고, 원격으로 나가는 값만 가린다.
+    final redactedFriendly = ApiHttpException.redactDigitRuns(friendly);
     MonitoringService.instance.addBreadcrumb(
-      'API 오류${context != null ? ' ($context)' : ''}: $friendly',
+      'API 오류${context != null ? ' ($context)' : ''}: $redactedFriendly',
       category: 'api',
       data: {
         'context': context,
         'status_code': status,
         'server_code': serverCode,
-        'server_message': serverMessage,
+        'server_message': serverMessage == null
+            ? null
+            : ApiHttpException.redactDigitRuns(serverMessage),
         'dio_type': error.type.name,
-        'friendly_message': friendly,
+        'friendly_message': redactedFriendly,
       },
     );
 

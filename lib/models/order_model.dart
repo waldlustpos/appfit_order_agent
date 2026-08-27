@@ -55,6 +55,14 @@ class OrderModel {
   /// 할인 종류별 내역(금액·쿠폰명 포함).
   final List<OrderDiscountModel> discounts;
 
+  /// 회원 바코드(`data.user.barcode`). 주문 채널에 따라 없을 수 있다(비회원·키오스크).
+  ///
+  /// 화면에는 쓰지 않는다 — **로그 전용 식별 키**다. 주문 상세 로그에서 고객을
+  /// 지목해야 할 때 실명/닉네임(`userName`)·연락처(`tel`) 대신 이걸 남긴다.
+  /// 바코드는 회원 DB 를 거쳐야만 사람으로 환원되는 가명 식별자라, 로그 파일이
+  /// 기기 밖(Slack 업로드·로컬 로그서버)으로 나가도 그 자체로는 개인을 식별하지 않는다.
+  final String? userBarcode;
+
   OrderModel({
     required this.orderNo,
     required this.shopOrderNo,
@@ -86,6 +94,7 @@ class OrderModel {
     bool? isDetailLoaded,
     this.payments = const [],
     this.discounts = const [],
+    this.userBarcode,
   })  : source = source,
         displayOrderNo = displayOrderNo,
         updateTime = updateTime ?? DateTime.now(),
@@ -125,6 +134,7 @@ class OrderModel {
         kdsOrderType: detail.kdsOrderType,
         payments: detail.payments,
         discounts: detail.discounts,
+        userBarcode: detail.userBarcode,
       );
   // Getter for backward compatibility alias if needed, though we should change all usages
   // String? get memo => note; // Let's try to remove this alias and fix usages
@@ -252,6 +262,8 @@ class OrderModel {
           : (menus.isNotEmpty),
       payments: _mapJsonList(json['payments'], OrderPaymentModel.fromJson),
       discounts: _mapJsonList(json['discounts'], OrderDiscountModel.fromJson),
+      // 캐시 왕복용. 서버 원본(중첩 user.barcode)은 api_service 가 평탄화해서 넣는다.
+      userBarcode: _emptyToNull(json['userBarcode']?.toString()),
     );
 
     // KDS 주문 타입 계산
@@ -309,8 +321,13 @@ class OrderModel {
       'discountTypes': discountTypes,
       'payments': payments.map((p) => p.toJson()).toList(),
       'discounts': discounts.map((d) => d.toJson()).toList(),
+      'userBarcode': userBarcode,
     };
   }
+
+  /// 빈 문자열을 null 로 접는다. 서버가 `"barcode": ""` 로 내려주는 케이스가 있어서,
+  /// 로그에서 "값 없음"과 "빈 값"을 구분할 필요가 없다면 null 하나로 통일한다.
+  static String? _emptyToNull(String? v) => (v == null || v.isEmpty) ? null : v;
 
   /// JSON 리스트 필드 공통 파서. List 가 아니거나 원소가 Map 이 아니면 스킵한다
   /// (메뉴 파싱과 같은 "항목별 격리" 정책 — 1건 손상이 주문 전체를 죽이지 않게).
@@ -413,6 +430,7 @@ class OrderModel {
     bool? isDetailLoaded,
     List<OrderPaymentModel>? payments,
     List<OrderDiscountModel>? discounts,
+    String? userBarcode,
   }) {
     // menus가 변경되면 캐시 초기화
     if (menus != null) {
@@ -449,7 +467,8 @@ class OrderModel {
         kdsOrderType: kdsOrderType ?? this.kdsOrderType,
         isDetailLoaded: isDetailLoaded ?? this.isDetailLoaded,
         payments: payments ?? this.payments,
-        discounts: discounts ?? this.discounts);
+        discounts: discounts ?? this.discounts,
+        userBarcode: userBarcode ?? this.userBarcode);
   }
 
   // 두 주문의 최신 여부 비교
@@ -633,6 +652,7 @@ class OrderModel {
         userId == other.userId &&
         customerName == other.customerName &&
         tel == other.tel &&
+        userBarcode == other.userBarcode &&
         listEquals(payments, other.payments) &&
         listEquals(discounts, other.discounts) &&
         listEquals(menus, other.menus);
@@ -665,6 +685,7 @@ class OrderModel {
           Object.hash(
             Object.hashAll(payments),
             Object.hashAll(discounts),
+            userBarcode,
           ),
         ),
       );

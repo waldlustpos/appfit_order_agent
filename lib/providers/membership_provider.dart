@@ -189,7 +189,11 @@ class Membership extends _$Membership {
       // +++ Log state change after membership info fetch +++
       logger.d(
           'Membership info fetched. Setting isLoading = false, isLoadingRewardHistory = true');
-      logToFile(tag: LogTag.API, message: '멤버십 정보 조회 성공: $membershipData');
+      // 조회 버튼의 '결과' 줄이라 클릭 로그와 같은 UI_ACTION 으로 맞춘다.
+      // [API] 로 두면 성공 케이스가 파일 화이트리스트를 통과하지 못해, 클릭은
+      // 남는데 결과가 없는 반쪽 기록이 된다.
+      logToFile(
+          tag: LogTag.UI_ACTION, message: '멤버십 정보 조회 성공: $membershipData');
 
       // 4. Fetch Reward History (Parallel fetch for performance)
       // 두 API 모두 ApiService 내부에서 slice.last까지 페이지를 순회하며

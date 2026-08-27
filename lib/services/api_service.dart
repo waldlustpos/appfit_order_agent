@@ -15,6 +15,7 @@ import 'package:appfit_order_agent/models/store_model.dart';
 import 'package:appfit_order_agent/models/product_model.dart';
 import 'package:appfit_order_agent/models/shop_category_model.dart';
 import 'package:appfit_order_agent/models/membership_model.dart';
+import 'package:appfit_order_agent/models/force_bulk_done_model.dart';
 // import 'api_service_interface.dart'; // Removed
 import 'package:appfit_order_agent/services/appfit/appfit_providers.dart';
 import 'package:appfit_order_agent/services/secure_storage_service.dart';
@@ -25,7 +26,6 @@ import 'package:appfit_order_agent/models/enums/order_cancel_reason.dart';
 import 'package:appfit_order_agent/exceptions/api_exceptions.dart'; // Added for precise error catching
 import 'package:appfit_order_agent/exceptions/api_error_mapper.dart'; // DioException → 친화 ApiException 변환
 import 'package:appfit_order_agent/services/platform_service.dart'; // logToFile, LogTag 사용 위해 추가
-import 'package:appfit_order_agent/utils/common_util.dart'; // 로그용 연락처 마스킹
 
 part 'api_service.g.dart';
 
@@ -169,8 +169,10 @@ class ApiService {
 
         await tokenManager.saveProjectCredentials(projectId, finalApiKey);
         logger.i('[AppFit API] Project credentials saved via TokenManager.');
+        // SYSTEM — 로그인 직후 자격증명 저장 여부는 인증 장애 분석의 시작점이라
+        // 파일에 남아야 한다. [API] 분기는 에러 줄만 통과시켜 이 줄을 버렸다.
         logToFile(
-          tag: LogTag.API,
+          tag: LogTag.SYSTEM,
           message:
               '[AppFit API] saveProjectCredentials 완료: projectId.len=${projectId.length} apiKey.len=${finalApiKey.length}',
         );
@@ -325,12 +327,6 @@ class ApiService {
       if (response.statusCode == 200) {
         final data = response.data['data'] as Map<String, dynamic>;
 
-        logToFile(
-          tag: LogTag.API,
-          message:
-              '[getOrder] orderId=$orderId 원본 응답:\n${const JsonEncoder.withIndent('  ').convert(_maskOrderResponseForLog(response.data))}',
-        );
-
         // 1. 주문 기본 정보 매핑
         // 사용자 정보는 v0 가 평면(userNickname/userPhone/userId), v1 이 중첩
         // (user.nickname/user.phone/user.userId) 이라 양쪽을 모두 본다.
@@ -414,6 +410,11 @@ class ApiService {
           // 할인 배열 키도 버전마다 다르다(v0: orderDiscounts, v1: discounts).
           discounts: _mapList(data['orderDiscounts'] ?? data['discounts'],
               OrderDiscountModel.fromJson),
+          // 로그 전용 가명 식별 키. 주문 채널에 따라 아예 없거나 빈 문자열이다
+          // (비회원 키오스크 등) — 둘 다 null 로 접는다.
+          userBarcode: (userMap?['barcode']?.toString().isNotEmpty ?? false)
+              ? userMap!['barcode'].toString()
+              : null,
         );
 
         _recordApiSuccess();
@@ -427,33 +428,6 @@ class ApiService {
       _recordApiFailure(e);
       rethrow;
     }
-  }
-
-  /// [getOrder] 원본 응답 로그용 마스킹 사본. 파싱에 쓰는 원본 `response.data`
-  /// (data/data.user 맵)는 그대로 두고, 로그로 남길 최상위+중첩 맵만 얕은
-  /// 복사해서 연락처(`userPhone`/`user.phone`)를 치환한다.
-  static dynamic _maskOrderResponseForLog(dynamic raw) {
-    if (raw is! Map) return raw;
-    final masked = Map<String, dynamic>.from(raw);
-    final data = masked['data'];
-    if (data is! Map) return masked;
-
-    final maskedData = Map<String, dynamic>.from(data);
-    final phone = maskedData['userPhone'];
-    if (phone is String && phone.isNotEmpty) {
-      maskedData['userPhone'] = CommonUtil.maskTail(phone);
-    }
-    final user = maskedData['user'];
-    if (user is Map) {
-      final maskedUser = Map<String, dynamic>.from(user);
-      final userPhone = maskedUser['phone'];
-      if (userPhone is String && userPhone.isNotEmpty) {
-        maskedUser['phone'] = CommonUtil.maskTail(userPhone);
-      }
-      maskedData['user'] = maskedUser;
-    }
-    masked['data'] = maskedData;
-    return masked;
   }
 
   /// 상세 응답의 리스트 필드 공통 파서. List 가 아니거나 원소가 Map 이 아니면
@@ -1181,6 +1155,61 @@ class ApiService {
     }
   }
 
+  /// 주문번호를 지정해 **선행 상태 검증 없이** 완료까지 강제 이행한다.
+  ///
+  /// PREPARING 주문이 픽업 요청을 거치지 않고 바로 DONE 이 된다. 서버가 단계를
+  /// 강제하는 [updateOrderStatus] 로는 PREPARING → DONE 이 400
+  /// `INVALID_ORDER_STATUS` 로 막히므로, 접수 단계의 '주문 완료' 버튼은 이 경로를 탄다.
+  ///
+  /// **일괄 API 지만 단건으로 쓴다** — [orderNos] 에 원소 1개를 담아 보낸다.
+  /// 이름이 비슷한 [bulkCompleteOrders]([ApiRoutes.bulkOrdersDone]) 와 요청 DTO 가
+  /// 다르다: 그쪽은 `{shopCode, from, to}` 기간 단위다. 서버는 모르는 필드를 에러
+  /// 없이 버리므로 **경로를 잘못 고르면 400 이 아니라 기간 전체가 완료된다.**
+  ///
+  /// 부분 실패해도 200 이므로 호출부는 `updateSuccessCount` 가 아니라
+  /// [ForceBulkDoneResponse.isSuccessFor] 로 건별 판정할 것.
+  ///
+  /// [orderNos] 가 비어 있으면 서버가 400 을 준다 — 요청을 아끼려고 여기서
+  /// 조기 반환하지 않는다. 빈 배열이 흘러온 것 자체가 호출부 버그라, 조용히
+  /// 성공처럼 끝내는 것보다 예외로 드러나는 편이 낫다.
+  Future<ForceBulkDoneResponse> forceCompleteOrders(
+    String storeId,
+    List<String> orderNos,
+  ) async {
+    final sw = Stopwatch()..start();
+    try {
+      final dio = _ref.read(appFitDioProvider);
+      await _maybeInjectFault(
+          NetFaultTarget.orderUpdate, ApiRoutes.forceBulkOrdersDone);
+      final response = await dio.put(
+        ApiRoutes.forceBulkOrdersDone,
+        data: {
+          'shopCode': storeId,
+          'orderNos': orderNos,
+        },
+      );
+
+      _recordApiSuccess();
+      final result = ForceBulkDoneResponse.fromJson(
+          response.data['data'] as Map<String, dynamic>);
+      // LogTag.API 가 아니라 SYSTEM 이다 — `[API]` 는 ERROR/실패/오류 가 든 줄만
+      // 파일 화이트리스트를 통과해서(logger.dart) 정상 응답은 통째로 버려진다.
+      // 단계를 건너뛰는 상태 변경이라 "몇 건을 대상으로 무엇이 성공했는지" 는
+      // 사후 분석에 필요하다.
+      logToFile(
+        tag: LogTag.SYSTEM,
+        message: '[강제완료] orderNos=${orderNos.join(',')} → $result',
+      );
+      return result;
+    } catch (e, s) {
+      logger.e('[AppFit API] 주문 강제 완료 처리 실패: $storeId / $orderNos',
+          error: e, stackTrace: s);
+      _logApiFailure('PUT force/bulk-done x${orderNos.length}', e, sw);
+      _recordApiFailure(e);
+      _handleError(e, '주문 완료 처리에 실패했습니다.');
+    }
+  }
+
   // getMigrationOptions(`/v0/migration/options`) 는 제거됨.
   //   옵션의 categoryCode(= 옵션그룹 POS 코드)를 채우려고 카탈로그 조회 뒤에
   //   한 번 더 호출하던 조인이었으나, `/categories/items` 응답이 optionGroupPosId
@@ -1194,7 +1223,13 @@ class ApiService {
       if (responseData is Map<String, dynamic> &&
           responseData.containsKey('message')) {
         final serverMessage = responseData['message'].toString();
-        logger.w('[AppFit API Error] Server message: $serverMessage');
+        // 로그는 마스킹본 — `logger.w` 는 파일 화이트리스트를 무조건 통과하고,
+        // 그 파일은 Slack 업로드·로컬 로그서버로 기기 밖에 나간다. 서버 메시지가
+        // 입력값을 되돌려주는 경우(`Invalid couponNo: 010…`)가 있어 원문은 위험.
+        // 사용자에게 던지는 예외는 원문 유지 — 화면 다이얼로그는 기기 안이고,
+        // 운영자가 서버가 뭐라 했는지 정확히 봐야 한다.
+        logger.w('[AppFit API Error] Server message: '
+            '${ApiHttpException.redactDigitRuns(serverMessage)}');
         throw ApiException(serverMessage, e, e.stackTrace);
       }
     }

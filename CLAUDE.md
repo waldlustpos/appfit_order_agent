@@ -35,6 +35,7 @@
 - **점주용 설치 가이드**(Sunmi 단말 App Store 설치 → 권한 허용 → 첫 로그인. 공통 1~3단계 + **기기별 트랙**(T2mini 4~6 / D3mini 4~8) + 공통 로그인. 실기기 캡처에 CSS 오버레이(`.hl`, 이미지 기준 % 좌표)로 강조, 이미지 base64 임베드 단일 HTML): [docs/guide/Sunmi-appfit-agent-install-guide.html](docs/guide/Sunmi-appfit-agent-install-guide.html) — 설치 절차·권한 항목이 바뀌면 캡처와 함께 갱신
   - **매머드 전용 판**(Tier 1 아티팩트 `매머드오더 에이전트` 캡처·매장 ID `MMTH` 기준. D3mini 트랙이 4~10단계로 확장 — 알림/모든 파일/음악/사진 권한을 하나씩 따로 요청): [docs/guide/Sunmi-mammoth-agent-install-guide.html](docs/guide/Sunmi-mammoth-agent-install-guide.html) — 공통판과 **별도 문서**이므로 절차가 바뀌면 두 문서를 함께 갱신
 - 아키텍처(데이터 흐름·Riverpod·서비스·UI·네이티브·브랜드 테마·주요 패턴): [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- 주문 강제 완료(PREPARING → DONE. 접수 단계의 '주문 완료' 버튼이 `PUT /v0/orders/force/bulk-done` = `{shopCode, orderNos[]}` 을 단건으로 호출. **앱 구현 완료·실기기 검증 대기·미배포**. 기간 단위인 기존 `bulk-done` 과 DTO 가 달라 혼동 주의 — 잘못 보낸 필드는 에러 없이 무시되므로 경로를 잘못 고르면 매장 전체가 완료된다. 배포되면 ARCHITECTURE.md 로 흡수하고 삭제): [docs/ORDER_FORCE_DONE.md](docs/ORDER_FORCE_DONE.md)
 - 사운드그래프(MHST) 연동 흐름 도식(As-Is kokonut 왕복 ↔ To-Be 구서버 중계안·Firestore 제거 권고): [docs/SOUNDGRAPH.md](docs/SOUNDGRAPH.md)
 - 빌드/배포/환경설정/다국어(Slang): [docs/BUILD.md](docs/BUILD.md)
 - Windows per-user 설치 전환(Defender 오탐 대응 — `%LOCALAPPDATA%\Programs` 설치, 구설치 자동 이관, Defender 예외 자동등록, updater 견고화, 기동 시 자가진단. **구현 완료·공통 브랜드 실기 검증 완료, 미배포**. 배포는 `build_installer.ps1` → `deploy_windows.ps1 -SkipBuild` 순서 필수 — 설치본/OTA exe 해시 통일): [docs/WINDOWS_PERUSER_INSTALL.md](docs/WINDOWS_PERUSER_INSTALL.md)

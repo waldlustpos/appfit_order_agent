@@ -645,8 +645,11 @@ class Order extends _$Order {
 
   // NEW 상태 주문 처리 메서드
   Future<void> _processNewOrder(OrderModel order) async {
+    // SYSTEM 태그 — [API] 였을 때는 파일 화이트리스트가 에러 줄만 통과시켜서
+    // "주문을 언제 받았나"가 로그파일에 아예 없었다. 출력 파이프라인의
+    // '[Label] 인쇄진입'(PLATFORM)과 짝을 이뤄 접수→출력 구간을 잇는 줄이다.
     logToFile(
-        tag: LogTag.API,
+        tag: LogTag.SYSTEM,
         message:
             '[Order] 신규 주문 감지: ${order.orderId} (번호: ${order.shopOrderNo}, 상태: ${order.orderStatus})');
 
@@ -1389,8 +1392,11 @@ class Order extends _$Order {
       final int successCount = data['updateSuccessCount'] ?? 0;
       final int failCount = data['updateFailCount'] ?? 0;
 
+      // 운영자 '일괄완료' 조작의 결과 — 다른 버튼 로그와 같은 UI_ACTION.
+      // ('Fail' 은 영문이라 [API] 분기의 한글 '실패' 조건에 걸리지 않아 실패
+      //  건수가 있어도 파일에 안 남았다.)
       logToFile(
-          tag: LogTag.API,
+          tag: LogTag.UI_ACTION,
           message:
               'AppFit Bulk completion result: Success $successCount, Fail $failCount');
 
@@ -1642,51 +1648,7 @@ class Order extends _$Order {
       logger.d('API 호출 결과 - 성공: $success, orderId: $orderId');
 
       if (success) {
-        // 종결 상태 전이는 replication lag 대응 캐시에 등록.
-        // 폴링이 stale 응답으로 active 상태를 돌려줘도 부활을 차단한다.
-        if (newStatus == OrderStatus.DONE ||
-            newStatus == OrderStatus.CANCELLED) {
-          _recentRemovals.mark(orderId);
-        }
-        // Find the order in the *current state* to update it
-        final index = state.orders.indexWhere((o) => o.orderId == orderId);
-        final statusCode = '';
-
-        // 1. 상태 변경된 주문 모델 생성
-        OrderModel orderToQueue;
-        if (index != -1) {
-          final currentOrderInState = state.orders[index];
-          orderToQueue = currentOrderInState.copyWith(
-            orderStatus: statusCode,
-            status: newStatus,
-            updateTime: DateTime.now(),
-          );
-        } else {
-          orderToQueue = orderModel.copyWith(
-            orderStatus: statusCode,
-            status: newStatus,
-            updateTime: DateTime.now(),
-          );
-          logger.w(
-              'Order $orderId not found in current state list during status update, using provided model for queue.');
-        }
-
-        // 2. 큐에 추가 (비동기 처리를 위함)
-        queueOrderExternal(orderToQueue);
-        logger.d(
-            'Order status update queued locally: ${orderToQueue.orderId} to ${orderToQueue.status}');
-
-        // 3. 캐시 업데이트
-        _updateOrderInCache(orderId, newStatus, statusCode);
-
-        // 4. 즉시 UI 업데이트 (사용자 반응성 향상을 위한 미리보기 업데이트)
-        _performImmediateUIUpdate(orderToQueue, index);
-
-        // 5. 사운드그래프 외부 전송 (접수 성공 시, 자동/수동 공통)
-        if (newStatus == OrderStatus.PREPARING) {
-          _triggerSoundGraphSend(orderToQueue);
-        }
-
+        _applySuccessfulStatusTransition(orderModel, orderId, newStatus);
         return true;
       } else {
         logToFile(
@@ -1707,6 +1669,176 @@ class Order extends _$Order {
       logger.e('[OrderProvider] updateOrderStatus 오류', error: e, stackTrace: s);
       if (expectedEventType != null) {
         SocketEventSuppressor().discard(orderId, expectedEventType);
+      }
+      if (e is ApiException) rethrow;
+      state = state.copyWith(error: e.toString());
+      return false;
+    } finally {
+      ref.read(statusUpdateInFlightProvider.notifier).release(orderId);
+    }
+  }
+
+  /// 상태 변경 **성공** 후처리. 이 5단계와 그 순서가 불변식이다.
+  ///
+  /// [updateOrderStatus](단계별 PUT)와 [forceCompleteOrder](주문번호 지정 강제 완료)가
+  /// 공유한다. 두 경로가 각자 복사본을 들고 있으면 한쪽만 고쳐져 서서히 어긋난다 —
+  /// 특히 `_recentRemovals.mark` 를 빠뜨린 쪽은 폴링이 stale 응답을 돌려주는 순간
+  /// 완료한 주문이 되살아난다.
+  ///
+  /// [orderModel] 은 상태 목록에서 주문을 못 찾았을 때 쓰는 폴백이다.
+  void _applySuccessfulStatusTransition(
+    OrderModel orderModel,
+    String orderId,
+    OrderStatus newStatus,
+  ) {
+    // 종결 상태 전이는 replication lag 대응 캐시에 등록.
+    // 폴링이 stale 응답으로 active 상태를 돌려줘도 부활을 차단한다.
+    if (newStatus == OrderStatus.DONE || newStatus == OrderStatus.CANCELLED) {
+      _recentRemovals.mark(orderId);
+    }
+    // Find the order in the *current state* to update it
+    final index = state.orders.indexWhere((o) => o.orderId == orderId);
+    final statusCode = '';
+
+    // 1. 상태 변경된 주문 모델 생성
+    OrderModel orderToQueue;
+    if (index != -1) {
+      final currentOrderInState = state.orders[index];
+      orderToQueue = currentOrderInState.copyWith(
+        orderStatus: statusCode,
+        status: newStatus,
+        updateTime: DateTime.now(),
+      );
+    } else {
+      orderToQueue = orderModel.copyWith(
+        orderStatus: statusCode,
+        status: newStatus,
+        updateTime: DateTime.now(),
+      );
+      logger.w(
+          'Order $orderId not found in current state list during status update, using provided model for queue.');
+    }
+
+    // 2. 큐에 추가 (비동기 처리를 위함)
+    queueOrderExternal(orderToQueue);
+    logger.d(
+        'Order status update queued locally: ${orderToQueue.orderId} to ${orderToQueue.status}');
+
+    // 3. 캐시 업데이트
+    _updateOrderInCache(orderId, newStatus, statusCode);
+
+    // 4. 즉시 UI 업데이트 (사용자 반응성 향상을 위한 미리보기 업데이트)
+    _performImmediateUIUpdate(orderToQueue, index);
+
+    // 5. 사운드그래프 외부 전송 (접수 성공 시, 자동/수동 공통)
+    if (newStatus == OrderStatus.PREPARING) {
+      _triggerSoundGraphSend(orderToQueue);
+    }
+  }
+
+  /// 접수(PREPARING) 주문을 픽업 요청 없이 **바로 완료**시킨다.
+  ///
+  /// 서버가 단계를 강제하므로 [updateOrderStatus] 로는 PREPARING → DONE 이 400
+  /// `INVALID_ORDER_STATUS` 로 막힌다. 이 경로는 주문번호 지정 강제 완료 API 를 쓴다.
+  ///
+  /// [updateOrderStatus] 를 분기시키지 않고 별도 메서드로 둔 이유: 그쪽은 자동접수
+  /// 경로(`_processNextEmit`)가 물려 있어 시그니처·분기를 건드리면 사거리가 넓다.
+  /// 공유해야 할 것은 성공 후처리뿐이라 [_applySuccessfulStatusTransition] 로만 묶는다.
+  ///
+  /// READY 주문에는 쓰지 않는다 — 단건 PUT 이 더 가볍고, 이 API 가 아직 배포되지 않은
+  /// 서버에서도 동작한다. 호출부([order_detail_popup])가 상태로 경로를 가른다.
+  Future<bool> forceCompleteOrder(OrderModel orderModel) async {
+    final storeId = ref.read(storeProvider).value?.storeId ?? '';
+    if (storeId.isEmpty) {
+      logger.e('Cannot force-complete order: Store ID not found.');
+      state = state.copyWith(error: '매장 ID를 찾을 수 없어 주문 완료 불가');
+      return false;
+    }
+
+    final orderId = orderModel.orderId;
+    final displayNum = orderModel.displayNum;
+
+    // 이미 완료면 요청을 아낀다. 서버 API 자체는 멱등("이미 완료된 주문은 성공으로
+    // 응답")이라 안전성 목적이 아니라 왕복 절약 목적이다.
+    final existingOrder = state.orders.firstWhere(
+      (order) => order.orderId == orderId,
+      orElse: () => orderModel,
+    );
+    if (existingOrder.status == OrderStatus.DONE) {
+      logger.i('Order $orderId is already DONE, skipping force-complete');
+      return true;
+    }
+
+    // in-flight 락. updateOrderStatus 와 **같은 키 공간**을 쓴다 — 픽업 요청과
+    // 강제 완료가 동시에 날아가는 조합을 막아야 하고, 버튼 스피너
+    // (statusUpdateInFlightProvider) 도 이 키를 본다.
+    if (!ref.read(statusUpdateInFlightProvider.notifier).tryAcquire(orderId)) {
+      logger.w('[OrderProvider] 강제완료 중복 요청 무시 (in-flight): $orderId');
+      return false;
+    }
+
+    // 자가 echo 억제. 강제 완료는 중간 상태(READY)를 건너뛰지만, 서버가 건너뛴
+    // 단계의 소켓 이벤트까지 흘려보내는지는 확인되지 않았다(docs/ORDER_FORCE_DONE.md §3).
+    // 과억제는 TTL(10초) 뒤 저절로 풀리는 반면, 미억제는 ORDER_PICKUP_REQUESTED 가
+    // 완료된 주문을 READY 로 되돌리는 유령 전이를 만든다. 그래서 둘 다 건다.
+    const suppressedEventTypes = [
+      appfit_core.OrderEventType.orderDone,
+      appfit_core.OrderEventType.orderPickupRequested,
+    ];
+
+    try {
+      for (final type in suppressedEventTypes) {
+        SocketEventSuppressor().add(orderId, type.value);
+      }
+
+      // 버튼 클릭 자체는 상세 팝업이 [UI_ACTION] 으로 남긴다. 여기서는 결과만
+      // 남기되 어느 상태에서 건너뛰었는지(from)를 함께 싣는다.
+      final fromStatus = existingOrder.status.name;
+
+      bool success;
+      if (orderId.startsWith('MOCK_')) {
+        // MOCK 주문은 서버에 없다. updateOrderStatus 와 동일한 취급.
+        logger.d('MOCK 주문이므로 API 호출을 건너뛰고 성공으로 처리합니다: $orderId');
+        success = true;
+      } else {
+        final response =
+            await _apiService.forceCompleteOrders(storeId, [orderId]);
+        // 부분 실패해도 200 이다. 카운터가 아니라 건별 결과로 판정한다 —
+        // 요청한 주문이 대상에서 빠진 경우도 여기서 실패로 걸러진다.
+        success = response.isSuccessFor(orderId);
+        if (!success) {
+          final r = response.resultFor(orderId);
+          logToFile(
+            tag: LogTag.SYSTEM,
+            message: '[강제완료] 실패: displayNum=$displayNum, orderId=$orderId, '
+                'from=$fromStatus, '
+                'errorCode=${r?.errorCode ?? 'NO_RESULT'}, '
+                'message=${r?.message ?? '-'}',
+          );
+        }
+      }
+
+      if (success) {
+        _applySuccessfulStatusTransition(orderModel, orderId, OrderStatus.DONE);
+        logToFile(
+          tag: LogTag.SYSTEM,
+          message: '[강제완료] 성공: displayNum=$displayNum, orderId=$orderId, '
+              'from=$fromStatus',
+        );
+        return true;
+      }
+
+      // 억제를 되돌린다. 남겨두면 TTL 동안 타 기기의 진짜 이벤트까지 삼킨다.
+      for (final type in suppressedEventTypes) {
+        SocketEventSuppressor().discard(orderId, type.value);
+      }
+      state = state.copyWith(error: '서버에서 주문 완료 처리 실패 (orderId: $orderId)');
+      return false;
+    } catch (e, s) {
+      logger.e('[OrderProvider] forceCompleteOrder 오류',
+          error: e, stackTrace: s);
+      for (final type in suppressedEventTypes) {
+        SocketEventSuppressor().discard(orderId, type.value);
       }
       if (e is ApiException) rethrow;
       state = state.copyWith(error: e.toString());

@@ -1155,6 +1155,7 @@ class _Translations$membership$dialog$en extends Translations$membership$dialog$
 	@override String use_coupon_code_content({required Object code}) => 'Use coupon code [${code}]?';
 	@override String get scanner_not_supported => 'QR scanning not supported.';
 	@override String get enter_coupon_code => 'Please enter coupon code.';
+	@override String get coupon_code_looks_like_phone => 'This looks like a phone number. Tap [Search] to look up a member, or enter a coupon code to use a coupon.';
 	@override String get store_info_missing => 'Store info missing. Please login again.';
 	@override String get input_error_title => 'Input Error';
 	@override String get stamp_input_error => 'Please enter 1 or more stamps.';

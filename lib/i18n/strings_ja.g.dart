@@ -1146,6 +1146,7 @@ class _Translations$membership$dialog$ja extends Translations$membership$dialog$
 	@override String use_coupon_code_content({required Object code}) => 'クーポンコード [${code}] を使用しますか？';
 	@override String get scanner_not_supported => 'QRバーコードをサポートしていない端末です。';
 	@override String get enter_coupon_code => 'クーポンコードを入力してください。';
+	@override String get coupon_code_looks_like_phone => '電話番号が入力されています。会員照会をご希望の場合は[会員照会]を押してください。クーポンをご利用の場合はクーポンコードを入力してください。';
 	@override String get store_info_missing => '店舗情報がありません。再度ログインしてください。';
 	@override String get input_error_title => '入力エラー';
 	@override String get stamp_input_error => 'スタンプ個数は1以上の数字で入力してください。';

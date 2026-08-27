@@ -5,6 +5,7 @@ import 'dart:async';
 
 import 'package:appfit_order_agent/core/orders/alert_manager.dart';
 import 'package:appfit_order_agent/core/orders/sound_service.dart';
+import 'package:appfit_order_agent/models/force_bulk_done_model.dart';
 import 'package:appfit_order_agent/models/order_menu_model.dart';
 import 'package:appfit_order_agent/models/order_model.dart';
 import 'package:appfit_order_agent/models/store_model.dart';
@@ -98,9 +99,46 @@ class _FakeApiService implements ApiService {
     return updateOrderStatusResult;
   }
 
+  /// forceCompleteOrders 호출 기록 (요청마다 orderNos 사본 1건).
+  final List<List<String>> forceCalls = [];
+
+  /// 서버 응답 스크립트. null 이면 요청한 주문 전부 성공으로 응답한다.
+  ForceBulkDoneResponse? forceResponse;
+
+  /// 응답을 붙잡아 두는 게이트 (in-flight 구간 재현용).
+  Completer<ForceBulkDoneResponse>? forceGate;
+
+  /// 던질 예외. ApiService 는 실패 시 ApiException 을 던지므로 그 계약을 재현한다.
+  Object? forceThrows;
+
+  @override
+  Future<ForceBulkDoneResponse> forceCompleteOrders(
+    String storeId,
+    List<String> orderNos,
+  ) async {
+    forceCalls.add(List<String>.of(orderNos));
+    final gate = forceGate;
+    if (gate != null) return gate.future;
+    final err = forceThrows;
+    if (err != null) throw err;
+    return forceResponse ?? _forceAllSuccess(orderNos);
+  }
+
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
+
+/// 요청한 주문이 전부 성공한 응답.
+ForceBulkDoneResponse _forceAllSuccess(List<String> orderNos) =>
+    ForceBulkDoneResponse(
+      targetOrderCount: orderNos.length,
+      updateSuccessCount: orderNos.length,
+      updateFailCount: 0,
+      results: [
+        for (final no in orderNos)
+          ForceBulkDoneResult(orderNo: no, success: true),
+      ],
+    );
 
 /// storeProvider 오버라이드용 fake notifier. build 만 대체한다.
 class _FakeStore extends Store {
@@ -763,6 +801,130 @@ void main() {
       // 연타 차단이 아니라 "순차 재시도" 는 통과해야 한다 — 실패 후 운영자가
       // 다시 누르는 것은 정당한 요청이다.
       expect(h.api.statusUpdates.length, 2);
+    });
+  });
+
+  group('(g) forceCompleteOrder — 접수 단계에서 바로 완료', () {
+    test('PREPARING 주문이 DONE 이 되고, 단건 orderNos 로 요청한다', () async {
+      final a = _order(orderNo: 'A', status: OrderStatus.PREPARING);
+      final h = await _buildProvider(initialServerOrders: [a]);
+
+      expect(await h.notifier.forceCompleteOrder(a), isTrue);
+
+      // 일괄 API 지만 단건으로만 쏜다 — 여기가 무너지면 매장 전체가 완료된다.
+      expect(h.api.forceCalls, [
+        ['A']
+      ]);
+      // 단계별 PUT 은 타지 않는다(픽업 요청을 건너뛰는 것이 이 경로의 존재 이유).
+      expect(h.api.statusUpdates, isEmpty);
+
+      await _wait(450); // 종결 배치(queueOrderExternal 경유) 소화
+      expect(
+        h.container.read(orderProvider).orders.single.status,
+        OrderStatus.DONE,
+      );
+    });
+
+    test('완료 후 서버 stale 응답이 PREPARING 으로 돌아와도 부활하지 않음', () async {
+      final a = _order(orderNo: 'A', status: OrderStatus.PREPARING);
+      final h = await _buildProvider(initialServerOrders: [a]);
+
+      await h.notifier.forceCompleteOrder(a);
+      await _wait(450);
+
+      // 강제 완료도 RecentRemovals 마킹을 거쳐야 한다. 이걸 빠뜨리면 폴링
+      // replication lag 이 완료한 주문을 되살린다 (단계별 PUT 과 동일 계약).
+      h.api.ordersResponse = [a];
+      await h.notifier.refreshOrders();
+
+      expect(h.container.read(orderProvider).orders, isEmpty);
+    });
+
+    test('results 가 success:false 면 상태를 바꾸지 않는다 (200 이어도 실패)', () async {
+      final a = _order(orderNo: 'A', status: OrderStatus.PREPARING);
+      final h = await _buildProvider(initialServerOrders: [a]);
+
+      // 부분 실패해도 HTTP 200 이다. 카운터가 아니라 건별 결과로 판정해야 한다.
+      h.api.forceResponse = const ForceBulkDoneResponse(
+        targetOrderCount: 1,
+        updateSuccessCount: 0,
+        updateFailCount: 1,
+        results: [
+          ForceBulkDoneResult(
+            orderNo: 'A',
+            success: false,
+            errorCode: 'INVALID_ORDER_STATUS',
+            message: '처리할 수 없는 주문 상태입니다.',
+          ),
+        ],
+      );
+
+      expect(await h.notifier.forceCompleteOrder(a), isFalse);
+      await _wait(450);
+      expect(
+        h.container.read(orderProvider).orders.single.status,
+        OrderStatus.PREPARING,
+      );
+    });
+
+    test('요청한 주문이 results 에 아예 없으면 실패로 본다', () async {
+      final a = _order(orderNo: 'A', status: OrderStatus.PREPARING);
+      final h = await _buildProvider(initialServerOrders: [a]);
+
+      // 대상에서 빠져 결과가 없는 응답. updateSuccessCount 만 보면 "1건 성공"
+      // 으로 오독하기 쉬운 모양이라 일부러 카운터를 성공으로 채워 둔다.
+      h.api.forceResponse = const ForceBulkDoneResponse(
+        targetOrderCount: 1,
+        updateSuccessCount: 1,
+        updateFailCount: 0,
+        results: [ForceBulkDoneResult(orderNo: 'OTHER', success: true)],
+      );
+
+      expect(await h.notifier.forceCompleteOrder(a), isFalse);
+      await _wait(450);
+      expect(
+        h.container.read(orderProvider).orders.single.status,
+        OrderStatus.PREPARING,
+      );
+    });
+
+    test('이미 DONE 인 주문은 요청을 아낀다', () async {
+      final a = _order(orderNo: 'A', status: OrderStatus.DONE);
+      final h = await _buildProvider(initialServerOrders: [a]);
+
+      expect(await h.notifier.forceCompleteOrder(a), isTrue);
+      expect(h.api.forceCalls, isEmpty);
+    });
+
+    test('응답 대기 중 같은 주문을 다시 요청하면 API 는 한 번만 나간다', () async {
+      final h = await _buildProvider();
+      final a = _order(orderNo: 'A', status: OrderStatus.PREPARING);
+      final gate = Completer<ForceBulkDoneResponse>();
+      h.api.forceGate = gate;
+
+      final first = h.notifier.forceCompleteOrder(a);
+      await _wait(20); // 첫 호출이 API await 지점에 도달하도록
+
+      final second = await h.notifier.forceCompleteOrder(a);
+
+      expect(second, isFalse,
+          reason: 'in-flight 거절은 반드시 false — true 면 호출부가 "성공" 로그를 남긴다');
+      expect(h.api.forceCalls.length, 1);
+
+      gate.complete(_forceAllSuccess(const ['A']));
+      expect(await first, isTrue);
+    });
+
+    test('예외로 끝나도 락이 풀려 다시 시도할 수 있다', () async {
+      final h = await _buildProvider();
+      final a = _order(orderNo: 'A', status: OrderStatus.PREPARING);
+      h.api.forceThrows = StateError('boom');
+
+      expect(await h.notifier.forceCompleteOrder(a), isFalse);
+      expect(await h.notifier.forceCompleteOrder(a), isFalse);
+
+      // 실패 후 운영자가 다시 누르는 것은 정당한 요청이다.
+      expect(h.api.forceCalls.length, 2);
     });
   });
 }

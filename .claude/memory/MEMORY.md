@@ -75,3 +75,6 @@
 - [Sunmi App Store 패키지](reference_sunmi_app_store_package.md) — woyou.market 단일. market:// 는 Play 로 샘. <queries> 검증은 dumpsys package queries, 판정 기기는 D3MINI(A13).
 - [Windows per-user 설치 전환](project_windows_peruser_install.md) — 구현·검증·main 병합 완료. 매머드 195 설치본 배포 중, OTA 채널 갱신 미완. 설치본 먼저→채널 나중 순서 필수 (2026-08-27)
 - [Defender 예외 조회는 기기마다 다름](reference_defender_exclusion_query.md) — 비상승 Get-MpPreference 가 안내 문자열 1줄을 exitCode 0 으로 반환. 경로 모양으로 판정할 것.
+- [주문 강제완료(PREPARING→DONE)](project_order_force_done.md) — force/bulk-done 단건 호출로 구현 완료(core v1.5.0). 실기기 검증 대기. 기간 단위 bulk-done 과 DTO 혼동 주의 (2026-08-27)
+- [로그·Sentry 개인정보 정책](project_pii_logging_policy.md) — 전화번호=마스킹 / 바코드·쿠폰번호=원문(가명 추적키) / 실명 가능 닉네임=미기록. 서버 message 는 6자리+ 숫자열 마스킹 (2026-08-27)
+- [쿠폰란 전화번호 오입력 → Sentry 유출](project_coupon_input_phone_misentry.md) — 입력란 공유가 구조적 원인. 앱 차단 + core v1.4.0 마스킹/경로단위 benign. 배포 완료 (2026-08-27)

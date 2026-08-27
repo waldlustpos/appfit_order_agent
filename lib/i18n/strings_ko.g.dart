@@ -2077,6 +2077,9 @@ class Translations$membership$dialog$ko {
 	/// ko: '쿠폰 코드를 입력해주세요.'
 	String get enter_coupon_code => '쿠폰 코드를 입력해주세요.';
 
+	/// ko: '전화번호가 입력되어 있습니다. 회원 조회를 하시려면 [회원조회]를 눌러주세요. 쿠폰을 사용하시려면 쿠폰 코드를 입력해주세요.'
+	String get coupon_code_looks_like_phone => '전화번호가 입력되어 있습니다. 회원 조회를 하시려면 [회원조회]를 눌러주세요. 쿠폰을 사용하시려면 쿠폰 코드를 입력해주세요.';
+
 	/// ko: '매장 정보가 없습니다. 다시 로그인해주세요.'
 	String get store_info_missing => '매장 정보가 없습니다. 다시 로그인해주세요.';
 

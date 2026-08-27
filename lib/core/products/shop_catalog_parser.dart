@@ -187,7 +187,10 @@ void _accumulateOption(
 /// 같은 옵션이 그룹마다 다른 값으로 등장했는지 한 줄로 요약한다.
 ///
 /// "가격이 다르게 보인다" 문의가 들어왔을 때 첫 등장 값을 쓰고 있다는 근거가
-/// 되는 유일한 관측 지점이다.
+/// 되는 관측 지점이다. **콘솔 전용** — `logger.d` 라 파일 화이트리스트를 타지
+/// 않는다. 카탈로그 갱신마다 매장 상품 구성이 통째로 찍혀 로그파일을 잠식했고,
+/// 앱이 오동작한 게 아니라 서버 카탈로그 구성이 그런 것이라 파일에 축적할
+/// 가치가 없다. 되살릴 거면 `logger.w` 가 아니라 조사 기간에만 임시로.
 void _logDivergence(Iterable<_OptionAccumulator> options) {
   final conflicts = <String>[];
   for (final o in options) {
@@ -202,7 +205,7 @@ void _logDivergence(Iterable<_OptionAccumulator> options) {
     }
   }
   if (conflicts.isEmpty) return;
-  logger.w('[카탈로그] 옵션이 그룹마다 다른 값으로 등장 ${conflicts.length}건 — '
+  logger.d('[카탈로그] 옵션이 그룹마다 다른 값으로 등장 ${conflicts.length}건 — '
       '첫 등장 값을 유지: ${conflicts.join(', ')}');
 }
 
