@@ -80,3 +80,4 @@
 - [Windows Debug 가 firebase_core 등록에서 크래시](project_windows_debug_firebase_crash.md) — 범인은 코드가 아니라 낡은 CMake 생성 상태. wipe 후 exe 2.15→3.49MB. 헛짚은 판별자 2건 포함 (2026-08-27)
 - [낡은 CMakeCache 가 INSTALL_PREFIX 를 Release 로 굳힘](reference_windows_cmake_install_prefix_pinned.md) — 구성 불문 모든 번들이 Release 로 install. 정상값은 제네레이터 표현식.
 - [쿠폰란 전화번호 오입력 → Sentry 유출](project_coupon_input_phone_misentry.md) — 입력란 공유가 구조적 원인. 앱 차단 + core v1.4.0 마스킹/경로단위 benign. 배포 완료 (2026-08-27)
+- [형제 키오스크 레포에 일본 구현 존재](project_sibling_kiosk_repos_jp.md) — Square/Shift_JIS영수증/POST v1 orders 는 kiosk_v3_japan·kiosk_v4 에 이미 있음. "신규 개발" 판단 전 grep 필수.
