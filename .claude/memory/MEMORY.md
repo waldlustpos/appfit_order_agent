@@ -80,3 +80,4 @@
 - [Windows Debug 가 firebase_core 등록에서 크래시](project_windows_debug_firebase_crash.md) — 범인은 코드가 아니라 낡은 CMake 생성 상태. wipe 후 exe 2.15→3.49MB. 헛짚은 판별자 2건 포함 (2026-08-27)
 - [낡은 CMakeCache 가 INSTALL_PREFIX 를 Release 로 굳힘](reference_windows_cmake_install_prefix_pinned.md) — 구성 불문 모든 번들이 Release 로 install. 정상값은 제네레이터 표현식.
 - [쿠폰란 전화번호 오입력 → Sentry 유출](project_coupon_input_phone_misentry.md) — 입력란 공유가 구조적 원인. 앱 차단 + core v1.4.0 마스킹/경로단위 benign. 배포 완료 (2026-08-27)
+- [모델 티어 최적화는 레버가 아니다](feedback_model_tier_lever.md) — 실효 절감 $200/프로젝트. 진짜 레버는 검증가능성 선투자. 판정 작업에 Fable 금지(raw CoT 없어 감사 불가)
