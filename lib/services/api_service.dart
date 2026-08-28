@@ -252,7 +252,8 @@ class ApiService {
       final dio = _ref.read(appFitDioProvider);
 
       String action = '';
-      // 미지정(자동접수) 시 0으로 폴백
+      // 미지정 시 0으로 폴백 (READY/DONE 등 준비시간이 무의미한 전이).
+      // 접수(PREPARING)는 수동=팝업 선택값, 자동=kAutoAcceptReadyTimeMinutes 를 항상 넘긴다.
       int parsedReadyTime = int.tryParse(readyTime ?? '0') ?? 0;
 
       switch (status) {

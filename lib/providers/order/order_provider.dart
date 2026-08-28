@@ -6,6 +6,7 @@ import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/models/order_model.dart';
 import 'package:appfit_order_agent/models/enums/order_cancel_reason.dart';
 import 'package:appfit_order_agent/exceptions/api_exceptions.dart';
+import 'package:appfit_order_agent/constants/order_constants.dart';
 
 import 'package:appfit_order_agent/core/net/socket_wake_policy.dart';
 import 'package:appfit_order_agent/core/net/transient_error.dart';
@@ -727,7 +728,8 @@ class Order extends _$Order {
       // 이제 emit 루프(_processNextEmit)가 정렬된 shopOrderNo 순서로 이 함수를 await
       // 하므로, enqueue 순서 = 정렬 순서가 보장된다.
       try {
-        final success = await updateOrderStatus(order, OrderStatus.PREPARING);
+        final success = await updateOrderStatus(order, OrderStatus.PREPARING,
+            readyTime: '$kAutoAcceptReadyTimeMinutes');
         logger.d(
             '$modeText: updateOrderStatus 결과 - 성공: $success, 주문: ${order.orderId}');
         if (success) {
@@ -883,7 +885,8 @@ class Order extends _$Order {
         // (이전: Future.microtask 로 분리되어 PUT 응답 순서대로 enqueue → 순서 역전.)
         // rethrow 된 ApiException 은 try/catch 로 흡수해 앱 크래시 방지.
         try {
-          final success = await updateOrderStatus(order, OrderStatus.PREPARING);
+          final success = await updateOrderStatus(order, OrderStatus.PREPARING,
+              readyTime: '$kAutoAcceptReadyTimeMinutes');
           if (success == true) {
             logger.d(
                 '[Order Processing] NEW 주문 자동접수 성공 — 출력/알림 트리거: ${order.orderId}');

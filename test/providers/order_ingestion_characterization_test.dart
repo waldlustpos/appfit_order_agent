@@ -3,6 +3,7 @@
 // ignore_for_file: depend_on_referenced_packages
 import 'dart:async';
 
+import 'package:appfit_order_agent/constants/order_constants.dart';
 import 'package:appfit_order_agent/core/orders/alert_manager.dart';
 import 'package:appfit_order_agent/core/orders/sound_service.dart';
 import 'package:appfit_order_agent/models/force_bulk_done_model.dart';
@@ -63,6 +64,10 @@ class _FakeApiService implements ApiService {
   bool updateOrderStatusResult = true;
   final List<(String orderId, OrderStatus status)> statusUpdates = [];
 
+  /// updateOrderStatus 로 넘어온 readyTime(준비시간, 분). 자동접수는 선택 UI 가
+  /// 없어 고정 기본값을 넘기므로 그 값이 실제로 실려 나가는지 확인하는 용도.
+  final List<String?> readyTimes = [];
+
   /// 응답을 붙잡아 두는 게이트. null 이면 즉시 반환(기존 동작 그대로).
   /// 느린 네트워크의 in-flight 구간을 재현할 때만 주입한다.
   Completer<bool>? updateGate;
@@ -94,6 +99,7 @@ class _FakeApiService implements ApiService {
     String? readyTime,
   }) async {
     statusUpdates.add((orderId, status));
+    readyTimes.add(readyTime);
     final gate = updateGate;
     if (gate != null) return gate.future;
     return updateOrderStatusResult;
@@ -555,6 +561,8 @@ void main() {
 
       // 자동접수 → updateOrderStatus(A, PREPARING) 가 ApiService 로 호출됨.
       expect(h.api.statusUpdates, contains(('A', OrderStatus.PREPARING)));
+      // 준비시간은 선택 UI 가 없으므로 고정 기본값(분)이 실려 나간다.
+      expect(h.api.readyTimes, contains('$kAutoAcceptReadyTimeMinutes'));
       // 로컬 상태도 PREPARING 으로 전이.
       expect(
         h.container.read(orderProvider).orders.single.status,
