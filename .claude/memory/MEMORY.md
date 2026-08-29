@@ -81,3 +81,7 @@
 - [낡은 CMakeCache 가 INSTALL_PREFIX 를 Release 로 굳힘](reference_windows_cmake_install_prefix_pinned.md) — 구성 불문 모든 번들이 Release 로 install. 정상값은 제네레이터 표현식.
 - [쿠폰란 전화번호 오입력 → Sentry 유출](project_coupon_input_phone_misentry.md) — 입력란 공유가 구조적 원인. 앱 차단 + core v1.4.0 마스킹/경로단위 benign. 배포 완료 (2026-08-27)
 - [형제 키오스크 레포에 일본 구현 존재](project_sibling_kiosk_repos_jp.md) — Square/Shift_JIS영수증/POST v1 orders 는 kiosk_v3_japan·kiosk_v4 에 이미 있음. "신규 개발" 판단 전 grep 필수.
+- [Simple POS 일본 파일럿 (신규 레포)](project_simple_pos_jp_pilot.md) — appfit_simple_pos. P0/P1 완료·D3mini 검증. 씨앗 목록 + 스테이징 계정 블로커 (2026-08-28)
+- [Pretendard/NotoSansJP 커버리지 실측](reference_font_coverage_pretendard_notosansjp.md) — 한 벌로 ja/ko 불가. agent 는 ja 85%가 혼합 렌더 중(실이슈). tnum·가변폰트 Thin 함정.
+- [Kotlin 2.2 는 sentry_flutter 8.x 를 못 컴파일](reference_kotlin_pin_sentry8.md) — 2.1.0 핀. sentry 9.x 는 core 릴리즈 선행.
+- [ThemeExtension `type` 필드 충돌](reference_themeextension_type_field_collision.md) — 확장 맵 키를 덮어써 조회가 null. analyzer 는 info 한 줄만.
