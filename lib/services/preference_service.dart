@@ -43,6 +43,12 @@ class PreferenceService {
   static const String KEY_IS_NEW_ORDER = "IS_NEW_ORDER";
   static const String KEY_SHOW_KIOSK_ORDER = "IS_SHOW_KIOSK_ORDER";
   static const String KEY_KIOSK_PRINT_AND_SOUND = "IS_KIOSK_PRINT_AND_SOUND";
+  // 키오스크 노출/출력 기본값 OFF 전환 마커. 기본값을 false 로 바꿔도 이미 true 가
+  // 저장된 기존 설치는 그대로 ON 이므로, 업데이트 후 첫 실행 때 한 번만 강제로
+  // 두 값을 false 로 덮어쓴다. 정책이 또 바뀌면 이 문자열을 새 버전으로 올려
+  // 기존 기기를 다시 한 번 재조정한다.
+  static const String KEY_KIOSK_DEFAULT_OFF_RECONCILED =
+      "KEY_KIOSK_DEFAULT_OFF_V1";
   static const String KEY_KIOSK_ALWAYS_AUTO_ACCEPT =
       "KEY_KIOSK_ALWAYS_AUTO_ACCEPT"; // bool (기본 true): 키오스크 주문은 픽업 자동접수 설정과 무관하게 항상 즉시 접수
   static const String KEY_SHOW_POS_ORDER =
@@ -192,6 +198,8 @@ class PreferenceService {
       await _initializePrinterDefaults();
       // 업데이트 설정 기본값 초기화
       await _initializeUpdateDefaults();
+      // 키오스크 노출/출력 설정 OFF 강제 전환 (정책당 1회)
+      await _reconcileKioskDefaultsOff();
       // 서버 환경이 저장되지 않은 경우 매장 ID 기반으로 복원
       await _ensureEnvironmentIsSet();
 
@@ -277,6 +285,34 @@ class PreferenceService {
       await _prefs.setBool(KEY_UPDATE_DEFAULT_SET, true);
     } catch (e, s) {
       logger.e('[PreferenceService] 업데이트 기본 설정 중 오류 발생',
+          error: e, stackTrace: s);
+    }
+  }
+
+  /// 키오스크 주문 노출 / 주문서·알림소리 설정을 OFF 로 강제 전환 (정책당 1회)
+  ///
+  /// 두 설정의 기본값이 ON → OFF 로 바뀌었지만, 기본값 변경만으로는 이미 true 가
+  /// 저장된 기존 설치가 그대로 ON 으로 남는다. 업데이트 후 첫 실행 때 한 번만
+  /// 저장값을 false 로 덮어써 신규/기존 설치의 출발점을 맞춘다. 마커를 세워
+  /// 이후 사용자가 다시 켠 값은 덮어쓰지 않는다.
+  Future<void> _reconcileKioskDefaultsOff() async {
+    final isAlreadyDone =
+        _prefs.getBool(KEY_KIOSK_DEFAULT_OFF_RECONCILED) ?? false;
+    if (isAlreadyDone) return;
+
+    try {
+      final previousShow = _prefs.getBool(KEY_SHOW_KIOSK_ORDER);
+      final previousPrintAndSound = _prefs.getBool(KEY_KIOSK_PRINT_AND_SOUND);
+
+      await _prefs.setBool(KEY_SHOW_KIOSK_ORDER, false);
+      await _prefs.setBool(KEY_KIOSK_PRINT_AND_SOUND, false);
+      await _prefs.setBool(KEY_KIOSK_DEFAULT_OFF_RECONCILED, true);
+
+      logger.i('[PreferenceService] 키오스크 설정 OFF 강제 전환: '
+          '노출 ${previousShow ?? '미설정'} → false, '
+          '주문서·알림소리 ${previousPrintAndSound ?? '미설정'} → false');
+    } catch (e, s) {
+      logger.e('[PreferenceService] 키오스크 설정 OFF 전환 중 오류 발생',
           error: e, stackTrace: s);
     }
   }
@@ -638,7 +674,7 @@ class PreferenceService {
   int getSoundNum() => _prefs.getInt(KEY_SOUND_NUM) ?? 5; //알림음 재생 횟수
   bool getIsNewOrder() => _prefs.getBool(KEY_IS_NEW_ORDER) ?? false; //
   bool getShowKioskOrder() =>
-      _prefs.getBool(KEY_SHOW_KIOSK_ORDER) ?? true; //키오스크주문 노출여부
+      _prefs.getBool(KEY_SHOW_KIOSK_ORDER) ?? false; //키오스크주문 노출여부 (기본 OFF)
   bool getShowPosOrder() =>
       _prefs.getBool(KEY_SHOW_POS_ORDER) ?? false; //POS주문 노출여부 (기본 OFF)
 
@@ -648,7 +684,7 @@ class PreferenceService {
       _prefs.getBool(KEY_KIOSK_ALWAYS_AUTO_ACCEPT) ?? true;
   bool getKioskPrintAndSound() =>
       _prefs.getBool(KEY_KIOSK_PRINT_AND_SOUND) ??
-      true; //키오스크주문 출력 및 알람소리 재생 여부
+      false; //키오스크주문 출력 및 알람소리 재생 여부 (기본 OFF)
   bool getPosPrintAndSound() =>
       _prefs.getBool(KEY_POS_PRINT_AND_SOUND) ??
       false; //POS주문 출력 및 알람소리 재생 여부 (기본 OFF)

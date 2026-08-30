@@ -357,6 +357,11 @@ void main() {
       // 자동접수 OFF — 유입 경로 자체만 관찰 (PUT 체인/출력 사이드이펙트 차단).
       // 주의: getAutoReceipt() 의 기본값은 true (현재 동작).
       PreferenceService.KEY_AUTO_RECEIPT: false,
+      // 키오스크 주문 노출 ON 고정 — 이 파일의 관심사는 유입/자동접수 체인이지
+      // 노출 필터가 아니다. 기본값은 OFF 이고 init() 이 한 번 더 강제로 OFF 로
+      // 덮어쓰므로(마커), 마커를 미리 세워 그 재조정을 건너뛰고 노출을 켜 둔다.
+      PreferenceService.KEY_KIOSK_DEFAULT_OFF_RECONCILED: true,
+      PreferenceService.KEY_SHOW_KIOSK_ORDER: true,
     });
     await PreferenceService().init();
   });
