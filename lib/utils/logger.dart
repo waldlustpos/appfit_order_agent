@@ -121,6 +121,11 @@ class CustomLogOutput extends LogOutput {
       else if (line.contains('[FLEET]')) {
         shouldLogToFile = true;
       }
+      // 사운드그래프(외부 통합) 전송 이벤트 — 시도/성공까지 기록해야
+      // 전송 여부를 사후에 판정할 수 있다(실패는 ERROR 레벨로 별도 기록).
+      else if (line.contains('[SOUNDGRAPH]')) {
+        shouldLogToFile = true;
+      }
 
       // Notifier(WebSocket) 메시지 수신 로그
       else if (line.contains('[Notifier]')) {

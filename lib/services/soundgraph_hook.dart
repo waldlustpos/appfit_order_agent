@@ -67,7 +67,8 @@ class MhstSoundGraphHook extends SoundGraphHook {
     );
     service.sendOrder(payload).then((ok) {
       logToFile(
-        tag: LogTag.SOUNDGRAPH,
+        // 실패는 ERROR 레벨이라야 로그 파일에서 눈에 띈다(성공은 SOUNDGRAPH).
+        tag: ok ? LogTag.SOUNDGRAPH : LogTag.ERROR,
         message: ok
             ? '[SoundGraph] send OK ${order.orderNo}'
             : '[SoundGraph] send FAIL ${order.orderNo}',
