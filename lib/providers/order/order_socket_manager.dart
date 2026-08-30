@@ -229,7 +229,7 @@ class OrderSocketManager {
           orderModel = _enforceStatusFromEvent(orderModel, eventType);
 
           // 주문 처리 (큐 추가, 상태 업데이트, 알림/출력 등 공통 로직)
-          _processNewOrder(orderModel);
+          _processNewOrder(orderModel, eventType);
         } catch (e, s) {
           logger.e('[AppFit] 주문 상세 조회 실패 ($orderId): $e');
           _reportDetailFetchFailureAndRecover(
@@ -250,7 +250,7 @@ class OrderSocketManager {
               _enforceStatusFromEvent(localOrder, eventType).copyWith(
             updateTime: DateTime.now(),
           );
-          _processNewOrder(updatedOrder);
+          _processNewOrder(updatedOrder, eventType);
         } else {
           // 캐시 미스 시 - state.orders에서 주문 찾아서 상태만 갱신
           final stateOrder =
@@ -260,7 +260,7 @@ class OrderSocketManager {
                 _enforceStatusFromEvent(stateOrder, eventType).copyWith(
               updateTime: DateTime.now(),
             );
-            _processNewOrder(updatedOrder);
+            _processNewOrder(updatedOrder, eventType);
           } else {
             // 동시성 이슈 등 예외적 상황: API fallback 1회 시도.
             logger.w(
@@ -269,7 +269,7 @@ class OrderSocketManager {
               var orderModel =
                   await _fetchOrderDetailWithRetry(orderId, targetShopCode);
               orderModel = _enforceStatusFromEvent(orderModel, eventType);
-              _processNewOrder(orderModel);
+              _processNewOrder(orderModel, eventType);
             } catch (e, s) {
               logger.e('[AppFit] Fallback 주문 상세 조회 실패: $e');
               _reportDetailFetchFailureAndRecover(
@@ -493,11 +493,38 @@ class OrderSocketManager {
         OrderStatus.CANCELLED => '9001',
       };
 
+  /// 생성 시점부터 이미 접수(PREPARING) 상태인 주문인가.
+  ///
+  /// 결제와 동시에 PREPARING 으로 만들어지는 키오스크 유형(예: `NICE_KIOSK`)이
+  /// 이에 해당한다. 앱이 접수 단계를 거치지 않으므로 '접수 성공' 에 걸린 외부
+  /// 통합(사운드그래프)이 발화하지 않는다 — 그 공백을 메우기 위한 판정.
+  ///
+  /// **ORDER_CREATED 로 한정하는 것이 이 판정의 전부다.** 다른 에이전트 단말이
+  /// 접수한 주문은 이 단말도 NEW 로 먼저 받고 ORDER_ACCEPTED 로 전이를 보므로
+  /// 걸리지 않고, 앱 재시작 후 폴링으로 뒤늦게 발견한 기존 주문도 소켓 이벤트가
+  /// 아니라 걸리지 않는다. 둘 다 전송하면 KDS 에 같은 주문이 중복으로 뜬다.
+  @visibleForTesting
+  static bool isExternallyAcceptedAtCreation(
+    String eventType,
+    OrderStatus status,
+  ) =>
+      eventType == appfit_core.OrderEventType.orderCreated.value &&
+      status == OrderStatus.PREPARING;
+
   /// 주문 처리 (공통 로직 분리)
-  void _processNewOrder(OrderModel orderData) {
+  void _processNewOrder(OrderModel orderData, String eventType) {
     try {
       // 큐에 추가
       _orderQueueService.enqueueAll([orderData]);
+
+      // 앱이 접수하지 않은 '생성 시점부터 PREPARING' 주문은 외부 통합에 따로 알린다.
+      // 큐 처리(알림/출력)와는 독립이며, hook 내부가 fire-and-forget 이라 실패해도
+      // 주문 처리를 막지 않는다.
+      if (isExternallyAcceptedAtCreation(eventType, orderData.status)) {
+        ref
+            .read(orderProvider.notifier)
+            .notifyExternallyAcceptedOrder(orderData);
+      }
 
       // 시퀀스 업데이트
       try {

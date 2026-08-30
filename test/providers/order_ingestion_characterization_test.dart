@@ -197,6 +197,15 @@ class _FakeOutputQueueService implements OutputQueueService {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+/// 사운드그래프 전송 발화를 기록하는 fake hook.
+/// 실제 전송(외부 HTTP)은 하지 않고 호출된 orderId 만 순서대로 남긴다.
+class _RecordingSoundGraphHook extends SoundGraphHook {
+  final List<String> acceptedOrderIds = [];
+
+  @override
+  void onAccepted(OrderModel order) => acceptedOrderIds.add(order.orderId);
+}
+
 /// build() 의 조기 초기화(ref.read)만 통과시키는 빈 fake.
 class _FakePrintService implements PrintService {
   @override
@@ -261,6 +270,7 @@ typedef _Harness = ({
   _FakeApiService api,
   _FakeOutputQueueService output,
   _FakeAlertManager alerts,
+  _RecordingSoundGraphHook soundGraph,
 });
 
 /// OrderProvider 전체를 인스턴스화하고 초기화 비동기 체인이 끝날 때까지 대기.
@@ -276,6 +286,7 @@ Future<_Harness> _buildProvider({
   final api = _FakeApiService()..ordersResponse = initialServerOrders;
   final output = _FakeOutputQueueService();
   final alerts = _FakeAlertManager();
+  final soundGraph = _RecordingSoundGraphHook();
   final store = withStore
       ? StoreModel(storeId: 'STORE-1', name: '테스트매장', isOpen: true)
       : null;
@@ -287,7 +298,7 @@ Future<_Harness> _buildProvider({
     outputQueueServiceProvider.overrideWithValue(output),
     printServiceProvider.overrideWithValue(_FakePrintService()),
     soundAppServiceProvider.overrideWithValue(_FakeSoundService()),
-    soundGraphHookProvider.overrideWithValue(const NoOpSoundGraphHook()),
+    soundGraphHookProvider.overrideWithValue(soundGraph),
   ]);
   addTearDown(container.dispose);
 
@@ -303,6 +314,7 @@ Future<_Harness> _buildProvider({
     api: api,
     output: output,
     alerts: alerts,
+    soundGraph: soundGraph,
   );
 }
 
@@ -939,6 +951,69 @@ void main() {
 
       // 실패 후 운영자가 다시 누르는 것은 정당한 요청이다.
       expect(h.api.forceCalls.length, 2);
+    });
+  });
+
+  group('(i) 사운드그래프 전송 — 접수 주체가 앱이든 키오스크든 주문당 1회', () {
+    // 매머드(MMTH/MHST) 전용 외부 통합. hook 자체의 브랜드 게이팅은
+    // soundGraphHookProvider 가 하고, 여기서는 "언제 몇 번 발화하는가"만 고정한다.
+    test('자가 자동접수 성공 시 1회 발화한다 (기존 동작)', () async {
+      await PreferenceService().setAutoReceipt(true);
+      addTearDown(() => PreferenceService().setAutoReceipt(false));
+
+      final h = await _buildProvider();
+      h.notifier.queueOrderExternal(_order(orderNo: 'A'));
+      await _wait(1600);
+
+      expect(h.api.statusUpdates, contains(('A', OrderStatus.PREPARING)));
+      expect(h.soundGraph.acceptedOrderIds, ['A']);
+    });
+
+    test('접수 PUT 이 실패하면 발화하지 않는다', () async {
+      await PreferenceService().setAutoReceipt(true);
+      addTearDown(() => PreferenceService().setAutoReceipt(false));
+
+      final h = await _buildProvider();
+      h.api.updateOrderStatusResult = false;
+      h.notifier.queueOrderExternal(_order(orderNo: 'A'));
+      await _wait(1600);
+
+      // 서버가 거절한 주문을 KDS 로 보내면 실재하지 않는 주문이 뜬다.
+      expect(h.soundGraph.acceptedOrderIds, isEmpty);
+    });
+
+    test('생성 시점부터 PREPARING 인 주문은 접수 없이도 발화한다', () async {
+      // NICE_KIOSK 처럼 결제와 동시에 접수되는 유형. 앱이 접수 단계를 거치지
+      // 않으므로, 이 진입점이 없으면 사운드그래프 KDS 로 영영 넘어가지 않는다.
+      final h = await _buildProvider();
+      final accepted = _order(
+        orderNo: 'A',
+        status: OrderStatus.PREPARING,
+        source: 'NICE_KIOSK',
+      );
+
+      h.notifier.notifyExternallyAcceptedOrder(accepted);
+
+      expect(h.soundGraph.acceptedOrderIds, ['A']);
+      // 접수는 이미 끝난 주문이므로 PUT 은 나가지 않는다.
+      expect(h.api.statusUpdates, isEmpty);
+    });
+
+    test('같은 주문이 두 경로로 잡혀도 전송은 1회뿐이다', () async {
+      await PreferenceService().setAutoReceipt(true);
+      addTearDown(() => PreferenceService().setAutoReceipt(false));
+
+      final h = await _buildProvider();
+      h.notifier.queueOrderExternal(_order(orderNo: 'A'));
+      await _wait(1600);
+      expect(h.soundGraph.acceptedOrderIds, ['A']);
+
+      // 자가 접수로 이미 보낸 주문에 외부 접수 경로가 뒤늦게 걸려도 중복 금지.
+      h.notifier.notifyExternallyAcceptedOrder(
+        _order(orderNo: 'A', status: OrderStatus.PREPARING),
+      );
+
+      expect(h.soundGraph.acceptedOrderIds, ['A']);
     });
   });
 

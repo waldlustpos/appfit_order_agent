@@ -72,6 +72,10 @@ class Order extends _$Order {
   // 되어 "자가 자동접수 흔적" 으로 false positive 가 난다. 그래서 자가 자동접수 + KDS
   // PREPARING 후행 dedup 전용으로 별도 Set 운영.
   final Set<String> _selfAcceptedOrderIds = <String>{};
+  // 사운드그래프 전송을 이미 발화한 주문. 자가 접수(PUT 성공)와 외부 접수 유입
+  // (생성 시점부터 PREPARING 인 주문)이 서로 다른 진입점을 쓰므로, 같은 주문이
+  // 두 경로로 잡히면 KDS 에 같은 주문이 두 번 뜬다. 그 공통 게이트.
+  final Set<String> _soundGraphSentOrderIds = <String>{};
   // 출력 누락(영수증/라벨) 등록 → 메뉴 복구 시점 자동 재발행 대기.
   // 상세조회 실패로 빈 영수증/라벨이 스킵된 주문을 추적했다가, fetchOrderDetail 이
   // 메뉴를 복구하는 순간 1회만 재발행한다. 키=orderId(=orderNo alias, order_model.dart:91).
@@ -810,15 +814,40 @@ class Order extends _$Order {
 
   // (정리) _processAcceptedKioskOrder: 사용되지 않아 제거
 
-  // updateOrderStatus 의 PREPARING 성공 분기에서만 호출 — 자동접수·수동접수
-  // 모두 그 단일 진입점을 거치므로 호출부를 늘릴 필요가 없다. 소켓 echo 로
-  // 관찰만 하는 _processOrderByStatus 쪽에서는 호출하지 않는다(다른 기기가
-  // 접수한 주문까지 중복 전송되는 것을 막기 위함).
+  // 호출부는 둘뿐이다:
+  //   ① updateOrderStatus 의 PREPARING 성공 분기 — 자가 접수(자동·수동 공통)
+  //   ② notifyExternallyAcceptedOrder — 생성 시점부터 PREPARING 인 주문
+  // 소켓 echo 로 관찰만 하는 _processOrderByStatus 쪽에서는 호출하지 않는다
+  // (다른 기기가 접수한 주문까지 중복 전송되는 것을 막기 위함).
+  //
+  // 두 경로가 같은 주문을 집으면 KDS 에 중복으로 뜨므로 _soundGraphSentOrderIds
+  // 로 주문당 1회만 통과시킨다.
   void _triggerSoundGraphSend(OrderModel order) {
+    if (!_soundGraphSentOrderIds.add(order.orderId)) {
+      logger.d('[OrderProvider] 사운드그래프 전송 중복 차단: ${order.orderId}');
+      return;
+    }
     // 브랜드 게이팅(매머드: MMTH/MHST)·marketId 검증·외부 전송 동작은 모두
     // SoundGraphHook 에 위임. 비대상 브랜드는 NoOpSoundGraphHook 이라 무동작
     // (크로스-브랜드 누수 차단).
     ref.read(soundGraphHookProvider).onAccepted(order);
+  }
+
+  /// 앱이 접수하지 않았는데 **생성 시점부터 이미 접수(PREPARING) 상태인** 주문을
+  /// 외부 통합(사운드그래프)에 알린다.
+  ///
+  /// 결제와 동시에 PREPARING 으로 만들어지는 키오스크 유형(예: `NICE_KIOSK`)이
+  /// 여기에 해당한다. 전송은 원래 '앱의 접수 성공' 에만 걸려 있어서, 앱이 접수
+  /// 단계를 거치지 않는 이런 주문은 사운드그래프 KDS 로 영영 넘어가지 않았다.
+  ///
+  /// **호출 조건은 호출부(소켓 매니저)가 지킨다** — ORDER_CREATED 이벤트로 들어온
+  /// 주문만 대상이다. 그래야 "다른 에이전트 단말이 접수한 주문"(그 단말들은 NEW 로
+  /// 먼저 받고 ORDER_ACCEPTED 로 전이를 본다)과 "앱 재시작 후 폴링으로 뒤늦게 발견한
+  /// 기존 주문"이 섞여 들어오지 않는다. 둘 다 전송하면 KDS 에 중복으로 뜬다.
+  void notifyExternallyAcceptedOrder(OrderModel order) {
+    logger.i('[OrderProvider] 외부 접수 주문 감지 — 사운드그래프 전송 대상: '
+        '${order.orderId} (source=${order.source})');
+    _triggerSoundGraphSend(order);
   }
 
   // 리팩토링 후:
@@ -2185,6 +2214,7 @@ class Order extends _$Order {
     _processedOrderCache.clear();
     _autoAcceptingOrderIds.clear();
     _selfAcceptedOrderIds.clear();
+    _soundGraphSentOrderIds.clear();
     _pendingDetailReprint.clear();
     _recentRemovals.clear();
     _lastKnownOrderSequence = "0";

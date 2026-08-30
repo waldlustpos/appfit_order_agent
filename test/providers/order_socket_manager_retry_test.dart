@@ -218,6 +218,49 @@ void main() {
     });
   });
 
+  group('OrderSocketManager.isExternallyAcceptedAtCreation', () {
+    // 생성 시점부터 PREPARING 인 주문(NICE_KIOSK 등)은 앱이 접수 단계를 거치지
+    // 않아 '접수 성공' 에 걸린 사운드그래프 전송이 발화하지 않는다. 그 공백을
+    // 메우는 판정이자, 중복 전송을 막는 유일한 방어선이다.
+    test('ORDER_CREATED + PREPARING 이면 외부 접수로 본다', () {
+      expect(
+        OrderSocketManager.isExternallyAcceptedAtCreation(
+            'ORDER_CREATED', OrderStatus.PREPARING),
+        isTrue,
+      );
+    });
+
+    test('ORDER_CREATED + NEW 는 평범한 신규 주문 — 앱이 접수한다', () {
+      expect(
+        OrderSocketManager.isExternallyAcceptedAtCreation(
+            'ORDER_CREATED', OrderStatus.NEW),
+        isFalse,
+      );
+    });
+
+    test('ORDER_ACCEPTED + PREPARING 은 제외 — 다른 단말이 접수한 주문이다', () {
+      // 이걸 통과시키면 단말 수만큼 같은 주문이 KDS 에 중복으로 뜬다.
+      expect(
+        OrderSocketManager.isExternallyAcceptedAtCreation(
+            'ORDER_ACCEPTED', OrderStatus.PREPARING),
+        isFalse,
+      );
+    });
+
+    test('종결 상태 이벤트는 대상이 아니다', () {
+      expect(
+        OrderSocketManager.isExternallyAcceptedAtCreation(
+            'ORDER_DONE', OrderStatus.DONE),
+        isFalse,
+      );
+      expect(
+        OrderSocketManager.isExternallyAcceptedAtCreation(
+            'ORDER_CANCELLED', OrderStatus.CANCELLED),
+        isFalse,
+      );
+    });
+  });
+
   group('OrderDetailFetchFailedException', () {
     test('toString 에 식별 정보 포함', () {
       final e = OrderDetailFetchFailedException(
