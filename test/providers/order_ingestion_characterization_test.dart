@@ -360,7 +360,8 @@ void main() {
       // 키오스크 주문 노출 ON 고정 — 이 파일의 관심사는 유입/자동접수 체인이지
       // 노출 필터가 아니다. 기본값은 OFF 이고 init() 이 한 번 더 강제로 OFF 로
       // 덮어쓰므로(마커), 마커를 미리 세워 그 재조정을 건너뛰고 노출을 켜 둔다.
-      PreferenceService.KEY_KIOSK_DEFAULT_OFF_RECONCILED: true,
+      // (노출 OFF 상태의 동작은 아래 (h) 그룹이 따로 검증한다)
+      PreferenceService.KEY_KIOSK_SETTINGS_RECONCILED: true,
       PreferenceService.KEY_SHOW_KIOSK_ORDER: true,
     });
     await PreferenceService().init();
@@ -938,6 +939,63 @@ void main() {
 
       // 실패 후 운영자가 다시 누르는 것은 정당한 요청이다.
       expect(h.api.forceCalls.length, 2);
+    });
+  });
+
+  group('(h) 키오스크 노출 OFF — 접수는 하되 화면·출력에는 내보내지 않는다', () {
+    // 노출 설정은 '화면에 보일지'만 정하고 '접수할지'는 정하지 않는다.
+    // 접수까지 막히면 주문이 서버에 NEW 로 방치되고, 매머드 매장에서는
+    // 사운드그래프 전송(접수에 실린 부수효과)까지 함께 누락된다.
+    setUp(() async {
+      await PreferenceService().setShowKioskOrder(false);
+      await PreferenceService().setKioskPrintAndSound(false);
+      await PreferenceService().setKioskAlwaysAutoAccept(true);
+    });
+
+    // setUpAll 이 깔아둔 이 파일의 공통 전제(노출 ON)로 되돌린다.
+    tearDown(() async {
+      await PreferenceService().setShowKioskOrder(true);
+    });
+
+    test('소켓 유입: 자동접수 PUT 은 나가고, 카드는 화면에 뜨지 않는다', () async {
+      final h = await _buildProvider();
+      h.notifier.queueOrderExternal(_order(orderNo: 'A', source: 'WALD_KIOSK'));
+      await _wait(1600);
+
+      // 접수는 된다 — 노출 필터는 자동접수 체인 밖에 있어야 한다.
+      expect(h.api.statusUpdates, contains(('A', OrderStatus.PREPARING)));
+      // 화면에는 남지 않는다. 접수 직후 즉시 UI 업데이트가 필터를 건너뛰면
+      // 카드가 한 번 떴다가 다음 폴링에서 사라지는 깜빡임이 된다 (회귀 방지).
+      expect(h.container.read(orderProvider).orders, isEmpty);
+      // 주문서·알림소리 OFF 이므로 출력 큐에도 들어가지 않는다.
+      expect(h.output.addedOrderIds, isEmpty);
+    });
+
+    test('폴링 유입: 노출 OFF 여도 자동접수 대상에서 빠지지 않는다', () async {
+      // refreshOrders 가 자동접수 판정에 필터 전 목록을 쓰는지 검증. 필터된
+      // 목록을 쓰면 이 주문은 영영 접수되지 않는다(소켓이 놓쳤을 때의 안전망 상실).
+      final h = await _buildProvider(
+        initialServerOrders: [_order(orderNo: 'A', source: 'WALD_KIOSK')],
+      );
+
+      expect(h.api.statusUpdates, contains(('A', OrderStatus.PREPARING)));
+      expect(h.container.read(orderProvider).orders, isEmpty);
+      // 폴링 경로도 소켓 경로와 같은 출력 게이트를 타야 한다.
+      expect(h.output.addedOrderIds, isEmpty);
+    });
+
+    test('노출 OFF 라도 주문서·알림소리 ON 이면 출력은 나간다 (두 축은 별개)', () async {
+      await PreferenceService().setKioskPrintAndSound(true);
+      addTearDown(() => PreferenceService().setKioskPrintAndSound(false));
+
+      final h = await _buildProvider(
+        initialServerOrders: [_order(orderNo: 'A', source: 'WALD_KIOSK')],
+      );
+
+      expect(h.api.statusUpdates, contains(('A', OrderStatus.PREPARING)));
+      expect(h.output.addedOrderIds, contains('A'));
+      // 출력이 나가도 화면 노출은 여전히 OFF 다.
+      expect(h.container.read(orderProvider).orders, isEmpty);
     });
   });
 }

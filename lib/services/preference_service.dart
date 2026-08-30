@@ -43,12 +43,12 @@ class PreferenceService {
   static const String KEY_IS_NEW_ORDER = "IS_NEW_ORDER";
   static const String KEY_SHOW_KIOSK_ORDER = "IS_SHOW_KIOSK_ORDER";
   static const String KEY_KIOSK_PRINT_AND_SOUND = "IS_KIOSK_PRINT_AND_SOUND";
-  // 키오스크 노출/출력 기본값 OFF 전환 마커. 기본값을 false 로 바꿔도 이미 true 가
-  // 저장된 기존 설치는 그대로 ON 이므로, 업데이트 후 첫 실행 때 한 번만 강제로
-  // 두 값을 false 로 덮어쓴다. 정책이 또 바뀌면 이 문자열을 새 버전으로 올려
-  // 기존 기기를 다시 한 번 재조정한다.
-  static const String KEY_KIOSK_DEFAULT_OFF_RECONCILED =
-      "KEY_KIOSK_DEFAULT_OFF_V1";
+  // 키오스크 설정 재조정 마커. 기본값을 바꿔도 이미 값이 저장된 기존 설치는
+  // 그대로이므로, 업데이트 후 첫 실행 때 한 번만 강제로 덮어쓴다.
+  //   노출 / 주문서·알림소리 → false, 항상 자동접수 → true.
+  // 정책이 또 바뀌면 이 문자열을 새 버전으로 올려 기존 기기를 다시 한 번
+  // 재조정한다. (구 마커: KEY_KIOSK_DEFAULT_OFF_V1 — 노출·알림만 다뤘음)
+  static const String KEY_KIOSK_SETTINGS_RECONCILED = "KEY_KIOSK_SETTINGS_V2";
   static const String KEY_KIOSK_ALWAYS_AUTO_ACCEPT =
       "KEY_KIOSK_ALWAYS_AUTO_ACCEPT"; // bool (기본 true): 키오스크 주문은 픽업 자동접수 설정과 무관하게 항상 즉시 접수
   static const String KEY_SHOW_POS_ORDER =
@@ -198,8 +198,8 @@ class PreferenceService {
       await _initializePrinterDefaults();
       // 업데이트 설정 기본값 초기화
       await _initializeUpdateDefaults();
-      // 키오스크 노출/출력 설정 OFF 강제 전환 (정책당 1회)
-      await _reconcileKioskDefaultsOff();
+      // 키오스크 설정(노출·출력·항상 자동접수) 강제 재조정 (정책당 1회)
+      await _reconcileKioskSettings();
       // 서버 환경이 저장되지 않은 경우 매장 ID 기반으로 복원
       await _ensureEnvironmentIsSet();
 
@@ -289,30 +289,35 @@ class PreferenceService {
     }
   }
 
-  /// 키오스크 주문 노출 / 주문서·알림소리 설정을 OFF 로 강제 전환 (정책당 1회)
+  /// 키오스크 설정 3종을 정책값으로 강제 전환 (정책당 1회)
   ///
-  /// 두 설정의 기본값이 ON → OFF 로 바뀌었지만, 기본값 변경만으로는 이미 true 가
-  /// 저장된 기존 설치가 그대로 ON 으로 남는다. 업데이트 후 첫 실행 때 한 번만
-  /// 저장값을 false 로 덮어써 신규/기존 설치의 출발점을 맞춘다. 마커를 세워
-  /// 이후 사용자가 다시 켠 값은 덮어쓰지 않는다.
-  Future<void> _reconcileKioskDefaultsOff() async {
+  /// 노출 / 주문서·알림소리는 기본값이 ON → OFF 로 바뀌었지만, 기본값 변경만으로는
+  /// 이미 true 가 저장된 기존 설치가 그대로 ON 으로 남는다. 반대로 '항상 자동접수'는
+  /// 기본값이 ON 인데 과거에 꺼둔 기기는 false 가 저장돼 있다 — 노출까지 꺼진 상태에서
+  /// 자동접수마저 꺼져 있으면 키오스크 주문이 화면에도 안 보이고 접수도 되지 않는다.
+  /// 업데이트 후 첫 실행 때 한 번만 세 값을 정책값으로 덮어써 출발점을 맞춘다.
+  /// 마커를 세워 이후 점주가 바꾼 값은 덮어쓰지 않는다.
+  Future<void> _reconcileKioskSettings() async {
     final isAlreadyDone =
-        _prefs.getBool(KEY_KIOSK_DEFAULT_OFF_RECONCILED) ?? false;
+        _prefs.getBool(KEY_KIOSK_SETTINGS_RECONCILED) ?? false;
     if (isAlreadyDone) return;
 
     try {
       final previousShow = _prefs.getBool(KEY_SHOW_KIOSK_ORDER);
       final previousPrintAndSound = _prefs.getBool(KEY_KIOSK_PRINT_AND_SOUND);
+      final previousAutoAccept = _prefs.getBool(KEY_KIOSK_ALWAYS_AUTO_ACCEPT);
 
       await _prefs.setBool(KEY_SHOW_KIOSK_ORDER, false);
       await _prefs.setBool(KEY_KIOSK_PRINT_AND_SOUND, false);
-      await _prefs.setBool(KEY_KIOSK_DEFAULT_OFF_RECONCILED, true);
+      await _prefs.setBool(KEY_KIOSK_ALWAYS_AUTO_ACCEPT, true);
+      await _prefs.setBool(KEY_KIOSK_SETTINGS_RECONCILED, true);
 
-      logger.i('[PreferenceService] 키오스크 설정 OFF 강제 전환: '
+      logger.i('[PreferenceService] 키오스크 설정 강제 재조정: '
           '노출 ${previousShow ?? '미설정'} → false, '
-          '주문서·알림소리 ${previousPrintAndSound ?? '미설정'} → false');
+          '주문서·알림소리 ${previousPrintAndSound ?? '미설정'} → false, '
+          '항상 자동접수 ${previousAutoAccept ?? '미설정'} → true');
     } catch (e, s) {
-      logger.e('[PreferenceService] 키오스크 설정 OFF 전환 중 오류 발생',
+      logger.e('[PreferenceService] 키오스크 설정 재조정 중 오류 발생',
           error: e, stackTrace: s);
     }
   }

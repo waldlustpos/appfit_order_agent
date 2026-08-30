@@ -888,14 +888,24 @@ class Order extends _$Order {
           final success = await updateOrderStatus(order, OrderStatus.PREPARING,
               readyTime: '$kAutoAcceptReadyTimeMinutes');
           if (success == true) {
+            // 키오스크/POS 출력·알림소리 설정을 소켓 경로(_processNewOrder L745)와
+            // 동일하게 반영한다. 이 경로가 게이트 없이 항상 출력하던 탓에, 같은
+            // 주문이 소켓으로 들어오면 조용하고 폴링으로 들어오면 주문서가 나오는
+            // 비대칭이 있었다. 접수 여부(위 kioskForceAccept)와 출력 여부는 별개 축이다.
+            final shouldNotify = _shouldNotifyForOrder(order);
             logger.d(
-                '[Order Processing] NEW 주문 자동접수 성공 — 출력/알림 트리거: ${order.orderId}');
-            // 라벨/주문서 출력 (큐 직렬화) — 폴링 경로(L1825)와 동일 패턴.
-            _outputQueueService.add(acceptedOrder, playSound: true);
+                '[Order Processing] NEW 주문 자동접수 성공 — 출력/알림 트리거: ${order.orderId} (notify=$shouldNotify)');
+            if (shouldNotify) {
+              // 라벨/주문서 출력 (큐 직렬화) — 폴링 경로(L1825)와 동일 패턴.
+              _outputQueueService.add(acceptedOrder, playSound: true);
+            } else {
+              logger.d(
+                  '[Order Processing] 키오스크/POS 출력·알람 OFF로 주문서 출력 스킵: ${order.orderId}');
+            }
             // KDS 자동접수 ON 환경에서도 사용자 인지를 위해 알람/오버레이 발생.
             // (L555 라벨 핸들러는 PREPARING 캐시 등록으로 이미 차단되므로 중복 없음)
             ref.read(alertManagerProvider).triggerNewOrderAlert(
-                  playSound: true,
+                  playSound: shouldNotify,
                   triggerOverlay: true,
                   triggerAppBar: true,
                 );
@@ -1120,8 +1130,14 @@ class Order extends _$Order {
       // 6. NEW/ACCEPTED 처리 (상세 로딩된 후 처리하는 것이 안전하지만, 비동기로 둠)
       // 만약 자동접수 로직이 메뉴 정보를 필요로 한다면 _processNewOrdersWhenRefresh에서
       // 개별적으로 fetchOrderDetail을 await해야 함.
-      // 현재는 그냥 호출.
-      await _processNewOrdersWhenRefresh(displayOrders);
+      //
+      // **필터 전 목록(mergedOrders)을 넘긴다** — displayOrders 를 넘기면 노출 OFF 인
+      // 키오스크/POS 주문이 자동접수 대상에서 빠져 서버에 NEW 로 방치된다. 소켓 경로
+      // (_processSingleOrder → _processOrderByStatus)는 노출 필터와 무관하게 자동접수
+      // 하므로, 소켓이 놓친 주문을 줍는 이 안전망만 기준이 달라선 안 된다.
+      // 노출 설정은 '화면에 보일지'를 정하지 '접수할지'를 정하지 않는다.
+      // (출력/알림소리는 _processNewOrdersWhenRefresh 안에서 별도로 게이팅한다)
+      await _processNewOrdersWhenRefresh(mergedOrders);
 
       // 7. blink 상태 업데이트 (자동 동기화되므로 활성 주문 수 계산 및 필요한 경우 사운드 중지만 수행)
       final activeCount = _calculateActiveOrderCount(displayOrders);
@@ -1897,8 +1913,14 @@ class Order extends _$Order {
 
       logger.d(
           '주문 상태 즉시 화면 업데이트: ${updatedOrder.orderId}, 상태: ${updatedOrder.status}');
-    } else if (!state.orders.any((o) => o.orderId == updatedOrder.orderId)) {
-      // 상태 목록에 없는 경우 목록에 추가 (필터링은 이미 state.orders에 적용되어 있으므로 다시 적용하지 않음)
+    } else if (!state.orders.any((o) => o.orderId == updatedOrder.orderId) &&
+        _shouldShowOrder(updatedOrder)) {
+      // 상태 목록에 없는 주문을 새로 추가하는 분기 — **노출 필터를 다시 적용해야 한다.**
+      // "필터링은 이미 state.orders 에 적용되어 있다"는 종전 전제는 이 분기에서만
+      // 성립하지 않는다. 여기 오는 주문은 애초에 필터에 걸려 state 에 못 들어온
+      // 주문이기 때문이다(노출 OFF 인 키오스크/POS 주문이 자동접수된 직후).
+      // 게이트가 없으면 접수 순간 카드가 한 번 떴다가 다음 폴링의 필터링에서
+      // 사라지는 깜빡임이 생긴다.
       final updatedOrders = [updatedOrder, ...state.orders];
 
       // 정렬 — 주문시간(orderedAt) 오름차순 (오래된 주문이 앞/왼쪽).
