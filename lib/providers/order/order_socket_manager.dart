@@ -388,6 +388,12 @@ class OrderSocketManager {
   Future<OrderModel> fetchOrderDetailForTest(String orderId, String shopCode) =>
       _fetchOrderDetailWithRetry(orderId, shopCode);
 
+  /// 테스트 전용 — 이벤트 기반 상태 보정을 그대로 노출한다.
+  @visibleForTesting
+  OrderModel enforceStatusFromEventForTest(
+          OrderModel order, String eventType) =>
+      _enforceStatusFromEvent(order, eventType);
+
   /// transient 판정: 일시적 네트워크 장애(타임아웃/연결/5xx)만 재시도 대상.
   /// 4xx·취소·파싱 오류는 재시도해도 동일 실패이므로 false.
   ///
@@ -431,40 +437,61 @@ class OrderSocketManager {
     onRefreshOrders?.call();
   }
 
-  /// 이벤트 타입에 따라 주문 모델의 상태를 강제로 보정하는 메서드
+  /// 이벤트 타입에 따라 주문 모델의 상태를 보정하는 메서드
+  ///
+  /// 보정은 **앞으로만** 한다. 이 보정의 목적은 "API 응답이 소켓 이벤트보다 늦게
+  /// 갱신되는" 경우를 메우는 것이므로, 이벤트가 가리키는 상태가 API 응답보다
+  /// 더 진행됐을 때만 의미가 있다. 반대 방향(뒤로 되돌리기)은 사실을 왜곡한다.
+  ///
+  /// 되돌리면 안 되는 이유: 서버는 **NEW 인 주문만 접수를 허용**한다. 일부 주문
+  /// 유형(예: `NICE_KIOSK`)은 결제와 동시에 PREPARING 으로 생성되는데, 그 주문의
+  /// ORDER_CREATED 이벤트를 보고 상태를 NEW 로 되돌리면 앱이 이미 접수된 주문에
+  /// 접수를 시도해 `HTTP 400 INVALID_ORDER_STATUS`(이미 수락된 주문입니다)를 맞는다.
+  /// 상태를 사실대로 두면 자동접수 분기(NEW 전용)를 타지 않고, 상태에 맞는
+  /// UI·출력 경로로 흘러간다.
   OrderModel _enforceStatusFromEvent(OrderModel order, String eventType) {
-    OrderStatus newStatus = order.status;
-    String statusCode = order.orderStatus;
+    final OrderStatus? eventStatus = switch (eventType) {
+      final t when t == appfit_core.OrderEventType.orderCreated.value =>
+        OrderStatus.NEW,
+      final t when t == appfit_core.OrderEventType.orderAccepted.value =>
+        OrderStatus.PREPARING,
+      final t when t == appfit_core.OrderEventType.orderPickupRequested.value =>
+        OrderStatus.READY, // 픽업 요청 -> 준비 완료
+      final t when t == appfit_core.OrderEventType.orderDone.value =>
+        OrderStatus.DONE,
+      final t when t == appfit_core.OrderEventType.orderCancelled.value =>
+        OrderStatus.CANCELLED,
+      _ => null,
+    };
+    if (eventStatus == null) return order;
 
-    if (eventType == appfit_core.OrderEventType.orderCreated.value) {
-      newStatus = OrderStatus.NEW;
-      statusCode = '2003';
-    } else if (eventType == appfit_core.OrderEventType.orderAccepted.value) {
-      newStatus = OrderStatus.PREPARING;
-      statusCode = '2007';
-    } else if (eventType ==
-        appfit_core.OrderEventType.orderPickupRequested.value) {
-      newStatus = OrderStatus.READY;
-      statusCode = '2009'; // 픽업 요청 -> 준비 완료
-    } else if (eventType == appfit_core.OrderEventType.orderDone.value) {
-      newStatus = OrderStatus.DONE;
-      statusCode = '2020';
-    } else if (eventType == appfit_core.OrderEventType.orderCancelled.value) {
-      newStatus = OrderStatus.CANCELLED;
-      statusCode = '9001';
+    // 상태 단조성의 단일 정의 지점을 재사용한다 (CANCELLED 우선 + 진행도 max).
+    final newStatus = resolveMergedStatus(order.status, eventStatus);
+    if (newStatus == order.status) {
+      // API 응답이 이미 같거나 더 진행된 상태 — 원본 statusCode 를 보존한다.
+      if (eventStatus != order.status) {
+        logger.d('[SocketManager] 상태 보정 생략 ($eventType): '
+            'API=${order.status} 가 이벤트=$eventStatus 보다 진행됨 — 되돌리지 않음');
+      }
+      return order;
     }
 
-    // 상태가 실제 변경된 경우에만 로그 (너무 빈번한 로그 방지)
-    if (order.status != newStatus) {
-      logger.d(
-          '[SocketManager] 상태 보정 적용 ($eventType): ${order.status} -> $newStatus');
-    }
-
+    logger.d(
+        '[SocketManager] 상태 보정 적용 ($eventType): ${order.status} -> $newStatus');
     return order.copyWith(
       status: newStatus,
-      orderStatus: statusCode,
+      orderStatus: _statusCodeOf(newStatus) ?? order.orderStatus,
     );
   }
+
+  /// 상태에 대응하는 서버 상태코드. 보정으로 상태를 바꿀 때 코드도 함께 맞춘다.
+  static String? _statusCodeOf(OrderStatus status) => switch (status) {
+        OrderStatus.NEW => '2003',
+        OrderStatus.PREPARING => '2007',
+        OrderStatus.READY => '2009',
+        OrderStatus.DONE => '2020',
+        OrderStatus.CANCELLED => '9001',
+      };
 
   /// 주문 처리 (공통 로직 분리)
   void _processNewOrder(OrderModel orderData) {

@@ -152,6 +152,72 @@ void main() {
     });
   });
 
+  group('OrderSocketManager.enforceStatusFromEvent — 보정은 앞으로만', () {
+    // 서버는 NEW 인 주문만 접수를 허용한다. 결제와 동시에 PREPARING 으로 생성되는
+    // 주문 유형(NICE_KIOSK 등)의 ORDER_CREATED 이벤트를 보고 상태를 NEW 로 되돌리면,
+    // 앱이 이미 수락된 주문에 접수를 시도해 400 INVALID_ORDER_STATUS 를 맞는다.
+    OrderSocketManager build() {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      return container.read(
+        Provider<OrderSocketManager>((ref) => OrderSocketManager(ref)),
+      );
+    }
+
+    test('ORDER_CREATED 인데 API 가 PREPARING 이면 NEW 로 되돌리지 않는다', () {
+      final manager = build();
+      final accepted = _order('A').copyWith(
+        status: OrderStatus.PREPARING,
+        orderStatus: '2007',
+      );
+
+      final result =
+          manager.enforceStatusFromEventForTest(accepted, 'ORDER_CREATED');
+
+      expect(result.status, OrderStatus.PREPARING);
+      // 원본 상태코드도 보존한다 — 상태를 안 바꿨는데 코드만 바뀌면 어긋난다.
+      expect(result.orderStatus, '2007');
+    });
+
+    test('ORDER_ACCEPTED 인데 API 가 아직 NEW 면 PREPARING 으로 앞당긴다 (기존 동작 유지)', () {
+      final manager = build();
+
+      final result =
+          manager.enforceStatusFromEventForTest(_order('A'), 'ORDER_ACCEPTED');
+
+      expect(result.status, OrderStatus.PREPARING);
+      expect(result.orderStatus, '2007');
+    });
+
+    test('ORDER_CANCELLED 는 진행도와 무관하게 터미널로 확정된다', () {
+      final manager = build();
+      final done = _order('A').copyWith(
+        status: OrderStatus.DONE,
+        orderStatus: '2020',
+      );
+
+      final result =
+          manager.enforceStatusFromEventForTest(done, 'ORDER_CANCELLED');
+
+      expect(result.status, OrderStatus.CANCELLED);
+      expect(result.orderStatus, '9001');
+    });
+
+    test('알 수 없는 이벤트 타입은 주문을 그대로 통과시킨다', () {
+      final manager = build();
+      final ready = _order('A').copyWith(
+        status: OrderStatus.READY,
+        orderStatus: '2009',
+      );
+
+      final result =
+          manager.enforceStatusFromEventForTest(ready, 'SOMETHING_ELSE');
+
+      expect(result.status, OrderStatus.READY);
+      expect(result.orderStatus, '2009');
+    });
+  });
+
   group('OrderDetailFetchFailedException', () {
     test('toString 에 식별 정보 포함', () {
       final e = OrderDetailFetchFailedException(

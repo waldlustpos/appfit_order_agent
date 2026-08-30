@@ -657,9 +657,15 @@ class Order extends _$Order {
     // 1) 자동접수 우선 처리: 알림 설정(_shouldNotifyForOrder)과 무관하게 동작해야 함.
     // 키오스크 주문은 '픽업 오더 자동 접수'(isAutoReceipt) 와 무관하게, 전용 설정
     // (getKioskAlwaysAutoAccept, 기본 ON)이 켜져 있으면 항상 즉시 접수한다.
-    final bool shouldAutoAccept = state.isAutoReceipt ||
-        (_helper.isKioskOrder(order) &&
-            _preferenceService.getKioskAlwaysAutoAccept());
+    //
+    // 단 어느 설정이든 **NEW 인 주문에만** 접수를 건다 — 서버가 NEW 에서만 접수를
+    // 허용하기 때문이다. 결제와 동시에 PREPARING 으로 생성되는 주문 유형
+    // (예: NICE_KIOSK)이 이 경로로 들어와도 400 INVALID_ORDER_STATUS 를 부르지 않고,
+    // 아래 알림/출력 경로만 상태에 맞게 태운다.
+    final bool shouldAutoAccept = order.status == OrderStatus.NEW &&
+        (state.isAutoReceipt ||
+            (_helper.isKioskOrder(order) &&
+                _preferenceService.getKioskAlwaysAutoAccept()));
     final isKdsMode = ref.read(kdsModeProvider);
     final modeText = isKdsMode ? 'KDS 모드' : '일반 모드';
 
