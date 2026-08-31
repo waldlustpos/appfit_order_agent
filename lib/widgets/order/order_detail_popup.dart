@@ -728,6 +728,61 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
           onPressed: completeOrder,
         );
 
+    // 픽업 재요청 — 고객에게 알림만 다시 보내고 **주문 상태는 그대로 READY** 다.
+    // 그래서 _handleStatusUpdate 를 쓰지 않는다: 그쪽은 성공하면 팝업을 pop 하는데,
+    // 여기서는 팝업을 열어둔 채 결과만 알리고 운영자가 이어서 '주문 완료' 를 누를
+    // 수 있어야 한다. 상태가 안 바뀌어 화면이 그대로이므로 성공도 명시적으로 알린다
+    // — 아무 반응이 없으면 발송됐는지 몰라 연타한다.
+    Future<void> requestRepickup() async {
+      final currentOrder = ref.read(orderDetailProvider).order;
+      if (currentOrder == null) return;
+      final orderInfo = 'displayNum=${currentOrder.displayNum}, '
+          'simpleNum=${currentOrder.shopOrderNo}, orderId=${currentOrder.orderId}';
+      logToFile(tag: LogTag.UI_ACTION, message: '픽업 재요청 버튼: $orderInfo');
+
+      final confirmed = await CommonDialog.showConfirmDialog(
+        context: context,
+        title: t.order_detail.dialog_repickup_confirm_title,
+        content: t.order_detail
+            .dialog_repickup_confirm_content(n: currentOrder.displayNum),
+        confirmText: t.common.confirm,
+        cancelText: t.common.cancel,
+      );
+      if (confirmed != true || !mounted) return;
+
+      try {
+        await ref
+            .read(apiServiceProvider)
+            .sendPickupNotification(currentOrder.orderNo);
+        logToFile(tag: LogTag.UI_ACTION, message: '픽업 재요청 성공: $orderInfo');
+        if (!mounted) return;
+        CommonDialog.showInfoDialog(
+          context: context,
+          title: t.order_detail.dialog_repickup_confirm_title,
+          content: t.order_detail.repickup_success,
+        );
+      } catch (e, s) {
+        logToFile(
+            tag: LogTag.UI_ACTION, message: '픽업 재요청 실패: $orderInfo, error=$e');
+        logger.e('픽업 재요청 실패', error: e, stackTrace: s);
+        if (!mounted) return;
+        CommonDialog.showInfoDialog(
+          context: context,
+          title: t.common.error_title,
+          // 409(다른 기기가 먼저 완료 처리)·404 는 서버 메시지가 가장 정확하다.
+          content: e is ApiException ? e.message : t.order_detail.repickup_fail,
+          // 기본 dedupe 키는 title+content 라 여러 건이 동시에 실패하면
+          // 두 번째부터 조용히 삼켜진다. 주문별로 분리한다.
+          dedupeKey: 'repickup_fail_${currentOrder.orderId}',
+        );
+      }
+    }
+
+    Widget repickupBtn() => AsyncActionButton(
+          text: t.order_detail.btn_repickup,
+          onPressed: requestRepickup,
+        );
+
     final isFromHistory = widget.isFromHistory;
     logger.d(
         '현재 주문 상태: ${order.status}, isFromHistory: $isFromHistory, isKdsMode: $isKdsMode');
@@ -747,10 +802,10 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
       }
     }
 
-    // KDS 모드 + READY: 픽업 탭 상세창. 재출력 버튼 노출.
+    // KDS 모드 + READY: 픽업 탭 상세창. 재출력 + 픽업 재요청 노출.
     if (isKdsMode && order.status == OrderStatus.READY) {
       return (
-        secondary: reprintButtons(),
+        secondary: [...reprintButtons(), repickupBtn()],
         primary: completeOrderBtn(isMainAction: true),
       );
     }
@@ -799,7 +854,7 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
 
     if (order.status == OrderStatus.READY) {
       return (
-        secondary: reprintButtons(),
+        secondary: [...reprintButtons(), repickupBtn()],
         primary: completeOrderBtn(isMainAction: true),
       );
     }

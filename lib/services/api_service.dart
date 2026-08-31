@@ -1228,6 +1228,45 @@ class ApiService {
     }
   }
 
+  /// 픽업 재요청 알림 발송 — **주문 상태는 바뀌지 않는다** (READY 유지).
+  ///
+  /// 서버가 READY 가 아닌 주문에는 409 를 주므로, 호출부는 READY 분기에서만
+  /// 버튼을 노출한다. 성공해도 주문이 화면에서 사라지지 않으므로 "카드가 없어진
+  /// 것" 을 성공 신호로 삼을 수 없다 — 호출부가 직접 결과를 알려야 한다.
+  ///
+  /// [message] 는 200자 제한이며, 생략하면 서버 기본 문구가 나간다.
+  ///
+  /// 건강도 카운터([_recordApiSuccess]/[_recordApiFailure])는 **일부러 걸지
+  /// 않는다** — 그 카운터는 폴링·소켓이 상시로 때리는 핵심 3요청(목록/상세/
+  /// 상태변경)의 비율로 배너를 띄우는데, 하루 몇 번 눌리는 이 액션을 섞으면
+  /// 표본이 오염된다. 마찬가지로 [_maybeInjectFault] 도 걸지 않는다:
+  /// [NetFaultTarget] 은 대상별 검증 항목이 명시된 3종이라 여기에 기존 타깃을
+  /// 재사용하면 KDS 스피너 검증이 교란된다. 진단 로그([_logApiFailure])는 남긴다.
+  Future<void> sendPickupNotification(String orderNo, {String? message}) async {
+    final sw = Stopwatch()..start();
+    try {
+      final dio = _ref.read(appFitDioProvider);
+      // body 는 message 가 없어도 빈 객체로 보낸다 — 서버가 @RequestBody 를
+      // 요구할 수 있고, shopCode 는 어차피 인터셉터가 세션 값으로 채운다
+      // (`/v0/order/{id}` PUT 과 같은 폴백 경로).
+      final response = await dio.post(
+        ApiRoutes.orderPickupNoti(orderNo),
+        data: <String, dynamic>{if (message != null) 'message': message},
+      );
+      // LogTag.API 가 아니라 SYSTEM 이다 — `[API]` 는 ERROR/실패/오류 가 든 줄만
+      // 파일 화이트리스트를 통과해서(logger.dart) 정상 응답은 통째로 버려진다.
+      // "고객에게 알림을 언제 다시 보냈는가" 는 CS 문의의 근거라 남아야 한다.
+      logToFile(
+        tag: LogTag.SYSTEM,
+        message: '[픽업재요청] orderNo=$orderNo status=${response.statusCode}',
+      );
+    } catch (e, s) {
+      logger.e('[AppFit API] 픽업 재요청 실패: $orderNo', error: e, stackTrace: s);
+      _logApiFailure('POST order/$orderNo/pickup-noti', e, sw);
+      _handleError(e, '픽업 재요청에 실패했습니다.');
+    }
+  }
+
   // getMigrationOptions(`/v0/migration/options`) 는 제거됨.
   //   옵션의 categoryCode(= 옵션그룹 POS 코드)를 채우려고 카탈로그 조회 뒤에
   //   한 번 더 호출하던 조인이었으나, `/categories/items` 응답이 optionGroupPosId

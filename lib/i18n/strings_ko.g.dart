@@ -589,6 +589,12 @@ class Translations$order_detail$ko {
 	/// ko: '주문 상태 변경에 실패했습니다.'
 	String get status_update_fail => '주문 상태 변경에 실패했습니다.';
 
+	/// ko: '픽업 재요청 알림을 발송했습니다.'
+	String get repickup_success => '픽업 재요청 알림을 발송했습니다.';
+
+	/// ko: '픽업 재요청에 실패했습니다.'
+	String get repickup_fail => '픽업 재요청에 실패했습니다.';
+
 	/// ko: '주문 취소'
 	String get dialog_kiosk_cancel_title => '주문 취소';
 
@@ -651,6 +657,9 @@ class Translations$order_detail$ko {
 
 	/// ko: '픽업 요청'
 	String get btn_pickup_request => '픽업 요청';
+
+	/// ko: '픽업 재요청'
+	String get btn_repickup => '픽업 재요청';
 
 	/// ko: '주문 접수'
 	String get btn_order_accept => '주문 접수';
