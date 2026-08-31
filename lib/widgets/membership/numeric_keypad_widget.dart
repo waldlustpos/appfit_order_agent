@@ -8,6 +8,10 @@ class NumericKeypadWidget extends StatelessWidget {
   final String clearLabel;
   final String deleteLabel;
 
+  /// false 면 모든 키를 비활성(회색·무반응)으로 그린다.
+  /// 스탬프 미운영 매장에서 회원 조회 후 입력을 막을 때 쓴다.
+  final bool enabled;
+
   const NumericKeypadWidget({
     super.key,
     required this.onKeyPressed,
@@ -15,6 +19,7 @@ class NumericKeypadWidget extends StatelessWidget {
     required this.onDelete,
     required this.clearLabel,
     required this.deleteLabel,
+    this.enabled = true,
   });
 
   @override
@@ -29,6 +34,10 @@ class NumericKeypadWidget extends StatelessWidget {
           const EdgeInsets.symmetric(horizontal: AppSpacing.s16, vertical: 0),
       textStyle: AppTextStyles.display.copyWith(fontSize: 28),
       foregroundColor: AppStyles.gray9,
+      // 비활성 키가 흰 배경 위에서 확실히 회색으로 읽히게 명시한다
+      // (기본 disabled 색은 테마 onSurface 38% 라 대비가 약하다).
+      disabledForegroundColor: AppStyles.gray3,
+      disabledBackgroundColor: AppStyles.gray1,
       minimumSize: const Size(double.infinity, double.infinity),
       alignment: Alignment.center,
     );
@@ -37,7 +46,7 @@ class NumericKeypadWidget extends StatelessWidget {
         {VoidCallback? onPressed, IconData? icon, TextStyle? style}) {
       return TextButton(
         style: buttonStyle,
-        onPressed: onPressed ?? () => onKeyPressed(label),
+        onPressed: enabled ? (onPressed ?? () => onKeyPressed(label)) : null,
         child: icon != null
             ? Icon(icon, size: 26)
             : Text(

@@ -526,7 +526,8 @@
         "customer": {
             "status_none": "会員情報がありません。",
             "honorific": "{name}様",
-            "summary": "スタンプ {stamps} | クーポン {coupons}"
+            "summary": "スタンプ {stamps} | クーポン {coupons}",
+            "summary_coupon_only": "クーポン {coupons}"
         },
         "tabs": {
             "stamps": "スタンプ内訳",

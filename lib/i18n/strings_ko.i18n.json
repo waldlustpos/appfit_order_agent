@@ -526,7 +526,8 @@
         "customer": {
             "status_none": "회원 정보가 없습니다.",
             "honorific": "{name}님",
-            "summary": "스탬프 {stamps} | 쿠폰 {coupons}"
+            "summary": "스탬프 {stamps} | 쿠폰 {coupons}",
+            "summary_coupon_only": "쿠폰 {coupons}"
         },
         "tabs": {
             "stamps": "스탬프내역",

@@ -533,7 +533,8 @@
         "customer": {
             "status_none": "No member info found.",
             "honorific": "{name}",
-            "summary": "Stamp {stamps} | Coupon {coupons}"
+            "summary": "Stamp {stamps} | Coupon {coupons}",
+            "summary_coupon_only": "Coupon {coupons}"
         },
         "tabs": {
             "stamps": "Stamps",

@@ -212,6 +212,21 @@ class ApiService {
       if (response.statusCode == 200) {
         final data = response.data['data'] as Map<String, dynamic>;
 
+        // 응답 스키마 확인용 진단 로그. shopGroupId 는 스탬프 노출 판정의
+        // 근거라 실제 필드명/값을 현장 로그로 확인할 수 있어야 한다.
+        // 응답 body 전체를 찍지 않는 이유: shopContact(매장 전화번호)가 로그에
+        // 원문으로 남는다 — 로그 PII 정책상 전화번호는 원문 금지. 키 목록과
+        // group 계열 필드만으로 필드명 확인에는 충분하다.
+        logger.i('[SYSTEM] /v0/shop 응답 키: ${data.keys.toList()}');
+        final groupLike =
+            data.entries.where((e) => e.key.toLowerCase().contains('group'));
+        logger.i('[SYSTEM] /v0/shop group 계열 필드: '
+            '${groupLike.map((e) => '${e.key}=${e.value}').join(', ')}');
+
+        // 서버가 숫자로 내려줄 수 있어 toString 으로 수용하고, 빈 값은 null 로
+        // 눕힌다(판정에서 "그룹 없음"과 같게 다루기 위함).
+        final rawGroupId = data['shopGroupId']?.toString().trim();
+
         // AppFit 데이터를 StoreModel로 매핑.
         // - phone: shopContact (영수증/주문서 헤더 표시용)
         // - businessNumber: /v0/shop 응답에 아직 없음. 백엔드 추가 후 매핑 예정.
@@ -222,6 +237,8 @@ class ApiService {
           phone: (data['shopContact'] as String?)?.trim().isNotEmpty == true
               ? (data['shopContact'] as String).trim()
               : null,
+          shopGroupId:
+              (rawGroupId != null && rawGroupId.isNotEmpty) ? rawGroupId : null,
         );
       } else {
         throw Exception('매장 정보 조회 실패: ${response.statusCode}');

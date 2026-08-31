@@ -57,10 +57,13 @@ void main() {
         'shopContact': '02-1234-5678',
         'businessNumber': '123-45-67890',
         'rewardType': 'STAMP',
+        'shopGroupId': 'GRP-1',
       });
       expect(s.phone, isNull);
       expect(s.businessNumber, isNull);
       expect(s.rewardType, ''); // 생성자 기본값
+      // shopGroupId 도 동일 — 실제 매핑은 ApiService.getStoreInfo 쪽이다.
+      expect(s.shopGroupId, isNull);
     });
   });
 

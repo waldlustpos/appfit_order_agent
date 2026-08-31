@@ -1,3 +1,5 @@
+import 'package:appfit_order_agent/config/membership_config.dart';
+
 class StoreModel {
   final String storeId;
   final String name;
@@ -10,6 +12,10 @@ class StoreModel {
   /// 사업자번호. /v0/shop 응답에 현재 미포함. 백엔드 추가 후 매핑 예정.
   final String? businessNumber;
 
+  /// 매장이 속한 그룹 (`/v0/shop` 응답의 `shopGroupId`).
+  /// 스탬프 기능 노출 판정에만 쓴다([stampEnabled]).
+  final String? shopGroupId;
+
   StoreModel({
     required this.storeId,
     required this.name,
@@ -17,7 +23,11 @@ class StoreModel {
     this.rewardType = '',
     this.phone,
     this.businessNumber,
+    this.shopGroupId,
   });
+
+  /// 멤버십 탭에서 스탬프 UI 를 노출할지. 판정 규칙 정본은 [MembershipConfig].
+  bool get stampEnabled => MembershipConfig.stampEnabledFor(shopGroupId);
 
   /// 필수 필드(strId/name)가 누락/비문자열이면 [FormatException] throw.
   /// silent 기본값('')은 빈 storeId 가 초기 로드 가드를 조용히 통과하므로 더 위험.
@@ -46,6 +56,7 @@ class StoreModel {
       'isOpen': isOpen,
       'phone': phone,
       'businessNumber': businessNumber,
+      'shopGroupId': shopGroupId,
     };
   }
 
@@ -56,6 +67,7 @@ class StoreModel {
     String? rewardType,
     String? phone,
     String? businessNumber,
+    String? shopGroupId,
   }) {
     return StoreModel(
       storeId: storeId ?? this.storeId,
@@ -64,6 +76,7 @@ class StoreModel {
       rewardType: rewardType ?? this.rewardType,
       phone: phone ?? this.phone,
       businessNumber: businessNumber ?? this.businessNumber,
+      shopGroupId: shopGroupId ?? this.shopGroupId,
     );
   }
 }

@@ -33,6 +33,8 @@ class Store extends _$Store {
       logger.i('[SYSTEM]  매장 ID  : ${storeModel.storeId}');
       logger.i('[SYSTEM]  매장 이름: ${storeModel.name}');
       logger.i('[SYSTEM]  영업 상태: ${storeModel.isOpen ? "영업 중" : "영업 종료"}');
+      logger.i('[SYSTEM]  매장그룹  : ${storeModel.shopGroupId ?? "-"} '
+          '(스탬프 ${storeModel.stampEnabled ? "표시" : "숨김"})');
       logger.i(sep);
 
       return storeModel;
@@ -117,3 +119,12 @@ class Store extends _$Store {
     state = AsyncData(optimisticModel);
   }
 }
+
+/// 이 매장에서 스탬프 UI(적립 입력·버튼·스탬프내역 탭)를 노출할지.
+///
+/// 매장 정보 로드 전이거나 조회에 실패해 값이 없으면 **true**(기존 동작)로
+/// 폴백한다. 판정 규칙 자체는 [MembershipConfig] 가 정본이며, 화면마다
+/// `?? true` 폴백이 흩어지지 않도록 여기 한 곳에서만 눕힌다.
+final stampEnabledProvider = Provider<bool>(
+  (ref) => ref.watch(storeProvider).value?.stampEnabled ?? true,
+);

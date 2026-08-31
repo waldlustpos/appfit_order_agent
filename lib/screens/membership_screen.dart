@@ -226,6 +226,7 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
         ref.watch(membershipProvider.select((state) => state.couponCount));
     final isLoading =
         ref.watch(membershipProvider.select((state) => state.isLoading));
+    final stampEnabled = ref.watch(stampEnabledProvider);
 
     return SizedBox(
       height: 40,
@@ -253,9 +254,12 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
                 child: Text(
                   isLoading || customerName.isEmpty
                       ? ' '
-                      : t.membership.customer.summary(
-                          stamps: stampCount.toString(),
-                          coupons: couponCount.toString()),
+                      : stampEnabled
+                          ? t.membership.customer.summary(
+                              stamps: stampCount.toString(),
+                              coupons: couponCount.toString())
+                          : t.membership.customer.summary_coupon_only(
+                              coupons: couponCount.toString()),
                   style: AppTextStyles.bodySm.copyWith(color: AppStyles.gray6),
                 ),
               ),
@@ -314,9 +318,12 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
       builder: (context, ref, _) {
         final customerName =
             ref.watch(membershipProvider.select((s) => s.customerName));
+        final stampEnabled = ref.watch(stampEnabledProvider);
         final isCustomerSearched = customerName.isNotEmpty;
+        // 스탬프 미운영 매장에서는 회원 조회 후 입력란이 할 일이 없다.
+        // "스탬프 개수를 입력해주세요" 안내를 지워 오조작을 유도하지 않는다.
         final hintText = isCustomerSearched
-            ? t.membership.search.hint_searched
+            ? (stampEnabled ? t.membership.search.hint_searched : '')
             : t.membership.search.hint;
 
         return Stack(
@@ -357,7 +364,9 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
                 child: ValueListenableBuilder<TextEditingValue>(
                   valueListenable: _inputController,
                   builder: (context, value, _) {
-                    if (value.text.isNotEmpty) return const SizedBox.shrink();
+                    if (value.text.isNotEmpty || hintText.isEmpty) {
+                      return const SizedBox.shrink();
+                    }
                     return Align(
                       alignment: Alignment.centerLeft,
                       child: Padding(
@@ -382,6 +391,12 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
   }
 
   Widget _buildKeypadAndButtons() {
+    final stampEnabled = ref.watch(stampEnabledProvider);
+    final isCustomerSearchedNow =
+        ref.watch(membershipProvider.select((s) => s.customerName.isNotEmpty));
+    // 스탬프 미운영 매장 + 회원 조회 완료 = 입력할 것이 없는 상태.
+    final inputDisabled = !stampEnabled && isCustomerSearchedNow;
+
     return Column(
       children: [
         Expanded(
@@ -391,6 +406,7 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
             onDelete: _onDeletePressed,
             clearLabel: t.membership.keypad.clear,
             deleteLabel: t.membership.keypad.delete,
+            enabled: !inputDisabled,
           ),
         ),
         const SizedBox(height: AppSpacing.s8),
@@ -406,6 +422,8 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
 
             // 회원이 이미 조회된 상태: 스탬프 적립 단일 버튼(가로 full-width).
             if (isCustomerSearched) {
+              // 스탬프 미운영 매장에서는 적립 버튼 자체를 노출하지 않는다.
+              if (!stampEnabled) return const SizedBox.shrink();
               return SizedBox(
                 width: double.infinity,
                 child: _primaryActionButton(
@@ -537,6 +555,15 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
         ref.watch(membershipProvider.select((state) => state.isLoading));
     final isLoadingHistory = ref.watch(
         membershipProvider.select((state) => state.isLoadingRewardHistory));
+    final stampEnabled = ref.watch(stampEnabledProvider);
+
+    // 탭 라벨과 뷰를 한 리스트로 묶는다. 두 리터럴을 따로 두면 조건부 노출에서
+    // 개수가 어긋나 엉뚱한 탭이 열릴 수 있다.
+    final tabs = <(String, Widget)>[
+      if (stampEnabled) (t.membership.tabs.stamps, _buildStampHistoryTab()),
+      (t.membership.tabs.coupons, _buildCouponHistoryTab()),
+      (t.membership.tabs.available, _buildAvailableCouponsTab()),
+    ];
 
     return Container(
       margin: const EdgeInsets.only(
@@ -551,19 +578,20 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
         boxShadow: AppElevation.soft,
       ),
       clipBehavior: Clip.antiAlias,
+      // DefaultTabController 는 length 변경 시 컨트롤러를 교체하며 index 를
+      // clamp 하므로(Flutter tab_controller.dart didUpdateWidget) 별도 key 가
+      // 없어도 탭 개수가 줄어드는 전환이 안전하다.
       child: DefaultTabController(
-        length: 3,
+        length: tabs.length,
         child: Column(
           children: [
-            _buildTabBar(),
+            _buildTabBar(tabs.map((e) => e.$1).toList()),
             Expanded(
               child: isLoading || isLoadingHistory
                   ? const Center(child: AppLoadingIndicator(size: 32))
-                  : TabBarView(children: [
-                      _buildStampHistoryTab(),
-                      _buildCouponHistoryTab(),
-                      _buildAvailableCouponsTab(),
-                    ]),
+                  : TabBarView(
+                      children: tabs.map((e) => e.$2).toList(),
+                    ),
             ),
           ],
         ),
@@ -571,7 +599,7 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
     );
   }
 
-  Widget _buildTabBar() {
+  Widget _buildTabBar(List<String> labels) {
     return TabBar(
       indicatorPadding: const EdgeInsets.only(bottom: 4),
       dividerColor: Colors.transparent,
@@ -579,11 +607,7 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
       labelColor: AppStyles.gray9,
       unselectedLabelColor: AppStyles.gray6,
       indicatorColor: AppStyles.kMainColor,
-      tabs: [
-        _tab(t.membership.tabs.stamps),
-        _tab(t.membership.tabs.coupons),
-        _tab(t.membership.tabs.available),
-      ],
+      tabs: labels.map(_tab).toList(),
     );
   }
 
@@ -672,6 +696,11 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
 
   // ─── 키패드 처리 ──────────────────────────────────────────────────────────
 
+  /// 스탬프 미운영 매장에서 회원 조회가 끝난 상태인지.
+  /// 이 상태에서는 입력란에 넣을 값이 없으므로 키패드/하드웨어 키를 모두 막는다.
+  bool _isInputDisabled(bool isCustomerSearched) =>
+      isCustomerSearched && !ref.read(stampEnabledProvider);
+
   void _onKeypadPressed(String value) {
     final currentText = _inputController.text;
 
@@ -680,6 +709,13 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
     final rewardType =
         ref.read(membershipProvider.select((state) => state.rewardType));
     final isCustomerSearched = customerName.isNotEmpty;
+
+    // 스탬프 미운영 매장에서 회원 조회 후에는 입력 자체를 받지 않는다.
+    // 키패드는 비활성이지만 이 콜백은 하드웨어 키 경로(_handleKeyEvent)와
+    // 공유하므로 여기서도 막는다.
+    if (_isInputDisabled(isCustomerSearched)) {
+      return;
+    }
 
     if (isCustomerSearched && currentText.isEmpty && value == '0') {
       return;
@@ -739,6 +775,15 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
         ref.read(membershipProvider.select((state) => state.isLoading));
     final key = event.logicalKey;
 
+    // 스탬프 미운영 매장 + 회원 조회 완료: 외부 키보드/HID 스캐너의 숫자·삭제
+    // 키를 입력란에 반영하지 않는다. 키패드 위젯만 비활성화하면 이 경로로
+    // 여전히 값이 들어간다. 숫자는 _onKeypadPressed 안에서 같은 판정으로
+    // 걸러지므로 여기서는 Backspace 만 막으면 된다(둘 다 handled 로 소비해
+    // 미처리 비프음 방지). Tab·방향키 등은 기존과 동일하게 통과시킨다.
+    final isCustomerSearched =
+        ref.read(membershipProvider.select((s) => s.customerName.isNotEmpty));
+    final inputDisabled = _isInputDisabled(isCustomerSearched);
+
     // Enter / NumpadEnter → 무동작. 자동 제출하지 않고(스캐너 종단 Enter 포함)
     // 입력란 값은 그대로 둔 채 사용자가 버튼으로 조작한다. handled 로 소비해
     // 기본 동작·미처리 비프음만 막는다.
@@ -749,7 +794,7 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
 
     // Backspace → 마지막 글자 삭제.
     if (key == LogicalKeyboardKey.backspace) {
-      if (!isLoading) _onDeletePressed();
+      if (!isLoading && !inputDisabled) _onDeletePressed();
       return KeyEventResult.handled;
     }
 
