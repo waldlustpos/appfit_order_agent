@@ -381,7 +381,7 @@ class _ProductManagementScreenState
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         headerCountText,
-                        IconButton(
+                        ElevatedButton.icon(
                           onPressed: () {
                             logToFile(
                                 tag: LogTag.UI_ACTION,
@@ -390,9 +390,19 @@ class _ProductManagementScreenState
                           },
                           icon: const Icon(
                             Icons.refresh_outlined,
-                            size: 28,
+                            size: 22,
                           ),
-                          color: AppStyles.kMainColor,
+                          label: Text(
+                            t.product_mgmt.refresh_products,
+                            style: AppTextStyles.body
+                                .copyWith(fontWeight: FontWeight.w600),
+                          ),
+                          style: AppStyles.outlinedPrimaryButton(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.s12,
+                              vertical: AppSpacing.s8,
+                            ),
+                          ),
                         ),
                       ],
                     ),

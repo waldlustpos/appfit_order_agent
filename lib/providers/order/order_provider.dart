@@ -591,12 +591,15 @@ class Order extends _$Order {
               // 후행 PREPARING 이벤트마다 재평가하지 않도록 동일하게 dedup 등록.
               _selfAcceptedOrderIds.add(order.orderId);
             } else {
+              // 버블·앱바는 노출 축을 따른다 (NEW 유입 경로와 동일 기준).
+              // playSound 는 이 분기에 오기까지 sourceNotifyEnabled 로 이미 걸러졌다.
+              final shouldShow = _shouldShowOrder(order);
               logger.d(
-                  'KDS 모드: 접수된 주문에 대해 알림 발생 (Sound/Overlay/AppBar): ${order.orderId}');
+                  'KDS 모드: 접수된 주문에 대해 알림 발생 (Sound/Overlay=$shouldShow/AppBar=$shouldShow): ${order.orderId}');
               ref.read(alertManagerProvider).triggerNewOrderAlert(
                     playSound: true,
-                    triggerOverlay: true,
-                    triggerAppBar: true,
+                    triggerOverlay: shouldShow,
+                    triggerAppBar: shouldShow,
                   );
 
               // KDS 모드: 접수된 주문 유입 시 주문서 + 라벨 자동 출력 — 큐 경유로 주문 단위 직렬화 보장.
@@ -676,17 +679,26 @@ class Order extends _$Order {
     }
 
     // NEW 주문 수신 처리 (일반 모드 또는 KDS 자동접수 ON)
-    // AlertManager를 통해 소리, 깜빡임, 오버레이 통합 실행
-    // playSound: true (소리 재생), triggerOverlay: true (오버레이), triggerAppBar: true (앱바)
+    // AlertManager를 통해 소리, 깜빡임, 오버레이 통합 실행.
+    //
+    // 세 신호는 서로 다른 축을 따른다:
+    //   playSound     ← 주문서·알림소리 설정 (_shouldNotifyForOrder)
+    //   overlay/appBar ← 노출 설정 (_shouldShowOrder)
+    // 버블과 앱바 깜빡임은 '주문 카드를 보라'는 포인터라, 카드가 목록에 들어가지도
+    // 않는 주문(노출 OFF 인 키오스크/POS)에 대해 켜면 가리킬 대상이 없다. 실제로
+    // Windows 버블 점멸은 종료 조건 없는 Timer 라 사용자가 누를 때까지 계속 깜빡이고,
+    // 눌러서 앱을 열면 주문이 없다. 앱바 쪽도 startBlinking() 이 stopBlinking 플래그를
+    // 리셋해서, 숨은 주문 하나가 점주가 이미 확인 처리한 다른 주문의 깜빡임을 되살린다.
     if (!isKdsMode || state.isKdsAcceptOrders) {
       final shouldNotify = _shouldNotifyForOrder(order);
+      final shouldShow = _shouldShowOrder(order);
       ref.read(alertManagerProvider).triggerNewOrderAlert(
             playSound: shouldNotify,
-            triggerOverlay: true,
-            triggerAppBar: true,
+            triggerOverlay: shouldShow,
+            triggerAppBar: shouldShow,
           );
       logger.d(
-          '  NEW 주문 알림 발생 완료 (Sound=$shouldNotify/Overlay/AppBar) [kiosk=${_helper.isKioskOrder(order)}]');
+          '  NEW 주문 알림 발생 완료 (Sound=$shouldNotify/Overlay=$shouldShow/AppBar=$shouldShow) [kiosk=${_helper.isKioskOrder(order)}]');
     }
 
     if (shouldAutoAccept) {
@@ -913,10 +925,16 @@ class Order extends _$Order {
             }
             // KDS 자동접수 ON 환경에서도 사용자 인지를 위해 알람/오버레이 발생.
             // (L555 라벨 핸들러는 PREPARING 캐시 등록으로 이미 차단되므로 중복 없음)
+            // 버블·앱바는 노출 축을 따른다 — 소켓 경로와 동일 기준(위 _processNewOrder
+            // 주석 참고). 여기서 판정 대상은 접수 후 스냅샷(acceptedOrder)이 아니라
+            // 유입 원본(order) 이다: 출처(키오스크/POS)는 같지만 _shouldShowOrder 의
+            // KDS 분기가 상태(NEW/PREPARING)를 보기 때문에, 같은 주문에 대해 소켓 경로와
+            // 다른 답이 나오면 유입 경로에 따라 버블이 켜졌다 꺼졌다 한다.
+            final shouldShow = _shouldShowOrder(order);
             ref.read(alertManagerProvider).triggerNewOrderAlert(
                   playSound: shouldNotify,
-                  triggerOverlay: true,
-                  triggerAppBar: true,
+                  triggerOverlay: shouldShow,
+                  triggerAppBar: shouldShow,
                 );
           } else {
             logger.w('[Order Processing] NEW 자동접수 실패: ${order.orderId}');

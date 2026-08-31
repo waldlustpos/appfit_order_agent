@@ -283,6 +283,7 @@ class _Translations$product_mgmt$en extends Translations$product_mgmt$ko {
 	@override String get btn_hidden => 'Hidden';
 	@override String same_product_count({required Object n}) => 'Same name × ${n}';
 	@override String get error_status_update => 'Failed to change the status. Please try again.';
+	@override String get refresh_products => 'Refresh products';
 }
 
 // Path: order
@@ -842,7 +843,7 @@ class _Translations$settings$kiosk$en extends Translations$settings$kiosk$ko {
 	@override String get visible_title => 'Show Kiosk Orders';
 	@override String get visible_desc => 'Display kiosk orders on screen.';
 	@override String get sound_title => 'Kiosk Order Ticket & Sound';
-	@override String get sound_desc => 'Print ticket and play notification sound when a kiosk order is received.';
+	@override String get sound_desc => 'Print ticket and play notification sound when a kiosk order is received. Works independently of the display setting.';
 	@override String get auto_accept_title => 'Auto-Accept Kiosk Orders';
 	@override String get auto_accept_desc => 'Kiosk orders are always accepted immediately, regardless of the \'Auto-Accept Pickup Orders\' setting.';
 }
@@ -857,7 +858,7 @@ class _Translations$settings$pos$en extends Translations$settings$pos$ko {
 	@override String get visible_title => 'Show POS Orders';
 	@override String get visible_desc => 'Display POS orders on screen.';
 	@override String get sound_title => 'POS Order Ticket & Sound';
-	@override String get sound_desc => 'Print ticket and play notification sound when a POS order is received.';
+	@override String get sound_desc => 'Print ticket and play notification sound when a POS order is received. Works independently of the display setting.';
 }
 
 // Path: settings.local_server

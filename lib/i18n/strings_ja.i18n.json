@@ -220,7 +220,7 @@
             "visible_title": "キオスク注文の表示",
             "visible_desc": "キオスク注文を画面に表示します。",
             "sound_title": "キオスク注文の注文票と通知音",
-            "sound_desc": "キオスク注文受信時に注文票を出力し、通知音を再生します。",
+            "sound_desc": "キオスク注文受信時に注文票を出力し、通知音を再生します。画面表示設定とは別に動作します。",
             "auto_accept_title": "キオスク注文の自動受付",
             "auto_accept_desc": "キオスク注文は「ピックアップ注文の自動受付」設定に関わらず、常に即時受付します。"
         },
@@ -228,7 +228,7 @@
             "visible_title": "POS注文の表示",
             "visible_desc": "POS注文を画面に表示します。",
             "sound_title": "POS注文の注文票と通知音",
-            "sound_desc": "POS注文受信時に注文票を出力し、通知音を再生します。"
+            "sound_desc": "POS注文受信時に注文票を出力し、通知音を再生します。画面表示設定とは別に動作します。"
         },
         "local_server": {
             "title": "ローカルサーバー有効化",
@@ -368,7 +368,8 @@
         "dialog_hidden_content": "[ {name} ] を非表示(キー削除)にしますか？",
         "btn_hidden": "非表示(キー削除)",
         "same_product_count": "同一商品 {n}個",
-        "error_status_update": "状態の変更に失敗しました。しばらくしてからもう一度お試しください。"
+        "error_status_update": "状態の変更に失敗しました。しばらくしてからもう一度お試しください。",
+        "refresh_products": "商品を再読み込み"
     },
     "order": {
         "new_order": "新規",

@@ -156,9 +156,12 @@ class _FakeStore extends Store {
   Future<StoreModel?> build() async => _model;
 }
 
-/// 알림(소리/오버레이/앱바) 트리거 횟수만 기록하는 fake.
+/// 알림(소리/오버레이/앱바) 트리거를 기록하는 fake.
+/// 세 신호가 서로 다른 축(소리=주문서·알림소리 설정, 오버레이·앱바=노출 설정)을
+/// 따르므로 횟수뿐 아니라 플래그 조합까지 남긴다.
 class _FakeAlertManager implements AlertManager {
   int triggerCount = 0;
+  final List<({bool sound, bool overlay, bool appBar})> calls = [];
 
   @override
   void triggerNewOrderAlert({
@@ -167,6 +170,11 @@ class _FakeAlertManager implements AlertManager {
     bool triggerAppBar = true,
   }) {
     triggerCount++;
+    calls.add((
+      sound: playSound,
+      overlay: triggerOverlay,
+      appBar: triggerAppBar,
+    ));
   }
 
   @override
@@ -1073,6 +1081,38 @@ void main() {
       expect(h.output.addedOrderIds, contains('A'));
       // 출력이 나가도 화면 노출은 여전히 OFF 다.
       expect(h.container.read(orderProvider).orders, isEmpty);
+    });
+
+    // 버블·앱바는 '주문 카드를 보라'는 포인터라 노출 축을 따른다. 소리와 같은 축에
+    // 묶으면, 카드가 목록에 없는데 버블만 깜빡여 점주가 눌러도 볼 게 없는 상태가 된다.
+    // (Windows 버블 점멸은 종료 조건 없는 Timer 라 누를 때까지 계속 깜빡인다)
+    test('노출 OFF + 소리 ON — 소리는 울리되 버블·앱바는 뜨지 않는다', () async {
+      await PreferenceService().setKioskPrintAndSound(true);
+      addTearDown(() => PreferenceService().setKioskPrintAndSound(false));
+
+      final h = await _buildProvider();
+      h.notifier.queueOrderExternal(_order(orderNo: 'A', source: 'WALD_KIOSK'));
+      await _wait(1600);
+
+      expect(h.alerts.calls, isNotEmpty);
+      final call = h.alerts.calls.first;
+      expect(call.sound, isTrue, reason: '주문서·알림소리 ON 이므로 소리는 울려야 한다');
+      expect(call.overlay, isFalse, reason: '노출 OFF — 가리킬 카드가 없다');
+      expect(call.appBar, isFalse, reason: '노출 OFF — 가리킬 카드가 없다');
+    });
+
+    test('노출 ON + 소리 OFF — 버블·앱바는 뜨되 소리는 나지 않는다', () async {
+      await PreferenceService().setShowKioskOrder(true);
+
+      final h = await _buildProvider();
+      h.notifier.queueOrderExternal(_order(orderNo: 'A', source: 'WALD_KIOSK'));
+      await _wait(1600);
+
+      expect(h.alerts.calls, isNotEmpty);
+      final call = h.alerts.calls.first;
+      expect(call.sound, isFalse, reason: '주문서·알림소리 OFF');
+      expect(call.overlay, isTrue, reason: '노출 ON — 카드가 뜨므로 버블도 가리켜야 한다');
+      expect(call.appBar, isTrue, reason: '노출 ON — 카드가 뜨므로 앱바도 깜빡여야 한다');
     });
   });
 }

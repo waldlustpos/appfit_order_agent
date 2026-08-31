@@ -456,10 +456,14 @@ class _SettingsRightPanelState extends ConsumerState<SettingsRightPanel> {
                     },
                   ),
                 ),
+                // 노출 설정과 **독립**이다 — 화면에 안 띄우면서 주문서·알림음만 받는
+                // 조합("주방 화면은 앱 주문 전용, 키오스크는 소리·주문서만")이 실제 운영
+                // 요구다. 종전엔 enabled/onChanged 가드로 노출 OFF 시 이 토글을 잠갔는데,
+                // 주문 파이프라인은 애초에 두 축을 분리해 처리하므로(shouldShowOrder ↔
+                // shouldNotifyForOrder) UI 만 그 조합을 막고 있었다.
                 SettingsItemWidget(
                   title: t.settings.kiosk.sound_title,
                   description: t.settings.kiosk.sound_desc,
-                  enabled: widget.isKioskOrderVisible,
                   trailing: CustomSwitch(
                     value: widget.isKioskOrderSoundEnabled,
                     activeColor: AppStyles.kMainColor,
@@ -467,7 +471,6 @@ class _SettingsRightPanelState extends ConsumerState<SettingsRightPanel> {
                     activeText: t.settings.auto_start.on,
                     inactiveText: t.settings.auto_start.off,
                     onChanged: (v) {
-                      if (!widget.isKioskOrderVisible) return;
                       logToFile(
                           tag: LogTag.UI_ACTION,
                           message: '키오스크 주문 출력/알람 변경 -> $v');
@@ -522,10 +525,10 @@ class _SettingsRightPanelState extends ConsumerState<SettingsRightPanel> {
                     },
                   ),
                 ),
+                // 키오스크와 동일 — 노출 설정과 독립.
                 SettingsItemWidget(
                   title: t.settings.pos.sound_title,
                   description: t.settings.pos.sound_desc,
-                  enabled: widget.isPosOrderVisible,
                   showDivider: false,
                   trailing: CustomSwitch(
                     value: widget.isPosOrderSoundEnabled,
@@ -534,7 +537,6 @@ class _SettingsRightPanelState extends ConsumerState<SettingsRightPanel> {
                     activeText: t.settings.auto_start.on,
                     inactiveText: t.settings.auto_start.off,
                     onChanged: (v) {
-                      if (!widget.isPosOrderVisible) return;
                       logToFile(
                           tag: LogTag.UI_ACTION,
                           message: 'POS 주문 출력/알람 변경 -> $v');

@@ -492,6 +492,9 @@ class Translations$product_mgmt$ko {
 
 	/// ko: '상태 변경에 실패했습니다. 잠시 후 다시 시도해 주세요.'
 	String get error_status_update => '상태 변경에 실패했습니다. 잠시 후 다시 시도해 주세요.';
+
+	/// ko: '상품 새로고침'
+	String get refresh_products => '상품 새로고침';
 }
 
 // Path: order
@@ -1444,8 +1447,8 @@ class Translations$settings$kiosk$ko {
 	/// ko: '키오스크 주문 주문서 및 알림소리'
 	String get sound_title => '키오스크 주문 주문서 및 알림소리';
 
-	/// ko: '키오스크 주문 수신 시 주문서 출력과 알림음을 재생합니다.'
-	String get sound_desc => '키오스크 주문 수신 시 주문서 출력과 알림음을 재생합니다.';
+	/// ko: '키오스크 주문 수신 시 주문서 출력과 알림음을 재생합니다. 화면 표시 설정과 별개로 동작합니다.'
+	String get sound_desc => '키오스크 주문 수신 시 주문서 출력과 알림음을 재생합니다. 화면 표시 설정과 별개로 동작합니다.';
 
 	/// ko: '키오스크 주문 자동 접수'
 	String get auto_accept_title => '키오스크 주문 자동 접수';
@@ -1471,8 +1474,8 @@ class Translations$settings$pos$ko {
 	/// ko: 'POS 주문 주문서 및 알림소리'
 	String get sound_title => 'POS 주문 주문서 및 알림소리';
 
-	/// ko: 'POS 주문 수신 시 주문서 출력과 알림음을 재생합니다.'
-	String get sound_desc => 'POS 주문 수신 시 주문서 출력과 알림음을 재생합니다.';
+	/// ko: 'POS 주문 수신 시 주문서 출력과 알림음을 재생합니다. 화면 표시 설정과 별개로 동작합니다.'
+	String get sound_desc => 'POS 주문 수신 시 주문서 출력과 알림음을 재생합니다. 화면 표시 설정과 별개로 동작합니다.';
 }
 
 // Path: settings.local_server

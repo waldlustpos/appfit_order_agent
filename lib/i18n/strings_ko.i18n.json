@@ -220,7 +220,7 @@
             "visible_title": "키오스크 주문 노출",
             "visible_desc": "키오스크 주문을 화면에 표시합니다.",
             "sound_title": "키오스크 주문 주문서 및 알림소리",
-            "sound_desc": "키오스크 주문 수신 시 주문서 출력과 알림음을 재생합니다.",
+            "sound_desc": "키오스크 주문 수신 시 주문서 출력과 알림음을 재생합니다. 화면 표시 설정과 별개로 동작합니다.",
             "auto_accept_title": "키오스크 주문 자동 접수",
             "auto_accept_desc": "키오스크 주문은 '픽업 오더 자동 접수' 설정과 무관하게 항상 즉시 접수합니다."
         },
@@ -228,7 +228,7 @@
             "visible_title": "POS 주문 노출",
             "visible_desc": "POS 주문을 화면에 표시합니다.",
             "sound_title": "POS 주문 주문서 및 알림소리",
-            "sound_desc": "POS 주문 수신 시 주문서 출력과 알림음을 재생합니다."
+            "sound_desc": "POS 주문 수신 시 주문서 출력과 알림음을 재생합니다. 화면 표시 설정과 별개로 동작합니다."
         },
         "local_server": {
             "title": "로컬 서버 활성화",
@@ -368,7 +368,8 @@
         "dialog_hidden_content": "[ {name} ] 미노출(키삭제) 처리하시겠습니까?",
         "btn_hidden": "미노출(키삭제)",
         "same_product_count": "동일상품 {n}개",
-        "error_status_update": "상태 변경에 실패했습니다. 잠시 후 다시 시도해 주세요."
+        "error_status_update": "상태 변경에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+        "refresh_products": "상품 새로고침"
     },
     "order": {
         "new_order": "신규",

@@ -220,7 +220,7 @@
             "visible_title": "Show Kiosk Orders",
             "visible_desc": "Display kiosk orders on screen.",
             "sound_title": "Kiosk Order Ticket & Sound",
-            "sound_desc": "Print ticket and play notification sound when a kiosk order is received.",
+            "sound_desc": "Print ticket and play notification sound when a kiosk order is received. Works independently of the display setting.",
             "auto_accept_title": "Auto-Accept Kiosk Orders",
             "auto_accept_desc": "Kiosk orders are always accepted immediately, regardless of the 'Auto-Accept Pickup Orders' setting."
         },
@@ -228,7 +228,7 @@
             "visible_title": "Show POS Orders",
             "visible_desc": "Display POS orders on screen.",
             "sound_title": "POS Order Ticket & Sound",
-            "sound_desc": "Print ticket and play notification sound when a POS order is received."
+            "sound_desc": "Print ticket and play notification sound when a POS order is received. Works independently of the display setting."
         },
         "local_server": {
             "title": "Enable Local Server",
@@ -372,7 +372,8 @@
         "dialog_hidden_content": "Do you want to set [ {name} ] to hidden?",
         "btn_hidden": "Hidden",
         "same_product_count": "Same name × {n}",
-        "error_status_update": "Failed to change the status. Please try again."
+        "error_status_update": "Failed to change the status. Please try again.",
+        "refresh_products": "Refresh products"
     },
     "order": {
         "new_order": "New",

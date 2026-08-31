@@ -659,18 +659,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               onVolumeChangeEnd: (_) => _saveSettings(),
               onSoundChanged: (v) => _setAndSave(() => _selectedSound = v),
               onAlertCountChanged: (v) => _setAndSave(() => _alertCount = v),
-              onKioskOrderVisibleChanged: (v) => _setAndSave(() {
-                _isKioskOrderVisible = v;
-                if (!v) _isKioskOrderSoundEnabled = false;
-              }),
+              // 노출을 꺼도 주문서·알림소리 값은 건드리지 않는다 — 두 축은 독립이다.
+              // (종전엔 여기서 소리를 강제 OFF 시켜 "화면엔 안 띄우되 주문서·알림음은
+              //  받는" 조합에 아예 도달할 수 없었다)
+              onKioskOrderVisibleChanged: (v) =>
+                  _setAndSave(() => _isKioskOrderVisible = v),
               onKioskOrderSoundChanged: (v) =>
                   _setAndSave(() => _isKioskOrderSoundEnabled = v),
               onKioskAlwaysAutoAcceptChanged: (v) =>
                   _setAndSave(() => _isKioskAlwaysAutoAccept = v),
-              onPosOrderVisibleChanged: (v) => _setAndSave(() {
-                _isPosOrderVisible = v;
-                if (!v) _isPosOrderSoundEnabled = false;
-              }),
+              onPosOrderVisibleChanged: (v) =>
+                  _setAndSave(() => _isPosOrderVisible = v),
               onPosOrderSoundChanged: (v) =>
                   _setAndSave(() => _isPosOrderSoundEnabled = v),
               onLocalServerChanged: _handleLocalServerChanged,

@@ -279,6 +279,7 @@ class _Translations$product_mgmt$ja extends Translations$product_mgmt$ko {
 	@override String get btn_hidden => '非表示(キー削除)';
 	@override String same_product_count({required Object n}) => '同一商品 ${n}個';
 	@override String get error_status_update => '状態の変更に失敗しました。しばらくしてからもう一度お試しください。';
+	@override String get refresh_products => '商品を再読み込み';
 }
 
 // Path: order
@@ -833,7 +834,7 @@ class _Translations$settings$kiosk$ja extends Translations$settings$kiosk$ko {
 	@override String get visible_title => 'キオスク注文の表示';
 	@override String get visible_desc => 'キオスク注文を画面に表示します。';
 	@override String get sound_title => 'キオスク注文の注文票と通知音';
-	@override String get sound_desc => 'キオスク注文受信時に注文票を出力し、通知音を再生します。';
+	@override String get sound_desc => 'キオスク注文受信時に注文票を出力し、通知音を再生します。画面表示設定とは別に動作します。';
 	@override String get auto_accept_title => 'キオスク注文の自動受付';
 	@override String get auto_accept_desc => 'キオスク注文は「ピックアップ注文の自動受付」設定に関わらず、常に即時受付します。';
 }
@@ -848,7 +849,7 @@ class _Translations$settings$pos$ja extends Translations$settings$pos$ko {
 	@override String get visible_title => 'POS注文の表示';
 	@override String get visible_desc => 'POS注文を画面に表示します。';
 	@override String get sound_title => 'POS注文の注文票と通知音';
-	@override String get sound_desc => 'POS注文受信時に注文票を出力し、通知音を再生します。';
+	@override String get sound_desc => 'POS注文受信時に注文票を出力し、通知音を再生します。画面表示設定とは別に動作します。';
 }
 
 // Path: settings.local_server
