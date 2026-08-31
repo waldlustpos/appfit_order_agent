@@ -589,6 +589,19 @@ public class SunmiPrintHelper {
     }
 
     /**
+     * 주문 JSON 의 "source"(WALD_KIOSK 등) 를 주문서에 찍을 출처 태그로 변환한다.
+     * Dart 의 classifyOrderSource / ReceiptEscPosBuilder._orderSourceTag 와 동일 규칙 —
+     * '_KIOSK' 접미사 → KIOSK, '_POS' 접미사 → POS, 그 외(WALD_APPFIT 등) → APP.
+     * 주문 상세 팝업의 출처 배지와 같은 문자열이므로 규칙을 바꾸면 세 곳을 함께 고친다.
+     */
+    private String resolveOrderSourceTag(JSONObject jsonOrder) {
+        String source = jsonOrder.optString("source", "");
+        if (source.endsWith("_KIOSK")) return "KIOSK";
+        if (source.endsWith("_POS")) return "POS";
+        return "APP";
+    }
+
+    /**
      * JSON 형식의 주문 데이터를 받아 주문서를 출력합니다. (메서드 설명 수정)
      * @param orderJson JSON 형식의 주문 데이터
      * @param isCancel 취소 주문서 여부
@@ -623,9 +636,11 @@ public class SunmiPrintHelper {
             // 주문번호 출력 (ordrSimpleId 또는 displayOrderNum)
             String displayNum = jsonOrder.optString("displayOrderNum", jsonOrder.optString("ordrSimpleId", ""));
             sunmiPrinterService.printTextWithFont(lbl(L, "order_no", "주문번호") + ": " + displayNum + "\n", null, receiptOrderNumFontSize, null);
+            // 취식구분 앞에 출처 태그를 붙인다 — '[KIOSK] 매장' / '[APP] 포장'.
+            // 주방용 주문서에만 붙이고 손님용 영수증(printReceiptFromJson)은 취식구분만 유지한다.
             String orderTypeLabel0 = resolveOrderTypeLabel(jsonOrder, L);
             if (orderTypeLabel0 != null) {
-                sunmiPrinterService.printTextWithFont(orderTypeLabel0 + "\n", null, receiptOrderNumFontSize, null);
+                sunmiPrinterService.printTextWithFont("[" + resolveOrderSourceTag(jsonOrder) + "] " + orderTypeLabel0 + "\n", null, receiptOrderNumFontSize, null);
             }
             sunmiPrinterService.lineWrap(1, null);
             // 사용자 이름 출력 (userName)

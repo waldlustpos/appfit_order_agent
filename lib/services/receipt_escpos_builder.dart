@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 
 import 'package:appfit_order_agent/i18n/strings.g.dart';
+import 'package:appfit_order_agent/models/order_model.dart';
 import 'package:appfit_order_agent/services/escpos_builder.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
 
@@ -373,6 +374,18 @@ class ReceiptEscPosBuilder {
     };
   }
 
+  /// 주문 JSON 의 `source`(WALD_KIOSK 등) 를 주문서에 찍을 출처 태그로 변환한다.
+  /// 주문 상세 팝업의 출처 배지(`_SourcePill`)와 동일한 문자열이며, 분류 정본은
+  /// [classifyOrderSource] 하나다 — 여기서 접미사 규칙을 재구현하지 않는다.
+  static String _orderSourceTag(Map<String, dynamic> jsonOrder) {
+    final source = jsonOrder['source']?.toString() ?? '';
+    return switch (classifyOrderSource(source)) {
+      OrderSourceType.app => 'APP',
+      OrderSourceType.kiosk => 'KIOSK',
+      OrderSourceType.pos => 'POS',
+    };
+  }
+
   static Future<void> _appendReceipt(
     ReceiptEscPosBuilder b,
     Map<String, dynamic> jsonOrder,
@@ -565,9 +578,20 @@ class ReceiptEscPosBuilder {
         (jsonOrder['displayOrderNum'] as String?)?.isNotEmpty == true
             ? jsonOrder['displayOrderNum'] as String
             : (jsonOrder['ordrSimpleId'] as String? ?? '');
-    b.textLn('${lbl('order_no', '주문번호')}: $displayNum');
+    // 주문번호 줄 전체(라벨+번호)를 fontLarge(0x11, 2x2)로 출력한다.
+    // 가로 2배는 실효 컬럼을 48→24로 줄이는데 '주문번호: 0006' 은 28컬럼이라
+    // 좁은 용지에서는 프린터가 줄을 접을 수 있다. 접히면 라벨을 줄이거나
+    // 번호만 키우는 쪽으로 되돌린다.
+    b
+      ..setSize(EscPos.fontLarge)
+      ..textLn('${lbl('order_no', '주문번호')}: $displayNum')
+      ..setSize(EscPos.fontTall);
+    // 취식구분 앞에 출처 태그를 붙인다 — '[KIOSK] 매장' / '[APP] 포장'.
+    // 주방용 주문서에만 붙이고 손님용 영수증은 취식구분만 유지한다.
     final orderTypeLabel0 = _orderTypeLabel(jsonOrder, lbl);
-    if (orderTypeLabel0 != null) b.textLn(orderTypeLabel0);
+    if (orderTypeLabel0 != null) {
+      b.textLn('[${_orderSourceTag(jsonOrder)}] $orderTypeLabel0');
+    }
     b
       ..setSize(EscPos.fontNormal)
       ..boldOff()
