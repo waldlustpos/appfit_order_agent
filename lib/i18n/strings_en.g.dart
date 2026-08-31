@@ -1098,7 +1098,6 @@ class _Translations$membership$customer$en extends Translations$membership$custo
 	@override String status_unregistered_with_id({required Object id}) => 'Not registered (${id})';
 	@override String honorific({required Object name}) => '${name}';
 	@override String summary({required Object stamps, required Object coupons}) => 'Stamp ${stamps} | Coupon ${coupons}';
-	@override String summary_coupon_only({required Object coupons}) => 'Coupon ${coupons}';
 }
 
 // Path: membership.tabs

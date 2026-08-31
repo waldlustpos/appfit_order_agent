@@ -540,8 +540,7 @@
             "status_unregistered": "Not registered",
             "status_unregistered_with_id": "Not registered ({id})",
             "honorific": "{name}",
-            "summary": "Stamp {stamps} | Coupon {coupons}",
-            "summary_coupon_only": "Coupon {coupons}"
+            "summary": "Stamp {stamps} | Coupon {coupons}"
         },
         "tabs": {
             "stamps": "Stamps",

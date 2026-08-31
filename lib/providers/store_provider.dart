@@ -40,7 +40,7 @@ class Store extends _$Store {
           MembershipConfig.shopGroupLabel(storeModel.shopGroupId);
       logger.i('[SYSTEM]  매장그룹  : ${storeModel.shopGroupId ?? "-"}'
           '${groupLabel == null ? "" : " ($groupLabel)"} '
-          '(스탬프 ${storeModel.stampEnabled ? "표시" : "숨김"})');
+          '(스탬프 적립 ${storeModel.stampAccrualEnabled ? "가능" : "차단"})');
       logger.i(sep);
 
       return storeModel;
@@ -126,11 +126,15 @@ class Store extends _$Store {
   }
 }
 
-/// 이 매장에서 스탬프 UI(적립 입력·버튼·스탬프내역 탭)를 노출할지.
+/// 이 매장에서 스탬프를 **적립**할 수 있는지(적립 입력·키패드·[스탬프 적립]
+/// 버튼·내역의 [적립취소] 버튼).
+///
+/// 스탬프내역 탭과 보유 개수 표시는 이 값을 보지 않는다 — 읽기는 전 매장 공통
+/// 이다([MembershipConfig] 클래스 문서).
 ///
 /// 매장 정보 로드 전이거나 조회에 실패해 값이 없으면 **true**(기존 동작)로
 /// 폴백한다. 판정 규칙 자체는 [MembershipConfig] 가 정본이며, 화면마다
 /// `?? true` 폴백이 흩어지지 않도록 여기 한 곳에서만 눕힌다.
-final stampEnabledProvider = Provider<bool>(
-  (ref) => ref.watch(storeProvider).value?.stampEnabled ?? true,
+final stampAccrualEnabledProvider = Provider<bool>(
+  (ref) => ref.watch(storeProvider).value?.stampAccrualEnabled ?? true,
 );

@@ -20,7 +20,12 @@ class StampHistoryCard extends StatelessWidget {
 
   final StampHistoryEntry entry;
   final bool isLoading;
-  final VoidCallback onCancel;
+
+  /// 취소 동작. **null 이면 [적립취소] 버튼을 아예 그리지 않는다** — 적립이
+  /// 차단된 매장(2차 브랜드)의 조회 전용 모드에서 쓴다. 비활성 버튼으로 두지
+  /// 않는 이유는, 누를 수 있어 보이는 회색 버튼이 "지금은 안 되지만 곧 될 것"
+  /// 이라는 오해를 낳기 때문이다 — 이 매장에서는 영구히 불가다.
+  final VoidCallback? onCancel;
 
   @override
   Widget build(BuildContext context) {
@@ -34,6 +39,7 @@ class StampHistoryCard extends StatelessWidget {
   Widget _buildSingle(StampInfo stamp) {
     final variant = _variantFor(stamp.status);
     final subtitle = _subtitleFor(stamp, variant);
+    final cancel = onCancel;
 
     return _StampCardShell(
       badge: _StampBadge(variant: variant, count: stamp.stampCount),
@@ -42,8 +48,10 @@ class StampHistoryCard extends StatelessWidget {
         style: AppTextStyles.titleSm,
       ),
       subtitle: subtitle,
-      trailing: stamp.status.toUpperCase() == 'ISSUED' && stamp.isCancelable
-          ? _CancelButton(isLoading: isLoading, onPressed: onCancel)
+      trailing: cancel != null &&
+              stamp.status.toUpperCase() == 'ISSUED' &&
+              stamp.isCancelable
+          ? _CancelButton(isLoading: isLoading, onPressed: cancel)
           : null,
     );
   }

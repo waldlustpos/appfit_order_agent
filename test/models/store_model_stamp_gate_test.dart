@@ -2,11 +2,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:appfit_order_agent/config/membership_config.dart';
 import 'package:appfit_order_agent/models/store_model.dart';
 
-/// 스탬프 노출 판정(shopGroupId 기반 deny-list) 규칙 고정.
+/// 스탬프 **적립** 차단 판정(shopGroupId 기반 deny-list) 규칙 고정.
 ///
-/// 규칙 자체는 hiddenIds 주입으로 검증하고, 실제 배포되는 정책 상수
-/// [MembershipConfig.stampHiddenShopGroupIds] 는 아래 '실제 정책' 그룹에서
-/// 별도로 고정한다.
+/// 이 게이트는 적립·적립취소(쓰기)만 막는다. 스탬프내역 조회와 보유 개수 표시는
+/// 전 매장 공통이라 판정 자체가 없다(그래서 여기에 대응 테스트도 없다).
+///
+/// 규칙 자체는 blockedIds 주입으로 검증하고, 실제 배포되는 정책 상수
+/// [MembershipConfig.stampAccrualBlockedShopGroupIds] 는 아래 '실제 정책'
+/// 그룹에서 별도로 고정한다.
 void main() {
   StoreModel store(String? shopGroupId) => StoreModel(
         storeId: 'TPCP00001',
@@ -21,8 +24,8 @@ void main() {
     //
     // ⚠️ 여기는 일부러 **날문자열**을 쓴다. MembershipConfig 의 상수를 그대로
     // 참조하면 값이 바뀌어도 테스트가 따라 바뀌어 아무것도 검증하지 못한다.
-    const mammothCoffee = '0qs2vf410y3wh'; // 매머드커피 (1차 브랜드) — 스탬프 표시
-    const mammothExpress = '0qs2vf410y3wj'; // 매머드익스프레스 (2차) — 스탬프 숨김
+    const mammothCoffee = '0qs2vf410y3wh'; // 매머드커피 (1차 브랜드) — 적립 허용
+    const mammothExpress = '0qs2vf410y3wj'; // 매머드익스프레스 (2차) — 적립 차단
 
     test('브랜드 상수가 실제 그룹 ID 와 일치한다', () {
       expect(MembershipConfig.shopGroupMammothCoffee, mammothCoffee);
@@ -33,58 +36,62 @@ void main() {
       expect(MembershipConfig.shopGroupLabel(null), isNull);
     });
 
-    test('매머드익스프레스(...j)는 스탬프가 보이지 않는다', () {
-      expect(
-          MembershipConfig.stampHiddenShopGroupIds, contains(mammothExpress));
-      expect(MembershipConfig.stampEnabledFor(mammothExpress), isFalse);
-      expect(store(mammothExpress).stampEnabled, isFalse);
+    test('매머드익스프레스(...j)는 스탬프를 적립할 수 없다', () {
+      expect(MembershipConfig.stampAccrualBlockedShopGroupIds,
+          contains(mammothExpress));
+      expect(MembershipConfig.stampAccrualEnabledFor(mammothExpress), isFalse);
+      expect(store(mammothExpress).stampAccrualEnabled, isFalse);
     });
 
-    test('매머드커피(...h)는 스탬프가 보인다 — 끝자리 오타 감지', () {
+    test('매머드커피(...h)는 스탬프를 적립할 수 있다 — 끝자리 오타 감지', () {
       expect(
-        MembershipConfig.stampHiddenShopGroupIds,
+        MembershipConfig.stampAccrualBlockedShopGroupIds,
         isNot(contains(mammothCoffee)),
       );
-      expect(MembershipConfig.stampEnabledFor(mammothCoffee), isTrue);
-      expect(store(mammothCoffee).stampEnabled, isTrue);
+      expect(MembershipConfig.stampAccrualEnabledFor(mammothCoffee), isTrue);
+      expect(store(mammothCoffee).stampAccrualEnabled, isTrue);
     });
 
-    test('목록에 없는 그룹·그룹 없음은 기존대로 표시', () {
-      expect(MembershipConfig.stampEnabledFor('other-group'), isTrue);
-      expect(MembershipConfig.stampEnabledFor(null), isTrue);
-      expect(store(null).stampEnabled, isTrue);
+    test('목록에 없는 그룹·그룹 없음은 기존대로 적립 허용', () {
+      expect(MembershipConfig.stampAccrualEnabledFor('other-group'), isTrue);
+      expect(MembershipConfig.stampAccrualEnabledFor(null), isTrue);
+      expect(store(null).stampAccrualEnabled, isTrue);
     });
   });
 
-  group('MembershipConfig.stampEnabledFor — 숨김 목록에 값이 있을 때', () {
-    const hidden = {'G1', 'G2'};
+  group('MembershipConfig.stampAccrualEnabledFor — 차단 목록에 값이 있을 때', () {
+    const blocked = {'G1', 'G2'};
 
-    test('목록에 있는 그룹은 숨김', () {
-      expect(
-          MembershipConfig.stampEnabledFor('G1', hiddenIds: hidden), isFalse);
-      expect(
-          MembershipConfig.stampEnabledFor('G2', hiddenIds: hidden), isFalse);
+    test('목록에 있는 그룹은 적립 차단', () {
+      expect(MembershipConfig.stampAccrualEnabledFor('G1', blockedIds: blocked),
+          isFalse);
+      expect(MembershipConfig.stampAccrualEnabledFor('G2', blockedIds: blocked),
+          isFalse);
     });
 
-    test('목록 밖 그룹은 표시', () {
-      expect(MembershipConfig.stampEnabledFor('G3', hiddenIds: hidden), isTrue);
+    test('목록 밖 그룹은 적립 허용', () {
+      expect(MembershipConfig.stampAccrualEnabledFor('G3', blockedIds: blocked),
+          isTrue);
     });
 
     test('대소문자는 구분한다 (서버 값 원문 그대로 매칭)', () {
-      expect(MembershipConfig.stampEnabledFor('g1', hiddenIds: hidden), isTrue);
+      expect(MembershipConfig.stampAccrualEnabledFor('g1', blockedIds: blocked),
+          isTrue);
     });
   });
 
-  group('MembershipConfig.stampEnabledFor — 그룹 정보가 없을 때', () {
-    const hidden = {'G1'};
+  group('MembershipConfig.stampAccrualEnabledFor — 그룹 정보가 없을 때', () {
+    const blocked = {'G1'};
 
-    test('null(필드 부재·구서버)이면 표시 — 기본은 기존 동작 유지', () {
-      expect(MembershipConfig.stampEnabledFor(null, hiddenIds: hidden), isTrue);
-      expect(store(null).stampEnabled, isTrue);
+    test('null(필드 부재·구서버)이면 허용 — 기본은 기존 동작 유지', () {
+      expect(MembershipConfig.stampAccrualEnabledFor(null, blockedIds: blocked),
+          isTrue);
+      expect(store(null).stampAccrualEnabled, isTrue);
     });
 
-    test('빈 문자열도 그룹 없음과 같게 표시', () {
-      expect(MembershipConfig.stampEnabledFor('', hiddenIds: hidden), isTrue);
+    test('빈 문자열도 그룹 없음과 같게 허용', () {
+      expect(MembershipConfig.stampAccrualEnabledFor('', blockedIds: blocked),
+          isTrue);
     });
   });
 

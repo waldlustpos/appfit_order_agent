@@ -533,8 +533,7 @@
             "status_unregistered": "미가입",
             "status_unregistered_with_id": "미가입 ({id})",
             "honorific": "{name}님",
-            "summary": "스탬프 {stamps} | 쿠폰 {coupons}",
-            "summary_coupon_only": "쿠폰 {coupons}"
+            "summary": "스탬프 {stamps} | 쿠폰 {coupons}"
         },
         "tabs": {
             "stamps": "스탬프내역",

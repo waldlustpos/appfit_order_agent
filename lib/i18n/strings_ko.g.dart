@@ -1959,9 +1959,6 @@ class Translations$membership$customer$ko {
 
 	/// ko: '스탬프 {stamps} | 쿠폰 {coupons}'
 	String summary({required Object stamps, required Object coupons}) => '스탬프 ${stamps} | 쿠폰 ${coupons}';
-
-	/// ko: '쿠폰 {coupons}'
-	String summary_coupon_only({required Object coupons}) => '쿠폰 ${coupons}';
 }
 
 // Path: membership.tabs

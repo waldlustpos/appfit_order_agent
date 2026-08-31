@@ -239,7 +239,6 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
     // 전화번호 전용 포맷 대신 식별자 무관인 maskTail 을 쓴다.
     final customerPhone =
         ref.watch(membershipProvider.select((state) => state.customerPhone));
-    final stampEnabled = ref.watch(stampEnabledProvider);
 
     return SizedBox(
       height: 40,
@@ -274,14 +273,15 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
                 child: Text(
                   // 미가입은 요약을 비운다 — "미가입  스탬프 0 | 쿠폰 0" 은
                   // 정보가 없으면서 가입 회원처럼 읽힌다.
+                  //
+                  // 스탬프 개수는 적립 차단 매장에서도 그대로 보여준다. 회원은
+                  // 브랜드를 넘나들며 같은 계정을 쓰므로, 여기서 적립만 못 할 뿐
+                  // 보유 개수는 안내해야 할 정보다(스탬프내역 탭과 같은 이유).
                   isLoading || isUnregistered || customerName.isEmpty
                       ? ' '
-                      : stampEnabled
-                          ? t.membership.customer.summary(
-                              stamps: stampCount.toString(),
-                              coupons: couponCount.toString())
-                          : t.membership.customer.summary_coupon_only(
-                              coupons: couponCount.toString()),
+                      : t.membership.customer.summary(
+                          stamps: stampCount.toString(),
+                          coupons: couponCount.toString()),
                   style: AppTextStyles.bodySm.copyWith(color: AppStyles.gray6),
                 ),
               ),
@@ -343,18 +343,18 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
             ref.watch(membershipProvider.select((s) => s.customerName));
         final isUnregistered =
             ref.watch(membershipProvider.select((s) => s.isUnregistered));
-        final stampEnabled = ref.watch(stampEnabledProvider);
+        final stampAccrualEnabled = ref.watch(stampAccrualEnabledProvider);
         final isCustomerSearched = customerName.isNotEmpty;
         // 스탬프 미운영 매장에서는 회원 조회 후 입력란이 할 일이 없다.
         // "스탬프 개수를 입력해주세요" 안내를 지워 오조작을 유도하지 않는다.
         //
         // 미가입은 입력란이 적립 개수와 쿠폰번호를 겸하므로 전용 안내를 쓴다.
         final hintText = isUnregistered
-            ? (stampEnabled
+            ? (stampAccrualEnabled
                 ? t.membership.search.hint_unregistered
                 : t.membership.dialog.enter_coupon_code)
             : isCustomerSearched
-                ? (stampEnabled ? t.membership.search.hint_searched : '')
+                ? (stampAccrualEnabled ? t.membership.search.hint_searched : '')
                 : t.membership.search.hint;
 
         return Stack(
@@ -422,11 +422,11 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
   }
 
   Widget _buildKeypadAndButtons() {
-    final stampEnabled = ref.watch(stampEnabledProvider);
+    final stampAccrualEnabled = ref.watch(stampAccrualEnabledProvider);
     final isCustomerSearchedNow =
         ref.watch(membershipProvider.select((s) => s.customerName.isNotEmpty));
     // 스탬프 미운영 매장 + 회원 조회 완료 = 입력할 것이 없는 상태.
-    final inputDisabled = !stampEnabled && isCustomerSearchedNow;
+    final inputDisabled = !stampAccrualEnabled && isCustomerSearchedNow;
 
     return Column(
       children: [
@@ -455,7 +455,7 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
             // 회원이 이미 조회된 상태: 스탬프 적립 단일 버튼(가로 full-width).
             if (isCustomerSearched) {
               // 스탬프 미운영 매장에서는 적립 버튼 자체를 노출하지 않는다.
-              if (!stampEnabled) return const SizedBox.shrink();
+              if (!stampAccrualEnabled) return const SizedBox.shrink();
               return SizedBox(
                 width: double.infinity,
                 child: _primaryActionButton(
@@ -498,7 +498,7 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
                     onPressed: actionEnabled ? _searchMembership : null,
                   );
             // 스탬프 미운영 매장 + 미가입 = 적립할 것이 없으므로 쿠폰만 남긴다.
-            final showLeftButton = !isUnregistered || stampEnabled;
+            final showLeftButton = !isUnregistered || stampAccrualEnabled;
 
             // 미가입에서는 스캔 버튼을 감춘다. 스캔은 입력란을 채울 뿐인데
             // 이 상태의 좌측 버튼은 [회원조회]가 아니라 [스탬프 적립]이라,
@@ -609,12 +609,15 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
         ref.watch(membershipProvider.select((state) => state.isLoading));
     final isLoadingHistory = ref.watch(
         membershipProvider.select((state) => state.isLoadingRewardHistory));
-    final stampEnabled = ref.watch(stampEnabledProvider);
 
     // 탭 라벨과 뷰를 한 리스트로 묶는다. 두 리터럴을 따로 두면 조건부 노출에서
     // 개수가 어긋나 엉뚱한 탭이 열릴 수 있다.
+    //
+    // 스탬프내역은 적립 차단 매장에서도 노출한다 — 조회는 아무것도 바꾸지 않고,
+    // 2차 브랜드 매장에서도 손님의 스탬프 이력을 확인해줄 수 있어야 한다.
+    // 그 탭 안의 [적립취소]만 _buildStampHistoryTab 에서 따로 막는다.
     final tabs = <(String, Widget)>[
-      if (stampEnabled) (t.membership.tabs.stamps, _buildStampHistoryTab()),
+      (t.membership.tabs.stamps, _buildStampHistoryTab()),
       (t.membership.tabs.coupons, _buildCouponHistoryTab()),
       (t.membership.tabs.available, _buildAvailableCouponsTab()),
     ];
@@ -682,6 +685,10 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
         .watch(membershipProvider.select((state) => state.hasMoreStampHistory));
     final loadingActionId =
         ref.watch(membershipProvider.select((state) => state.loadingActionId));
+    // 적립 차단 매장은 조회 전용이다. 여기 보이는 적립은 전부 1차 브랜드 매장에서
+    // 발생한 건이라, 이 단말에서 되돌리게 두면 남의 매장 적립을 취소하게 된다.
+    // onCancel 을 null 로 넘기면 카드가 [적립취소] 버튼 자체를 그리지 않는다.
+    final canCancel = ref.watch(stampAccrualEnabledProvider);
 
     return MembershipHistoryList<StampHistoryEntry>(
       items: items,
@@ -693,7 +700,7 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
       itemBuilder: (_, entry, __) => StampHistoryCard(
         entry: entry,
         isLoading: loadingActionId == entry.primary.rewardId,
-        onCancel: () => _cancelSavedStamp(entry.primary),
+        onCancel: canCancel ? () => _cancelSavedStamp(entry.primary) : null,
       ),
     );
   }
@@ -753,7 +760,7 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
   /// 스탬프 미운영 매장에서 회원 조회가 끝난 상태인지.
   /// 이 상태에서는 입력란에 넣을 값이 없으므로 키패드/하드웨어 키를 모두 막는다.
   bool _isInputDisabled(bool isCustomerSearched) =>
-      isCustomerSearched && !ref.read(stampEnabledProvider);
+      isCustomerSearched && !ref.read(stampAccrualEnabledProvider);
 
   void _onKeypadPressed(String value) {
     final currentText = _inputController.text;

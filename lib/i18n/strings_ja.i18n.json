@@ -533,8 +533,7 @@
             "status_unregistered": "未加入",
             "status_unregistered_with_id": "未加入 ({id})",
             "honorific": "{name}様",
-            "summary": "スタンプ {stamps} | クーポン {coupons}",
-            "summary_coupon_only": "クーポン {coupons}"
+            "summary": "スタンプ {stamps} | クーポン {coupons}"
         },
         "tabs": {
             "stamps": "スタンプ内訳",

@@ -13,7 +13,7 @@ class StoreModel {
   final String? businessNumber;
 
   /// 매장이 속한 그룹 (`/v0/shop` 응답의 `shopGroupId`).
-  /// 스탬프 기능 노출 판정에만 쓴다([stampEnabled]).
+  /// 스탬프 적립 가능 여부 판정에만 쓴다([stampAccrualEnabled]).
   final String? shopGroupId;
 
   StoreModel({
@@ -26,8 +26,10 @@ class StoreModel {
     this.shopGroupId,
   });
 
-  /// 멤버십 탭에서 스탬프 UI 를 노출할지. 판정 규칙 정본은 [MembershipConfig].
-  bool get stampEnabled => MembershipConfig.stampEnabledFor(shopGroupId);
+  /// 멤버십 탭에서 스탬프를 **적립**할 수 있는지. 판정 규칙 정본은
+  /// [MembershipConfig]. 스탬프내역 조회는 이 값과 무관하게 항상 가능하다.
+  bool get stampAccrualEnabled =>
+      MembershipConfig.stampAccrualEnabledFor(shopGroupId);
 
   /// 필수 필드(strId/name)가 누락/비문자열이면 [FormatException] throw.
   /// silent 기본값('')은 빈 storeId 가 초기 로드 가드를 조용히 통과하므로 더 위험.
