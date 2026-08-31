@@ -1,7 +1,6 @@
 package co.kr.waldlust.order.receive;
 
 import android.Manifest;
-import android.app.ActivityManager;
 import android.annotation.SuppressLint;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -131,6 +130,24 @@ public class MainActivity extends FlutterActivity {
     // 합성해 보내면 실제 LCD 픽셀수가 달라도 펌웨어가 비례 스케일하여 중앙 정렬이 유지된다.
     private static final int LCD_WIDTH = 128;
     private static final int LCD_HEIGHT = 40;
+    // 몰입(전체화면) 모드 플래그 정본. LAYOUT_* 3종을 반드시 함께 넣어야 시스템 바가
+    // 보이든 말든 창 크기가 화면 전체(예: 1920x1080)로 고정된다.
+    //
+    // 이 3종이 빠진 값(HIDE_NAVIGATION|FULLSCREEN|IMMERSIVE_STICKY 만)을 쓰면 포커스가
+    // 오갈 때마다 창이 1080 <-> 1011(내비바 높이만큼) 로 리레이아웃된다. 그 사이에
+    // Flutter 가 만든 이전 크기 프레임이 SurfaceFlinger 에서 거부되고
+    // ("rejecting buffer: bufHeight=1011, front.active.h=1080"), 거부된 프레임 때문에
+    // WindowManager 의 "창이 그려졌다" 래치가 서지 않아 앱 전환이 5초 타임아웃까지
+    // 멈춘다. T2mini(Android 7)에서 버블 터치 복귀가 ~5.7초 걸리던 원인이 이것이다.
+    // 값을 바꿀 때는 hideSystemUI()/onResume()/onWindowFocusChanged() 가 모두 같은
+    // 값을 쓰는지 확인할 것 - 한 곳만 달라도 리레이아웃 왕복이 되살아난다.
+    private static final int IMMERSIVE_UI_FLAGS =
+            View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                    | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                    | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                    | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                    | View.SYSTEM_UI_FLAG_FULLSCREEN
+                    | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
     public static UsbReceiptPrinter receiptPrinter;
 
     public static String versionName = "/api/v2";
@@ -231,10 +248,7 @@ public class MainActivity extends FlutterActivity {
         uiOption = decorView.getSystemUiVisibility();
 
         // For API 19+ (KitKat and higher)
-        decorView.setSystemUiVisibility(
-                View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                        | View.SYSTEM_UI_FLAG_FULLSCREEN
-                        | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
+        decorView.setSystemUiVisibility(IMMERSIVE_UI_FLAGS);
 
         // Keep screen on and fullscreen
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
@@ -249,10 +263,7 @@ public class MainActivity extends FlutterActivity {
         super.onWindowFocusChanged(hasFocus);
         if (hasFocus) {
             // Reapply system UI flags when window gets focus
-            decorView.setSystemUiVisibility(
-                    View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                            | View.SYSTEM_UI_FLAG_FULLSCREEN
-                            | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
+            decorView.setSystemUiVisibility(IMMERSIVE_UI_FLAGS);
         }
     }
 
@@ -284,22 +295,20 @@ public class MainActivity extends FlutterActivity {
         setIntent(intent);
         Log.d("MainActivity", "onNewIntent called");
 
-        // 새로운 인텐트(오버레이 클릭 등) 수신 시 앱을 즉시 전면으로 가져옴
-        try {
-            // 1. Activity를 최상단으로
-            getWindow().addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED |
-                    WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD |
-                    WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
-
-            // 2. Task를 전면으로 이동 (홈 화면을 강제 뒤배치하지 않기 위해 플래그를 0으로 설정)
-            ActivityManager activityManager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
-            if (activityManager != null) {
-                activityManager.moveTaskToFront(getTaskId(), 0);
-                Log.d("MainActivity", "moveTaskToFront success in onNewIntent");
-            }
-        } catch (Exception e) {
-            Log.e("MainActivity", "Error in onNewIntent: " + e.getMessage());
-        }
+        // 여기서 전면화를 "다시" 시도하지 않는다.
+        //
+        // onNewIntent 가 불렸다는 건 이미 시스템이 이 태스크를 전면으로 올리는 앱 전환을
+        // 시작했다는 뜻이다(버블의 startActivity, 런처 아이콘, am start 모두 동일). 그
+        // 전환이 진행 중인데 moveTaskToFront 를 한 번 더 부르면 WindowManager 가 새 전환을
+        // prepare 하면서 진행 중이던 전환이 영영 "good to go" 상태가 되지 못하고 5초
+        // APP_TRANSITION_TIMEOUT 까지 멈춰 있는다. T2mini(Android 7)에서 버블 터치 복귀가
+        // 5.7초 걸리던 원인이 이것이다. 실측(sysui_action):
+        //   제거 전 - windows_drawn=219ms, transition_delay=5056ms, reason=3(TIMEOUT)
+        //   신선 실행(onNewIntent 미경유) - transition_delay=69ms
+        // 앱 자체는 219ms 만에 다 그렸고, 나머지 4.8초는 통째로 타임아웃 대기였다.
+        //
+        // FLAG_SHOW_WHEN_LOCKED/DISMISS_KEYGUARD/TURN_SCREEN_ON 도 함께 뺐다. 잠금화면을
+        // 쓰지 않는 매장 단말에서 얻는 것 없이 키가드 정책을 전환 경로로 끌어들일 뿐이다.
     }
 
     @Override
@@ -366,13 +375,7 @@ public class MainActivity extends FlutterActivity {
 
     public void hideSystemUI() {
         runOnUiThread(() -> {
-            decorView.setSystemUiVisibility(
-                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                            | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                            | View.SYSTEM_UI_FLAG_FULLSCREEN
-                            | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
+            decorView.setSystemUiVisibility(IMMERSIVE_UI_FLAGS);
         });
     }
 
@@ -402,10 +405,7 @@ public class MainActivity extends FlutterActivity {
         refreshBrandLcd();
 
         if (decorView != null) {
-            decorView.setSystemUiVisibility(
-                    View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                            | View.SYSTEM_UI_FLAG_FULLSCREEN
-                            | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
+            decorView.setSystemUiVisibility(IMMERSIVE_UI_FLAGS);
         }
     }
 
