@@ -638,9 +638,15 @@ public class SunmiPrintHelper {
             sunmiPrinterService.printTextWithFont(lbl(L, "order_no", "주문번호") + ": " + displayNum + "\n", null, receiptOrderNumFontSize, null);
             // 취식구분 앞에 출처 태그를 붙인다 — '[KIOSK] 매장' / '[APP] 포장'.
             // 주방용 주문서에만 붙이고 손님용 영수증(printReceiptFromJson)은 취식구분만 유지한다.
+            // 태그 노출 자체는 '키오스크 주문 주문서 및 알림소리' 설정이 켜져 있을 때만 —
+            // Dart print_service.dart 가 jsonOrder.showOrderSourceTag 로 주입한다.
             String orderTypeLabel0 = resolveOrderTypeLabel(jsonOrder, L);
             if (orderTypeLabel0 != null) {
-                sunmiPrinterService.printTextWithFont("[" + resolveOrderSourceTag(jsonOrder) + "] " + orderTypeLabel0 + "\n", null, receiptOrderNumFontSize, null);
+                boolean showSourceTag = jsonOrder.optBoolean("showOrderSourceTag", false);
+                String sourceTagPrefix = showSourceTag ? "[" + resolveOrderSourceTag(jsonOrder) + "] " : "";
+                // 주문번호 줄과 살짝 띄우기 위한 여백 한 줄.
+                sunmiPrinterService.lineWrap(1, null);
+                sunmiPrinterService.printTextWithFont(sourceTagPrefix + orderTypeLabel0 + "\n", null, receiptOrderNumFontSize, null);
             }
             sunmiPrinterService.lineWrap(1, null);
             // 사용자 이름 출력 (userName)

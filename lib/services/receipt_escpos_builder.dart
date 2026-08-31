@@ -588,9 +588,16 @@ class ReceiptEscPosBuilder {
       ..setSize(EscPos.fontTall);
     // 취식구분 앞에 출처 태그를 붙인다 — '[KIOSK] 매장' / '[APP] 포장'.
     // 주방용 주문서에만 붙이고 손님용 영수증은 취식구분만 유지한다.
+    // 태그 노출 자체는 '키오스크 주문 주문서 및 알림소리' 설정이 켜져 있을 때만 —
+    // print_service.dart 가 jsonOrder['showOrderSourceTag'] 로 주입한다.
     final orderTypeLabel0 = _orderTypeLabel(jsonOrder, lbl);
     if (orderTypeLabel0 != null) {
-      b.textLn('[${_orderSourceTag(jsonOrder)}] $orderTypeLabel0');
+      final showSourceTag = jsonOrder['showOrderSourceTag'] as bool? ?? false;
+      final prefix = showSourceTag ? '[${_orderSourceTag(jsonOrder)}] ' : '';
+      // 주문번호 줄과 살짝 띄우기 위한 여백 한 줄.
+      b
+        ..ln()
+        ..textLn('$prefix$orderTypeLabel0');
     }
     b
       ..setSize(EscPos.fontNormal)
