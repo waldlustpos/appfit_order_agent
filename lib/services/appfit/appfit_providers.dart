@@ -3,9 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:appfit_core/appfit_core.dart';
 import 'package:appfit_order_agent/services/preference_service.dart';
 import 'package:appfit_order_agent/services/appfit/kokonut_appfit_logger.dart';
+import 'package:appfit_order_agent/services/appfit/benign_api_log_filter.dart';
 
-AppFitLogger _makeSentryLogger() =>
-    SentryAppFitLogger(delegate: AppfitAppFitLogger());
+/// 오류를 Sentry 로 올리는 기본 로거. 단 [BenignApiLogFilter] 가 지정한
+/// "예상된" 서버 오류(미가입 조회 404 등)는 파일 로그로만 흘린다 —
+/// Dio 인터셉터가 호출부보다 먼저 로깅하므로 여기서만 막을 수 있다.
+AppFitLogger _makeSentryLogger() => BenignApiLogFilter(
+      sentry: SentryAppFitLogger(delegate: AppfitAppFitLogger()),
+      plain: AppfitAppFitLogger(),
+    );
 
 /// AppFit TokenManager Provider (Core 사용)
 ///

@@ -1,5 +1,6 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'dart:async'; // FutureOr 사용을 위해 추가
+import 'package:appfit_order_agent/config/membership_config.dart';
 import 'package:appfit_order_agent/models/store_model.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
@@ -33,7 +34,12 @@ class Store extends _$Store {
       logger.i('[SYSTEM]  매장 ID  : ${storeModel.storeId}');
       logger.i('[SYSTEM]  매장 이름: ${storeModel.name}');
       logger.i('[SYSTEM]  영업 상태: ${storeModel.isOpen ? "영업 중" : "영업 종료"}');
-      logger.i('[SYSTEM]  매장그룹  : ${storeModel.shopGroupId ?? "-"} '
+      // 그룹 ID 두 개(매머드커피/익스프레스)는 끝자리 한 글자만 달라 육안으로
+      // 구분이 안 된다. 아는 그룹이면 브랜드명을 같이 찍어 로그만으로 판별된다.
+      final groupLabel =
+          MembershipConfig.shopGroupLabel(storeModel.shopGroupId);
+      logger.i('[SYSTEM]  매장그룹  : ${storeModel.shopGroupId ?? "-"}'
+          '${groupLabel == null ? "" : " ($groupLabel)"} '
           '(스탬프 ${storeModel.stampEnabled ? "표시" : "숨김"})');
       logger.i(sep);
 

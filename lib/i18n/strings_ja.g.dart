@@ -1068,6 +1068,7 @@ class _Translations$membership$search$ja extends Translations$membership$search$
 	// Translations
 	@override String get hint => '電話番号またはクーポン番号を入力してください。';
 	@override String get hint_searched => 'スタンプの個数を入力してください。(最大20個まで)';
+	@override String get hint_unregistered => 'スタンプ数またはクーポン番号を入力してください。';
 	@override String get btn_search => '会員照会';
 	@override String get btn_other_member => '検索リセット';
 	@override String get btn_save_stamp => 'スタンプ積立';
@@ -1083,6 +1084,8 @@ class _Translations$membership$customer$ja extends Translations$membership$custo
 
 	// Translations
 	@override String get status_none => '会員情報がありません。';
+	@override String get status_unregistered => '未加入';
+	@override String status_unregistered_with_id({required Object id}) => '未加入 (${id})';
 	@override String honorific({required Object name}) => '${name}様';
 	@override String summary({required Object stamps, required Object coupons}) => 'スタンプ ${stamps} | クーポン ${coupons}';
 	@override String summary_coupon_only({required Object coupons}) => 'クーポン ${coupons}';

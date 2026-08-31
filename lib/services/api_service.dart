@@ -1143,6 +1143,20 @@ class ApiService {
       } else {
         throw Exception('회원 프로필 조회 실패: ${response.statusCode}');
       }
+    } on DioException catch (e) {
+      // 미가입 번호는 장애가 아니라 정상 운영 상황이라 통신 오류와 갈라놓는다.
+      // 판정은 **의도적으로 엄격**하다 — 404 만 보고 미가입으로 단정하면 경로
+      // 오타·projectId 미설정 같은 다른 404 까지 미가입으로 삼켜서, 실제로는
+      // 조회조차 안 된 번호에 스탬프를 적립하게 된다.
+      final data = e.response?.data;
+      final code = data is Map ? data['code']?.toString() : null;
+      if (e.response?.statusCode == 404 && code == 'NOT_FOUND_USER') {
+        // logger.e 가 아니다 — 이 경로는 에러가 아니라 '미가입' 분기의 입구다.
+        logger.i('[AppFit API] getUserProfile: 미가입 번호 (404 NOT_FOUND_USER)');
+        throw MemberNotFoundException('존재하지 않는 유저입니다.', e, e.stackTrace);
+      }
+      logger.e('[AppFit API] getUserProfile 오류: $e');
+      _handleError(e, '회원 정보를 가져오는데 실패했습니다.');
     } catch (e, s) {
       logger.e('[AppFit API] getUserProfile 오류: $e');
       _handleError(e, '회원 정보를 가져오는데 실패했습니다.');

@@ -30,6 +30,17 @@ class MembershipState {
   final String? loadingActionId;
   final String? rewardType;
 
+  /// 조회한 번호가 **미가입**(서버 404 `NOT_FOUND_USER`)인지.
+  ///
+  /// 미가입도 "조회 절차는 끝난" 상태다. 회원 정보만 없을 뿐 [customerPhone]
+  /// 에는 조회에 쓴 번호가 그대로 들어 있어서, 적립·쿠폰 API 는 정상 회원과
+  /// 똑같이 그 번호로 나간다.
+  ///
+  /// [customerName] 에 '미가입' 같은 문자열을 넣지 않는 이유: 그 값이
+  /// `honorific(name:)` 을 타면 "미가입님"이 되고, 로캘마다 문자열 비교가
+  /// 깨진다. 상태는 이 bool 이 정본이다.
+  final bool isUnregistered;
+
   /// 무한 스크롤 페이지 단위.
   static const int pageSize = 20;
 
@@ -53,6 +64,7 @@ class MembershipState {
     this.availableCouponsVisibleCount = pageSize,
     this.loadingActionId,
     this.rewardType,
+    this.isUnregistered = false,
   });
 
   MembershipState copyWith({
@@ -62,6 +74,11 @@ class MembershipState {
     int? couponCount,
     int? totalPoint,
     MembershipInfo? membershipInfo,
+
+    /// [membershipInfo] 를 null 로 되돌린다. `membershipInfo ?? this.membershipInfo`
+    /// 로는 지울 수 없어서, A회원 조회 성공 뒤 B번호가 미가입이면 A의 보유쿠폰이
+    /// 화면에 그대로 남는다. clearErrorMessage/clearSuccessMessage 와 같은 패턴.
+    bool clearMembershipInfo = false,
     List<StampHistoryEntry>? stampHistory,
     List<CouponHistoryInfo>? couponHistory,
     List<PointHistoryInfo>? pointSaveHistory,
@@ -78,6 +95,7 @@ class MembershipState {
     String? loadingActionId,
     bool clearLoadingActionId = false,
     String? rewardType,
+    bool? isUnregistered,
   }) {
     return MembershipState(
       customerName: customerName ?? this.customerName,
@@ -85,7 +103,8 @@ class MembershipState {
       stampCount: stampCount ?? this.stampCount,
       couponCount: couponCount ?? this.couponCount,
       totalPoint: totalPoint ?? this.totalPoint,
-      membershipInfo: membershipInfo ?? this.membershipInfo,
+      membershipInfo:
+          clearMembershipInfo ? null : membershipInfo ?? this.membershipInfo,
       stampHistory: stampHistory ?? this.stampHistory,
       couponHistory: couponHistory ?? this.couponHistory,
       pointSaveHistory: pointSaveHistory ?? this.pointSaveHistory,
@@ -106,8 +125,17 @@ class MembershipState {
       loadingActionId:
           clearLoadingActionId ? null : loadingActionId ?? this.loadingActionId,
       rewardType: rewardType ?? this.rewardType,
+      isUnregistered: isUnregistered ?? this.isUnregistered,
     );
   }
+
+  /// 조회 절차가 끝났는지 — 정상 회원이거나 미가입으로 판정된 상태.
+  ///
+  /// 화면이 "[회원조회] 화면인가, 조회 후 조작 화면인가"를 물을 때 쓰는 단일
+  /// 진입점이다. `customerName.isNotEmpty` 만 보면 미가입에서 화면이 조회 전
+  /// 상태로 되돌아간다(서버 nickname 이 비어도 '회원' 이 들어가므로 정상
+  /// 회원은 항상 non-empty).
+  bool get hasSearchedMember => customerName.isNotEmpty || isUnregistered;
 
   // ─── 무한 스크롤 슬라이딩 윈도우 ──────────────────────────────────────────
   //
@@ -150,11 +178,36 @@ class Membership extends _$Membership {
   }
 
   // --- Search and Data Fetching ---
+
+  /// 입력한 번호(전화번호 또는 바코드)로 회원을 조회한다.
+  ///
+  /// 미가입 번호(서버 404 `NOT_FOUND_USER`)는 **실패가 아니다** — 이름 없이
+  /// [MembershipState.isUnregistered] 상태로 들어가고 `true` 를 돌려준다.
+  /// 그 뒤의 적립·쿠폰 API 는 정상 회원과 똑같이 이 번호로 나간다.
+  /// 통신 오류·5xx 는 기존대로 `errorMessage` + `false` 다.
   Future<bool> search(String phone) async {
     if (_storeId.isEmpty) {
       state = state.copyWith(errorMessage: '매장 ID를 찾을 수 없습니다.');
       return false;
     }
+    // 빈 식별자로는 조회하지 않는다. 서버는 빈 userSearchNo 에도 404
+    // NOT_FOUND_USER 를 주므로, 막지 않으면 customerPhone 이 '' 인 유령
+    // 미가입 상태가 만들어진다(cancelCoupon 경로가 빈 userId 로 들어온다).
+    if (phone.trim().isEmpty) {
+      logger.w('Membership search 건너뜀: 빈 식별자');
+      return false;
+    }
+
+    // isLoading 을 실제로 세운다. 이전에는 아래 로그 문구만 "Setting isLoading
+    // = true" 라고 말하고 대입이 없어서, 조회 중에도 버튼이 잠기지 않았다
+    // (`actionEnabled = !isLoading && hasInput`). 두 번 탭하면 두 조회가
+    // 교차하고, 늦게 도착한 404 가 성공한 조회를 조용히 '미가입' 으로 덮는다.
+    //
+    // 메시지는 여기서 지우지 않는다 — saveStamp/useCoupon 이 성공 메시지를 세운
+    // 직후 재조회로 이 함수를 부르는데, 여기서 지우면 화면의 ref.listen 이
+    // "성공/에러 메시지 없음" 상태를 보고 이미 열려 있는 다이얼로그 위로
+    // 하드웨어 키 포커스를 되찾아간다. 정리는 기존대로 성공 경로에서 한다.
+    state = state.copyWith(isLoading: true);
 
     try {
       logger.d('Membership search started. Setting isLoading = true');
@@ -167,6 +220,8 @@ class Membership extends _$Membership {
         state = state.copyWith(
           errorMessage: '회원 정보를 찾을 수 없습니다.',
           isLoading: false,
+          // 조회가 실패했으면 직전 '미가입' 판정도 무효다 — 아래 주석 참고.
+          isUnregistered: false,
         );
         return false;
       }
@@ -185,6 +240,9 @@ class Membership extends _$Membership {
         isLoadingRewardHistory: true, // Start history loading
         clearErrorMessage: true,
         clearSuccessMessage: true,
+        // 미가입 → 정상회원 전이 복구. 명시하지 않으면 이전 미가입 조회의
+        // 플래그가 남아 이름이 있는데도 '미가입' 화면이 뜬다.
+        isUnregistered: false,
       );
       // +++ Log state change after membership info fetch +++
       logger.d(
@@ -222,12 +280,18 @@ class Membership extends _$Membership {
       logger.i(
           'STAMP history fetch success: ${stampData.length} stamps, ${couponData.length} coupons');
       return true; // Search successful
+    } on MemberNotFoundException {
+      // ⚠️ 반드시 `on ApiException` 보다 **앞**에 있어야 한다. 하위 타입이라
+      // 뒤에 두면 절대 도달하지 않고 조용히 에러 다이얼로그로 빠진다.
+      _enterUnregistered(phone);
+      return true; // 조회 절차 자체는 정상 완료
     } on ApiException catch (e) {
       logger.e('API Exception during membership search: ${e.message}');
       state = state.copyWith(
         errorMessage: e.message,
         isLoading: false,
         isLoadingRewardHistory: false,
+        isUnregistered: false,
       );
       return false;
     } catch (e, s) {
@@ -236,9 +300,88 @@ class Membership extends _$Membership {
         errorMessage: '회원 조회 중 알 수 없는 오류가 발생했습니다.',
         isLoading: false,
         isLoadingRewardHistory: false,
+        isUnregistered: false,
       );
       return false;
     }
+  }
+
+  // ⚠️ 위 실패 3분기가 모두 `isUnregistered: false` 를 세우는 이유:
+  //
+  //   1) 010-1111 조회 → 404 → 미가입 (customerPhone = 010-1111)
+  //   2) 010-2222 조회 → 타임아웃 → 에러 다이얼로그
+  //   3) 다이얼로그를 닫으면 입력란만 지워지고, 되돌리지 않으면 화면은 여전히
+  //      '미가입' + [스탬프 적립] 이며 customerPhone 은 010-1111 이다
+  //   4) 점주가 개수를 넣고 적립 → **010-1111 에게 적립된다**
+  //
+  // 정상 회원일 때는 이름이 떠 있어 점주가 알아채지만, '미가입' 라벨은 어느
+  // 번호든 글자가 똑같아 식별 정보가 0이다. 조회가 실패했으면 "이 번호가
+  // 미가입"이라는 판정 자체가 성립하지 않으므로 조회 전 상태로 되돌린다
+  // ([스탬프 적립] 버튼이 사라져 오적립 경로가 끊긴다).
+
+  /// 미가입 번호로 조회가 끝났을 때의 상태 전이.
+  ///
+  /// 다이얼로그를 띄우지 않는다 — 미가입은 장애가 아니라 정상 운영 상황이고,
+  /// 점주는 이름란의 '미가입 (…뒤4자리)' 표시만 보고 바로 적립/쿠폰 조작으로
+  /// 넘어간다.
+  ///
+  /// ## 이 화면이 미가입을 접수하는 근거 (서버 정책)
+  ///
+  /// **서버가 미가입 번호의 스탬프 적립을 받아주고, 그 과정에서 회원을 내부적
+  /// 으로 가입시킨다** — 매머드 **1차 브랜드**(매머드커피, 그룹 ID 는
+  /// `MembershipConfig.shopGroupMammothCoffee`) 기준으로 확인된 정책이다.
+  /// 그래서 적립 직후의 재조회(`saveStamp` → `search`)는 404 가 아니라 정상
+  /// 회원으로 응답하고, 화면은 `isUnregistered: false` 로 자연히 복귀한다.
+  ///
+  /// **브랜드로 막지 않는다(의도).** 정책 확인은 1차 브랜드에서 됐지만, 스탬프
+  /// 운영 매장이면 어디서든 이 흐름을 쓸 수 있게 열어 두고 관찰한다 —
+  /// `MembershipConfig` 의 설계 철학(기본은 허용, 확인된 것만 제한)과 같은
+  /// 방향이고, 다른 브랜드 서버가 거부하더라도 에러 다이얼로그만 뜰 뿐 적립은
+  /// 일어나지 않기 때문이다(fail-safe). 거부하는 브랜드가 있으면
+  /// `BenignApiLogFilter` 가 `/stamp/earn` 의 `NOT_FOUND_USER` 를 일부러
+  /// Sentry 에 남겨 두었으므로 알림으로 바로 드러난다. 그때 브랜드 게이트를
+  /// 검토한다.
+  ///
+  /// ## 내역 2종(스탬프·쿠폰)을 호출하지 않는 이유
+  ///
+  /// 처음에는 "서버가 과거 이력을 갖고 있을 수 있다"고 보고 태웠는데, 실기기
+  /// 로그가 그 가정을 반증했다 — `/v0/stamps/history` 와 `/v0/coupons/history`
+  /// 도 프로필과 **똑같이** `404 NOT_FOUND_USER` 를 준다. 유저 단위 판정이라
+  /// 번호가 달라도 결과가 같으므로 성공할 수 없는 호출이고, 조회 1건당 왕복
+  /// 2회와 404 2건이 순수 낭비였다. 매장 네트워크가 열화된 환경에서는 이 왕복
+  /// 자체가 비용이다.
+  ///
+  /// 건너뛰어도 이력이 유실되지 않는 것은 위 자동가입 정책 덕이다. 적립하면
+  /// 회원이 생기고, 그 다음 조회부터는 정상 경로가 내역을 가져온다.
+  void _enterUnregistered(String phone) {
+    // 이전 회원의 잔재를 확실히 끊는다. clearMembershipInfo 가 없으면 A회원
+    // 조회 성공 뒤 B번호가 미가입일 때 A의 보유쿠폰이 그대로 남는다.
+    state = state.copyWith(
+      isUnregistered: true,
+      customerName: '',
+      customerPhone: phone,
+      stampCount: 0,
+      couponCount: 0,
+      totalPoint: 0,
+      clearMembershipInfo: true,
+      stampHistory: const [],
+      couponHistory: const [],
+      isLoading: false,
+      // 내역 호출을 건너뛰므로 로딩 상태로 두지 않는다. true 로 두면 우측
+      // 카드 스피너가 영원히 돌아간다.
+      isLoadingRewardHistory: false,
+      // 성공 경로(위)와 대칭 — 직전 액션의 메시지를 그대로 물려받지 않는다.
+      clearErrorMessage: true,
+      clearSuccessMessage: true,
+      stampHistoryVisibleCount: MembershipState.pageSize,
+      couponHistoryVisibleCount: MembershipState.pageSize,
+      availableCouponsVisibleCount: MembershipState.pageSize,
+    );
+    // 전화번호는 마스킹(로그 파일은 Slack/로그서버로 기기 밖에 나간다).
+    logToFile(
+      tag: LogTag.UI_ACTION,
+      message: '멤버십 조회 — 미가입 번호: ${CommonUtil.maskTail(phone)}',
+    );
   }
 
   // --- Actions (Coupon Use/Cancel, Point Cancel, Stamp Save) ---

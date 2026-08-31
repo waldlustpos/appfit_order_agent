@@ -527,6 +527,7 @@
         "search": {
             "hint": "Please enter phone number or coupon number.",
             "hint_searched": "Please enter number of stamps. (Up to 20)",
+            "hint_unregistered": "Enter a stamp count or coupon number.",
             "btn_search": "Search Member",
             "btn_other_member": "Reset Search",
             "btn_save_stamp": "Save Stamp",
@@ -535,6 +536,8 @@
         },
         "customer": {
             "status_none": "No member info found.",
+            "status_unregistered": "Not registered",
+            "status_unregistered_with_id": "Not registered ({id})",
             "honorific": "{name}",
             "summary": "Stamp {stamps} | Coupon {coupons}",
             "summary_coupon_only": "Coupon {coupons}"

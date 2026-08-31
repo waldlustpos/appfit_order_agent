@@ -17,23 +17,36 @@ void main() {
 
   group('실제 정책 — 배포되는 상수 값 고정', () {
     // 두 그룹 ID 는 마지막 한 글자(h/j)만 다르다. 상수에 오타가 나면 정반대
-    // 매장이 걸리는데 화면에서만 드러나므로, 여기서 양방향으로 못 박는다.
-    const visibleGroup = '0qs2vf410y3wh';
-    const hiddenGroup = '0qs2vf410y3wj';
+    // 브랜드가 걸리는데 화면에서만 드러나므로, 여기서 양방향으로 못 박는다.
+    //
+    // ⚠️ 여기는 일부러 **날문자열**을 쓴다. MembershipConfig 의 상수를 그대로
+    // 참조하면 값이 바뀌어도 테스트가 따라 바뀌어 아무것도 검증하지 못한다.
+    const mammothCoffee = '0qs2vf410y3wh'; // 매머드커피 (1차 브랜드) — 스탬프 표시
+    const mammothExpress = '0qs2vf410y3wj'; // 매머드익스프레스 (2차) — 스탬프 숨김
 
-    test('숨김 그룹(...j)은 스탬프가 보이지 않는다', () {
-      expect(MembershipConfig.stampHiddenShopGroupIds, contains(hiddenGroup));
-      expect(MembershipConfig.stampEnabledFor(hiddenGroup), isFalse);
-      expect(store(hiddenGroup).stampEnabled, isFalse);
+    test('브랜드 상수가 실제 그룹 ID 와 일치한다', () {
+      expect(MembershipConfig.shopGroupMammothCoffee, mammothCoffee);
+      expect(MembershipConfig.shopGroupMammothExpress, mammothExpress);
+      expect(MembershipConfig.shopGroupLabel(mammothCoffee), '매머드커피');
+      expect(MembershipConfig.shopGroupLabel(mammothExpress), '매머드익스프레스');
+      expect(MembershipConfig.shopGroupLabel('other-group'), isNull);
+      expect(MembershipConfig.shopGroupLabel(null), isNull);
     });
 
-    test('표시 그룹(...h)은 스탬프가 보인다 — 끝자리 오타 감지', () {
+    test('매머드익스프레스(...j)는 스탬프가 보이지 않는다', () {
+      expect(
+          MembershipConfig.stampHiddenShopGroupIds, contains(mammothExpress));
+      expect(MembershipConfig.stampEnabledFor(mammothExpress), isFalse);
+      expect(store(mammothExpress).stampEnabled, isFalse);
+    });
+
+    test('매머드커피(...h)는 스탬프가 보인다 — 끝자리 오타 감지', () {
       expect(
         MembershipConfig.stampHiddenShopGroupIds,
-        isNot(contains(visibleGroup)),
+        isNot(contains(mammothCoffee)),
       );
-      expect(MembershipConfig.stampEnabledFor(visibleGroup), isTrue);
-      expect(store(visibleGroup).stampEnabled, isTrue);
+      expect(MembershipConfig.stampEnabledFor(mammothCoffee), isTrue);
+      expect(store(mammothCoffee).stampEnabled, isTrue);
     });
 
     test('목록에 없는 그룹·그룹 없음은 기존대로 표시', () {

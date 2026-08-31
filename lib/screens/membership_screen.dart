@@ -104,6 +104,7 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
           prevSuccessMessage == null) {
         shouldRefocus = true;
       } else if (previous?.customerName != next.customerName ||
+          previous?.isUnregistered != next.isUnregistered ||
           previous?.rewardType != next.rewardType) {
         if (_inputController.text.isEmpty) {
           shouldRefocus = true;
@@ -150,7 +151,11 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
         });
       }
 
+      // isUnregistered 도 함께 본다 — 미가입 진입은 customerName 이 '' 그대로라
+      // 이름 비교만으로는 변화가 감지되지 않고, 조회에 쓴 전화번호가 입력란에
+      // 남은 채로 적립 화면이 뜬다.
       if (previous?.customerName != next.customerName ||
+          previous?.isUnregistered != next.isUnregistered ||
           previous?.rewardType != next.rewardType) {
         _inputController.clear();
         logger.d('Input cleared due to customer change.');
@@ -226,6 +231,14 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
         ref.watch(membershipProvider.select((state) => state.couponCount));
     final isLoading =
         ref.watch(membershipProvider.select((state) => state.isLoading));
+    final isUnregistered =
+        ref.watch(membershipProvider.select((state) => state.isUnregistered));
+    // 미가입 라벨은 어느 번호든 글자가 같아 식별 정보가 0이다. 조회에 쓴
+    // 식별자의 뒤 4자리를 함께 찍어, 점주가 지금 누구에게 적립하려는지 화면에서
+    // 확인할 수 있게 한다. 식별자는 전화번호일 수도 바코드일 수도 있어서
+    // 전화번호 전용 포맷 대신 식별자 무관인 maskTail 을 쓴다.
+    final customerPhone =
+        ref.watch(membershipProvider.select((state) => state.customerPhone));
     final stampEnabled = ref.watch(stampEnabledProvider);
 
     return SizedBox(
@@ -241,9 +254,16 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
                 child: Text(
                   isLoading
                       ? ' '
-                      : customerName.isEmpty
-                          ? t.membership.customer.status_none
-                          : t.membership.customer.honorific(name: customerName),
+                      : isUnregistered
+                          ? (customerPhone.isEmpty
+                              ? t.membership.customer.status_unregistered
+                              : t.membership.customer
+                                  .status_unregistered_with_id(
+                                      id: CommonUtil.maskTail(customerPhone)))
+                          : customerName.isEmpty
+                              ? t.membership.customer.status_none
+                              : t.membership.customer
+                                  .honorific(name: customerName),
                   style: AppTextStyles.titleSm
                       .copyWith(color: AppStyles.kMainColor),
                   overflow: TextOverflow.ellipsis,
@@ -252,7 +272,9 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
               Padding(
                 padding: const EdgeInsets.only(left: AppSpacing.s8),
                 child: Text(
-                  isLoading || customerName.isEmpty
+                  // 미가입은 요약을 비운다 — "미가입  스탬프 0 | 쿠폰 0" 은
+                  // 정보가 없으면서 가입 회원처럼 읽힌다.
+                  isLoading || isUnregistered || customerName.isEmpty
                       ? ' '
                       : stampEnabled
                           ? t.membership.customer.summary(
@@ -272,9 +294,10 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
 
   Widget _buildOtherMemberButton() {
     return Consumer(builder: (context, ref, _) {
-      final customerName =
-          ref.watch(membershipProvider.select((s) => s.customerName));
-      if (customerName.isNotEmpty) {
+      // 미가입 상태에서도 노출한다 — 다른 번호로 넘어갈 유일한 출구다.
+      final hasSearched =
+          ref.watch(membershipProvider.select((s) => s.hasSearchedMember));
+      if (hasSearched) {
         return SizedBox(
           height: 34,
           child: Align(
@@ -318,13 +341,21 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
       builder: (context, ref, _) {
         final customerName =
             ref.watch(membershipProvider.select((s) => s.customerName));
+        final isUnregistered =
+            ref.watch(membershipProvider.select((s) => s.isUnregistered));
         final stampEnabled = ref.watch(stampEnabledProvider);
         final isCustomerSearched = customerName.isNotEmpty;
         // 스탬프 미운영 매장에서는 회원 조회 후 입력란이 할 일이 없다.
         // "스탬프 개수를 입력해주세요" 안내를 지워 오조작을 유도하지 않는다.
-        final hintText = isCustomerSearched
-            ? (stampEnabled ? t.membership.search.hint_searched : '')
-            : t.membership.search.hint;
+        //
+        // 미가입은 입력란이 적립 개수와 쿠폰번호를 겸하므로 전용 안내를 쓴다.
+        final hintText = isUnregistered
+            ? (stampEnabled
+                ? t.membership.search.hint_unregistered
+                : t.membership.dialog.enter_coupon_code)
+            : isCustomerSearched
+                ? (stampEnabled ? t.membership.search.hint_searched : '')
+                : t.membership.search.hint;
 
         return Stack(
           children: [
@@ -416,6 +447,7 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
             final membershipState = ref.watch(membershipProvider);
             final isLoading = membershipState.isLoading;
             final customerName = membershipState.customerName;
+            final isUnregistered = membershipState.isUnregistered;
             final inputText = textValue.text;
             final isCustomerSearched = customerName.isNotEmpty;
             final hasInput = inputText.isNotEmpty;
@@ -437,9 +469,9 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
               );
             }
 
-            // 회원 미조회 상태: 자동 판정 없이 [회원조회]/[쿠폰사용] 을 모두 노출하고
-            // 입력이 있으면 둘 다 활성화한다(사용자가 명시 선택). Sunmi 내장 스캐너가
-            // 있으면 위에 [바코드 스캔] 트리거를 둔다.
+            // 미조회/미가입 공통: 자동 판정 없이 버튼을 모두 노출하고 입력이 있으면
+            // 활성화한다(사용자가 명시 선택). Sunmi 내장 스캐너가 있으면 위에
+            // [바코드 스캔] 트리거를 둔다.
             // 바코드 스캔 버튼 노출: Android Sunmi 내장 스캐너 또는 Windows 토스프런트(waldpos).
             final hasScanner =
                 (ref.watch(hasBuiltinScannerProvider).valueOrNull ?? false) ||
@@ -447,10 +479,37 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
             final isScanning = ref.watch(waldposScanProvider).isScanning;
             final actionEnabled = !isLoading && hasInput;
 
+            // 미가입은 [회원조회] 자리를 [스탬프 적립]으로 바꾼다 — 이미 조회를
+            // 마친 번호라 다시 조회할 일이 없고, 그 번호 그대로 적립해야 한다.
+            // 잘못된 값으로 눌러도 기존 가드가 받는다([적립]은 _saveStamp 의
+            // 1~20 검증, [쿠폰사용]은 _useCouponDirectly 의 전화번호 차단).
+            final leftButton = isUnregistered
+                ? _primaryActionButton(
+                    label: t.membership.search.btn_save_stamp,
+                    icon: Icons.add_circle_outline,
+                    color: AppStyles.kMainColor,
+                    onPressed:
+                        actionEnabled ? () => _saveStamp(inputText) : null,
+                  )
+                : _primaryActionButton(
+                    label: t.membership.search.btn_search,
+                    icon: Icons.search,
+                    color: AppStyles.kMainColor,
+                    onPressed: actionEnabled ? _searchMembership : null,
+                  );
+            // 스탬프 미운영 매장 + 미가입 = 적립할 것이 없으므로 쿠폰만 남긴다.
+            final showLeftButton = !isUnregistered || stampEnabled;
+
+            // 미가입에서는 스캔 버튼을 감춘다. 스캔은 입력란을 채울 뿐인데
+            // 이 상태의 좌측 버튼은 [회원조회]가 아니라 [스탬프 적립]이라,
+            // 스캔한 바코드로 조회할 방법이 없다(누르면 개수 검증에 걸린다).
+            // 다른 번호/쿠폰을 스캔하려면 [검색 초기화] 로 나간다.
+            final showScanner = hasScanner && !isUnregistered;
+
             return Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (hasScanner) ...[
+                if (showScanner) ...[
                   SizedBox(
                     width: double.infinity,
                     child:
@@ -460,15 +519,10 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
                 ],
                 Row(
                   children: [
-                    Expanded(
-                      child: _primaryActionButton(
-                        label: t.membership.search.btn_search,
-                        icon: Icons.search,
-                        color: AppStyles.kMainColor,
-                        onPressed: actionEnabled ? _searchMembership : null,
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.s8),
+                    if (showLeftButton) ...[
+                      Expanded(child: leftButton),
+                      const SizedBox(width: AppSpacing.s8),
+                    ],
                     Expanded(
                       child: _primaryActionButton(
                         label: t.membership.search.btn_use_coupon,
@@ -936,12 +990,18 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
 
     if (confirmed == true) {
       // use-without-item: 회원 조회 없이 쿠폰번호만으로 사용 처리한다.
-      // 회원이 조회돼 있으면(예: 스캔 시) 그 id 로 사용 후 내역을 갱신하고,
+      // 조회된 번호가 있으면(정상 회원이든 미가입이든) 그 번호로 내역을 갱신하고,
       // 없으면(키패드/스캔 직접 입력) 익명으로 사용한다.
-      final membership = ref.read(membershipProvider).membershipInfo;
+      //
+      // 넘기는 값은 customerPhone(= 조회에 쓴 전화번호/바코드)이다. 예전에는
+      // membershipInfo.id(AppFit 내부 UUID)를 넘겼는데, 이 값은 그대로
+      // search() → getUserProfile 의 userSearchNo 로 들어가서 조회가 실패했다.
+      // 같은 재조회를 하는 _useCoupon/_cancelCoupon 은 원래 customerPhone 을
+      // 쓰고 있었다 — 이쪽만 어긋나 있던 것.
+      final phone = ref.read(membershipProvider).customerPhone;
       final success = await ref
           .read(membershipProvider.notifier)
-          .useCoupon(membership?.id ?? '', couponCode);
+          .useCoupon(phone, couponCode);
       if (success && mounted) {
         _inputController.clear();
       }

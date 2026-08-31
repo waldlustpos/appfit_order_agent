@@ -1915,6 +1915,9 @@ class Translations$membership$search$ko {
 	/// ko: '스탬프 개수를 입력해주세요. (최대 20개까지)'
 	String get hint_searched => '스탬프 개수를 입력해주세요. (최대 20개까지)';
 
+	/// ko: '스탬프 개수 또는 쿠폰번호를 입력해주세요.'
+	String get hint_unregistered => '스탬프 개수 또는 쿠폰번호를 입력해주세요.';
+
 	/// ko: '회원조회'
 	String get btn_search => '회원조회';
 
@@ -1941,6 +1944,12 @@ class Translations$membership$customer$ko {
 
 	/// ko: '회원 정보가 없습니다.'
 	String get status_none => '회원 정보가 없습니다.';
+
+	/// ko: '미가입'
+	String get status_unregistered => '미가입';
+
+	/// ko: '미가입 ({id})'
+	String status_unregistered_with_id({required Object id}) => '미가입 (${id})';
 
 	/// ko: '{name}님'
 	String honorific({required Object name}) => '${name}님';

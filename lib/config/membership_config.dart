@@ -11,20 +11,42 @@
 class MembershipConfig {
   const MembershipConfig._();
 
+  // ─── 알려진 매장 그룹 ────────────────────────────────────────────────────
+  //
+  // 두 ID 는 **마지막 한 글자(h/j)만 다르다.** 끝자리를 잘못 적으면 정반대
+  // 브랜드가 걸리는데 화면에서만 드러나 조용히 배포된다. 그래서 아래 목록에는
+  // 날문자열 대신 반드시 이 상수를 쓴다 — 이름이 틀리면 컴파일이 깨진다.
+
+  /// **매머드커피** (1차 브랜드). 스탬프 **표시** — 숨김 목록에 넣지 말 것.
+  ///
+  /// 멤버십 화면의 '미가입 접수'(미가입 번호로도 적립)가 성립하는 근거가 이
+  /// 브랜드의 서버 정책이다 — **적립 요청을 받아주면서 회원을 내부적으로
+  /// 가입시킨다.** 그래서 적립 직후 재조회가 정상 회원으로 응답한다.
+  /// 상세는 `Membership._enterUnregistered` 문서 참고.
+  static const String shopGroupMammothCoffee = '0qs2vf410y3wh';
+
+  /// **매머드익스프레스** (2차 브랜드). 스탬프 **숨김**.
+  static const String shopGroupMammothExpress = '0qs2vf410y3wj';
+
+  /// 그룹 ID → 사람이 읽는 브랜드명. 모르는 그룹이면 null.
+  ///
+  /// 로그인 로그(`[SYSTEM]  매장그룹`)에 붙여, 현장에서 받은 ID 가 어느
+  /// 브랜드인지 로그만 보고 판별할 수 있게 한다.
+  static String? shopGroupLabel(String? shopGroupId) => switch (shopGroupId) {
+        shopGroupMammothCoffee => '매머드커피',
+        shopGroupMammothExpress => '매머드익스프레스',
+        _ => null,
+      };
+
   /// 스탬프 기능을 숨길 매장 그룹(`shopGroupId`).
   ///
   /// 새 값은 로그인 시 파일 로그의 `[SYSTEM]  매장그룹` 줄에서 확인한다.
   ///
-  /// **주의 — 아는 그룹 ID 두 개는 마지막 한 글자만 다르다:**
-  /// - `0qs2vf410y3wh` : 스탬프 **표시** (목록에 넣지 말 것)
-  /// - `0qs2vf410y3wj` : 스탬프 **숨김**
-  ///
-  /// 끝자리 `h`/`j` 를 잘못 적으면 정반대 매장이 걸리고, 화면에서만 드러나므로
-  /// 조용히 잘못된 채로 배포된다. 값 추가/수정 시
-  /// `test/models/store_model_stamp_gate_test.dart` 의 실제 정책 테스트를
-  /// 함께 갱신해 오타를 컴파일/테스트 단계에서 잡는다.
+  /// 값 추가/수정 시 `test/models/store_model_stamp_gate_test.dart` 의 실제
+  /// 정책 테스트를 함께 갱신해 오타를 테스트 단계에서 잡는다(그 테스트는
+  /// 일부러 날문자열을 써서 상수 값 자체를 독립적으로 검증한다).
   static const Set<String> stampHiddenShopGroupIds = <String>{
-    '0qs2vf410y3wj',
+    shopGroupMammothExpress,
   };
 
   /// 이 매장에서 스탬프 UI 를 노출할지.

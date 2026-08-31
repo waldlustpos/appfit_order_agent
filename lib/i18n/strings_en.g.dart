@@ -1077,6 +1077,7 @@ class _Translations$membership$search$en extends Translations$membership$search$
 	// Translations
 	@override String get hint => 'Please enter phone number or coupon number.';
 	@override String get hint_searched => 'Please enter number of stamps. (Up to 20)';
+	@override String get hint_unregistered => 'Enter a stamp count or coupon number.';
 	@override String get btn_search => 'Search Member';
 	@override String get btn_other_member => 'Reset Search';
 	@override String get btn_save_stamp => 'Save Stamp';
@@ -1092,6 +1093,8 @@ class _Translations$membership$customer$en extends Translations$membership$custo
 
 	// Translations
 	@override String get status_none => 'No member info found.';
+	@override String get status_unregistered => 'Not registered';
+	@override String status_unregistered_with_id({required Object id}) => 'Not registered (${id})';
 	@override String honorific({required Object name}) => '${name}';
 	@override String summary({required Object stamps, required Object coupons}) => 'Stamp ${stamps} | Coupon ${coupons}';
 	@override String summary_coupon_only({required Object coupons}) => 'Coupon ${coupons}';

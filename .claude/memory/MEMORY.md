@@ -83,3 +83,4 @@
 - [모델 티어 최적화는 레버가 아니다](feedback_model_tier_lever.md) — 실효 절감 $200/프로젝트. 진짜 레버는 검증가능성 선투자. 판정 작업에 Fable 금지(raw CoT 없어 감사 불가)
 - [알림음이 매장 BGM을 죽임](project_alarm_audio_focus_bgm.md) — audioplayers 기본 AUDIOFOCUS_GAIN. 유령 플레이어의 "AudioContext 설정됨" 로그가 착시. setAudioContext는 playerId 단위 (2026-08-31)
 - [버블 복귀 5.7초 = 앱 전환 타임아웃](project_bubble_restore_transition_timeout.md) — 원인은 onNewIntent 의 중복 moveTaskToFront(5056ms→122ms). 계측은 sysui_action [319/320/322]. rejecting buffer 는 헛짚음 (2026-08-31)
+- [멤버십 미가입 접수](project_membership_unregistered_intake.md) — 서버 자동가입 정책(매머드 1차)이 근거. 내역 API는 건너뜀. Dio 인터셉터가 Sentry 선발화하는 함정 (2026-08-31)

@@ -520,6 +520,7 @@
         "search": {
             "hint": "電話番号またはクーポン番号を入力してください。",
             "hint_searched": "スタンプの個数を入力してください。(最大20個まで)",
+            "hint_unregistered": "スタンプ数またはクーポン番号を入力してください。",
             "btn_search": "会員照会",
             "btn_other_member": "検索リセット",
             "btn_save_stamp": "スタンプ積立",
@@ -528,6 +529,8 @@
         },
         "customer": {
             "status_none": "会員情報がありません。",
+            "status_unregistered": "未加入",
+            "status_unregistered_with_id": "未加入 ({id})",
             "honorific": "{name}様",
             "summary": "スタンプ {stamps} | クーポン {coupons}",
             "summary_coupon_only": "クーポン {coupons}"

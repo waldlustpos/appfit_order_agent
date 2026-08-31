@@ -58,3 +58,18 @@ class BusinessLogicException extends ApiException {
   BusinessLogicException(super.message,
       [super.originalException, super.originalStackTrace]);
 }
+
+/// 회원 조회에서 서버가 "존재하지 않는 유저"를 돌려준 경우
+/// (`GET /v0/user/profile` → HTTP 404 · `code: NOT_FOUND_USER`).
+///
+/// 통신 오류(타임아웃·5xx)와 **구분해서** '미가입' 흐름으로 분기하기 위한
+/// 타입이다. 미가입은 장애가 아니라 정상 운영 상황이라 에러 다이얼로그를
+/// 띄우지 않고, 입력한 번호 그대로 적립·쿠폰 API 를 태운다
+/// (`Membership.search` 참고).
+///
+/// [ApiException] 을 상속하므로 이 타입을 따로 잡지 않는 호출부에서는
+/// 기존과 동일하게 동작한다.
+class MemberNotFoundException extends ApiException {
+  MemberNotFoundException(super.message,
+      [super.originalException, super.originalStackTrace]);
+}

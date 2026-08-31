@@ -520,6 +520,7 @@
         "search": {
             "hint": "전화번호 또는 쿠폰번호를 입력해주세요.",
             "hint_searched": "스탬프 개수를 입력해주세요. (최대 20개까지)",
+            "hint_unregistered": "스탬프 개수 또는 쿠폰번호를 입력해주세요.",
             "btn_search": "회원조회",
             "btn_other_member": "검색 초기화",
             "btn_save_stamp": "스탬프 적립",
@@ -528,6 +529,8 @@
         },
         "customer": {
             "status_none": "회원 정보가 없습니다.",
+            "status_unregistered": "미가입",
+            "status_unregistered_with_id": "미가입 ({id})",
             "honorific": "{name}님",
             "summary": "스탬프 {stamps} | 쿠폰 {coupons}",
             "summary_coupon_only": "쿠폰 {coupons}"
