@@ -57,6 +57,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   late PreferenceService _preferenceService;
   String _notificationSound = 'alert10.mp3';
   double _volume = 0.5;
+  // 매장 배경음악을 죽이지 않도록 오디오 포커스 해제(none)를 적용했는지.
+  bool _audioContextApplied = false;
 
   @override
   void initState() {
@@ -199,6 +201,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final volumeValue = _preferenceService.getVolume();
     _volume = volumeValue / 10.0;
     await _audioPlayer.setVolume(_volume);
+    // 연결 끊김 알림음도 매장 배경음악을 죽이지 않도록 포커스 요청을 해제한다.
+    // main() 의 전역 기본값을 상속하므로 통상 no-op 이지만, 생성 순서에
+    // 의존하지 않도록 명시한다. (Windows 는 미지원 로그만 남으므로 제외)
+    if (!_audioContextApplied && Platform.isAndroid) {
+      try {
+        await _audioPlayer.setAudioContext(
+          AudioContext(
+            android: const AudioContextAndroid(
+              audioFocus: AndroidAudioFocus.none,
+            ),
+          ),
+        );
+        _audioContextApplied = true;
+      } catch (e) {
+        logger.w('[HomeScreen] AudioContext 설정 실패 (기본 포커스로 재생): $e');
+      }
+    }
     logger.d('알림음 설정 로드: 파일=$_notificationSound, 볼륨=$_volume');
   }
 

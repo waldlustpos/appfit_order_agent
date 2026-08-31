@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -22,6 +23,9 @@ class SoundService {
   // 현재 _player 인스턴스에 마지막으로 적용된 볼륨. null 이면 미적용(새 플레이어).
   // 재생마다 불필요한 setVolume MethodChannel 호출(알림 순간 마이크로 잭)을 막는다.
   double? _appliedVolume;
+  // 현재 _player 인스턴스에 오디오 포커스 해제(none)를 적용했는지. 플레이어를
+  // 새로 만들면 false 로 되돌린다.
+  bool _audioContextApplied = false;
   AssetSource? _soundSource;
 
   // 앱 시작 시 알람소리 재생 제한
@@ -47,6 +51,30 @@ class SoundService {
       _player = AudioPlayer();
       _isDisposed = false;
       _appliedVolume = null; // 새 인스턴스는 볼륨 재적용 필요
+      _audioContextApplied = false; // 오디오 포커스 설정도 재적용 필요
+    }
+  }
+
+  /// 매장 배경음악(BGM)을 죽이지 않도록 이 플레이어의 오디오 포커스 요청을
+  /// 해제한다(AUDIOFOCUS_NONE = 다른 앱과 믹스).
+  ///
+  /// main() 에서 건 전역 기본값을 새 AudioPlayer 가 상속하므로 통상 이 호출은
+  /// 네이티브에서 no-op 이지만, 플레이어 생성 순서에 의존하지 않도록 재생
+  /// 경로에서 한 번 더 명시한다. 소스를 로드하기 전에 걸어야 네이티브가
+  /// stop→setSource→prepare 재준비를 하지 않는다.
+  Future<void> _ensureAudioContext() async {
+    if (_audioContextApplied || !Platform.isAndroid) return;
+    try {
+      await _player.setAudioContext(
+        AudioContext(
+          android: const AudioContextAndroid(
+            audioFocus: AndroidAudioFocus.none,
+          ),
+        ),
+      );
+      _audioContextApplied = true;
+    } catch (e) {
+      logger.w('[SoundService] AudioContext 설정 실패 (기본 포커스로 재생): $e');
     }
   }
 
@@ -98,6 +126,7 @@ class SoundService {
       reloadSettings();
 
       _ensurePlayer();
+      await _ensureAudioContext();
 
       if (_soundFileName.isEmpty || _playCount == 0) {
         logger.w('[SoundService] 사운드 설정 없음, 재생 건너뜀');

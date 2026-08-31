@@ -1,5 +1,4 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:audioplayers/audioplayers.dart';
 import 'package:appfit_order_agent/services/preference_service.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 
@@ -14,16 +13,12 @@ class OrderSettingsManager {
   int _playCount = 0;
   double _volume = 1.0;
 
-  // AudioPlayer 상태
-  bool _isAudioPlayerDisposed = false;
-
   OrderSettingsManager(this.ref, this._preferenceService);
 
   // Getters
   String get soundFileName => _soundFileName;
   int get playCount => _playCount;
   double get volume => _volume;
-  bool get isAudioPlayerDisposed => _isAudioPlayerDisposed;
 
   /// 알람소리 설정 로드
   void loadSoundSettings() {
@@ -37,28 +32,6 @@ class OrderSettingsManager {
 
     logger.d(
         'Sound settings loaded: file=$_soundFileName, count=$_playCount, volume=$_volume');
-  }
-
-  /// AudioPlayer 설정 적용
-  void applyAudioPlayerSettings(AudioPlayer audioPlayer) {
-    if (_isAudioPlayerDisposed) {
-      logger.w('AudioPlayer가 dispose된 상태라서 설정을 건너뜀');
-      return;
-    }
-
-    try {
-      audioPlayer.setVolume(_volume);
-
-      var audioContext = AudioContext(
-        android: const AudioContextAndroid(
-          audioFocus: AndroidAudioFocus.none,
-        ),
-      );
-      audioPlayer.setAudioContext(audioContext);
-      logger.d('AudioPlayer 설정 완료 - 볼륨: $_volume, AudioContext 설정됨');
-    } catch (e, s) {
-      logger.w('Error setting audio player settings: $e');
-    }
   }
 
   /// 자동접수 설정 업데이트
@@ -81,17 +54,11 @@ class OrderSettingsManager {
     logger.d('Sound settings reloaded for OrderSettingsManager.');
   }
 
-  /// AudioPlayer dispose 상태 설정
-  void setAudioPlayerDisposed(bool disposed) {
-    _isAudioPlayerDisposed = disposed;
-  }
-
   /// 로그아웃 시 설정 초기화
   void clearOnLogout() {
     _soundFileName = '';
     _playCount = 0;
     _volume = 1.0;
-    _isAudioPlayerDisposed = false;
     logger.d('[OrderSettingsManager] 로그아웃 시 설정 초기화 완료');
   }
 

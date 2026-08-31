@@ -19,7 +19,6 @@ import 'package:appfit_order_agent/providers/order/order_queue_manager.dart';
 import 'package:appfit_order_agent/providers/order/order_socket_manager.dart';
 import 'package:appfit_order_agent/providers/order/status_update_in_flight_provider.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
-import 'package:audioplayers/audioplayers.dart';
 import 'package:appfit_order_agent/core/orders/alert_manager.dart';
 import 'package:appfit_order_agent/core/orders/sound_service.dart';
 import 'package:appfit_order_agent/core/orders/blink_service.dart';
@@ -56,7 +55,6 @@ class Order extends _$Order {
   late OrderQueueManager _queueManager;
   late OrderSocketManager _socketManager;
 
-  AudioPlayer _audioPlayer = AudioPlayer();
   final OrderDetailCache _orderDetailCache = OrderDetailCache();
   final ProcessedOrderCache _processedOrderCache = ProcessedOrderCache();
   // 자동접수 in-flight 락. updateOrderStatus 호출이 비동기로 분리되는 시점부터 응답 도착(or 예외)까지
@@ -86,7 +84,6 @@ class Order extends _$Order {
   // 상태(NEW/PREPARING 등)로 돌려줘도 부활(재추가)을 차단한다.
   final appfit_core.RecentRemovalsCache _recentRemovals =
       appfit_core.RecentRemovalsCache();
-  bool _isAudioPlayerDisposed = false; // AudioPlayer dispose 상태 추적
   // NOTE: 소켓/refresh 경로가 갱신만 하고 현재 소비자는 없음 (폴링 전용
   // 경로 삭제로 잔존 — 후속 정리 후보, docs/REFACTORING.md 참조)
   String _lastKnownOrderSequence = "0";
@@ -149,18 +146,6 @@ class Order extends _$Order {
     );
 
     logger.d('Order Provider initializing...');
-
-    // AudioPlayer dispose 상태 초기화 (로그아웃 후 재로그인 시 재초기화)
-    //
-    // 주의: 이미 dispose된 player를 다시 dispose()하면 audioplayers 내부에서
-    // dispose → release → stop 순으로 MethodChannel을 호출하다 PlatformException
-    // 발생 (Sentry APPFIT-ORDER-AGENT-N). dispose()는 비동기이므로 동기 try-catch로
-    // 잡히지 않음. → 이미 disposed면 재dispose하지 않고 새 인스턴스로 교체만.
-    if (_isAudioPlayerDisposed) {
-      logger.d('[OrderProvider] AudioPlayer 재초기화 (기존 인스턴스는 폐기 상태이므로 교체만 수행)');
-      _audioPlayer = AudioPlayer();
-      _isAudioPlayerDisposed = false;
-    }
 
     // 설정값 로드
     final initialIsAutoReceipt = _preferenceService.getAutoReceipt();
@@ -303,17 +288,6 @@ class Order extends _$Order {
       // 로그아웃 상태가 아닐 때만 서비스 정지
       if (!_isLoggedOut) {
         _orderQueueService.stop();
-      }
-
-      // Sentry APPFIT-ORDER-AGENT-N: 이미 dispose 된 AudioPlayer 에 dispose 가
-      // 또 호출되면 내부 release→stop 경로에서 IllegalStateException 이 발생한다.
-      // dispose()는 Future를 반환하므로 동기 try-catch로 비동기 에러를 잡을 수 없음.
-      // → unawaited Future에 .catchError 부착으로 unhandled exception 방지.
-      if (!_isAudioPlayerDisposed) {
-        _audioPlayer.dispose().catchError((Object e) {
-          logger.w('[OrderProvider] AudioPlayer dispose 비동기 예외 무시: $e');
-        });
-        _isAudioPlayerDisposed = true;
       }
     });
 
@@ -1398,7 +1372,6 @@ class Order extends _$Order {
 
   void updateSoundSettings() {
     _settingsManager.updateSoundSettings();
-    _settingsManager.applyAudioPlayerSettings(_audioPlayer);
     // SoundService의 설정도 업데이트
     ref.read(soundAppServiceProvider).reloadSettings();
     logger
@@ -1507,7 +1480,6 @@ class Order extends _$Order {
   // 리팩토링 후:
   void _loadSoundSettings() {
     _settingsManager.loadSoundSettings();
-    _settingsManager.applyAudioPlayerSettings(_audioPlayer);
   }
 
   //주기적으로 주문 폴링 - TimerManager로 위임 (긴급모드 ON이면 즉시 10s 적용)
@@ -2195,22 +2167,7 @@ class Order extends _$Order {
     // 출력 큐(영수증/라벨/사운드) 정리 — 다음 사용자 세션에 이전 출력이 흘러가지 않도록 보장
     _outputQueueService.clear();
 
-    // 4. AudioPlayer 정리
-    // Sentry APPFIT-ORDER-AGENT-N: stop/dispose 가 PlatformException 으로 터져도
-    // 로그아웃 시퀀스 자체가 중단되지 않도록 처리.
-    // stop()/dispose()는 Future를 반환하므로 동기 try-catch가 비동기 예외를 잡지 못함.
-    // → .catchError로 unhandled future error 방지.
-    if (!_isAudioPlayerDisposed) {
-      _audioPlayer.stop().catchError((Object e) {
-        logger.w('[OrderProvider] AudioPlayer stop 비동기 예외 무시: $e');
-      });
-      _audioPlayer.dispose().catchError((Object e) {
-        logger.w('[OrderProvider] AudioPlayer dispose 비동기 예외 무시: $e');
-      });
-      _isAudioPlayerDisposed = true;
-    }
-
-    // 5. 인메모리 캐시 초기화
+    // 4. 인메모리 캐시 초기화
     _processedOrderCache.clear();
     _autoAcceptingOrderIds.clear();
     _selfAcceptedOrderIds.clear();
@@ -2219,7 +2176,7 @@ class Order extends _$Order {
     _recentRemovals.clear();
     _lastKnownOrderSequence = "0";
 
-    // 6. UI 상태 초기화
+    // 5. UI 상태 초기화
     state = OrderState.initial();
 
     logger.d('[OrderProvider] 로그아웃 시 자원 정리 완료');
@@ -2261,36 +2218,10 @@ class Order extends _$Order {
           () => _socketManager.checkAndFixSocketConnection(_isLoggedOut));
     }
 
-    // 7. AudioPlayer 재초기화
-    _reinitAudioPlayerIfNeeded();
-
-    // 8. 초기 주문 데이터 로딩 (모드 전환 시 필요)
+    // 7. 초기 주문 데이터 로딩 (모드 전환 시 필요)
     Future.microtask(() => _orderDataInitialize());
 
     logger.d('[OrderProvider] 로그인 후 재시작 완료');
-  }
-
-  void _reinitAudioPlayerIfNeeded() {
-    try {
-      if (_isAudioPlayerDisposed) {
-        logger.d(
-            '[OrderProvider] AudioPlayer 재초기화(reloadSettings) — 새 인스턴스로 교체만 수행');
-        // 주의: 이미 dispose된 player를 다시 dispose()하면 audioplayers 내부에서
-        // dispose → release → stop 순으로 MethodChannel 호출하다 PlatformException 발생.
-        // dispose()는 비동기라 동기 try-catch가 잡지 못함 (Sentry APPFIT-ORDER-AGENT-N).
-        // → 재dispose 없이 새 인스턴스로 교체만 수행.
-        _audioPlayer = AudioPlayer();
-        _isAudioPlayerDisposed = false;
-        // 최근 로드된 볼륨/설정을 반영
-        try {
-          _settingsManager.applyAudioPlayerSettings(_audioPlayer);
-        } catch (e, s) {
-          logger.w('AudioPlayer 초기화 설정 중 경고: $e');
-        }
-      }
-    } catch (e, s) {
-      logger.w('AudioPlayer 재초기화 실패 (무시 가능)', error: e, stackTrace: s);
-    }
   }
 
   /// 긴급 모드 ON/OFF — 설정 화면에서 호출 (폴링 주기만 변경)

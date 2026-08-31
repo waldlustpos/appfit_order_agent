@@ -81,3 +81,4 @@
 - [낡은 CMakeCache 가 INSTALL_PREFIX 를 Release 로 굳힘](reference_windows_cmake_install_prefix_pinned.md) — 구성 불문 모든 번들이 Release 로 install. 정상값은 제네레이터 표현식.
 - [쿠폰란 전화번호 오입력 → Sentry 유출](project_coupon_input_phone_misentry.md) — 입력란 공유가 구조적 원인. 앱 차단 + core v1.4.0 마스킹/경로단위 benign. 배포 완료 (2026-08-27)
 - [모델 티어 최적화는 레버가 아니다](feedback_model_tier_lever.md) — 실효 절감 $200/프로젝트. 진짜 레버는 검증가능성 선투자. 판정 작업에 Fable 금지(raw CoT 없어 감사 불가)
+- [알림음이 매장 BGM을 죽임](project_alarm_audio_focus_bgm.md) — audioplayers 기본 AUDIOFOCUS_GAIN. 유령 플레이어의 "AudioContext 설정됨" 로그가 착시. setAudioContext는 playerId 단위 (2026-08-31)

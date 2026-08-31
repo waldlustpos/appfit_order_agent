@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:audioplayers/audioplayers.dart';
 // import 'package:flutter_dotenv/flutter_dotenv.dart'; // Removed
 
 import 'package:appfit_order_agent/services/label_printer/windows/windows_label_router.dart';
@@ -41,6 +42,34 @@ import 'package:appfit_order_agent/constants/brand_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 알림음이 매장 배경음악(BGM)을 죽이지 않도록 전역 오디오 컨텍스트를 먼저
+  // 확정한다. audioplayers 기본값은 AUDIOFOCUS_GAIN 이라 BGM 앱에
+  // AUDIOFOCUS_LOSS(영구 상실)를 통보해 재생이 멈추고 자동 복구되지 않는다.
+  // none 은 포커스 요청 자체를 하지 않아 BGM 과 믹스되며, 다른 앱이 포커스를
+  // 내주지 않아 알림음이 무음이 되는 경우도 함께 사라진다.
+  //
+  // 네이티브 플러그인이 이 값을 defaultAudioContext 로 보관하고 이후 생성되는
+  // 모든 AudioPlayer 가 상속하므로 runApp 이전에 걸어야 한다.
+  // (Windows 는 "not supported on Windows" 로그만 남기므로 Android 한정)
+  // 플랫폼 채널이 응답하지 않아도 앱 기동을 막지 않도록 best-effort 2초.
+  // 실패해도 SoundService 가 재생 직전에 같은 설정을 다시 건다.
+  if (Platform.isAndroid) {
+    try {
+      await AudioPlayer.global
+          .setAudioContext(
+            AudioContext(
+              android: const AudioContextAndroid(
+                audioFocus: AndroidAudioFocus.none,
+              ),
+            ),
+          )
+          .timeout(const Duration(seconds: 2));
+    } catch (e, s) {
+      logger.w('전역 AudioContext 설정 실패 (알림음 재생 자체에는 영향 없음)',
+          error: e, stackTrace: s);
+    }
+  }
 
   // Windows: 플로팅 버블 UX용 window_manager 초기화.
   if (Platform.isWindows) {

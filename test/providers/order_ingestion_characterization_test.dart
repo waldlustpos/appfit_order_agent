@@ -323,10 +323,12 @@ Future<void> _wait(int ms) => Future<void>.delayed(Duration(milliseconds: ms));
 
 /// audioplayers 메서드/이벤트 채널 mock.
 ///
-/// OrderProvider 필드 이니셜라이저의 AudioPlayer() 생성이
-/// create → 이벤트 채널 listen 까지 성공해야 setVolume/setAudioContext 의
-/// 비동기 오류(unhandled)가 테스트를 죽이지 않는다. 이벤트 채널 이름에
-/// uuid playerId 가 포함되므로 create 호출 시점에 동적으로 등록한다.
+/// 현재는 soundAppServiceProvider 가 fake 로 대체돼 있고 OrderProvider 도
+/// AudioPlayer 를 들고 있지 않아(유령 플레이어 제거) 실제 플레이어가 생성되지
+/// 않는다. 다만 재생 경로가 다시 실물 AudioPlayer 를 잡게 되면 create →
+/// 이벤트 채널 listen 까지 성공해야 setVolume/setAudioContext 의 비동기
+/// 오류(unhandled)가 테스트를 죽이지 않으므로 안전망으로 남겨 둔다. 이벤트
+/// 채널 이름에 uuid playerId 가 포함되므로 create 호출 시점에 동적으로 등록한다.
 void _mockAudioPlayersChannels(TestDefaultBinaryMessenger messenger) {
   messenger.setMockMethodCallHandler(
     const MethodChannel('xyz.luan/audioplayers'),
