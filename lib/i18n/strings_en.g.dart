@@ -354,7 +354,7 @@ class _Translations$order_detail$en extends Translations$order_detail$ko {
 	@override String get cancel_reason_order_surge => 'High Order Volume';
 	@override String get dialog_repickup_confirm_title => 'Pickup Re-request';
 	@override String dialog_repickup_confirm_content({required Object n}) => 'Do you want to re-request pickup for order #${n}?';
-	@override String get dialog_not_picked_up_confirm_title => 'Not Picked Up';
+	@override String get dialog_not_picked_up_confirm_title => 'Mark Not Picked Up';
 	@override String dialog_not_picked_up_confirm_content({required Object n}) => 'Process order #${n} as not picked up?';
 	@override String dialog_complete_confirm_content({required Object n}) => 'Do you want to complete order #${n}?';
 	@override String print_receipt_fail({required Object error}) => 'Receipt printing failed: ${error}';
@@ -362,7 +362,7 @@ class _Translations$order_detail$en extends Translations$order_detail$ko {
 	@override String get btn_label_reprint => 'Reprint Label';
 	@override String get btn_pickup_request => 'Request Pickup';
 	@override String get btn_repickup => 'Re-request Pickup';
-	@override String get btn_not_picked_up => 'Not Picked Up';
+	@override String get btn_not_picked_up => 'Mark Not Picked Up';
 	@override String get btn_order_accept => 'Accept';
 	@override String get btn_order_complete => 'Complete';
 	@override String get btn_order_cancel => 'Cancel';

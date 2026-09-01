@@ -347,7 +347,7 @@ class _Translations$order_detail$ja extends Translations$order_detail$ko {
 	@override String get cancel_reason_order_surge => '注文集中';
 	@override String get dialog_repickup_confirm_title => 'ピックアップ再要請';
 	@override String dialog_repickup_confirm_content({required Object n}) => '${n}番の注文のピックアップを再要請しますか？';
-	@override String get dialog_not_picked_up_confirm_title => '未ピックアップ';
+	@override String get dialog_not_picked_up_confirm_title => '未ピックアップ処理';
 	@override String dialog_not_picked_up_confirm_content({required Object n}) => '${n}番の注文を未ピックアップ処理しますか？';
 	@override String dialog_complete_confirm_content({required Object n}) => '${n}番の注文を完了処理しますか？';
 	@override String print_receipt_fail({required Object error}) => '領収書印刷失敗: ${error}';
