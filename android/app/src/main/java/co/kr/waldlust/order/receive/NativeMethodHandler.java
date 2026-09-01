@@ -100,15 +100,27 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
                     final int finalTotalLabels = totalLabels != null ? totalLabels : 1;
 
                     labelPrintExecutor.submit(() -> {
-                        // 벤더 라우팅: 연결된 USB VID 로 매 인쇄 재평가 (attach/detach stale 방지).
-                        // 두 벤더 동시 연결 시 BIXOLON 우선. Caysn 전용 knob(autoReplyMode 등)은
-                        // BIXOLON 경로에서 무의미하므로 전달하지 않는다.
+                        // 벤더 라우팅: 연결된 USB VID/PID 로 매 인쇄 재평가 (attach/detach stale
+                        // 방지). G30(UPOS SDK)과 XD5-40d(Label SDK)는 VID 0x1504 를 공유하므로
+                        // ★ 더 좁은 조건(G30, PID/제품명 판정)을 먼저 검사해야 한다 — 순서가
+                        // 바뀌면 G30 이 VID-only 매칭인 XD5 경로로 오라우팅된다.
+                        // 세 SDK 모두 동시 연결 시 우선순위: G30 > BIXOLON XD5 > Caysn/REXOD.
+                        // Caysn 전용 knob(autoReplyMode 등)은 BIXOLON 경로에서 무의미하므로
+                        // 전달하지 않는다.
                         //
                         // 반환은 LabelPrinter.RESULT_* 3분류(0=성공 / 1=재시도가능 /
                         // 2=발사후 무응답). Dart 는 1 일 때만 재시도한다 — 2 에서 재시도하면
                         // 이미 펌웨어에 들어간 페이지가 한 장 더 인쇄된다.
                         int printResult;
-                        if (co.kr.waldlust.order.receive.util.print.BixolonLabelDriver
+                        if (co.kr.waldlust.order.receive.util.print.BixolonPosDriver
+                                .isG30Attached(activity)) {
+                            // BIXOLON 드라이버는 아직 bool 만 반환 — 실패는 재시도 가능으로 본다
+                            // (기존 동작 유지).
+                            printResult = co.kr.waldlust.order.receive.util.print.BixolonPosDriver
+                                    .printBitmap(bitmap, finalOrderNo, finalLabelIndex, finalTotalLabels)
+                                    ? co.kr.waldlust.order.receive.util.print.LabelPrinter.RESULT_SUCCESS
+                                    : co.kr.waldlust.order.receive.util.print.LabelPrinter.RESULT_RETRYABLE;
+                        } else if (co.kr.waldlust.order.receive.util.print.BixolonLabelDriver
                                 .isBixolonAttached(activity)) {
                             // BIXOLON 드라이버는 아직 bool 만 반환 — 실패는 재시도 가능으로 본다
                             // (기존 동작 유지).
@@ -159,7 +171,13 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
                 final int finalWarmupMode = warmupMode != null ? warmupMode : 1;
                 labelPrintExecutor.submit(() -> {
                     boolean ok;
-                    if (co.kr.waldlust.order.receive.util.print.BixolonLabelDriver
+                    // ★ printLabel 과 동일 순서(G30 > XD5 > Caysn/REXOD) — 어긋나면 첫 인쇄가
+                    //   warm-up 이 연 것과 다른 드라이버로 들어가 그 연결을 못 재사용한다.
+                    if (co.kr.waldlust.order.receive.util.print.BixolonPosDriver
+                            .isG30Attached(activity)) {
+                        ok = co.kr.waldlust.order.receive.util.print.BixolonPosDriver
+                                .warmup();
+                    } else if (co.kr.waldlust.order.receive.util.print.BixolonLabelDriver
                             .isBixolonAttached(activity)) {
                         ok = co.kr.waldlust.order.receive.util.print.BixolonLabelDriver
                                 .warmup();

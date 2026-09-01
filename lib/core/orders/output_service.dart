@@ -18,6 +18,9 @@ import 'package:appfit_order_agent/exceptions/label_print_missing_exception.dart
 import 'package:appfit_order_agent/services/label_printer/label_print_outcome.dart';
 import 'package:appfit_order_agent/exceptions/order_detail_fetch_failed_exception.dart';
 import 'package:appfit_order_agent/utils/label_painter.dart';
+import 'package:appfit_order_agent/utils/continuous58_label_painter.dart';
+import 'package:appfit_order_agent/utils/continuous_label_painter.dart';
+import 'package:appfit_order_agent/services/label_printer/label_media_spec.dart';
 
 import 'package:appfit_core/appfit_core.dart' show MonitoringService;
 
@@ -205,6 +208,18 @@ class OutputService {
       // 라벨 레이아웃은 V2(QR 우측상단)로 고정한다. (구 V1 선택 설정은 폐지됨)
       const layoutVersion = 1;
 
+      // G30(연속용지)은 490×600 고정 캔버스와 요소 구성이 달라 별도 painter 로
+      // 분기한다. 다른 3기종(Caysn/REXOD/XD5-40d)은 갭 라벨이라 기존 LabelPainter
+      // 그대로 — 회귀 없음.
+      //
+      // G30 안에서 40mm/58mm 는 **또 다른 레이아웃**이다(58mm 는 40mm 의 확대판이
+      // 아니라 번호+QR 가로 배치·옵션 2열의 별개 구성). SDK 가 로드된 용지 폭을
+      // 보고하지 않아 자동 감지가 불가능하므로 설정값이 유일한 근거다(기본 40).
+      final bool isG30 = ref.read(printerStatusProvider).labelPrinterModel ==
+          kBixolonG30ModelName;
+      final int paperMm = prefService.getLabelPaperSizeMm();
+      final bool isG30Wide = isG30 && paperMm == 58;
+
       // 누락 카운터 — 한 주문 내에서 자동 재시도(1회) 마저 실패한 라벨 추적
       int failedLabels = 0;
       final List<int> failedIndices = [];
@@ -223,24 +238,62 @@ class OutputService {
         final shopOrderNo = (useQr && data.shopOrderNo != null)
             ? '${data.shopOrderNo}-${data.orderIndex}'
             : data.shopOrderNo;
-        final imageBytes = await LabelPainter.generateLabelImage(
-          menuName: data.menuName,
-          options: data.options,
-          shopOrderNo: shopOrderNo,
-          orderTime: data.orderTime,
-          beanType: data.beanType,
-          temperature: data.temperature,
-          sizeOption: data.sizeOption,
-          qrData: useQr ? data.qrData : null,
-          memo: data.memo,
-          orderIndex: data.orderIndex,
-          orderTotal: data.orderTotal,
-          layoutVersion: layoutVersion,
-          // V2: QR +50% + 오류정정 L (헤더 축소로 확보한 공간 활용). V1: 종전 그대로.
-          qrSize: LabelPainter.qrSizeForLayout(layoutVersion),
-          qrErrorCorrectLevel:
-              LabelPainter.qrErrorCorrectLevelForLayout(layoutVersion),
-        );
+        final imageBytes = isG30Wide
+            ? await Continuous58LabelPainter.generateContinuous58LabelImage(
+                spec: LabelMediaSpec.continuous58,
+                menuName: data.menuName,
+                options: data.options,
+                shopOrderNo: shopOrderNo,
+                orderedAt: data.orderInfo?.orderedAt,
+                legacyOrderTime: data.orderTime,
+                beanType: data.beanType,
+                temperature: data.temperature,
+                sizeOption: data.sizeOption,
+                qrData: useQr ? data.qrData : null,
+                memo: data.memo,
+                orderIndex: data.orderIndex,
+                orderTotal: data.orderTotal,
+                qrErrorCorrectLevel:
+                    LabelPainter.qrErrorCorrectLevelForLayout(layoutVersion),
+              )
+            : isG30
+                ? await ContinuousLabelPainter.generateContinuousLabelImage(
+                    spec: LabelMediaSpec.continuous40,
+                    menuName: data.menuName,
+                    options: data.options,
+                    shopOrderNo: shopOrderNo,
+                    orderedAt: data.orderInfo?.orderedAt,
+                    legacyOrderTime: data.orderTime,
+                    beanType: data.beanType,
+                    temperature: data.temperature,
+                    sizeOption: data.sizeOption,
+                    qrData: useQr ? data.qrData : null,
+                    memo: data.memo,
+                    orderIndex: data.orderIndex,
+                    orderTotal: data.orderTotal,
+                    qrErrorCorrectLevel:
+                        LabelPainter.qrErrorCorrectLevelForLayout(
+                            layoutVersion),
+                  )
+                : await LabelPainter.generateLabelImage(
+                    menuName: data.menuName,
+                    options: data.options,
+                    shopOrderNo: shopOrderNo,
+                    orderTime: data.orderTime,
+                    beanType: data.beanType,
+                    temperature: data.temperature,
+                    sizeOption: data.sizeOption,
+                    qrData: useQr ? data.qrData : null,
+                    memo: data.memo,
+                    orderIndex: data.orderIndex,
+                    orderTotal: data.orderTotal,
+                    layoutVersion: layoutVersion,
+                    // V2: QR +50% + 오류정정 L (헤더 축소로 확보한 공간 활용). V1: 종전 그대로.
+                    qrSize: LabelPainter.qrSizeForLayout(layoutVersion),
+                    qrErrorCorrectLevel:
+                        LabelPainter.qrErrorCorrectLevelForLayout(
+                            layoutVersion),
+                  );
         final genMs = DateTime.now().difference(genStart).inMilliseconds;
 
         // samplelabel 표준 흐름: CP_Pos_QueryPrintResult 가 인쇄 완료까지 동기 블로킹.

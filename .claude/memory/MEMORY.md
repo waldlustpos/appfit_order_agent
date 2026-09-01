@@ -72,6 +72,7 @@
 - [Fleet 매장 화이트리스트 게이트](project_fleet_store_allowlist_gate.md) — enabled=false 로 여전히 비활성. Windows 전용 가드 2곳(최종판정+조회) 분리, 되돌릴 땐 둘 다 (2026-08-21)
 - [appfit-fleet 백엔드 구조](project_appfit_fleet_backend.md) — Cloudflare Workers+D1, 이미 배포됨. 중첩 미추적 하위디렉터리 함정 주의 (2026-08-20)
 - [Fleet 저장공간/메모리 현황 추가 설계](project_fleet_resource_monitoring_plan.md) — 네이티브 코드 방식 확정(system_info2 게시자 미검증으로 기각), 앱+백엔드 계획 완료·구현 미착수 (2026-08-20)
+- [BIXOLON G30 40mm+58mm 레이아웃](project_bixolon_g30_40mm_layout.md) — 인쇄시작위치 하드웨어고정 / 측정경로 320 clamp가 가짜 실측값 생성 / 반전인쇄는 stroke 아닌 fontSize가 지렛대. 58mm=52.5mm 실측확정, Windows 남음 (2026-08-26)
 - [Sunmi App Store 패키지](reference_sunmi_app_store_package.md) — woyou.market 단일. market:// 는 Play 로 샘. <queries> 검증은 dumpsys package queries, 판정 기기는 D3MINI(A13).
 - [Windows per-user 설치 전환](project_windows_peruser_install.md) — 구현·검증·main 병합 완료. 매머드 195 설치본 배포 중, OTA 채널 갱신 미완. 설치본 먼저→채널 나중 순서 필수 (2026-08-27)
 - [Defender 예외 조회는 기기마다 다름](reference_defender_exclusion_query.md) — 비상승 Get-MpPreference 가 안내 문자열 1줄을 exitCode 0 으로 반환. 경로 모양으로 판정할 것.

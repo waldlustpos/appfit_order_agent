@@ -208,6 +208,13 @@
             "btn_waffle_only": "Waffle Only",
             "btn_waffle_exclude": "Exclude Waffle"
         },
+        "label_paper": {
+            "title": "Label Paper Size",
+            "desc_40": "Prints with the 40mm paper layout.",
+            "desc_58": "Prints with the 58mm paper layout.",
+            "btn_40": "40mm",
+            "btn_58": "58mm"
+        },
         "developer_options": {
             "title": "Developer Options",
             "appfit_test": {
