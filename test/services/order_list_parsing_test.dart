@@ -236,9 +236,9 @@ void main() {
       expect(await mapped('SOMETHING_NEW'), OrderStatus.CANCELLED);
     });
 
-    // 서버 엔드포인트 확정 전까지 가칭 문자열 + 별칭을 받는다. 이 매핑이 빠지면
+    // 응답 status 원문이 실측 전이라 방어 별칭을 함께 받는다. 이 매핑이 빠지면
     // 미픽업 주문이 화면에 '취소' 로 보이는 무증상 실패가 된다.
-    test('미픽업 상태 문자열을 NO_SHOW 으로 매핑한다 (가칭 + 별칭)', () async {
+    test('미픽업 상태 문자열을 NO_SHOW 로 매핑한다 (정본 + 방어 별칭)', () async {
       Future<OrderStatus> mapped(String status) async {
         final h = _harness((_) => _page([_item(status: status)]));
         final orders =
@@ -246,10 +246,8 @@ void main() {
         return orders.single.status;
       }
 
-      for (final alias in kNoShowServerAliases) {
-        expect(await mapped(alias), OrderStatus.NO_SHOW,
-            reason: '별칭 $alias');
-      }
+      expect(await mapped('NO_SHOW'), OrderStatus.NO_SHOW);
+      expect(await mapped('NOT_PICKED_UP'), OrderStatus.NO_SHOW);
     });
   });
 }

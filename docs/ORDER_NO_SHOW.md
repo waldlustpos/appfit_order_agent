@@ -65,7 +65,7 @@ NO_SHOW: 미픽업 처리 (NEW·PREPARING·READY → NO_SHOW)
 서버는 요청의 `action` 과 응답의 `status` 에 다른 단어를 쓴다:
 `ACCEPT`→`ACCEPTED`, `PICKUP_REQUEST`→`PICKUP_REQUESTED`, `REJECT`→`CANCELED`.
 
-그래서 `OrderAction.NO_SHOW`(요청)와 `kNoShowServerStatus`(응답 매핑)를
+그래서 `OrderAction.NO_SHOW`(요청)와 `kServerOrderStatus`(응답 매핑)를
 **별개 상수로 분리**했다. 사전 배선 때 이 둘을 겸용해 잘못된 action 이 나가는
 버그가 있었다.
 
@@ -86,17 +86,24 @@ NO_SHOW: 미픽업 처리 (NEW·PREPARING·READY → NO_SHOW)
 
 ## 4. 앱 구현
 
-### 4.1 확정 후 남은 교체 지점은 1곳
+### 4.1 확정 후 남은 교체 지점은 1줄
 
-| 파일 | 상수 | 확정 시 할 일 |
-|---|---|---|
-| [order_status.dart](../lib/models/enums/order_status.dart) | `kNoShowServerStatus` | §3-1 실측값으로 확정 |
-| [order_status.dart](../lib/models/enums/order_status.dart) | `kNoShowServerAliases` | **원소 1개로 축소** |
+[order_status.dart](../lib/models/enums/order_status.dart) 의 `kServerOrderStatus`
+안에 미픽업 항목이 두 줄 있다:
 
-현재 `'NO_SHOW'` 를 정본으로 두고 `'NO_SHOW'` 을 방어 별칭으로 남겼다.
-매핑표에 없는 값은 CANCELLED 로 떨어지므로, 응답 status 가 다른 단어면 무증상
-실패가 된다. **판정은 화면이 아니라 로그로 한다** — 별칭이 먹으면 화면은 정상으로
-보이고, 미매핑일 때만 `알 수 없는 주문 상태` 경고가 뜬다.
+```dart
+'NO_SHOW': OrderStatus.NO_SHOW,        // 정본
+'NOT_PICKED_UP': OrderStatus.NO_SHOW,  // 실측 전 방어 별칭 ← 확인되면 이 줄 삭제
+```
+
+매핑표에 없는 값은 CANCELLED 로 떨어지므로, 응답 status 가 action 과 다른 단어면
+무증상 실패가 된다. **판정은 화면이 아니라 로그로 한다** — 별칭이 먹으면 화면은
+정상으로 보이고, 미매핑일 때만 `알 수 없는 주문 상태` 경고가 뜬다.
+
+> 사전 배선 때 두던 `kNoShowServerStatus`/`kNoShowServerAliases` 상수는 제거했다.
+> 프로덕션 사용처가 0건이었고, 별칭 Set 은 매핑표의 내용을 **손으로 복제한 두 번째
+> 정본**이라 `kServerOrderStatus` 를 만든 취지(파서마다 각자 표를 들지 않는다)와
+> 어긋났다. 이제 미픽업 어휘는 매핑표 한 곳에만 있다.
 
 `ApiService._mapAppFitOrderStatus` 는 `kServerOrderStatus` 표를 조회할 뿐이라
 **손댈 일이 없다.** 선행 커밋(`f63ff75`)에서 파서 두 벌을 이 표로 합친 이유가
@@ -303,7 +310,7 @@ final order = orderDetailState.order?.copyWith(
 위 처리 직후 목록/상세를 조회한다. 화면이 '미픽업' 으로 뜨는 것만으로는 판정할 수
 없다 — 방어 별칭이 먹었을 수 있다. **로그에 `알 수 없는 주문 상태 "..." → CANCELLED`
 경고가 있는지**로 판정하고, 없으면 어느 문자열이 매핑됐는지 응답 원문으로 확인한다.
-확정 후 `kNoShowServerAliases` 를 1개로 줄인다.
+확정 후 `kServerOrderStatus` 의 `'NOT_PICKED_UP'` 별칭 줄을 지운다.
 
 **거부 경로 (§3-2)**
 

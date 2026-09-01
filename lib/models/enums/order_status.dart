@@ -8,29 +8,6 @@ enum OrderStatus {
   NO_SHOW, // 미픽업 (고객이 찾아가지 않아 종결) — 취소와 구분된다
 }
 
-/// 미픽업 주문의 **조회 응답 상태 문자열**.
-///
-/// 요청 어휘인 action(`OrderAction.NO_SHOW`)과는 별개 축이다 — 서버가 둘을 다른
-/// 단어로 쓰는 전례가 있다(`ACCEPT`→`ACCEPTED`). action 은 `NO_SHOW` 로
-/// **확정**됐고, 조회 응답 status 가 같은 단어인지는 **스테이징 실측 대기**다.
-///
-/// 확정되면 이 상수와 [kNoShowServerAliases] 만 고치면 된다.
-/// `ApiService._mapAppFitOrderStatus` 는 [kServerOrderStatus] 를 조회할 뿐이라
-/// 손댈 일이 없다. 상세는 docs/ORDER_NO_SHOW.md.
-const String kNoShowServerStatus = 'NO_SHOW';
-
-/// 실측 전 방어 별칭. 매핑표에 없는 값은 CANCELLED 로 떨어지므로, 응답 status 가
-/// action 과 다른 단어면 **미픽업 주문이 화면에 '취소' 로 보이는 무증상 실패**가
-/// 된다. 그 사고는 화면만 봐서는 알 수 없다.
-///
-/// **스테이징 실측 후 원소 1개로 줄일 것.** 판정은 화면이 아니라 로그로 한다 —
-/// 별칭이 먹으면 화면은 정상으로 보이고, 미매핑일 때만
-/// `알 수 없는 주문 상태` 경고가 뜬다.
-const Set<String> kNoShowServerAliases = <String>{
-  kNoShowServerStatus,
-  'NOT_PICKED_UP',
-};
-
 /// 서버 주문 상태 문자열 → [OrderStatus]. **앱 전역 단일 매핑표.**
 ///
 /// 프로덕션 파서([ApiService._mapAppFitOrderStatus])와 테스트용 파서
@@ -55,8 +32,16 @@ const Map<String, OrderStatus> kServerOrderStatus = <String, OrderStatus>{
   'CANCELED': OrderStatus.CANCELLED,
   'CANCELLED': OrderStatus.CANCELLED,
   'FAILED': OrderStatus.CANCELLED,
-  // 미픽업 — 정본 + 실측 전 방어 별칭([kNoShowServerAliases] 와 같은 집합).
-  // const 유지를 위해 펼치지 않고 직접 나열한다.
+  // 미픽업 — `NO_SHOW` 가 정본이고 `NOT_PICKED_UP` 은 **실측 전 방어 별칭**이다.
+  //
+  // 서버는 요청 action 과 응답 status 에 다른 단어를 쓰는 전례가 있다
+  // (`ACCEPT`→`ACCEPTED`). action 은 `NO_SHOW` 로 확정됐지만 응답 status 가 같은
+  // 단어인지는 스테이징 실측 대기라, 다른 단어일 경우 표에서 빠져 **미픽업이
+  // 화면에 '취소' 로 보이는 무증상 실패**가 되는 것을 별칭으로 막는다.
+  //
+  // 실측 판정은 화면이 아니라 로그로 한다 — 별칭이 먹으면 화면은 정상으로
+  // 보이고, 미매핑일 때만 `알 수 없는 주문 상태` 경고가 뜬다.
+  // 확인되면 아래 별칭 한 줄을 지운다 (docs/ORDER_NO_SHOW.md §3-1).
   'NO_SHOW': OrderStatus.NO_SHOW,
   'NOT_PICKED_UP': OrderStatus.NO_SHOW,
 };
@@ -71,7 +56,7 @@ String orderStatusToServer(OrderStatus status) => switch (status) {
       OrderStatus.READY => 'READY',
       OrderStatus.DONE => 'DONE',
       OrderStatus.CANCELLED => 'CANCELLED',
-      OrderStatus.NO_SHOW => kNoShowServerStatus,
+      OrderStatus.NO_SHOW => 'NO_SHOW',
     };
 
 /// 상태 진행도(단조 격자). NEW < PREPARING < READY < DONE.

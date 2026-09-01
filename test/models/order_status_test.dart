@@ -109,11 +109,9 @@ void main() {
     });
 
     test('취소가 미픽업보다 강하다 — 환불 사실이 가려지면 안 된다 (양방향)', () {
-      expect(
-          resolveMergedStatus(OrderStatus.CANCELLED, OrderStatus.NO_SHOW),
+      expect(resolveMergedStatus(OrderStatus.CANCELLED, OrderStatus.NO_SHOW),
           OrderStatus.CANCELLED);
-      expect(
-          resolveMergedStatus(OrderStatus.NO_SHOW, OrderStatus.CANCELLED),
+      expect(resolveMergedStatus(OrderStatus.NO_SHOW, OrderStatus.CANCELLED),
           OrderStatus.CANCELLED);
     });
 
@@ -144,13 +142,11 @@ void main() {
       expect(kServerOrderStatus['FAILED'], OrderStatus.CANCELLED);
     });
 
-    test('미픽업 가칭 별칭이 전부 NO_SHOW 으로 매핑된다', () {
-      // 서버 스펙 확정 전 방어. 별칭이 빠지면 미픽업이 '취소' 로 보인다.
-      for (final alias in kNoShowServerAliases) {
-        expect(kServerOrderStatus[alias], OrderStatus.NO_SHOW,
-            reason: '별칭 $alias 가 매핑표에 없다');
-      }
-      expect(kNoShowServerAliases, contains(kNoShowServerStatus));
+    test('미픽업은 정본과 실측 전 방어 별칭이 모두 NO_SHOW 로 매핑된다', () {
+      // 응답 status 원문이 실측 전이라 별칭을 함께 받는다. 이게 빠지면 미픽업이
+      // 화면에 '취소' 로 보이는 무증상 실패가 된다 (docs/ORDER_NO_SHOW.md §3-1).
+      expect(kServerOrderStatus['NO_SHOW'], OrderStatus.NO_SHOW);
+      expect(kServerOrderStatus['NOT_PICKED_UP'], OrderStatus.NO_SHOW);
     });
 
     test('orderStatusToServer 는 매핑표로 왕복한다', () {
