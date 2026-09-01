@@ -525,6 +525,7 @@ const List<OrderCancelReason> _selectableCancelReasons = [
   OrderCancelReason.ORDER_SURGE,
   OrderCancelReason.SHOP_CLOSED,
   OrderCancelReason.SHOP_REQUEST,
+  OrderCancelReason.CUSTOMER_REQUEST,
 ];
 
 String _cancelReasonLabel(OrderCancelReason reason) {
