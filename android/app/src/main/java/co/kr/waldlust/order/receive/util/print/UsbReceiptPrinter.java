@@ -584,8 +584,20 @@ public class UsbReceiptPrinter {
      * 라벨로 오인되어 영수증 탐색에서 continue 스킵 → 외부 프린터 미탐(false
      * negative) 이 된다. (Windows _kUsbPortCandidates 와 동일 정책.)
      */
+    /**
+     * 라벨 프린터는 영수증 경로가 절대 건드리면 안 된다 — 여기서 빠지면
+     * {@link #isReceiptCandidate} 의 STRICT 단계(USB Printer class 7)가 그대로 채택해
+     * 영수증 채널이 디바이스를 선점하고, 라벨 드라이버는
+     * {@code This device cannot be claimed for exclusive access.} 로 인쇄 자체를 못 한다.
+     *
+     * <p>★ 라벨 기종 목록은 각 드라이버가 정본이다. 여기에 조건을 복제하지 말 것 —
+     * 2026-09-01 에 정확히 그 이유로 사고가 났다(G30 추가 시 드라이버 쪽 화이트리스트만
+     * 갱신되고 이 메서드는 빠져서, G30 이 영수증 후보로 선점됨). Caysn/REXOD 목록도
+     * 언젠가 {@link LabelPrinter} 쪽으로 위임하는 게 맞다.
+     */
     private boolean isLabelPrinter(UsbDevice d) {
         if (d == null) return false;
+        if (BixolonPosDriver.isG30Device(d)) return true;
         int vid = d.getVendorId();
         int pid = d.getProductId();
         return (vid == 0x4B43 && (pid == 0x3538 || pid == 0x3830))
