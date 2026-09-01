@@ -1069,8 +1069,11 @@ void main() {
     });
 
     test('미픽업 처리 후 서버 stale READY 응답이 와도 되살아나지 않는다', () async {
-      // 이번 작업의 핵심 회귀 테스트. _recentRemovals.mark(종결 등록)와
-      // resolveMergedStatus(터미널 우선) 두 방어가 **함께** 걸려야 통과한다.
+      // 이번 작업의 핵심 회귀 테스트. 이 케이스를 막는 것은 resolveMergedStatus
+      // (터미널 우선) **하나뿐**이다 — _recentRemovals 필터는 서버가 active
+      // (NEW/PREPARING)로 돌려줄 때만 걸리고 READY 응답은 통과시킨다
+      // (order_provider.dart 의 isActiveOrderStatus 조건). 두 방어는 서로 다른
+      // stale 을 덮는 것이지 겹치지 않는다.
       final a = _order(orderNo: 'A', status: OrderStatus.READY);
       final h = await _buildProvider(initialServerOrders: [a]);
       await h.notifier.refreshOrders();

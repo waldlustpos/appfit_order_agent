@@ -78,7 +78,13 @@ static const _NotPickedUpTransport _kNotPickedUpTransport =
       목록(`GET /v1/orders`)의 `status` 와 상세(`GET /v1/orders/{id}`)의
       `orderStatus` **양쪽에 같은 값**으로 실리는가
 - [ ] **3. 허용 선행 상태** — READY 만인가, PREPARING 도 되는가.
-      **DONE 은 409 로 거부하는가** ← §4.2 의 우선순위 트레이드오프가 이 답에 달려 있다
+      **DONE 은 409 로 거부하는가** ← 가장 중요. §4.2(영구 분기)와 §4.7(버튼
+      가시성 불일치) 두 항목이 이 답에 달려 있다. 앱 UI 는 READY 분기에서만
+      버튼을 노출하지만, 팝업을 열어둔 사이 상태가 바뀌면 DONE 주문에 요청이
+      나간다 — 즉 **앱이 READY 만 보낸다고 가정하면 안 된다**
+- [ ] **3-1. NOT_PICKED_UP 에서 나가는 전이** — 미픽업 주문에 `DONE`/`REJECT`
+      액션이 들어오면 수락하는가 409 인가. "들어가면 못 나오는 종결" 이어야
+      §4.2 의 영구 분기가 성립하지 않는다
 - [ ] **4. 멱등성** — 이미 미픽업인 주문에 재요청하면 200 인가 409 인가
       (`force/bulk-done` 은 멱등)
 - [ ] **5. 금전 처리** — 환불/정산에 영향을 주는가. **주지 않는다면** 취소 영수증
@@ -133,14 +139,51 @@ static const _NotPickedUpTransport _kNotPickedUpTransport =
   현실적이지만 역방향은 성립하지 않는다.
 
 `_applySuccessfulStatusTransition` 의 `_recentRemovals.mark` 도 같은 목록으로
-판정한다(`kTerminalStatusPriority.contains`). 두 방어가 **함께** 걸려야 한다 —
-전자는 상태 다운그레이드를, 후자는 목록 재유입을 막는다.
+판정한다(`kTerminalStatusPriority.contains`). 다만 **두 방어는 겹치지 않는다** —
+`_recentRemovals` 필터는 서버가 *active*(NEW/PREPARING)로 돌려줄 때만 걸리고
+(`isActiveOrderStatus` 조건), READY·DONE 응답은 통과시킨다. 즉 stale READY 부활을
+막는 것은 `resolveMergedStatus` **하나뿐**이다.
 
-**알려진 트레이드오프:** `(DONE, NOT_PICKED_UP)` → NOT_PICKED_UP 이 이긴다. 두
-단말이 같은 주문에 서로 다른 종결을 낸 경합에서만 발생하며 정답이 없다. 서버가
-DONE 주문의 미픽업 처리를 409 로 거부하면(§3-3) 이 조합 자체가 생기지 않는다.
-문제가 되면 `kTerminalStatusPriority` 에 `DONE` 을 2번째로 끼우는 1줄 변경으로
-대응한다.
+**알려진 트레이드오프:** `(DONE, NOT_PICKED_UP)` → NOT_PICKED_UP 이 이긴다.
+정답이 없는 경합이며, 서버가 §3-3 을 409 로 막으면 조합 자체가 생기지 않는다.
+
+**서버가 허용할 경우의 실제 위험 — 영구 분기:**
+
+1. 기기 A 가 미픽업 처리 성공 → 서버 = NOT_PICKED_UP, A 로컬 = NOT_PICKED_UP
+2. 기기 B 가 (READY 때 열어둔 팝업에서) '주문 완료' → 서버가 받아주면 서버 = DONE
+3. 기기 A 가 폴링 → `resolveMergedStatus(NOT_PICKED_UP, DONE)` → NOT_PICKED_UP
+
+기기 A 는 **서버·기기 B 가 완료라고 하는 주문을 영원히 미픽업으로 표시**한다.
+`resolveMergedStatus` 에는 TTL 이 없고, `_recentRemovals`(TTL 120초)는 DONE 응답을
+통과시키므로 도움이 안 된다. 서버가 NOT_PICKED_UP 을 진짜 종결(들어가면 못 나옴)로
+다루면 이 시퀀스가 성립하지 않는다.
+
+대응 선택지(서버 답에 따라): `kTerminalStatusPriority` 에 `DONE` 을 2번째로 끼우거나,
+`markOrderNotPickedUp` 에 선행 상태 가드를 넣는다(§4.7).
+
+### 4.7 버튼 가시성과 전송 대상의 상태 출처가 다르다 (기존 구조, 미해결)
+
+`order_detail_popup.dart` 의 `build()` 는 상세조회 결과에 **팝업 열 때 찍은 스냅샷
+상태를 덮어씌운다**:
+
+```dart
+final order = orderDetailState.order?.copyWith(
+  status: _originalOrder.status,          // ← 버튼 트리는 이 값을 본다
+  orderStatus: _originalOrder.orderStatus,
+);
+```
+
+그래서 READY 에서 팝업을 연 뒤 다른 기기가 완료 처리해도 **미픽업 버튼은 계속
+보이고**, 누르면 서버 기준 DONE 인 주문에 미픽업 요청이 나간다.
+`Order.markOrderNotPickedUp` 에도 선행 상태 가드가 없다(orderId 만 쓴다).
+
+이것이 "UI 상 완료 섹션에서는 미픽업을 누를 수 없다" 는 구조적 방어를 뚫는
+경로다. 강제 완료(`forceCompleteOrder`)도 같은 불일치를 안고 있다(기존 이슈).
+
+- 서버가 §3-3 을 **409 로 거부**하면 → 서버가 안전망. 운영자는 에러 다이얼로그를
+  본다. 앱 수정 불필요.
+- 서버가 **수락**하면 → 앱에서 막아야 한다. 다만 가드 조건이 §3-3 의 "허용 선행
+  상태" 에 달려 있으므로(READY 만? PREPARING 도?) **서버 답 이후에 구현한다.**
 
 ### 4.3 API — `ApiService.markOrderNotPickedUp`
 
