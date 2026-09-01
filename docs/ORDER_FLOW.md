@@ -143,8 +143,23 @@ sequenceDiagram
 | `_autoAcceptingOrderIds` | 자동접수 in-flight 락 — 동시 진입 중복 접수 차단 |
 | `_processedOrderCache` | `queueOrderExternal` enqueue 단계에서 외부 소켓 KDS PREPARING 이벤트 중복 차단 |
 | `_selfAcceptedOrderIds` | 자가 접수 후행으로 들어오는 알림/출력 통째 스킵 |
+| `_acceptedAtCreationOrderIds` | 생성 시점부터 PREPARING 인 주문의 표식 — PREPARING 분기의 출력 게이트를 KDS 모드가 아닐 때도 여는 유일한 근거 (1회성 소비) |
 | `_recentRemovals` | 사용자 수동 삭제 후 폴링/소켓에 의한 부활 방지 (TTL) |
 | `_pendingDetailReprint` | 상세조회 실패 시 메뉴 복구 후 재발행 대상 추적 |
+
+### 생성 시점부터 PREPARING 인 주문 (NICE_KIOSK 류)
+
+결제와 동시에 `PREPARING` 으로 만들어지는 주문은 앱이 접수 단계를 거치지 않아 NEW 파이프라인(자동접수·알림·출력)에 전혀 걸리지 않는다. 유입은 소켓 매니저가 `isExternallyAcceptedAtCreation`(= `ORDER_CREATED && PREPARING`)으로 분류해 `ingestExternallyAcceptedOrder` 로 보내고, 이 함수가 **표식 → 사운드그래프 → 큐** 순서를 소유한다(호출부에 순서 계약을 남기지 않기 위함 — 표식이 늦으면 출력 게이트가 닫힌 채 판정된다).
+
+`ORDER_CREATED` 로 한정하는 것이 판정의 전부다. 다른 단말이 접수한 주문은 `ORDER_ACCEPTED` 로 전이를 보므로 걸리지 않는다 — 이 구분이 없으면 매장에 깔린 단말 수만큼 같은 주문서가 중복 출력된다.
+
+출처(키오스크/POS) 억제 판정에는 반드시 `isSourceNotifyEnabled` 를 쓴다. `shouldNotifyForOrder` 는 `status == NEW` 일 때만 억제를 적용해서, PREPARING 주문은 설정을 OFF 해도 통과해 버린다.
+
+**알려진 한계**
+
+- **폴링으로 처음 발견된 PREPARING 주문은 출력되지 않는다.** `_processNewOrdersWhenRefresh` 는 `status == NEW` 만 필터하고 `refreshOrders` 는 `_processOrderByStatus` 를 호출하지 않는다. 폴링 응답에는 eventType 이 없고 `OrderModel` 에 `acceptedAt`/`acceptedBy`/`deviceId` 가 없어 "생성시점 PREPARING" 과 "다른 단말이 이미 접수·출력한 주문" 을 **원리적으로 구분할 수 없다** — 서버 필드 추가 없이는 해결 불가.
+- **소켓 상세조회 3회 실패 시 이 경로에는 안전망이 없다.** 노출 OFF 면 state 에 없어 `_pendingDetailReprint` 가 `refreshOrders` 의 `retainWhere` 에서 지워지고, 폴링은 NEW 만 줍는다. NEW 주문과 달리 소켓 1회가 유일한 기회다.
+- **KDS 모드 + `getKdsAcceptOrders()==false`** 에서는 `ORDER_CREATED` 가 `_shouldIgnoreByDomainPolicy`(소켓 매니저)에서 폐기되어 같은 증상이 KDS 에도 존재한다(사운드그래프 전송조차 안 됨). 별도 이슈.
 
 ---
 

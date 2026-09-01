@@ -1002,7 +1002,7 @@ void main() {
         source: 'NICE_KIOSK',
       );
 
-      h.notifier.notifyExternallyAcceptedOrder(accepted);
+      h.notifier.ingestExternallyAcceptedOrder(accepted);
 
       expect(h.soundGraph.acceptedOrderIds, ['A']);
       // 접수는 이미 끝난 주문이므로 PUT 은 나가지 않는다.
@@ -1019,7 +1019,7 @@ void main() {
       expect(h.soundGraph.acceptedOrderIds, ['A']);
 
       // 자가 접수로 이미 보낸 주문에 외부 접수 경로가 뒤늦게 걸려도 중복 금지.
-      h.notifier.notifyExternallyAcceptedOrder(
+      h.notifier.ingestExternallyAcceptedOrder(
         _order(orderNo: 'A', status: OrderStatus.PREPARING),
       );
 
@@ -1113,6 +1113,100 @@ void main() {
       expect(call.sound, isFalse, reason: '주문서·알림소리 OFF');
       expect(call.overlay, isTrue, reason: '노출 ON — 카드가 뜨므로 버블도 가리켜야 한다');
       expect(call.appBar, isTrue, reason: '노출 ON — 카드가 뜨므로 앱바도 깜빡여야 한다');
+    });
+  });
+
+  group('(j) 생성 시점부터 PREPARING 인 주문 — 일반 모드에서도 주문서·알림소리', () {
+    // NICE_KIOSK 처럼 결제와 동시에 PREPARING 으로 생성되는 주문. 앱이 접수 단계를
+    // 거치지 않아 NEW 파이프라인(알림·출력)에 전혀 걸리지 않았고, PREPARING 분기는
+    // KDS 모드에서만 열려 있어서 일반 모드에서는 주문서도 소리도 나오지 않았다.
+    // 설정 문구가 이미 약속한 계약("화면 표시 설정과 별개로 동작합니다")의 복원.
+    //
+    // kdsModeProvider 의 기본값은 false 라 이 그룹 전체가 일반 모드다.
+    setUp(() async {
+      await PreferenceService().setShowKioskOrder(false); // 노출 OFF
+      await PreferenceService().setKioskPrintAndSound(true); // 주문서·소리 ON
+    });
+
+    // setUpAll 이 깔아둔 이 파일의 공통 전제로 되돌린다.
+    tearDown(() async {
+      await PreferenceService().setShowKioskOrder(true);
+      await PreferenceService().setKioskPrintAndSound(false);
+    });
+
+    OrderModel kioskAcceptedAtCreation() => _order(
+          orderNo: 'A',
+          status: OrderStatus.PREPARING,
+          source: 'NICE_KIOSK',
+        );
+
+    test('출력 큐에 들어가고 소리는 울리되, 카드·버블·앱바는 뜨지 않는다', () async {
+      final h = await _buildProvider();
+
+      h.notifier.ingestExternallyAcceptedOrder(kioskAcceptedAtCreation());
+      await _wait(450); // 상태 배치 윈도우(200ms) + 여유
+
+      expect(h.output.addedOrderIds, ['A']);
+      expect(h.container.read(orderProvider).orders, isEmpty,
+          reason: '노출 축은 그대로여야 한다 — 출력과 별개');
+      expect(h.alerts.calls, isNotEmpty);
+      final call = h.alerts.calls.first;
+      expect(call.sound, isTrue);
+      expect(call.overlay, isFalse, reason: '노출 OFF — 가리킬 카드가 없다');
+      expect(call.appBar, isFalse, reason: '노출 OFF — 가리킬 카드가 없다');
+      expect(h.api.statusUpdates, isEmpty,
+          reason: '이미 접수된 주문 — PUT 하면 400 INVALID_ORDER_STATUS');
+    });
+
+    test('키오스크 주문서·알림소리 OFF 면 출력도 소리도 없다', () async {
+      // 회귀 방어: shouldNotifyForOrder 를 쓰면 status==NEW 제약 때문에 PREPARING
+      // 주문이 출처 억제를 통과해 여기서 출력이 샌다. isSourceNotifyEnabled 여야 한다.
+      await PreferenceService().setKioskPrintAndSound(false);
+
+      final h = await _buildProvider();
+      h.notifier.ingestExternallyAcceptedOrder(kioskAcceptedAtCreation());
+      await _wait(450);
+
+      expect(h.output.addedOrderIds, isEmpty);
+      expect(h.alerts.calls, isEmpty);
+    });
+
+    test('다른 단말이 접수한 PREPARING 은 출력하지 않는다', () async {
+      // 표식 없이 큐로만 들어오는 경로 = 소켓 매니저가 ORDER_ACCEPTED 로 분류한 경우.
+      // 여기서 출력하면 매장에 깔린 단말 수만큼 같은 주문서가 중복으로 나온다.
+      final h = await _buildProvider();
+      h.notifier.queueOrderExternal(kioskAcceptedAtCreation());
+      await _wait(450);
+
+      expect(h.output.addedOrderIds, isEmpty);
+      expect(h.alerts.calls, isEmpty);
+    });
+
+    test('같은 주문의 재유입은 출력이 1회뿐이다', () async {
+      final h = await _buildProvider();
+      final a = kioskAcceptedAtCreation();
+
+      h.notifier.ingestExternallyAcceptedOrder(a);
+      await _wait(450);
+      h.notifier.ingestExternallyAcceptedOrder(a); // 소켓 재전달/재연결 리플레이
+      await _wait(450);
+
+      expect(h.output.addedOrderIds, ['A']);
+      expect(h.soundGraph.acceptedOrderIds, ['A']);
+    });
+
+    test('노출 ON 이면 카드도 뜨고 버블·앱바도 함께 켜진다', () async {
+      await PreferenceService().setShowKioskOrder(true);
+
+      final h = await _buildProvider();
+      h.notifier.ingestExternallyAcceptedOrder(kioskAcceptedAtCreation());
+      await _wait(450);
+
+      expect(h.output.addedOrderIds, ['A']);
+      expect(h.container.read(orderProvider).orders.single.orderId, 'A');
+      final call = h.alerts.calls.first;
+      expect(call.overlay, isTrue);
+      expect(call.appBar, isTrue);
     });
   });
 }

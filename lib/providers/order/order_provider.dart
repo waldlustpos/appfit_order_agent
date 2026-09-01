@@ -74,6 +74,19 @@ class Order extends _$Order {
   // (생성 시점부터 PREPARING 인 주문)이 서로 다른 진입점을 쓰므로, 같은 주문이
   // 두 경로로 잡히면 KDS 에 같은 주문이 두 번 뜬다. 그 공통 게이트.
   final Set<String> _soundGraphSentOrderIds = <String>{};
+  // 생성 시점부터 PREPARING 인 주문(NICE_KIOSK 류)의 표식. PREPARING 분기의 알림/출력
+  // 게이트를 KDS 모드가 아닐 때도 열어주는 유일한 근거다.
+  //
+  // 왜 별도 Set 인가: 일반 모드에도 "다른 단말이 접수한 주문"의 ORDER_ACCEPTED
+  // (PREPARING) 가 들어온다. 게이트를 상태만 보고 열면 단말 수만큼 같은 주문서가
+  // 중복 출력된다. 그 둘을 가르는 정보는 eventType 인데 큐를 거치며 소실되므로,
+  // 판정이 살아있는 유입 시점(ingestExternallyAcceptedOrder)에 표식만 남긴다.
+  //
+  // **1회성 소비**: 첫 PREPARING 통과에서 remove 로 소진된다. 프로덕션 수명은
+  // 상태 배치 윈도우(200ms) 정도라 증식하지 않는다. 소비되지 못한 잔류분(enqueue 가
+  // _processedOrderCache 에 막힌 경우)이 뒤늦게 소비돼도 _selfAcceptedOrderIds 가
+  // 중복 출력을 막는다.
+  final Set<String> _acceptedAtCreationOrderIds = <String>{};
   // 출력 누락(영수증/라벨) 등록 → 메뉴 복구 시점 자동 재발행 대기.
   // 상세조회 실패로 빈 영수증/라벨이 스킵된 주문을 추적했다가, fetchOrderDetail 이
   // 메뉴를 복구하는 순간 1회만 재발행한다. 키=orderId(=orderNo alias, order_model.dart:91).
@@ -566,54 +579,79 @@ class Order extends _$Order {
         case OrderStatus.READY:
         case OrderStatus.DONE:
         case OrderStatus.CANCELLED:
-          // KDS 모드에서 접수(PREPARING) 상태로 변경될 때만 오버레이 알림
-          if (order.status == OrderStatus.PREPARING &&
-              ref.read(kdsModeProvider)) {
-            // KDS 자동접수 ON 으로 자기 자신이 방금 PREPARING 전환한 주문은
-            // 이미 자동접수 분기에서 _outputQueueService.add() 로 라벨/주문서가 출력됐다.
-            // 후행 ORDER_ACCEPTED 이벤트(자가 echo / 외부 동일이벤트)가 이 핸들러를
-            // 또 발화시키지 않도록 _selfAcceptedOrderIds hit 시 알림+출력 통째 스킵.
-            final alreadyHandled =
-                _selfAcceptedOrderIds.contains(order.orderId);
-            // 출처(키오스크/POS) 출력·알람 설정 억제 — forceOrderReceipt 강제 출력
-            // 경로라도 이 판정만은 KDS 여부와 무관하게 우회하지 않는다(다른 기기가
-            // 이미 자체 출력했다는 전제로 이 앱에서는 중복 출력하지 않기 위함).
-            final sourceNotifyEnabled = _helper.isSourceNotifyEnabled(
-                order,
-                _preferenceService.getKioskPrintAndSound(),
-                _preferenceService.getPosPrintAndSound());
-            if (alreadyHandled) {
-              logger.d(
-                  'KDS 모드: ${order.orderId} (PREPARING) 자가 자동접수 흔적 감지 — 알림/라벨 중복 차단');
-            } else if (!sourceNotifyEnabled) {
-              logger.d(
-                  'KDS 모드: ${order.orderId} (PREPARING) 출처 출력/알람 OFF로 외부 접수 알림/출력 스킵');
-              // 후행 PREPARING 이벤트마다 재평가하지 않도록 동일하게 dedup 등록.
-              _selfAcceptedOrderIds.add(order.orderId);
-            } else {
-              // 버블·앱바는 노출 축을 따른다 (NEW 유입 경로와 동일 기준).
-              // playSound 는 이 분기에 오기까지 sourceNotifyEnabled 로 이미 걸러졌다.
-              final shouldShow = _shouldShowOrder(order);
-              logger.d(
-                  'KDS 모드: 접수된 주문에 대해 알림 발생 (Sound/Overlay=$shouldShow/AppBar=$shouldShow): ${order.orderId}');
-              ref.read(alertManagerProvider).triggerNewOrderAlert(
-                    playSound: true,
-                    triggerOverlay: shouldShow,
-                    triggerAppBar: shouldShow,
-                  );
+          // 접수(PREPARING) 상태 유입 시의 알림/출력. 두 경우에만 연다:
+          //   ① KDS 모드 — 다른 기기가 접수한 주문을 주방 화면이 받아 출력하는 축
+          //   ② 생성 시점부터 PREPARING 인 주문(NICE_KIOSK 류) — 모드 무관
+          // ②를 상태만 보고 열면 안 된다: 일반 모드에는 "다른 단말이 접수한 주문"의
+          // ORDER_ACCEPTED(PREPARING) 도 들어와서 단말 수만큼 주문서가 중복 출력된다.
+          if (order.status == OrderStatus.PREPARING) {
+            // 1회성 소비. `||` 우변에 두면 KDS 모드에서 단축평가로 remove 가 실행되지
+            // 않아 표식이 영구 잔류하므로, 반드시 조건식 밖에서 먼저 평가한다.
+            final acceptedAtCreation =
+                _acceptedAtCreationOrderIds.remove(order.orderId);
+            if (ref.read(kdsModeProvider) || acceptedAtCreation) {
+              // 자가 자동접수로 방금 PREPARING 전환한 주문은 이미 자동접수 분기에서
+              // _outputQueueService.add() 로 라벨/주문서가 출력됐다. 후행
+              // ORDER_ACCEPTED 이벤트(자가 echo / 외부 동일이벤트)가 이 핸들러를
+              // 또 발화시키지 않도록 _selfAcceptedOrderIds hit 시 알림+출력 통째 스킵.
+              //
+              // 이 체크는 반드시 최우선이어야 한다 — 폴링이 먼저 자동접수한 주문의
+              // 뒤늦은 ORDER_CREATED 가 이미 PREPARING 을 조회해 오면
+              // isExternallyAcceptedAtCreation 이 참으로 오판되는데, 그 중복 출력을
+              // 막는 것이 여기다.
+              final alreadyHandled =
+                  _selfAcceptedOrderIds.contains(order.orderId);
+              // 출처(키오스크/POS) 출력·알람 설정 억제 — forceOrderReceipt 강제 출력
+              // 경로라도 이 판정만은 우회하지 않는다(다른 기기가 이미 자체 출력했다는
+              // 전제로 이 앱에서는 중복 출력하지 않기 위함).
+              //
+              // shouldNotifyForOrder 를 쓰면 안 된다: 그쪽은 status==NEW 일 때만 출처
+              // 억제를 적용해서, PREPARING 주문은 설정을 OFF 해도 통과해 버린다.
+              final sourceNotifyEnabled = _helper.isSourceNotifyEnabled(
+                  order,
+                  _preferenceService.getKioskPrintAndSound(),
+                  _preferenceService.getPosPrintAndSound());
+              if (alreadyHandled) {
+                logger.d(
+                    '[Order] ${order.orderId} (PREPARING) 자가 자동접수 흔적 감지 — 알림/라벨 중복 차단');
+              } else if (!sourceNotifyEnabled) {
+                logger.d(
+                    '[Order] ${order.orderId} (PREPARING) 출처 출력/알람 OFF로 접수 알림/출력 스킵');
+                // 후행 PREPARING 이벤트마다 재평가하지 않도록 동일하게 dedup 등록.
+                _selfAcceptedOrderIds.add(order.orderId);
+              } else {
+                // 버블·앱바는 노출 축을 따른다 (NEW 유입 경로와 동일 기준).
+                // 노출 OFF + 출력·소리 ON 이면 "화면엔 안 뜨고 소리만" 이 된다.
+                // playSound 는 이 분기에 오기까지 sourceNotifyEnabled 로 이미 걸러졌다.
+                final shouldShow = _shouldShowOrder(order);
+                // SYSTEM 태그 — logger.d 는 콘솔 전용이라 "주문서가 안 나왔다" 클레임을
+                // 사후에 가릴 수 없다. 출력 파이프라인의 '[Label] 인쇄진입'(PLATFORM)과
+                // 짝을 이뤄 접수→출력 구간을 잇는 줄이다(_processNewOrder 와 동일 취지).
+                logToFile(
+                    tag: LogTag.SYSTEM,
+                    message:
+                        '[Order] 접수상태 주문 감지: ${order.orderId} (번호: ${order.shopOrderNo}, '
+                        '출처: ${order.source}, 생성시점접수: $acceptedAtCreation, 노출: $shouldShow)');
+                ref.read(alertManagerProvider).triggerNewOrderAlert(
+                      playSound: true,
+                      triggerOverlay: shouldShow,
+                      triggerAppBar: shouldShow,
+                    );
 
-              // KDS 모드: 접수된 주문 유입 시 주문서 + 라벨 자동 출력 — 큐 경유로 주문 단위 직렬화 보장.
-              // 다중 ORDER_UPDATED(PREPARING) 이벤트가 짧은 간격에 도착해도 인터리빙 방지.
-              // forceOrderReceipt=true: KDS 자동접수 OFF 라도 외부 접수 시점에 주문서 인쇄.
-              // 라벨/주문서 각각의 출력 여부는 PrintService 내부 매트릭스 게이트가 결정.
-              _outputQueueService.add(
-                order,
-                playSound: false,
-                forceOrderReceipt: true,
-              );
-              // 외부 기기가 접수한 PREPARING 을 처음 본 경우에도 dedup Set 에 등록하여
-              // 동일 주문에 대한 후행 PREPARING 이벤트가 또 라벨을 찍지 않게 한다.
-              _selfAcceptedOrderIds.add(order.orderId);
+                // 주문서 + 라벨 자동 출력 — 큐 경유로 주문 단위 직렬화 보장.
+                // 다중 ORDER_UPDATED(PREPARING) 이벤트가 짧은 간격에 도착해도 인터리빙 방지.
+                // forceOrderReceipt=true: KDS 자동접수 OFF 라도 외부 접수 시점에 주문서 인쇄
+                // (일반 모드에서는 !isKdsMode 로 이미 통과하므로 no-op).
+                // 라벨/주문서 각각의 출력 여부는 PrintService 내부 매트릭스 게이트가 결정.
+                _outputQueueService.add(
+                  order,
+                  playSound: false,
+                  forceOrderReceipt: true,
+                );
+                // 외부 기기가 접수한 PREPARING 을 처음 본 경우에도 dedup Set 에 등록하여
+                // 동일 주문에 대한 후행 PREPARING 이벤트가 또 라벨을 찍지 않게 한다.
+                _selfAcceptedOrderIds.add(order.orderId);
+              }
             }
           }
           // 이미 UI 업데이트는 _updateOrderInStateList에서 수행됨
@@ -802,7 +840,7 @@ class Order extends _$Order {
 
   // 호출부는 둘뿐이다:
   //   ① updateOrderStatus 의 PREPARING 성공 분기 — 자가 접수(자동·수동 공통)
-  //   ② notifyExternallyAcceptedOrder — 생성 시점부터 PREPARING 인 주문
+  //   ② ingestExternallyAcceptedOrder — 생성 시점부터 PREPARING 인 주문
   // 소켓 echo 로 관찰만 하는 _processOrderByStatus 쪽에서는 호출하지 않는다
   // (다른 기기가 접수한 주문까지 중복 전송되는 것을 막기 위함).
   //
@@ -819,21 +857,30 @@ class Order extends _$Order {
     ref.read(soundGraphHookProvider).onAccepted(order);
   }
 
-  /// 앱이 접수하지 않았는데 **생성 시점부터 이미 접수(PREPARING) 상태인** 주문을
-  /// 외부 통합(사운드그래프)에 알린다.
+  /// 앱이 접수하지 않았는데 **생성 시점부터 이미 접수(PREPARING) 상태인** 주문의
+  /// 단일 유입 진입점.
   ///
   /// 결제와 동시에 PREPARING 으로 만들어지는 키오스크 유형(예: `NICE_KIOSK`)이
-  /// 여기에 해당한다. 전송은 원래 '앱의 접수 성공' 에만 걸려 있어서, 앱이 접수
-  /// 단계를 거치지 않는 이런 주문은 사운드그래프 KDS 로 영영 넘어가지 않았다.
+  /// 여기에 해당한다. 앱이 접수 단계를 거치지 않으므로 '접수 성공' 에 걸린 후속
+  /// 처리들이 통째로 발화하지 않았다 — 사운드그래프 전송도, 주문서·알림음도.
+  ///
+  /// **표식 → 사운드그래프 → 큐 순서를 이 함수가 소유한다.** 호출부에 "마킹을
+  /// enqueue 보다 먼저" 라는 계약을 남기지 않기 위함이다: 표식이 늦으면
+  /// [_processOrderByStatus] 의 PREPARING 게이트가 닫힌 채로 판정돼 주문서가
+  /// 나오지 않는다. 지금은 큐가 200ms 배치 윈도우를 거쳐 우연히 안전하지만,
+  /// 그 타이밍에 정확성을 의존시키지 않는다.
   ///
   /// **호출 조건은 호출부(소켓 매니저)가 지킨다** — ORDER_CREATED 이벤트로 들어온
   /// 주문만 대상이다. 그래야 "다른 에이전트 단말이 접수한 주문"(그 단말들은 NEW 로
   /// 먼저 받고 ORDER_ACCEPTED 로 전이를 본다)과 "앱 재시작 후 폴링으로 뒤늦게 발견한
-  /// 기존 주문"이 섞여 들어오지 않는다. 둘 다 전송하면 KDS 에 중복으로 뜬다.
-  void notifyExternallyAcceptedOrder(OrderModel order) {
-    logger.i('[OrderProvider] 외부 접수 주문 감지 — 사운드그래프 전송 대상: '
+  /// 기존 주문"이 섞여 들어오지 않는다. 둘 다 태우면 KDS 에 중복으로 뜨고 주문서도
+  /// 단말 수만큼 중복 출력된다.
+  void ingestExternallyAcceptedOrder(OrderModel order) {
+    logger.i('[OrderProvider] 외부 접수 주문 감지 — 사운드그래프 전송 + 출력 게이트 개방: '
         '${order.orderId} (source=${order.source})');
+    _acceptedAtCreationOrderIds.add(order.orderId);
     _triggerSoundGraphSend(order);
+    queueOrderExternal(order);
   }
 
   // 리팩토링 후:
@@ -2190,6 +2237,7 @@ class Order extends _$Order {
     _autoAcceptingOrderIds.clear();
     _selfAcceptedOrderIds.clear();
     _soundGraphSentOrderIds.clear();
+    _acceptedAtCreationOrderIds.clear();
     _pendingDetailReprint.clear();
     _recentRemovals.clear();
     _lastKnownOrderSequence = "0";

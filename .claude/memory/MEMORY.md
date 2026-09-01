@@ -84,3 +84,4 @@
 - [알림음이 매장 BGM을 죽임](project_alarm_audio_focus_bgm.md) — audioplayers 기본 AUDIOFOCUS_GAIN. 유령 플레이어의 "AudioContext 설정됨" 로그가 착시. setAudioContext는 playerId 단위 (2026-08-31)
 - [버블 복귀 5.7초 = 앱 전환 타임아웃](project_bubble_restore_transition_timeout.md) — 원인은 onNewIntent 의 중복 moveTaskToFront(5056ms→122ms). 계측은 sysui_action [319/320/322]. rejecting buffer 는 헛짚음 (2026-08-31)
 - [멤버십 미가입 접수](project_membership_unregistered_intake.md) — 서버 자동가입 정책(매머드 1차)이 근거. 내역 API는 건너뜀. Dio 인터셉터가 Sentry 선발화하는 함정 (2026-08-31)
+- [PREPARING 유입 출력 게이트](project_preparing_intake_output_gate.md) — 생성시점 PREPARING(NICE_KIOSK)이 일반 모드 무출력. KDS 게이트가 원인, isSourceNotifyEnabled 필수. 폴링은 서버 변경 없이 불가 (2026-09-01)
