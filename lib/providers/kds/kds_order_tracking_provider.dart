@@ -61,7 +61,7 @@ class KdsOrderTracking extends _$KdsOrderTracking {
       //    분기를 만들지 않고 여기에 넣는다 (탭 합류 결정과 동선을 맞춘다).
       if (status == OrderStatus.READY ||
           status == OrderStatus.DONE ||
-          status == OrderStatus.NOT_PICKED_UP) {
+          status == OrderStatus.NO_SHOW) {
         if (!_previousOrderIds.contains(id)) {
           // 완료 탭에 새로 나타남 (이전 상태 추적 안 됨)
           shouldHighlight = true;

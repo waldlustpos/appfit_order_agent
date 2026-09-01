@@ -117,7 +117,7 @@ void main() {
       _order(
           orderNo: 'notpicked',
           orderedAt: t12,
-          status: OrderStatus.NOT_PICKED_UP),
+          status: OrderStatus.NO_SHOW),
     ];
 
     test('ALL → 전체를 최신순으로', () {

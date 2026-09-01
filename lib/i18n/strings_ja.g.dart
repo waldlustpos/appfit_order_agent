@@ -295,7 +295,7 @@ class _Translations$order$ja extends Translations$order$ko {
 	@override String get ready => 'ピックアップ';
 	@override String get cancelled => '取消';
 	@override String get done => '完了';
-	@override String get not_picked_up => '未ピックアップ';
+	@override String get no_show => '未ピックアップ';
 	@override String get type_dine_in => '店内';
 	@override String get type_takeout => '持ち帰り';
 	@override String get type_both => '複合';
@@ -347,15 +347,15 @@ class _Translations$order_detail$ja extends Translations$order_detail$ko {
 	@override String get cancel_reason_order_surge => '注文集中';
 	@override String get dialog_repickup_confirm_title => 'ピックアップ再要請';
 	@override String dialog_repickup_confirm_content({required Object n}) => '${n}番の注文のピックアップを再要請しますか？';
-	@override String get dialog_not_picked_up_confirm_title => '未ピックアップ処理';
-	@override String dialog_not_picked_up_confirm_content({required Object n}) => '${n}番の注文を未ピックアップ処理しますか？';
+	@override String get dialog_no_show_confirm_title => '未ピックアップ処理';
+	@override String dialog_no_show_confirm_content({required Object n}) => '${n}番の注文を未ピックアップ処理しますか？';
 	@override String dialog_complete_confirm_content({required Object n}) => '${n}番の注文を完了処理しますか？';
 	@override String print_receipt_fail({required Object error}) => '領収書印刷失敗: ${error}';
 	@override String get btn_receipt_reprint => '領収書再印刷';
 	@override String get btn_label_reprint => 'ラベル再印刷';
 	@override String get btn_pickup_request => 'ピックアップ要請';
 	@override String get btn_repickup => 'ピックアップ再要請';
-	@override String get btn_not_picked_up => '未ピックアップ処理';
+	@override String get btn_no_show => '未ピックアップ処理';
 	@override String get btn_order_accept => '注文受付';
 	@override String get btn_order_complete => '注文完了';
 	@override String get btn_order_cancel => '注文取消';

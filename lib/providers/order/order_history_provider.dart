@@ -64,7 +64,7 @@ List<OrderModel> filterOrders(List<OrderModel> orders, OrderFilter filter) {
           .where((order) =>
               order.status == OrderStatus.DONE ||
               order.status == OrderStatus.READY ||
-              order.status == OrderStatus.NOT_PICKED_UP)
+              order.status == OrderStatus.NO_SHOW)
           .toList();
     case OrderFilter.CANCELLED:
       return orders

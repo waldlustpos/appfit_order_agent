@@ -35,7 +35,7 @@ class _OrderCardWidgetState extends ConsumerState<OrderCardWidget> {
     final isKdsMode = widget.isKdsMode;
     final bool isCancelled = order.status == OrderStatus.CANCELLED;
     final bool isDone = order.status == OrderStatus.DONE;
-    final bool isNotPickedUp = order.status == OrderStatus.NOT_PICKED_UP;
+    final bool isNoShow = order.status == OrderStatus.NO_SHOW;
 
     // KDS 모드일 때는 이미 상세 정보를 가지고 있으므로 order를 그대로 사용.
     // 일반 모드일 때는 ID 인덱스 기반 family 로 해당 주문만 선택적으로 구독한다
@@ -52,11 +52,11 @@ class _OrderCardWidgetState extends ConsumerState<OrderCardWidget> {
     final palette = useSourceColor
         ? AppStyles.orderSourcePalette(orderToCheck.source,
             isCancelled: isCancelled,
-            isNotPickedUp: isNotPickedUp,
+            isNoShow: isNoShow,
             muted: isDone)
         : AppStyles.orderPalette(SpecialProductType.none,
             isCancelled: isCancelled,
-            isNotPickedUp: isNotPickedUp,
+            isNoShow: isNoShow,
             muted: isDone);
     final backgroundColor = palette.bg;
     // 미픽업은 회색으로 죽이지 않는다 — 정사각 카드라 라벨 자리가 없어서
@@ -138,8 +138,8 @@ class _OrderCardWidgetState extends ConsumerState<OrderCardWidget> {
     switch (status) {
       case OrderStatus.NEW:
         return AppStyles.kMainColor;
-      case OrderStatus.NOT_PICKED_UP:
-        return AppStyles.kNotPickedUp;
+      case OrderStatus.NO_SHOW:
+        return AppStyles.kNoShow;
       case OrderStatus.PREPARING:
       case OrderStatus.READY:
       case OrderStatus.DONE:

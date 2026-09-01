@@ -299,7 +299,7 @@ class _Translations$order$en extends Translations$order$ko {
 	@override String get ready => 'Pickup';
 	@override String get cancelled => 'Cancelled';
 	@override String get done => 'Done';
-	@override String get not_picked_up => 'Not Picked Up';
+	@override String get no_show => 'Not Picked Up';
 	@override String get type_dine_in => 'Dine-in';
 	@override String get type_takeout => 'Takeout';
 	@override String get type_both => 'Both';
@@ -354,15 +354,15 @@ class _Translations$order_detail$en extends Translations$order_detail$ko {
 	@override String get cancel_reason_order_surge => 'High Order Volume';
 	@override String get dialog_repickup_confirm_title => 'Pickup Re-request';
 	@override String dialog_repickup_confirm_content({required Object n}) => 'Do you want to re-request pickup for order #${n}?';
-	@override String get dialog_not_picked_up_confirm_title => 'Mark Not Picked Up';
-	@override String dialog_not_picked_up_confirm_content({required Object n}) => 'Process order #${n} as not picked up?';
+	@override String get dialog_no_show_confirm_title => 'Mark Not Picked Up';
+	@override String dialog_no_show_confirm_content({required Object n}) => 'Process order #${n} as not picked up?';
 	@override String dialog_complete_confirm_content({required Object n}) => 'Do you want to complete order #${n}?';
 	@override String print_receipt_fail({required Object error}) => 'Receipt printing failed: ${error}';
 	@override String get btn_receipt_reprint => 'Reprint Receipt';
 	@override String get btn_label_reprint => 'Reprint Label';
 	@override String get btn_pickup_request => 'Request Pickup';
 	@override String get btn_repickup => 'Re-request Pickup';
-	@override String get btn_not_picked_up => 'Mark Not Picked Up';
+	@override String get btn_no_show => 'Mark Not Picked Up';
 	@override String get btn_order_accept => 'Accept';
 	@override String get btn_order_complete => 'Complete';
 	@override String get btn_order_cancel => 'Cancel';

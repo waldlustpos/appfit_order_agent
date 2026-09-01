@@ -33,7 +33,7 @@ final orderStatusOrdersProvider = Provider<
       .where((o) =>
           o.status == OrderStatus.DONE ||
           o.status == OrderStatus.CANCELLED ||
-          o.status == OrderStatus.NOT_PICKED_UP)
+          o.status == OrderStatus.NO_SHOW)
       .toList()
     ..sort((a, b) => b.orderedAt.compareTo(a.orderedAt));
 
@@ -90,7 +90,7 @@ final kdsTabOrdersProvider = Provider<
   final completed = sortOrders(
       orders.where((o) =>
           o.status == OrderStatus.DONE ||
-          o.status == OrderStatus.NOT_PICKED_UP),
+          o.status == OrderStatus.NO_SHOW),
       completedTabSortDirection);
   final cancelled = sortOrders(
       orders.where((o) => o.status == OrderStatus.CANCELLED),

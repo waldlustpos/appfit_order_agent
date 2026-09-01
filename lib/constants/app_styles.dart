@@ -159,11 +159,11 @@ class AppStyles {
   static const Color kAmber = Color(0xFFF59E0B);
   static const Color kAmberAlpha = Color(0x14F59E0B);
 
-  /// 딥오렌지 — 미픽업(NOT_PICKED_UP) 상태 강조색.
+  /// 딥오렌지 — 미픽업(NO_SHOW) 상태 강조색.
   /// 취소(kRed)·픽업대기(kAmber)·완료(gray2 muted) 어느 것과도 겹치지 않아야
   /// 완료 탭에서 취소·완료와 한눈에 갈린다.
-  static const Color kNotPickedUp = Color(0xFFEA580C);
-  static const Color kNotPickedUpAlpha = Color(0x14EA580C);
+  static const Color kNoShow = Color(0xFFEA580C);
+  static const Color kNoShowAlpha = Color(0x14EA580C);
 
   /// 메인 핑크 10% 알파 — NEW 상태 배경용. 부팅 시 applyBrand 로 덮어씌움
   static Color kMainColorAlpha = BrandTheme.appfitDefault.primaryAlpha;
@@ -328,21 +328,21 @@ class AppStyles {
   ///
   /// - [type]: 매장/포장/매장+포장 구분
   /// - [isCancelled]: true면 [type]을 무시하고 빨강 계열 반환
-  /// - [isNotPickedUp]: true면 [type]을 무시하고 딥오렌지 계열 반환.
+  /// - [isNoShow]: true면 [type]을 무시하고 딥오렌지 계열 반환.
   ///   [isCancelled] 보다 **뒤에** 판정한다 — 취소가 여전히 최우선이다.
   /// - [muted]: KDS 픽업·완료 탭처럼 bg를 중성(gray2)으로 고정하되 fg는 유지.
   ///   미픽업은 muted 보다 앞서므로 완료 탭에서도 색이 살아 있다.
   static OrderPalette orderPalette(
     SpecialProductType type, {
     bool isCancelled = false,
-    bool isNotPickedUp = false,
+    bool isNoShow = false,
     bool muted = false,
   }) {
     if (isCancelled) {
       return const OrderPalette(kRedAlpha, kRed);
     }
-    if (isNotPickedUp) {
-      return const OrderPalette(kNotPickedUpAlpha, kNotPickedUp);
+    if (isNoShow) {
+      return const OrderPalette(kNoShowAlpha, kNoShow);
     }
     final fg = switch (type) {
       SpecialProductType.dineIn => kSub,
@@ -364,21 +364,21 @@ class AppStyles {
   ///
   /// '주문 출처별 색상' 설정이 ON일 때 [orderPalette] 대신 사용한다.
   /// - [isCancelled]: 취소는 빨강 계열 (상태 우선)
-  /// - [isNotPickedUp]: 미픽업은 딥오렌지 계열. [isCancelled] 다음 우선순위
+  /// - [isNoShow]: 미픽업은 딥오렌지 계열. [isCancelled] 다음 우선순위
   /// - [muted]: KDS 픽업·완료처럼 bg를 중성(gray2)으로 고정하되 fg는 유지
   /// - 키오스크: 파랑(kBlueAlpha/kBlue), POS: 슬레이트그레이(kPosOrderBg/Fg),
   ///   앱(그 외): 연두 배경/초록 전경 — 분류는 [classifyOrderSource] 기준
   static OrderPalette orderSourcePalette(
     String source, {
     bool isCancelled = false,
-    bool isNotPickedUp = false,
+    bool isNoShow = false,
     bool muted = false,
   }) {
     if (isCancelled) {
       return const OrderPalette(kRedAlpha, kRed);
     }
-    if (isNotPickedUp) {
-      return const OrderPalette(kNotPickedUpAlpha, kNotPickedUp);
+    if (isNoShow) {
+      return const OrderPalette(kNoShowAlpha, kNoShow);
     }
     final (bg, fg) = switch (classifyOrderSource(source)) {
       OrderSourceType.kiosk => (kBlueAlpha, kBlue),
@@ -397,7 +397,7 @@ class AppStyles {
   /// - READY: 앰버(픽업 대기)
   /// - DONE: 그린(완료)
   /// - CANCELLED: 레드(취소)
-  /// - NOT_PICKED_UP: 딥오렌지(미픽업)
+  /// - NO_SHOW: 딥오렌지(미픽업)
   static OrderPalette statusPalette(OrderStatus status) {
     switch (status) {
       case OrderStatus.NEW:
@@ -410,8 +410,8 @@ class AppStyles {
         return const OrderPalette(green100Alpha, green100);
       case OrderStatus.CANCELLED:
         return const OrderPalette(kRedAlpha, kRed);
-      case OrderStatus.NOT_PICKED_UP:
-        return const OrderPalette(kNotPickedUpAlpha, kNotPickedUp);
+      case OrderStatus.NO_SHOW:
+        return const OrderPalette(kNoShowAlpha, kNoShow);
     }
   }
 }

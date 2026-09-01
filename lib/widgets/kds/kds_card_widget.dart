@@ -34,9 +34,9 @@ class KdsCardHeaderWidget extends ConsumerWidget {
     return total;
   }
 
-  /// 완료 탭에는 DONE 과 NOT_PICKED_UP 이 **섞여 있다**(미픽업 전용 탭이 없다).
+  /// 완료 탭에는 DONE 과 NO_SHOW 이 **섞여 있다**(미픽업 전용 탭이 없다).
   /// 그래서 완료 분기만은 cardType 이 아니라 실제 상태를 봐야 둘이 갈린다.
-  bool get _isNotPickedUp => order.status == OrderStatus.NOT_PICKED_UP;
+  bool get _isNoShow => order.status == OrderStatus.NO_SHOW;
 
   OrderPalette _palette(bool useSourceColor) {
     // '주문 출처별 색상' 설정 ON 이면 매장/포장 색 대신 앱/키오스크 출처 색으로.
@@ -46,7 +46,7 @@ class KdsCardHeaderWidget extends ConsumerWidget {
         CardType.progress => AppStyles.orderSourcePalette(source),
         CardType.pickup => AppStyles.orderSourcePalette(source, muted: true),
         CardType.completed => AppStyles.orderSourcePalette(source,
-            isNotPickedUp: _isNotPickedUp, muted: true),
+            isNoShow: _isNoShow, muted: true),
         CardType.cancelled =>
           AppStyles.orderSourcePalette(source, isCancelled: true),
       };
@@ -57,7 +57,7 @@ class KdsCardHeaderWidget extends ConsumerWidget {
       CardType.progress => AppStyles.orderPalette(type),
       CardType.pickup => AppStyles.orderPalette(type, muted: true),
       CardType.completed => AppStyles.orderPalette(type,
-          isNotPickedUp: _isNotPickedUp, muted: true),
+          isNoShow: _isNoShow, muted: true),
       CardType.cancelled => AppStyles.orderPalette(type, isCancelled: true),
     };
   }
@@ -112,7 +112,7 @@ class KdsCardHeaderWidget extends ConsumerWidget {
               ),
               // 완료 탭은 DONE 과 섞이므로 색만으로 구분하지 않는다 — 저조도 주방
               // 화면에서 딥오렌지/그레이 차이는 읽히지 않을 수 있다.
-              if (_isNotPickedUp) ...[
+              if (_isNoShow) ...[
                 const SizedBox(width: AppSpacing.s4),
                 Container(
                   padding: const EdgeInsets.symmetric(
@@ -120,13 +120,13 @@ class KdsCardHeaderWidget extends ConsumerWidget {
                     vertical: 1,
                   ),
                   decoration: BoxDecoration(
-                    color: AppStyles.kNotPickedUpAlpha,
+                    color: AppStyles.kNoShowAlpha,
                     borderRadius: AppRadius.bSm,
                   ),
                   child: Text(
-                    t.order.not_picked_up,
+                    t.order.no_show,
                     style: AppTextStyles.caption.copyWith(
-                      color: AppStyles.kNotPickedUp,
+                      color: AppStyles.kNoShow,
                       fontWeight: FontWeight.w600,
                     ),
                   ),

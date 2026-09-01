@@ -1,4 +1,4 @@
-# 미픽업 처리 (READY → NOT_PICKED_UP)
+# 미픽업 처리 (READY → NO_SHOW)
 
 **상태: 서버 스펙 확정 · 앱 구현 완료(analyze/test 통과) · 실기기 검증 대기 · 미배포.**
 
@@ -18,7 +18,7 @@
 점주 안내서에는 용어가 이미 실려 있었다 —
 [appfit-agent-guide.html:600](guide/appfit-agent-guide.html): "미픽업 처리 — 손님이
 상품을 가져가지 않은 경우에 남기는 처리". i18n 확인 다이얼로그 문구
-(`order_detail.dialog_not_picked_up_confirm_*`)도 3로캘에 있었으나 호출부가 0건인
+(`order_detail.dialog_no_show_confirm_*`)도 3로캘에 있었으나 호출부가 0건인
 dead key 였다.
 
 레거시(kokonut)에는 숫자 상태코드 `2099 = 미픽업` 이 실재했고, 앱은 그것을
@@ -48,7 +48,7 @@ NO_SHOW: 미픽업 처리 (NEW·PREPARING·READY → NO_SHOW)
 - `ApiService.updateOrderStatus` 의 action switch 는 `default:` 가 있어
   **non-exhaustive** → 케이스 추가는 순수 가산이다
 - `Order.updateOrderStatus` 의 `expectedEventType` switch 는 `_ => null` 이라
-  `NOT_PICKED_UP` 이 **이미 통과**한다. "외부 이벤트 미발행" 스펙과 코드가 이미 일치
+  `NO_SHOW` 이 **이미 통과**한다. "외부 이벤트 미발행" 스펙과 코드가 이미 일치
 - 자동접수 고유 상태(`_selfAcceptedOrderIds`·`_autoAcceptingOrderIds`·출력큐·NEW
   롤백)는 **전부 호출부(`_processNewOrder`)에 있고 `updateOrderStatus` 본문에는
   0줄**이다. 두 호출부 모두 `(order, PREPARING, readyTime:)` 고정이라 새 상태값이
@@ -65,7 +65,7 @@ NO_SHOW: 미픽업 처리 (NEW·PREPARING·READY → NO_SHOW)
 서버는 요청의 `action` 과 응답의 `status` 에 다른 단어를 쓴다:
 `ACCEPT`→`ACCEPTED`, `PICKUP_REQUEST`→`PICKUP_REQUESTED`, `REJECT`→`CANCELED`.
 
-그래서 `OrderAction.NO_SHOW`(요청)와 `kNotPickedUpServerStatus`(응답 매핑)를
+그래서 `OrderAction.NO_SHOW`(요청)와 `kNoShowServerStatus`(응답 매핑)를
 **별개 상수로 분리**했다. 사전 배선 때 이 둘을 겸용해 잘못된 action 이 나가는
 버그가 있었다.
 
@@ -90,10 +90,10 @@ NO_SHOW: 미픽업 처리 (NEW·PREPARING·READY → NO_SHOW)
 
 | 파일 | 상수 | 확정 시 할 일 |
 |---|---|---|
-| [order_status.dart](../lib/models/enums/order_status.dart) | `kNotPickedUpServerStatus` | §3-1 실측값으로 확정 |
-| [order_status.dart](../lib/models/enums/order_status.dart) | `kNotPickedUpServerAliases` | **원소 1개로 축소** |
+| [order_status.dart](../lib/models/enums/order_status.dart) | `kNoShowServerStatus` | §3-1 실측값으로 확정 |
+| [order_status.dart](../lib/models/enums/order_status.dart) | `kNoShowServerAliases` | **원소 1개로 축소** |
 
-현재 `'NO_SHOW'` 를 정본으로 두고 `'NOT_PICKED_UP'` 을 방어 별칭으로 남겼다.
+현재 `'NO_SHOW'` 를 정본으로 두고 `'NO_SHOW'` 을 방어 별칭으로 남겼다.
 매핑표에 없는 값은 CANCELLED 로 떨어지므로, 응답 status 가 다른 단어면 무증상
 실패가 된다. **판정은 화면이 아니라 로그로 한다** — 별칭이 먹으면 화면은 정상으로
 보이고, 미매핑일 때만 `알 수 없는 주문 상태` 경고가 뜬다.
@@ -102,7 +102,7 @@ NO_SHOW: 미픽업 처리 (NEW·PREPARING·READY → NO_SHOW)
 **손댈 일이 없다.** 선행 커밋(`f63ff75`)에서 파서 두 벌을 이 표로 합친 이유가
 이것이다 — 그 전에는 프로덕션 파서와 테스트 파서가 각자 switch 를 들고 있었다.
 
-### 4.2 터미널 우선순위 — `CANCELLED > NOT_PICKED_UP > 진행도 격자`
+### 4.2 터미널 우선순위 — `CANCELLED > NO_SHOW > 진행도 격자`
 
 `kTerminalStatusPriority` 목록 순서가 그대로 우선순위이고,
 `resolveMergedStatus` 가 **격자 접근보다 먼저** 이 목록을 순회한다.
@@ -121,7 +121,7 @@ NO_SHOW: 미픽업 처리 (NEW·PREPARING·READY → NO_SHOW)
   영수증 발행 트리거다. 취소를 미픽업으로 가리면 **환불 사실이 화면·영수증에서
   사라진다.** 반대(미픽업을 취소로 표시)는 오해를 낳지만 금전 사실은 보존된다 —
   비대칭 손실.
-- **전이가 단방향이다.** `NOT_PICKED_UP → CANCELLED`(사후 클레임 환불)는
+- **전이가 단방향이다.** `NO_SHOW → CANCELLED`(사후 클레임 환불)는
   현실적이지만 역방향은 성립하지 않는다.
 
 `_applySuccessfulStatusTransition` 의 `_recentRemovals.mark` 도 같은 목록으로
@@ -130,14 +130,14 @@ NO_SHOW: 미픽업 처리 (NEW·PREPARING·READY → NO_SHOW)
 READY·DONE 응답은 통과시킨다. 즉 stale READY 부활을 막는 것은
 `resolveMergedStatus` **하나뿐**이다.
 
-**알려진 트레이드오프:** `(DONE, NOT_PICKED_UP)` → NOT_PICKED_UP 이 이긴다.
+**알려진 트레이드오프:** `(DONE, NO_SHOW)` → NO_SHOW 이 이긴다.
 서버가 DONE→NO_SHOW 를 거부하므로 이 조합은 앱이 만들 수 없고, 남는 위험은
 **NO_SHOW 에서 나가는 전이**(§3-3)뿐이다. 서버가 그것도 거부하면 아래 시퀀스가
 성립하지 않는다:
 
-1. 기기 A 가 미픽업 처리 성공 → 서버 = NO_SHOW, A 로컬 = NOT_PICKED_UP
+1. 기기 A 가 미픽업 처리 성공 → 서버 = NO_SHOW, A 로컬 = NO_SHOW
 2. 기기 B 가 '주문 완료' → 서버가 받아주면 서버 = DONE
-3. 기기 A 가 폴링 → `resolveMergedStatus(NOT_PICKED_UP, DONE)` → NOT_PICKED_UP
+3. 기기 A 가 폴링 → `resolveMergedStatus(NO_SHOW, DONE)` → NO_SHOW
 
 기기 A 는 **서버·기기 B 가 완료라고 하는 주문을 영원히 미픽업으로 표시**한다.
 `resolveMergedStatus` 에는 TTL 이 없고 `_recentRemovals`(TTL 120초)는 DONE 응답을
@@ -149,7 +149,7 @@ READY·DONE 응답은 통과시킨다. 즉 stale READY 부활을 막는 것은
 action switch 에 케이스 1줄:
 
 ```dart
-case OrderStatus.NOT_PICKED_UP:
+case OrderStatus.NO_SHOW:
   action = OrderAction.NO_SHOW.name;
   break;
 ```
@@ -192,13 +192,13 @@ in-flight 락(같은 키 공간, 버튼 스피너 공유) → 멱등 조기반�
 
 | 지점 | 처리 |
 |---|---|
-| `kdsTabOrdersProvider.completed` | DONE + NOT_PICKED_UP |
-| `orderStatusOrdersProvider.completedOrders` | DONE + CANCELLED + NOT_PICKED_UP |
-| `filterOrders(OrderFilter.COMPLETED)` | DONE + READY + NOT_PICKED_UP |
+| `kdsTabOrdersProvider.completed` | DONE + NO_SHOW |
+| `orderStatusOrdersProvider.completedOrders` | DONE + CANCELLED + NO_SHOW |
+| `filterOrders(OrderFilter.COMPLETED)` | DONE + READY + NO_SHOW |
 | 취소 필터 / 취소 건수 칩 | **CANCELLED only 유지** — 미픽업이 섞이면 취소 집계가 오염된다 |
 
-**표시** — 완료/취소와 색으로 구분한다. `AppStyles.kNotPickedUp`(딥오렌지) +
-`orderPalette`/`orderSourcePalette` 의 `isNotPickedUp` 축(`isCancelled` 다음,
+**표시** — 완료/취소와 색으로 구분한다. `AppStyles.kNoShow`(딥오렌지) +
+`orderPalette`/`orderSourcePalette` 의 `isNoShow` 축(`isCancelled` 다음,
 `muted` 보다 앞). KDS 완료 탭은 DONE 과 섞이므로 `_palette` 가 `cardType` 이 아니라
 실제 상태를 보고, 저조도 주방 화면을 고려해 **'미픽업' 배지**도 함께 단다.
 
@@ -230,7 +230,7 @@ final order = orderDetailState.order?.copyWith(
 **"이미 완료된 주문입니다."** 라는 구체적 안내를 띄운다. 서버 원문보다 나은 문구다.
 (§3-2 가 확인되지 않으면 이 안내 대신 범용 문구가 뜬다.)
 
-`overrideMsg` switch 에 `NOT_PICKED_UP => '이미 미픽업 처리된 주문입니다.'` 도
+`overrideMsg` switch 에 `NO_SHOW => '이미 미픽업 처리된 주문입니다.'` 도
 추가해, 로컬 상태가 stale 해서 이미 미픽업인 주문에 다시 요청이 나가는 경우를
 덮는다(보통은 provider 의 멱등 조기반환이 먼저 걸린다).
 
@@ -239,8 +239,8 @@ final order = orderDetailState.order?.copyWith(
 | 파일 | 무엇을 고정하나 |
 |---|---|
 | `test/models/order_status_test.dart` | 터미널 우선순위 양방향, **교환법칙 전수**, 격자에 터미널이 없음, 매핑표·별칭 |
-| `test/services/order_list_parsing_test.dart` | 상태 문자열·별칭 → NOT_PICKED_UP, `PICKUP_REQUESTED` → READY |
-| `test/services/api_fault_injection_test.dart` | **NOT_PICKED_UP 이 `action=NO_SHOW` 로 PUT 된다** (action/status 겸용 버그 회귀 방지) + 삼킴 계약 |
+| `test/services/order_list_parsing_test.dart` | 상태 문자열·별칭 → NO_SHOW, `PICKUP_REQUESTED` → READY |
+| `test/services/api_fault_injection_test.dart` | **NO_SHOW 이 `action=NO_SHOW` 로 PUT 된다** (action/status 겸용 버그 회귀 방지) + 삼킴 계약 |
 | `test/providers/order_ingestion_characterization_test.dart` (g-2) | **미픽업 후 stale READY 응답에 부활하지 않음** ← 핵심 회귀. 멱등 조기반환, **소켓 미억제** |
 | `test/providers/order_ingestion_characterization_test.dart` (b-2) | 완료 탭 합류 / 취소 탭 미포함 |
 | `test/providers/order_ingestion_characterization_test.dart` (f) | in-flight 락·예외 후 락 해제 — 상태 무관이라 미픽업도 커버 |
@@ -263,13 +263,13 @@ final order = orderDetailState.order?.copyWith(
 | 서버가 쏘는 것 | 앱 동작 | 판정 |
 |---|---|---|
 | 아무것도 안 쏨 (현재) | 폴링으로 수렴 | 안전 |
-| **새 타입** (`ORDER_NOT_PICKED_UP` 등) | `unknownEventType` 으로 조용히 버려짐 | 안전, 무시됨 |
+| **새 타입** (`ORDER_NO_SHOW` 등) | `unknownEventType` 으로 조용히 버려짐 | 안전, 무시됨 |
 | `ORDER_DONE` 재사용 | `resolveMergedStatus(미픽업, DONE)` → 미픽업. 보정 생략 | 무해 |
 | **`ORDER_CANCELLED` 재사용** | `resolveMergedStatus(미픽업, CANCELLED)` → **취소** | **오염** |
 
 `ORDER_CANCELLED` 재사용은 **세션 내 회복이 불가능하다.** 로컬이 CANCELLED 가 된
 뒤에는 폴링이 서버의 NO_SHOW 를 가져와도
-`resolveMergedStatus(CANCELLED, NOT_PICKED_UP)` → CANCELLED 로 유지된다. 앱을
+`resolveMergedStatus(CANCELLED, NO_SHOW)` → CANCELLED 로 유지된다. 앱을
 재시작해야 서버 값으로 돌아온다. 자가 echo 도 같다.
 
 **앱에서는 이를 구분할 방법이 없다** — `SocketEventPayload` 에 status 필드가 없어
@@ -303,7 +303,7 @@ final order = orderDetailState.order?.copyWith(
 위 처리 직후 목록/상세를 조회한다. 화면이 '미픽업' 으로 뜨는 것만으로는 판정할 수
 없다 — 방어 별칭이 먹었을 수 있다. **로그에 `알 수 없는 주문 상태 "..." → CANCELLED`
 경고가 있는지**로 판정하고, 없으면 어느 문자열이 매핑됐는지 응답 원문으로 확인한다.
-확정 후 `kNotPickedUpServerAliases` 를 1개로 줄인다.
+확정 후 `kNoShowServerAliases` 를 1개로 줄인다.
 
 **거부 경로 (§3-2)**
 

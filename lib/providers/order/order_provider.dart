@@ -579,7 +579,7 @@ class Order extends _$Order {
         case OrderStatus.READY:
         case OrderStatus.DONE:
         case OrderStatus.CANCELLED:
-        case OrderStatus.NOT_PICKED_UP:
+        case OrderStatus.NO_SHOW:
           // 접수(PREPARING) 상태 유입 시의 알림/출력. 두 경우에만 연다:
           //   ① KDS 모드 — 다른 기기가 접수한 주문을 주방 화면이 받아 출력하는 축
           //   ② 생성 시점부터 PREPARING 인 주문(NICE_KIOSK 류) — 모드 무관
@@ -1714,9 +1714,9 @@ class Order extends _$Order {
     // 자가 PUT 의 echo 로 돌아올 소켓 이벤트 타입. 실패 시 억제를 **해제**해야 하므로
     // try 밖에 둔다 (catch/finally 에서도 참조 가능해야 한다).
     //
-    // NOT_PICKED_UP 은 `_ => null` 로 떨어지는 게 맞다 — 서버가 미픽업에 대해
+    // NO_SHOW 은 `_ => null` 로 떨어지는 게 맞다 — 서버가 미픽업에 대해
     // **외부 이벤트를 발행하지 않기로 확정**했으므로 억제할 echo 가 없다
-    // (docs/ORDER_NOT_PICKED_UP.md §5). 나중에 서버가 이벤트를 추가하면 여기에
+    // (docs/ORDER_NO_SHOW.md §5). 나중에 서버가 이벤트를 추가하면 여기에
     // 케이스 1줄을 더하는 것으로 끝난다.
     final String? expectedEventType = switch (newStatus) {
       OrderStatus.PREPARING => appfit_core.OrderEventType.orderAccepted.value,

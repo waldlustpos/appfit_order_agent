@@ -230,13 +230,13 @@ void main() {
     });
 
     // 미픽업은 전용 엔드포인트가 아니라 이 경로를 탄다 (서버 스펙 확정).
-    // action 어휘(NO_SHOW)와 status 어휘(kNotPickedUpServerStatus)는 별개 축이라
+    // action 어휘(NO_SHOW)와 status 어휘(kNoShowServerStatus)는 별개 축이라
     // 상수를 겸용하면 안 된다 — 겸용하던 시절 잘못된 action 이 나가던 버그를 고정.
-    test('NOT_PICKED_UP 은 action=NO_SHOW 로 PUT 된다', () async {
+    test('NO_SHOW 은 action=NO_SHOW 로 PUT 된다', () async {
       final h = _harness((_) => _updateOk());
 
       final ok = await h.container.read(apiServiceProvider).updateOrderStatus(
-          'TPCP00001', OrderStatus.NOT_PICKED_UP, '869372468383139252');
+          'TPCP00001', OrderStatus.NO_SHOW, '869372468383139252');
 
       expect(ok, isTrue);
       final req = h.adapter.requests.single;

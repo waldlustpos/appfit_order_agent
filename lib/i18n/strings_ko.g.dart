@@ -522,7 +522,7 @@ class Translations$order$ko {
 	String get done => '완료';
 
 	/// ko: '미픽업'
-	String get not_picked_up => '미픽업';
+	String get no_show => '미픽업';
 
 	/// ko: '매장'
 	String get type_dine_in => '매장';
@@ -645,10 +645,10 @@ class Translations$order_detail$ko {
 	String dialog_repickup_confirm_content({required Object n}) => '#${n}번 주문 픽업을 재요청하시겠습니까?';
 
 	/// ko: '미픽업 처리'
-	String get dialog_not_picked_up_confirm_title => '미픽업 처리';
+	String get dialog_no_show_confirm_title => '미픽업 처리';
 
 	/// ko: '#{n}번 주문을 미픽업 처리하시겠습니까?'
-	String dialog_not_picked_up_confirm_content({required Object n}) => '#${n}번 주문을 미픽업 처리하시겠습니까?';
+	String dialog_no_show_confirm_content({required Object n}) => '#${n}번 주문을 미픽업 처리하시겠습니까?';
 
 	/// ko: '#{n}번 주문을 완료 처리하시겠습니까?'
 	String dialog_complete_confirm_content({required Object n}) => '#${n}번 주문을 완료 처리하시겠습니까?';
@@ -669,7 +669,7 @@ class Translations$order_detail$ko {
 	String get btn_repickup => '픽업 재요청';
 
 	/// ko: '미픽업 처리'
-	String get btn_not_picked_up => '미픽업 처리';
+	String get btn_no_show => '미픽업 처리';
 
 	/// ko: '주문 접수'
 	String get btn_order_accept => '주문 접수';

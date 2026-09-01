@@ -544,12 +544,12 @@ void main() {
       );
     });
 
-    test('NOT_PICKED_UP 은 터미널 — 서버 stale READY 응답에 부활하지 않는다', () async {
+    test('NO_SHOW 은 터미널 — 서버 stale READY 응답에 부활하지 않는다', () async {
       // P0 회귀 방지. 미픽업을 진행도 격자에 넣으면 `?? 0` 폴백으로 NEW 급이
       // 되어, 폴링이 stale READY 를 돌려줄 때마다 픽업대기로 되살아난다.
       final h = await _buildProvider();
       h.notifier.queueOrderExternal(
-        _order(orderNo: 'A', status: OrderStatus.NOT_PICKED_UP),
+        _order(orderNo: 'A', status: OrderStatus.NO_SHOW),
       );
       await _wait(450);
 
@@ -560,14 +560,14 @@ void main() {
 
       expect(
         h.container.read(orderProvider).orders.single.status,
-        OrderStatus.NOT_PICKED_UP,
+        OrderStatus.NO_SHOW,
       );
     });
 
-    test('CANCELLED 가 NOT_PICKED_UP 보다 강하다 — 환불 사실이 가려지지 않는다', () async {
+    test('CANCELLED 가 NO_SHOW 보다 강하다 — 환불 사실이 가려지지 않는다', () async {
       final h = await _buildProvider();
       h.notifier.queueOrderExternal(
-        _order(orderNo: 'A', status: OrderStatus.NOT_PICKED_UP),
+        _order(orderNo: 'A', status: OrderStatus.NO_SHOW),
       );
       await _wait(450);
 
@@ -587,7 +587,7 @@ void main() {
     test('KDS 완료 탭에 DONE 과 함께 뜨고, 취소 탭에는 안 뜬다', () async {
       final h = await _buildProvider(initialServerOrders: [
         _order(orderNo: 'D', status: OrderStatus.DONE),
-        _order(orderNo: 'N', status: OrderStatus.NOT_PICKED_UP),
+        _order(orderNo: 'N', status: OrderStatus.NO_SHOW),
         _order(orderNo: 'C', status: OrderStatus.CANCELLED),
       ]);
       await h.notifier.refreshOrders();
@@ -602,7 +602,7 @@ void main() {
 
     test('메인 모드 완료 섹션에도 합류한다', () async {
       final h = await _buildProvider(initialServerOrders: [
-        _order(orderNo: 'N', status: OrderStatus.NOT_PICKED_UP),
+        _order(orderNo: 'N', status: OrderStatus.NO_SHOW),
         _order(orderNo: 'R', status: OrderStatus.READY),
       ]);
       await h.notifier.refreshOrders();
@@ -1048,19 +1048,19 @@ void main() {
     // 예외 rethrow 는 (f) 그룹이 이미 상태 무관하게 고정하고 있으므로
     // 여기서는 **미픽업 고유 성질**만 남긴다.
 
-    test('READY 주문이 NOT_PICKED_UP 으로 전이하고 그 상태로 요청된다', () async {
+    test('READY 주문이 NO_SHOW 으로 전이하고 그 상태로 요청된다', () async {
       final a = _order(orderNo: 'A', status: OrderStatus.READY);
       final h = await _buildProvider(initialServerOrders: [a]);
       await h.notifier.refreshOrders();
 
       expect(
-        await h.notifier.updateOrderStatus(a, OrderStatus.NOT_PICKED_UP),
+        await h.notifier.updateOrderStatus(a, OrderStatus.NO_SHOW),
         isTrue,
       );
 
-      expect(h.api.statusUpdates, contains(('A', OrderStatus.NOT_PICKED_UP)));
+      expect(h.api.statusUpdates, contains(('A', OrderStatus.NO_SHOW)));
       expect(h.container.read(orderProvider).orders.single.status,
-          OrderStatus.NOT_PICKED_UP);
+          OrderStatus.NO_SHOW);
     });
 
     test('미픽업 처리 후 서버 stale READY 응답이 와도 되살아나지 않는다', () async {
@@ -1072,7 +1072,7 @@ void main() {
       final a = _order(orderNo: 'A', status: OrderStatus.READY);
       final h = await _buildProvider(initialServerOrders: [a]);
       await h.notifier.refreshOrders();
-      await h.notifier.updateOrderStatus(a, OrderStatus.NOT_PICKED_UP);
+      await h.notifier.updateOrderStatus(a, OrderStatus.NO_SHOW);
 
       // replication lag: 폴링이 아직 READY 인 구버전을 돌려준다.
       h.api.ordersResponse = [_order(orderNo: 'A', status: OrderStatus.READY)];
@@ -1084,14 +1084,14 @@ void main() {
     });
 
     test('이미 미픽업이면 API 를 다시 치지 않는다 (왕복 절약)', () async {
-      // 전용 메서드의 `status == NOT_PICKED_UP` 조기반환을 흡수 후에도 잃지
+      // 전용 메서드의 `status == NO_SHOW` 조기반환을 흡수 후에도 잃지
       // 않는지 — updateOrderStatus 의 범용 `status == newStatus` 가 대신한다.
-      final a = _order(orderNo: 'A', status: OrderStatus.NOT_PICKED_UP);
+      final a = _order(orderNo: 'A', status: OrderStatus.NO_SHOW);
       final h = await _buildProvider(initialServerOrders: [a]);
       await h.notifier.refreshOrders();
 
       expect(
-        await h.notifier.updateOrderStatus(a, OrderStatus.NOT_PICKED_UP),
+        await h.notifier.updateOrderStatus(a, OrderStatus.NO_SHOW),
         isTrue,
       );
       expect(h.api.statusUpdates, isEmpty);
@@ -1104,7 +1104,7 @@ void main() {
       final h = await _buildProvider(initialServerOrders: [a]);
       await h.notifier.refreshOrders();
 
-      await h.notifier.updateOrderStatus(a, OrderStatus.NOT_PICKED_UP);
+      await h.notifier.updateOrderStatus(a, OrderStatus.NO_SHOW);
 
       for (final type in appfit_core.OrderEventType.values) {
         expect(SocketEventSuppressor().shouldIgnore('A', type.value), isFalse,

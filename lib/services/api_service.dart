@@ -283,7 +283,7 @@ class ApiService {
         case OrderStatus.DONE:
           action = OrderAction.DONE.name;
           break;
-        case OrderStatus.NOT_PICKED_UP:
+        case OrderStatus.NO_SHOW:
           // 미픽업. 서버 허용 선행 상태는 NEW·PREPARING·READY 이고 DONE 은
           // 거부되는데, 그 거부는 아래 INVALID_ORDER_STATUS 분기가
           // "이미 완료된 주문입니다." 로 안내한다.
@@ -323,7 +323,7 @@ class ApiService {
               OrderStatus.READY => '이미 픽업 요청된 주문입니다.',
               OrderStatus.DONE => '이미 완료된 주문입니다.',
               OrderStatus.PREPARING => '이미 수락된 주문입니다.',
-              OrderStatus.NOT_PICKED_UP => '이미 미픽업 처리된 주문입니다.',
+              OrderStatus.NO_SHOW => '이미 미픽업 처리된 주문입니다.',
               _ => null,
             };
           } catch (_) {

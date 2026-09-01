@@ -90,7 +90,7 @@ void main() {
     });
   });
 
-  group('resolveMergedStatus — NOT_PICKED_UP 터미널', () {
+  group('resolveMergedStatus — NO_SHOW 터미널', () {
     test('미픽업은 진행 상태를 이긴다 — 폴링 stale 응답에 부활하지 않는다 (양방향)', () {
       // 실제 P0 시나리오: READY → 미픽업 직후 폴링이 stale READY 를 돌려준다.
       for (final other in [
@@ -99,21 +99,21 @@ void main() {
         OrderStatus.READY,
         OrderStatus.DONE,
       ]) {
-        expect(resolveMergedStatus(OrderStatus.NOT_PICKED_UP, other),
-            OrderStatus.NOT_PICKED_UP,
+        expect(resolveMergedStatus(OrderStatus.NO_SHOW, other),
+            OrderStatus.NO_SHOW,
             reason: 'local=미픽업 server=$other');
-        expect(resolveMergedStatus(other, OrderStatus.NOT_PICKED_UP),
-            OrderStatus.NOT_PICKED_UP,
+        expect(resolveMergedStatus(other, OrderStatus.NO_SHOW),
+            OrderStatus.NO_SHOW,
             reason: 'local=$other server=미픽업');
       }
     });
 
     test('취소가 미픽업보다 강하다 — 환불 사실이 가려지면 안 된다 (양방향)', () {
       expect(
-          resolveMergedStatus(OrderStatus.CANCELLED, OrderStatus.NOT_PICKED_UP),
+          resolveMergedStatus(OrderStatus.CANCELLED, OrderStatus.NO_SHOW),
           OrderStatus.CANCELLED);
       expect(
-          resolveMergedStatus(OrderStatus.NOT_PICKED_UP, OrderStatus.CANCELLED),
+          resolveMergedStatus(OrderStatus.NO_SHOW, OrderStatus.CANCELLED),
           OrderStatus.CANCELLED);
     });
 
@@ -144,13 +144,13 @@ void main() {
       expect(kServerOrderStatus['FAILED'], OrderStatus.CANCELLED);
     });
 
-    test('미픽업 가칭 별칭이 전부 NOT_PICKED_UP 으로 매핑된다', () {
+    test('미픽업 가칭 별칭이 전부 NO_SHOW 으로 매핑된다', () {
       // 서버 스펙 확정 전 방어. 별칭이 빠지면 미픽업이 '취소' 로 보인다.
-      for (final alias in kNotPickedUpServerAliases) {
-        expect(kServerOrderStatus[alias], OrderStatus.NOT_PICKED_UP,
+      for (final alias in kNoShowServerAliases) {
+        expect(kServerOrderStatus[alias], OrderStatus.NO_SHOW,
             reason: '별칭 $alias 가 매핑표에 없다');
       }
-      expect(kNotPickedUpServerAliases, contains(kNotPickedUpServerStatus));
+      expect(kNoShowServerAliases, contains(kNoShowServerStatus));
     });
 
     test('orderStatusToServer 는 매핑표로 왕복한다', () {

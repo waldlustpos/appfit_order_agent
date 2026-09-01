@@ -5,7 +5,7 @@ enum OrderStatus {
   READY, // 픽업대기 (준비완료)
   DONE, // 완료 (픽업됨)
   CANCELLED, // 취소
-  NOT_PICKED_UP, // 미픽업 (고객이 찾아가지 않아 종결) — 취소와 구분된다
+  NO_SHOW, // 미픽업 (고객이 찾아가지 않아 종결) — 취소와 구분된다
 }
 
 /// 미픽업 주문의 **조회 응답 상태 문자열**.
@@ -14,10 +14,10 @@ enum OrderStatus {
 /// 단어로 쓰는 전례가 있다(`ACCEPT`→`ACCEPTED`). action 은 `NO_SHOW` 로
 /// **확정**됐고, 조회 응답 status 가 같은 단어인지는 **스테이징 실측 대기**다.
 ///
-/// 확정되면 이 상수와 [kNotPickedUpServerAliases] 만 고치면 된다.
+/// 확정되면 이 상수와 [kNoShowServerAliases] 만 고치면 된다.
 /// `ApiService._mapAppFitOrderStatus` 는 [kServerOrderStatus] 를 조회할 뿐이라
-/// 손댈 일이 없다. 상세는 docs/ORDER_NOT_PICKED_UP.md.
-const String kNotPickedUpServerStatus = 'NO_SHOW';
+/// 손댈 일이 없다. 상세는 docs/ORDER_NO_SHOW.md.
+const String kNoShowServerStatus = 'NO_SHOW';
 
 /// 실측 전 방어 별칭. 매핑표에 없는 값은 CANCELLED 로 떨어지므로, 응답 status 가
 /// action 과 다른 단어면 **미픽업 주문이 화면에 '취소' 로 보이는 무증상 실패**가
@@ -26,8 +26,8 @@ const String kNotPickedUpServerStatus = 'NO_SHOW';
 /// **스테이징 실측 후 원소 1개로 줄일 것.** 판정은 화면이 아니라 로그로 한다 —
 /// 별칭이 먹으면 화면은 정상으로 보이고, 미매핑일 때만
 /// `알 수 없는 주문 상태` 경고가 뜬다.
-const Set<String> kNotPickedUpServerAliases = <String>{
-  kNotPickedUpServerStatus,
+const Set<String> kNoShowServerAliases = <String>{
+  kNoShowServerStatus,
   'NOT_PICKED_UP',
 };
 
@@ -55,10 +55,10 @@ const Map<String, OrderStatus> kServerOrderStatus = <String, OrderStatus>{
   'CANCELED': OrderStatus.CANCELLED,
   'CANCELLED': OrderStatus.CANCELLED,
   'FAILED': OrderStatus.CANCELLED,
-  // 미픽업 — 정본 + 실측 전 방어 별칭([kNotPickedUpServerAliases] 와 같은 집합).
+  // 미픽업 — 정본 + 실측 전 방어 별칭([kNoShowServerAliases] 와 같은 집합).
   // const 유지를 위해 펼치지 않고 직접 나열한다.
-  'NO_SHOW': OrderStatus.NOT_PICKED_UP,
-  'NOT_PICKED_UP': OrderStatus.NOT_PICKED_UP,
+  'NO_SHOW': OrderStatus.NO_SHOW,
+  'NOT_PICKED_UP': OrderStatus.NO_SHOW,
 };
 
 /// 로컬 전이 후 `OrderModel.orderStatus`(서버 원문 상태 문자열)에 채울 대표값.
@@ -71,7 +71,7 @@ String orderStatusToServer(OrderStatus status) => switch (status) {
       OrderStatus.READY => 'READY',
       OrderStatus.DONE => 'DONE',
       OrderStatus.CANCELLED => 'CANCELLED',
-      OrderStatus.NOT_PICKED_UP => kNotPickedUpServerStatus,
+      OrderStatus.NO_SHOW => kNoShowServerStatus,
     };
 
 /// 상태 진행도(단조 격자). NEW < PREPARING < READY < DONE.
@@ -89,15 +89,15 @@ const Map<OrderStatus, int> kOrderStatusProgress = <OrderStatus, int>{
 /// 걸려 NEW 급으로 취급되고, 서버가 stale READY 를 돌려줄 때마다 종결된 주문이
 /// **폴링 주기마다 되살아난다**.
 ///
-/// CANCELLED 가 NOT_PICKED_UP 보다 강한 근거:
+/// CANCELLED 가 NO_SHOW 보다 강한 근거:
 /// - 취소는 환불/결제취소를 수반하고 취소 영수증 발행 트리거다. 취소를 미픽업으로
 ///   가리면 금전 사실이 화면·영수증에서 사라진다. 반대는 오해를 낳을 뿐 금전
 ///   사실은 보존된다 — 비대칭 손실.
-/// - 미픽업 처리 후 클레임으로 환불(NOT_PICKED_UP → CANCELLED)은 현실적이지만
+/// - 미픽업 처리 후 클레임으로 환불(NO_SHOW → CANCELLED)은 현실적이지만
 ///   역방향은 성립하지 않는다.
 const List<OrderStatus> kTerminalStatusPriority = <OrderStatus>[
   OrderStatus.CANCELLED,
-  OrderStatus.NOT_PICKED_UP,
+  OrderStatus.NO_SHOW,
 ];
 
 /// 서버 응답과 로컬 상태를 병합할 때 다운그레이드(예: PREPARING→NEW)를 막기 위한 헬퍼.

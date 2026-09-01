@@ -10,6 +10,6 @@ enum OrderAction {
 
   /// 미픽업 처리. 서버 허용 선행 상태는 NEW·PREPARING·READY (DONE 은 거부).
   /// 고객 알림과 외부 소켓 이벤트를 **발행하지 않는다** —
-  /// 타 기기는 폴링으로만 따라잡는다(docs/ORDER_NOT_PICKED_UP.md §5).
+  /// 타 기기는 폴링으로만 따라잡는다(docs/ORDER_NO_SHOW.md §5).
   NO_SHOW,
 }

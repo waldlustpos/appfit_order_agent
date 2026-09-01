@@ -779,7 +779,7 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
     //
     // 확인 다이얼로그는 유지한다 — 되돌릴 수 없는 종결 처리라서
     // 픽업요청/주문완료(즉시 실행)와 다르게 한 번 묻는다.
-    Future<void> markNotPickedUp() async {
+    Future<void> markNoShow() async {
       logToFile(
           tag: LogTag.UI_ACTION,
           message: '미픽업 처리 버튼: displayNum=${order.displayNum}, '
@@ -787,26 +787,26 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
 
       final confirmed = await CommonDialog.showConfirmDialog(
         context: context,
-        title: t.order_detail.dialog_not_picked_up_confirm_title,
+        title: t.order_detail.dialog_no_show_confirm_title,
         content: t.order_detail
-            .dialog_not_picked_up_confirm_content(n: order.displayNum),
+            .dialog_no_show_confirm_content(n: order.displayNum),
         confirmText: t.common.confirm,
         cancelText: t.common.cancel,
       );
       if (confirmed != true || !mounted) return;
 
       await _handleStatusUpdate(
-        () => _updateOrderStatus(OrderStatus.NOT_PICKED_UP),
-        'not_picked_up',
+        () => _updateOrderStatus(OrderStatus.NO_SHOW),
+        'no_show',
         // 여러 주문이 같은 문구로 실패하면 기본 dedupe(title+content)가 두 번째부터
         // 삼킨다 — 주문별로 분리한다.
-        dedupeKey: 'not_picked_up_fail_${order.orderId}',
+        dedupeKey: 'no_show_fail_${order.orderId}',
       );
     }
 
-    Widget notPickedUpBtn() => AsyncActionButton(
-          text: t.order_detail.btn_not_picked_up,
-          onPressed: markNotPickedUp,
+    Widget noShowBtn() => AsyncActionButton(
+          text: t.order_detail.btn_no_show,
+          onPressed: markNoShow,
         );
 
     final isFromHistory = widget.isFromHistory;
@@ -831,7 +831,7 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
     // KDS 모드 + READY: 픽업 탭 상세창. 재출력 + 픽업 재요청 + 미픽업 노출.
     if (isKdsMode && order.status == OrderStatus.READY) {
       return (
-        secondary: [...reprintButtons(), repickupBtn(), notPickedUpBtn()],
+        secondary: [...reprintButtons(), repickupBtn(), noShowBtn()],
         primary: completeOrderBtn(isMainAction: true),
       );
     }
@@ -880,7 +880,7 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
 
     if (order.status == OrderStatus.READY) {
       return (
-        secondary: [...reprintButtons(), repickupBtn(), notPickedUpBtn()],
+        secondary: [...reprintButtons(), repickupBtn(), noShowBtn()],
         primary: completeOrderBtn(isMainAction: true),
       );
     }
@@ -910,7 +910,7 @@ class _StatusPill extends StatelessWidget {
       OrderStatus.READY => t.order.ready,
       OrderStatus.DONE => t.order.done,
       OrderStatus.CANCELLED => t.order.cancelled,
-      OrderStatus.NOT_PICKED_UP => t.order.not_picked_up,
+      OrderStatus.NO_SHOW => t.order.no_show,
     };
 
     return Container(
