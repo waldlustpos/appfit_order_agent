@@ -89,8 +89,12 @@ static const _NotPickedUpTransport _kNotPickedUpTransport =
       (`force/bulk-done` 은 멱등)
 - [ ] **5. 금전 처리** — 환불/정산에 영향을 주는가. **주지 않는다면** 취소 영수증
       미발행 결정(§4.5)이 맞다
-- [ ] **6. 소켓 이벤트 유무·이름** — `ORDER_NOT_PICKED_UP` 을 쏘는가. 쏜다면 core
-      `OrderEventType` 추가 일정 (§5)
+- [ ] **6. 소켓 이벤트 — 기존 타입을 재사용하지 않는가** ← 유무보다 이게 중요.
+      **`ORDER_CANCELLED` 로 대신 쏘면 미픽업이 취소로 뒤집히고 세션 내 회복이
+      안 된다**(§5.1-C). 새 타입(`ORDER_NOT_PICKED_UP` 등)이면 앱이 안전하게
+      무시하므로 core 추가 일정은 나중에 잡아도 된다. 페이로드에 상태 문자열을
+      실어주면 더 좋다 — 현재 `SocketEventPayload` 에는 status 필드가 없어
+      이벤트 타입만으로 상태를 추론한다
 - [ ] **7. `PICKUP_REQUESTED` 실사용 여부** — 이 값이 프로덕션 파서에 없어서
       READY 주문이 CANCELLED 로 떨어지는 상태였다. 선제 대응은 했으나(커밋
       `f63ff75`) 서버가 실제로 이 문자열을 쓰는지 확증이 필요하다
@@ -262,16 +266,63 @@ ERROR/실패/오류가 든 줄만 파일 화이트리스트를 통과한다(`log
    (`did/lib/services/order_socket_listener.dart` 의 default 없는 exhaustive
    switch) 동시 수정·배포. 서버 이벤트명조차 미확정인데 3레포를 묶는 것은
    되돌리기 비용이 너무 크다.
-2. **안 넣어도 앱이 깨지지 않는다** — 서버가 새 이벤트를 쏘면 core 의
-   `dispatcher.classify` 가 `unknownEventType` 으로 분류하고
-   `order_socket_manager.dart` 가 `logger.d` 만 남기고 반환한다. `handled`
-   화이트리스트까지 도달하지도 않는다.
+2. **새 이벤트 타입이면 앱이 깨지지 않는다** — core `dispatcher.classify` 가
+   `unknownEventType` 으로 분류하고 `order_socket_manager.dart` 가 로그만 남기고
+   반환한다. `handled` 화이트리스트까지 도달하지도 않는다 (§5.1-B).
 3. **정합성은 유지된다** — 버튼을 누른 단말은 낙관적 UI 로 즉시 반영되고, 다른
    단말은 폴링 주기 내에 따라잡는다(§4.1 의 상태 문자열 매핑이 있으므로 목록
    조회만으로 미픽업이 정확히 표시된다).
 
 **대가:** 타 기기의 미픽업 처리가 폴링 주기만큼 지연된다. KDS 완료 탭 강조
 애니메이션도 그 타이밍에 뜬다.
+
+### 5.1 소켓 메시지가 올 때 / 안 올 때 — 경우별 실제 동작
+
+서버가 무엇을 쏘느냐에 따라 셋으로 갈리고, **셋 중 하나만 위험하다.**
+
+#### A. 아예 안 쏨 (현재 가정) — 안전
+
+자기 기기는 낙관적 UI 로 즉시, 타 기기는 폴링이 `status` 문자열을 매핑표로 읽어
+`resolveMergedStatus(READY, NOT_PICKED_UP)` → 미픽업으로 수렴한다. 지연만 있고
+오염은 없다. **단, §4.1 의 매핑표에 서버 문자열이 없으면 CANCELLED 로 떨어진다**
+— 별칭을 미리 받아둔 이유가 이것이다.
+
+#### B. 새 이벤트 타입으로 쏨 (`ORDER_NOT_PICKED_UP` 등) — 안전, 다만 무시됨
+
+`OrderEventTypeExtension.fromValue` 가 null → `unknownEventType` → 로그 후 반환.
+크래시도 오염도 없지만 **실시간 반영도 없다** — 결과적으로 A 와 같다.
+
+관측 문제가 하나 있었다: 이 분기가 `logger.d` 라 **파일 로그에 안 남아**, 서버가
+이벤트를 쏘기 시작해도 기기 로그로는 알 수 없었다. `[WEBSOCKET]` 태그를 붙여
+파일 화이트리스트를 통과시켰다(`logger.dart`). 빈도 위험은 낮다 —
+`DEVICE_CALL_REQUESTED` 는 dispatcher 앞에서 가로채고, 알려진 주문 이벤트는
+`OrderEventType` 이 전부 커버한다.
+
+#### C. 기존 이벤트 타입을 재사용해 쏨 — **여기만 위험하다**
+
+`handled` 화이트리스트를 통과하고 `_enforceStatusFromEvent` 가 **이벤트 타입만 보고**
+상태를 보정한다(페이로드에 status 필드가 없다 — `SocketEventPayload` 는 이벤트
+타입과 id 들만 싣는다). 결과는 재사용한 타입에 따라 정반대다:
+
+| 서버가 쏘는 타입 | `resolveMergedStatus(미픽업, 이벤트상태)` | 결과 |
+|---|---|---|
+| `ORDER_DONE` | 미픽업 (터미널이 진행도를 이김) | **무해** — 보정 생략, 로그만 |
+| `ORDER_CANCELLED` | **취소** (취소가 최우선) | **오염** — 미픽업이 취소로 뒤집힌다 |
+
+`ORDER_CANCELLED` 재사용은 **세션 내 회복이 불가능하다.** 로컬이 CANCELLED 가 된
+뒤에는 폴링이 서버의 NOT_PICKED_UP 을 가져와도
+`resolveMergedStatus(CANCELLED, NOT_PICKED_UP)` → CANCELLED 로 계속 유지된다.
+앱을 재시작해야(로컬 값이 비워져야) 서버 값으로 돌아온다.
+
+자가 echo 도 같다 — 이 기기가 미픽업 처리한 직후 서버가 `ORDER_CANCELLED` 를
+돌려주면 방금 만든 로컬 상태가 취소로 덮인다. `SocketEventSuppressor` 를 안 걸어
+뒀으므로 막히지 않는다(§4.4). 그렇다고 `orderCancelled` 를 억제하면 TTL 동안
+**진짜 취소**까지 삼키므로 그 방향은 답이 아니다.
+
+**→ 그래서 §3-6 은 "이벤트를 쏘는가" 가 아니라 "기존 타입을 재사용하지 않는가" 를
+물어야 한다.** 새 타입이면 B(무시)로 안전하게 착지하고, 이후 §5 재개 순서를 밟아
+실시간성을 얹으면 된다. 앱 쪽에서 A/B/C 를 구분할 방법은 없다 — 페이로드에 상태가
+없어 `ORDER_CANCELLED` 가 진짜 취소인지 미픽업의 대역인지 알 수 없기 때문이다.
 
 **재개 시 순서 (이 순서를 지킬 것):**
 
