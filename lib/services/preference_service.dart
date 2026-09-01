@@ -297,6 +297,11 @@ class PreferenceService {
   /// 자동접수마저 꺼져 있으면 키오스크 주문이 화면에도 안 보이고 접수도 되지 않는다.
   /// 업데이트 후 첫 실행 때 한 번만 세 값을 정책값으로 덮어써 출발점을 맞춘다.
   /// 마커를 세워 이후 점주가 바꾼 값은 덮어쓰지 않는다.
+  ///
+  /// Windows 는 '주문서·알림소리' 정책이 반대(ON)라 이 강제 OFF 에서 제외한다 —
+  /// 이 함수가 값을 쓰면 getKioskPrintAndSound() 의 Windows 기본값(ON)이
+  /// 신규 설치에서도 무력화되기 때문. 대신 키를 건드리지 않아, 신규 설치는
+  /// 기본값 ON, 이미 값이 저장된 기기는 그 값을 그대로 유지한다.
   Future<void> _reconcileKioskSettings() async {
     final isAlreadyDone =
         _prefs.getBool(KEY_KIOSK_SETTINGS_RECONCILED) ?? false;
@@ -308,13 +313,18 @@ class PreferenceService {
       final previousAutoAccept = _prefs.getBool(KEY_KIOSK_ALWAYS_AUTO_ACCEPT);
 
       await _prefs.setBool(KEY_SHOW_KIOSK_ORDER, false);
-      await _prefs.setBool(KEY_KIOSK_PRINT_AND_SOUND, false);
+      if (!Platform.isWindows) {
+        await _prefs.setBool(KEY_KIOSK_PRINT_AND_SOUND, false);
+      }
       await _prefs.setBool(KEY_KIOSK_ALWAYS_AUTO_ACCEPT, true);
       await _prefs.setBool(KEY_KIOSK_SETTINGS_RECONCILED, true);
 
+      final printAndSoundResult = Platform.isWindows
+          ? '유지(Windows 정책 ON: ${getKioskPrintAndSound()})'
+          : 'false';
       logger.i('[PreferenceService] 키오스크 설정 강제 재조정: '
           '노출 ${previousShow ?? '미설정'} → false, '
-          '주문서·알림소리 ${previousPrintAndSound ?? '미설정'} → false, '
+          '주문서·알림소리 ${previousPrintAndSound ?? '미설정'} → $printAndSoundResult, '
           '항상 자동접수 ${previousAutoAccept ?? '미설정'} → true');
     } catch (e, s) {
       logger.e('[PreferenceService] 키오스크 설정 재조정 중 오류 발생',
@@ -687,9 +697,14 @@ class PreferenceService {
   /// 무관하게 키오스크 주문은 항상 NEW→PREPARING 즉시 전이시킨다.
   bool getKioskAlwaysAutoAccept() =>
       _prefs.getBool(KEY_KIOSK_ALWAYS_AUTO_ACCEPT) ?? true;
+
+  /// 키오스크주문 출력 및 알람소리 재생 여부
+  ///
+  /// 기본값이 플랫폼마다 다르다 — Android(Sunmi 등 주문접수 단말)는 키오스크가
+  /// 자체 출력을 담당하므로 OFF, Windows POS 는 키오스크 주문의 주문서·알림음을
+  /// POS 가 받아야 하므로 ON. 노출(getShowKioskOrder)은 양쪽 모두 OFF 유지.
   bool getKioskPrintAndSound() =>
-      _prefs.getBool(KEY_KIOSK_PRINT_AND_SOUND) ??
-      false; //키오스크주문 출력 및 알람소리 재생 여부 (기본 OFF)
+      _prefs.getBool(KEY_KIOSK_PRINT_AND_SOUND) ?? Platform.isWindows;
   bool getPosPrintAndSound() =>
       _prefs.getBool(KEY_POS_PRINT_AND_SOUND) ??
       false; //POS주문 출력 및 알람소리 재생 여부 (기본 OFF)
