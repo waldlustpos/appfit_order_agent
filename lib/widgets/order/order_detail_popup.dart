@@ -235,8 +235,12 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
     }
   }
 
+  /// [dedupeKey] 를 주면 실패 다이얼로그의 중복 억제 키를 주문별로 분리한다.
+  /// 기본 키는 title+content 라, 여러 주문이 **같은 문구로** 실패하면 두 번째부터
+  /// 조용히 삼켜진다(`repickup_fail_${orderId}` 와 같은 이유).
   Future<void> _handleStatusUpdate(
-      Future<bool> Function() updateFunction, String actionId) async {
+      Future<bool> Function() updateFunction, String actionId,
+      {String? dedupeKey}) async {
     String? errorMessage;
     final currentOrder = ref.read(orderDetailProvider).order;
     final orderInfo = currentOrder != null
@@ -270,6 +274,7 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
           context: context,
           title: t.common.error_title,
           content: errorMessage,
+          dedupeKey: dedupeKey,
         );
       }
     }
@@ -768,6 +773,44 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
           onPressed: requestRepickup,
         );
 
+    // 미픽업 처리 — 픽업 재요청과 달리 **주문 상태를 바꾼다**(READY → 미픽업).
+    // 그래서 _handleStatusUpdate 를 쓴다: 성공하면 팝업을 닫고, 카드가 완료
+    // 섹션/탭으로 옮겨가는 것 자체가 성공 신호라 별도 성공 다이얼로그가 없다.
+    //
+    // 서버 엔드포인트가 아직 없다 — 지금 누르면 404 가 나고 서버 메시지(또는
+    // 기본 문구)가 에러 다이얼로그로 뜬다. 의도된 동작이다.
+    Future<void> markNotPickedUp() async {
+      final currentOrder = ref.read(orderDetailProvider).order;
+      if (currentOrder == null) return;
+      final orderInfo = 'displayNum=${currentOrder.displayNum}, '
+          'simpleNum=${currentOrder.shopOrderNo}, orderId=${currentOrder.orderId}';
+      logToFile(tag: LogTag.UI_ACTION, message: '미픽업 처리 버튼: $orderInfo');
+
+      final confirmed = await CommonDialog.showConfirmDialog(
+        context: context,
+        title: t.order_detail.dialog_not_picked_up_confirm_title,
+        content: t.order_detail
+            .dialog_not_picked_up_confirm_content(n: currentOrder.displayNum),
+        confirmText: t.common.confirm,
+        cancelText: t.common.cancel,
+      );
+      if (confirmed != true || !mounted) return;
+
+      await _handleStatusUpdate(
+        () =>
+            ref.read(orderProvider.notifier).markOrderNotPickedUp(currentOrder),
+        'not_picked_up',
+        // 여러 주문이 같은 문구로 실패(미배포 404)하면 기본 dedupe 가 두 번째부터
+        // 삼킨다 — 주문별로 분리한다.
+        dedupeKey: 'not_picked_up_fail_${currentOrder.orderId}',
+      );
+    }
+
+    Widget notPickedUpBtn() => AsyncActionButton(
+          text: t.order_detail.btn_not_picked_up,
+          onPressed: markNotPickedUp,
+        );
+
     final isFromHistory = widget.isFromHistory;
     logger.d(
         '현재 주문 상태: ${order.status}, isFromHistory: $isFromHistory, isKdsMode: $isKdsMode');
@@ -787,10 +830,10 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
       }
     }
 
-    // KDS 모드 + READY: 픽업 탭 상세창. 재출력 + 픽업 재요청 노출.
+    // KDS 모드 + READY: 픽업 탭 상세창. 재출력 + 픽업 재요청 + 미픽업 노출.
     if (isKdsMode && order.status == OrderStatus.READY) {
       return (
-        secondary: [...reprintButtons(), repickupBtn()],
+        secondary: [...reprintButtons(), repickupBtn(), notPickedUpBtn()],
         primary: completeOrderBtn(isMainAction: true),
       );
     }
@@ -839,7 +882,7 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
 
     if (order.status == OrderStatus.READY) {
       return (
-        secondary: [...reprintButtons(), repickupBtn()],
+        secondary: [...reprintButtons(), repickupBtn(), notPickedUpBtn()],
         primary: completeOrderBtn(isMainAction: true),
       );
     }

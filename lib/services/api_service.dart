@@ -35,6 +35,19 @@ ApiService apiService(Ref ref) {
   return ApiService(ref);
 }
 
+/// 미픽업 처리를 서버에 전달하는 방식. 서버 스펙 확정 전까지 두 안을 모두
+/// 배선해 두고 [ApiService._kNotPickedUpTransport] 로 고른다.
+enum _NotPickedUpTransport {
+  /// A안(현재 가정): 전용 `POST /v0/order/{id}/not-picked-up`.
+  /// 픽업 재요청(`pickup-noti`)과 같은 모양.
+  dedicatedPost,
+
+  /// B안: 기존 `PUT /v0/order/{id}` + `{action, readyTime}`.
+  /// 채택돼도 [ApiService.updateOrderStatus] 는 건드리지 않는다 — 그 switch 는
+  /// 자동접수 경로(_processNextEmit)가 물려 있어 사거리가 넓다.
+  updateAction,
+}
+
 class ApiService {
   // ignore: unused_field
   final Ref _ref;
@@ -1267,6 +1280,74 @@ class ApiService {
       logger.e('[AppFit API] 픽업 재요청 실패: $orderNo', error: e, stackTrace: s);
       _logApiFailure('POST order/$orderNo/pickup-noti', e, sw);
       _handleError(e, '픽업 재요청에 실패했습니다.');
+    }
+  }
+
+  /// 미픽업 처리 시 서버에 어떻게 알릴지. **서버팀과 논의 중 — 확정되면 상수
+  /// 하나만 바꾼다.** 미채택 안을 switch 분기로 남겨 "논의 중" 자체를 코드에
+  /// 남긴다(확정 후 죽은 분기 삭제). 상세: docs/ORDER_NOT_PICKED_UP.md §2.
+  static const _NotPickedUpTransport _kNotPickedUpTransport =
+      _NotPickedUpTransport.dedicatedPost;
+
+  /// 미픽업 전용 엔드포인트의 **가칭 경로**.
+  ///
+  /// 확정되면 appfit_core 의 `ApiRoutes` 로 승격하고 여기서 지운다. core 는 별도
+  /// 레포(git ref 핀)라 릴리스가 선행돼야 하므로, 경로가 확정되기 전에 거기에
+  /// 넣으면 되돌릴 때 태그를 한 번 더 태워야 한다. 가칭 단계에서는 앱에 둔다.
+  static String _provisionalNotPickedUpRoute(String orderId) =>
+      '${ApiRoutes.version}/order/$orderId/not-picked-up';
+
+  /// 미픽업 처리 — READY 주문을 '고객이 찾아가지 않음' 으로 종결한다.
+  ///
+  /// **서버 스펙 미확정(2026-09).** 엔드포인트가 배포되기 전에는 404 가 나고,
+  /// 그 404 는 [ApiException] 으로 호출부의 에러 다이얼로그까지 올라간다 —
+  /// 이게 의도된 동작이다(가칭 배선을 감추지 않는다).
+  ///
+  /// 예외를 삼켜 false 로 바꾸지 **않는다**: 미배포 서버의 404 와 "서버가 상태를
+  /// 거부함(409)" 을 호출부가 구분해야 하고, 서버 메시지 원문이 가장 정확한
+  /// 안내이기 때문이다.
+  ///
+  /// [sendPickupNotification] 과 달리 건강도 카운터와 [_maybeInjectFault] 를
+  /// **건다**. 저쪽은 상태를 안 바꾸는 사이드 액션이라 표본을 오염시키지만,
+  /// 미픽업은 in-flight 락·낙관적 UI 갱신을 전부 타는 진짜 상태 전이라
+  /// `NetFaultTarget.orderUpdate` 의 검증 대상 그 자체다.
+  ///
+  /// [storeId] 를 받지 않는다 — 두 안 모두 shopCode 는 Dio 인터셉터가 세션
+  /// 값으로 채운다(`/v0/order/{id}` PUT 과 같은 경로).
+  Future<bool> markOrderNotPickedUp(String orderId) async {
+    final sw = Stopwatch()..start();
+    try {
+      final dio = _ref.read(appFitDioProvider);
+      final Response<dynamic> response;
+      // ignore: unreachable_switch_case — 미채택 안을 남겨 교체 지점을 표시한다
+      switch (_kNotPickedUpTransport) {
+        case _NotPickedUpTransport.dedicatedPost:
+          final route = _provisionalNotPickedUpRoute(orderId);
+          await _maybeInjectFault(NetFaultTarget.orderUpdate, route);
+          response = await dio.post(route, data: const <String, dynamic>{});
+        case _NotPickedUpTransport.updateAction:
+          final route = ApiRoutes.orderUpdate(orderId);
+          await _maybeInjectFault(NetFaultTarget.orderUpdate, route);
+          response = await dio.put(route, data: <String, dynamic>{
+            'action': kNotPickedUpServerStatus,
+            'readyTime': 0,
+          });
+      }
+
+      _recordApiSuccess();
+      // LogTag.API 가 아니라 SYSTEM 이다 — `[API]` 는 ERROR/실패/오류 가 든 줄만
+      // 파일 화이트리스트를 통과해서(logger.dart) 정상 응답은 통째로 버려진다.
+      // "어떤 주문을 언제 미픽업 처리했는가" 는 CS 문의의 근거라 남아야 한다.
+      logToFile(
+        tag: LogTag.SYSTEM,
+        message: '[미픽업] orderNo=$orderId status=${response.statusCode}',
+      );
+      return response.statusCode == 200;
+    } catch (e, s) {
+      logger.e('[AppFit API] 미픽업 처리 실패: $orderId', error: e, stackTrace: s);
+      _logApiFailure('미픽업 $orderId', e, sw);
+      _recordApiFailure(e);
+      _handleError(e, '미픽업 처리에 실패했습니다. (서버 미지원일 수 있습니다)');
     }
   }
 

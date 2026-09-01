@@ -1949,6 +1949,91 @@ class Order extends _$Order {
     }
   }
 
+  /// 픽업대기(READY) 주문을 **미픽업**으로 종결한다.
+  ///
+  /// **서버 스펙 미확정(2026-09)** — 엔드포인트가 배포되기 전에는
+  /// [ApiService.markOrderNotPickedUp] 이 404 를 [ApiException] 으로 던지고,
+  /// 그게 여기서 rethrow 되어 호출부의 에러 다이얼로그에 서버 메시지로 뜬다.
+  ///
+  /// [forceCompleteOrder] 와 같은 골격을 쓴다(in-flight 락 → API → 성공 후처리).
+  /// [updateOrderStatus] 에 분기를 붙이지 않은 이유도 같다 — 그쪽은 자동접수
+  /// 경로가 물려 있어 사거리가 넓다.
+  ///
+  /// **[SocketEventSuppressor] 는 걸지 않는다**: core `OrderEventType` 에 미픽업
+  /// 이벤트가 아직 없어 억제할 대상 자체가 없다. 서버가 미픽업 소켓 이벤트를
+  /// 쏘게 되면 여기에 억제를 추가할 것 (docs/ORDER_NOT_PICKED_UP.md §5).
+  /// [forceCompleteOrder] 가 2개를 거는 것과 대비되는 지점이라 명시해 둔다.
+  Future<bool> markOrderNotPickedUp(OrderModel orderModel) async {
+    final storeId = ref.read(storeProvider).value?.storeId ?? '';
+    if (storeId.isEmpty) {
+      logger.e('Cannot mark order not-picked-up: Store ID not found.');
+      state = state.copyWith(error: '매장 ID를 찾을 수 없어 미픽업 처리 불가');
+      return false;
+    }
+
+    final orderId = orderModel.orderId;
+    final displayNum = orderModel.displayNum;
+
+    final existingOrder = state.orders.firstWhere(
+      (order) => order.orderId == orderId,
+      orElse: () => orderModel,
+    );
+    // 이미 미픽업이면 왕복을 아낀다. 멱등성은 서버 확인 항목이라(§3-4) 여기서
+    // 조기 반환하는 편이 안전하다.
+    if (existingOrder.status == OrderStatus.NOT_PICKED_UP) {
+      logger.i('Order $orderId is already NOT_PICKED_UP, skipping');
+      return true;
+    }
+
+    // in-flight 락. updateOrderStatus/forceCompleteOrder 와 **같은 키 공간** —
+    // 완료와 미픽업이 동시에 날아가는 조합을 막고, 버튼 스피너도 이 키를 본다.
+    if (!ref.read(statusUpdateInFlightProvider.notifier).tryAcquire(orderId)) {
+      logger.w('[OrderProvider] 미픽업 중복 요청 무시 (in-flight): $orderId');
+      return false;
+    }
+
+    try {
+      final fromStatus = existingOrder.status.name;
+
+      bool success;
+      if (orderId.startsWith('MOCK_')) {
+        // MOCK 주문은 서버에 없다. updateOrderStatus 와 동일한 취급.
+        logger.d('MOCK 주문이므로 API 호출을 건너뛰고 성공으로 처리합니다: $orderId');
+        success = true;
+      } else {
+        success = await _apiService.markOrderNotPickedUp(orderId);
+      }
+
+      if (success) {
+        _applySuccessfulStatusTransition(
+            orderModel, orderId, OrderStatus.NOT_PICKED_UP);
+        logToFile(
+          tag: LogTag.SYSTEM,
+          message: '[미픽업] 성공: displayNum=$displayNum, orderId=$orderId, '
+              'from=$fromStatus',
+        );
+        return true;
+      }
+
+      logToFile(
+        tag: LogTag.SYSTEM,
+        message: '[미픽업] 실패: displayNum=$displayNum, orderId=$orderId, '
+            'from=$fromStatus',
+      );
+      state = state.copyWith(error: '서버에서 미픽업 처리 실패 (orderId: $orderId)');
+      return false;
+    } catch (e, s) {
+      logger.e('[OrderProvider] markOrderNotPickedUp 오류',
+          error: e, stackTrace: s);
+      // 서버 메시지(404 미배포 / 409 상태 거부)를 다이얼로그까지 올린다.
+      if (e is ApiException) rethrow;
+      state = state.copyWith(error: e.toString());
+      return false;
+    } finally {
+      ref.read(statusUpdateInFlightProvider.notifier).release(orderId);
+    }
+  }
+
   // UI 즉시 업데이트를 위한 메서드 추출 (역할 분리)
   void _performImmediateUIUpdate(OrderModel updatedOrder, int existingIndex) {
     // 디버깅을 위한 로그 추가 - 업데이트 전

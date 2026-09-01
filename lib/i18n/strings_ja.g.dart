@@ -333,6 +333,7 @@ class _Translations$order_detail$ja extends Translations$order_detail$ko {
 	@override String get status_update_fail => '注文状態の変更に失敗しました。';
 	@override String get repickup_success => 'ピックアップ再要請の通知を送信しました。';
 	@override String get repickup_fail => 'ピックアップ再要請に失敗しました。';
+	@override String get not_picked_up_fail => '未ピックアップ処理に失敗しました。';
 	@override String get dialog_kiosk_cancel_title => '注文取消';
 	@override String get dialog_kiosk_cancel_content => 'キオスク注文はキオスク端末で取り消してください。';
 	@override String dialog_cancel_confirm_content({required Object n}) => '${n}番の注文を取り消しますか？';
@@ -355,6 +356,7 @@ class _Translations$order_detail$ja extends Translations$order_detail$ko {
 	@override String get btn_label_reprint => 'ラベル再印刷';
 	@override String get btn_pickup_request => 'ピックアップ要請';
 	@override String get btn_repickup => 'ピックアップ再要請';
+	@override String get btn_not_picked_up => '未ピックアップ処理';
 	@override String get btn_order_accept => '注文受付';
 	@override String get btn_order_complete => '注文完了';
 	@override String get btn_order_cancel => '注文取消';

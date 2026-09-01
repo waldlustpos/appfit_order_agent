@@ -340,6 +340,7 @@ class _Translations$order_detail$en extends Translations$order_detail$ko {
 	@override String get status_update_fail => 'Failed to change status.';
 	@override String get repickup_success => 'Pickup re-request notification sent.';
 	@override String get repickup_fail => 'Failed to send pickup re-request.';
+	@override String get not_picked_up_fail => 'Failed to mark the order as not picked up.';
 	@override String get dialog_kiosk_cancel_title => 'Cancel Order';
 	@override String get dialog_kiosk_cancel_content => 'Please cancel kiosk orders at the kiosk device.';
 	@override String dialog_cancel_confirm_content({required Object n}) => 'Do you want to cancel order #${n}?';
@@ -362,6 +363,7 @@ class _Translations$order_detail$en extends Translations$order_detail$ko {
 	@override String get btn_label_reprint => 'Reprint Label';
 	@override String get btn_pickup_request => 'Request Pickup';
 	@override String get btn_repickup => 'Re-request Pickup';
+	@override String get btn_not_picked_up => 'Not Picked Up';
 	@override String get btn_order_accept => 'Accept';
 	@override String get btn_order_complete => 'Complete';
 	@override String get btn_order_cancel => 'Cancel';

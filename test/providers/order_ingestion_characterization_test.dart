@@ -6,6 +6,7 @@ import 'dart:async';
 import 'package:appfit_order_agent/constants/order_constants.dart';
 import 'package:appfit_order_agent/core/orders/alert_manager.dart';
 import 'package:appfit_order_agent/core/orders/sound_service.dart';
+import 'package:appfit_order_agent/exceptions/api_exceptions.dart';
 import 'package:appfit_order_agent/models/force_bulk_done_model.dart';
 import 'package:appfit_order_agent/models/order_menu_model.dart';
 import 'package:appfit_order_agent/models/order_model.dart';
@@ -129,6 +130,21 @@ class _FakeApiService implements ApiService {
     final err = forceThrows;
     if (err != null) throw err;
     return forceResponse ?? _forceAllSuccess(orderNos);
+  }
+
+  /// markOrderNotPickedUp 호출 기록 / 스크립트.
+  final List<String> notPickedUpCalls = [];
+  bool notPickedUpResult = true;
+
+  /// 던질 예외. 서버 미배포 404 는 ApiException 으로 올라온다.
+  Object? notPickedUpThrows;
+
+  @override
+  Future<bool> markOrderNotPickedUp(String orderId) async {
+    notPickedUpCalls.add(orderId);
+    final err = notPickedUpThrows;
+    if (err != null) throw err;
+    return notPickedUpResult;
   }
 
   @override
@@ -1036,6 +1052,75 @@ void main() {
 
       // 실패 후 운영자가 다시 누르는 것은 정당한 요청이다.
       expect(h.api.forceCalls.length, 2);
+    });
+  });
+
+  group('(g-2) markOrderNotPickedUp — READY 주문 미픽업 종결', () {
+    test('READY 주문이 NOT_PICKED_UP 이 되고 orderId 로 요청한다', () async {
+      final a = _order(orderNo: 'A', status: OrderStatus.READY);
+      final h = await _buildProvider(initialServerOrders: [a]);
+      await h.notifier.refreshOrders();
+
+      expect(await h.notifier.markOrderNotPickedUp(a), isTrue);
+
+      expect(h.api.notPickedUpCalls, ['A']);
+      expect(h.container.read(orderProvider).orders.single.status,
+          OrderStatus.NOT_PICKED_UP);
+    });
+
+    test('미픽업 처리 후 서버 stale READY 응답이 와도 되살아나지 않는다', () async {
+      // 이번 작업의 핵심 회귀 테스트. _recentRemovals.mark(종결 등록)와
+      // resolveMergedStatus(터미널 우선) 두 방어가 **함께** 걸려야 통과한다.
+      final a = _order(orderNo: 'A', status: OrderStatus.READY);
+      final h = await _buildProvider(initialServerOrders: [a]);
+      await h.notifier.refreshOrders();
+      await h.notifier.markOrderNotPickedUp(a);
+
+      // replication lag: 폴링이 아직 READY 인 구버전을 돌려준다.
+      h.api.ordersResponse = [_order(orderNo: 'A', status: OrderStatus.READY)];
+      await h.notifier.refreshOrders();
+
+      final orders = h.container.read(orderProvider).orders;
+      expect(orders.where((o) => o.status == OrderStatus.READY), isEmpty,
+          reason: '미픽업 처리한 주문이 픽업대기로 부활하면 안 된다');
+    });
+
+    test('이미 미픽업이면 API 를 다시 치지 않는다 (왕복 절약)', () async {
+      final a = _order(orderNo: 'A', status: OrderStatus.NOT_PICKED_UP);
+      final h = await _buildProvider(initialServerOrders: [a]);
+      await h.notifier.refreshOrders();
+
+      expect(await h.notifier.markOrderNotPickedUp(a), isTrue);
+      expect(h.api.notPickedUpCalls, isEmpty);
+    });
+
+    test('서버 미배포 404(ApiException)는 삼키지 않고 호출부로 rethrow 한다', () async {
+      // 상세팝업이 서버 메시지를 그대로 다이얼로그에 띄우려면 예외가 올라와야 한다.
+      final a = _order(orderNo: 'A', status: OrderStatus.READY);
+      final h = await _buildProvider(initialServerOrders: [a]);
+      await h.notifier.refreshOrders();
+      h.api.notPickedUpThrows =
+          ApiException('미픽업 처리에 실패했습니다. (서버 미지원일 수 있습니다)');
+
+      await expectLater(
+        () => h.notifier.markOrderNotPickedUp(a),
+        throwsA(isA<ApiException>()),
+      );
+      // 상태는 그대로 READY 여야 한다 — 실패했는데 낙관적으로 옮기면 안 된다.
+      expect(h.container.read(orderProvider).orders.single.status,
+          OrderStatus.READY);
+    });
+
+    test('예외로 끝나도 락이 풀려 다시 시도할 수 있다', () async {
+      final a = _order(orderNo: 'A', status: OrderStatus.READY);
+      final h = await _buildProvider(initialServerOrders: [a]);
+      await h.notifier.refreshOrders();
+      h.api.notPickedUpThrows = StateError('boom');
+
+      expect(await h.notifier.markOrderNotPickedUp(a), isFalse);
+      expect(await h.notifier.markOrderNotPickedUp(a), isFalse);
+
+      expect(h.api.notPickedUpCalls.length, 2);
     });
   });
 
