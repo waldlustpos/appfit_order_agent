@@ -476,7 +476,7 @@ void main() {
       await _wait(450);
 
       h.api.ordersResponse = [
-        a.copyWith(status: OrderStatus.DONE, orderStatus: '2020'),
+        a.copyWith(status: OrderStatus.DONE, orderStatus: 'DONE'),
       ];
       await h.notifier.refreshOrders();
 

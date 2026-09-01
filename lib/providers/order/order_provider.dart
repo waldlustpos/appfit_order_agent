@@ -1314,7 +1314,7 @@ class Order extends _$Order {
           final currentOrder = state.orders[index];
           orderToQueue = currentOrder.copyWith(
             status: OrderStatus.CANCELLED,
-            orderStatus: "9001", // Cancelled status code
+            orderStatus: orderStatusToServer(OrderStatus.CANCELLED),
             updateTime: DateTime.now(),
           );
 
@@ -1337,7 +1337,7 @@ class Order extends _$Order {
             // 주문 상태 업데이트
             orderToQueue = details.copyWith(
               status: OrderStatus.CANCELLED,
-              orderStatus: '9001', // 취소 상태 코드
+              orderStatus: orderStatusToServer(OrderStatus.CANCELLED),
               updateTime: DateTime.now(),
             );
             logger.w(
@@ -1350,8 +1350,8 @@ class Order extends _$Order {
 
         if (orderToQueue != null) {
           queueOrderExternal(orderToQueue);
-          _updateOrderInCache(
-              orderId, OrderStatus.CANCELLED, "9001"); // Update cache
+          _updateOrderInCache(orderId, OrderStatus.CANCELLED,
+              orderStatusToServer(OrderStatus.CANCELLED)); // Update cache
           logger.d("Order cancellation queued locally: $orderId");
         }
 
@@ -1504,7 +1504,7 @@ class Order extends _$Order {
           if (readyOrders.any((r) => r.orderId == order.orderId)) {
             return order.copyWith(
               status: OrderStatus.DONE,
-              orderStatus: '2020',
+              orderStatus: orderStatusToServer(OrderStatus.DONE),
               updateTime: DateTime.now(),
             );
           }

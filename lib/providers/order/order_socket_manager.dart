@@ -480,18 +480,10 @@ class OrderSocketManager {
         '[SocketManager] 상태 보정 적용 ($eventType): ${order.status} -> $newStatus');
     return order.copyWith(
       status: newStatus,
-      orderStatus: _statusCodeOf(newStatus) ?? order.orderStatus,
+      // 보정으로 상태를 바꿀 때 서버 원문 문자열도 함께 맞춘다.
+      orderStatus: orderStatusToServer(newStatus),
     );
   }
-
-  /// 상태에 대응하는 서버 상태코드. 보정으로 상태를 바꿀 때 코드도 함께 맞춘다.
-  static String? _statusCodeOf(OrderStatus status) => switch (status) {
-        OrderStatus.NEW => '2003',
-        OrderStatus.PREPARING => '2007',
-        OrderStatus.READY => '2009',
-        OrderStatus.DONE => '2020',
-        OrderStatus.CANCELLED => '9001',
-      };
 
   /// 생성 시점부터 이미 접수(PREPARING) 상태인 주문인가.
   ///

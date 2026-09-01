@@ -150,38 +150,16 @@ class OrderModel {
   }
 
   factory OrderModel.fromJson(Map<String, dynamic> json) {
-    // 주문 상태 코드를 OrderStatus enum으로 변환
+    // 주문 상태 문자열을 OrderStatus enum으로 변환.
+    // 매핑은 kServerOrderStatus(앱 전역 단일 표)에 위임한다 — 프로덕션 파서
+    // ApiService._mapAppFitOrderStatus 와 같은 표를 봐야 한쪽만 갱신되는
+    // 사고를 막을 수 있다. 구 시스템(kokonut) 숫자 코드는 제거됨.
     OrderStatus parseStatus(String statusCode) {
-      switch (statusCode) {
-        case '2003':
-          return OrderStatus.NEW;
-        case '2007':
-          return OrderStatus.PREPARING;
-        case '2009':
-          return OrderStatus.READY;
-        case '2020':
-          return OrderStatus.DONE;
-        case '9001':
-          return OrderStatus.CANCELLED;
-        case '2099':
-          return OrderStatus.CANCELLED; // 미픽업 -> 취소 처리
-        case '9999':
-          return OrderStatus.CANCELLED;
-        case 'NEW':
-          return OrderStatus.NEW;
-        case 'ACCEPTED':
-          return OrderStatus.PREPARING;
-        case 'PICKUP_REQUESTED':
-          return OrderStatus.READY;
-        case 'CANCELED':
-          return OrderStatus.CANCELLED;
-        case 'COMPLETED':
-          return OrderStatus.DONE;
-        default:
-          logger.w(
-              'Unknown order status code found: $statusCode, mapping to CANCELLED.');
-          return OrderStatus.CANCELLED;
-      }
+      final mapped = kServerOrderStatus[statusCode.toUpperCase()];
+      if (mapped != null) return mapped;
+      logger.w(
+          'Unknown order status code found: $statusCode, mapping to CANCELLED.');
+      return OrderStatus.CANCELLED;
     }
 
     // 주문 메뉴 목록 파싱 (항목별 격리: 1건 손상 시 해당 항목만 스킵, 정상 항목 유지)

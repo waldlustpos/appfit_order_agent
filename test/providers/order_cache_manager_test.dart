@@ -143,17 +143,17 @@ void main() {
               status: OrderStatus.PREPARING,
               updateTime: DateTime.utc(2026, 1, 1, 9)));
 
-      b.manager.updateOrderInCache('order-1', OrderStatus.READY, '2009');
+      b.manager.updateOrderInCache('order-1', OrderStatus.READY, 'READY');
 
       final updated = b.manager.getCachedOrderDetail('order-1')!;
       expect(updated.status, OrderStatus.READY);
-      expect(updated.orderStatus, '2009');
+      expect(updated.orderStatus, 'READY');
       expect(updated.updateTime.isBefore(before), isFalse); // now 로 교체됨
     });
 
     test('캐시 미스 시 no-op (크래시 없음, 새 항목 생성 안 함)', () {
       final b = _build();
-      b.manager.updateOrderInCache('ghost', OrderStatus.READY, '2009');
+      b.manager.updateOrderInCache('ghost', OrderStatus.READY, 'READY');
       expect(b.manager.hasDetailCache('ghost'), isFalse);
     });
   });

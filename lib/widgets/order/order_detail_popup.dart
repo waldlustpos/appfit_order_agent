@@ -214,7 +214,7 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
         if (!widget.isFromHistory) {
           final updatedOrder = currentOrder.copyWith(
             status: newStatus,
-            orderStatus: _getStatusCode(newStatus),
+            orderStatus: orderStatusToServer(newStatus),
             updateTime: DateTime.now(),
           );
 
@@ -232,21 +232,6 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
     } catch (e, s) {
       logger.e('주문 상태 업데이트 API 호출 오류', error: e, stackTrace: s);
       return false;
-    }
-  }
-
-  String _getStatusCode(OrderStatus status) {
-    switch (status) {
-      case OrderStatus.NEW:
-        return "2003";
-      case OrderStatus.PREPARING:
-        return "2007";
-      case OrderStatus.READY:
-        return "2009";
-      case OrderStatus.DONE:
-        return "2020";
-      case OrderStatus.CANCELLED:
-        return "9001";
     }
   }
 
