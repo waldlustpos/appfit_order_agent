@@ -59,10 +59,12 @@ List<OrderModel> filterOrders(List<OrderModel> orders, OrderFilter filter) {
     case OrderFilter.ALL:
       return orders;
     case OrderFilter.COMPLETED:
+      // 미픽업은 완료 쪽에 넣는다 — 취소 필터에 섞으면 취소 건수 집계가 오염된다.
       return orders
           .where((order) =>
               order.status == OrderStatus.DONE ||
-              order.status == OrderStatus.READY)
+              order.status == OrderStatus.READY ||
+              order.status == OrderStatus.NOT_PICKED_UP)
           .toList();
     case OrderFilter.CANCELLED:
       return orders

@@ -35,6 +35,7 @@ class _OrderCardWidgetState extends ConsumerState<OrderCardWidget> {
     final isKdsMode = widget.isKdsMode;
     final bool isCancelled = order.status == OrderStatus.CANCELLED;
     final bool isDone = order.status == OrderStatus.DONE;
+    final bool isNotPickedUp = order.status == OrderStatus.NOT_PICKED_UP;
 
     // KDS 모드일 때는 이미 상세 정보를 가지고 있으므로 order를 그대로 사용.
     // 일반 모드일 때는 ID 인덱스 기반 family 로 해당 주문만 선택적으로 구독한다
@@ -50,13 +51,20 @@ class _OrderCardWidgetState extends ConsumerState<OrderCardWidget> {
     final useSourceColor = ref.watch(orderSourceColorProvider);
     final palette = useSourceColor
         ? AppStyles.orderSourcePalette(orderToCheck.source,
-            isCancelled: isCancelled, muted: isDone)
+            isCancelled: isCancelled,
+            isNotPickedUp: isNotPickedUp,
+            muted: isDone)
         : AppStyles.orderPalette(SpecialProductType.none,
-            isCancelled: isCancelled, muted: isDone);
+            isCancelled: isCancelled,
+            isNotPickedUp: isNotPickedUp,
+            muted: isDone);
     final backgroundColor = palette.bg;
+    // 미픽업은 회색으로 죽이지 않는다 — 정사각 카드라 라벨 자리가 없어서
+    // 주문번호 색이 취소/완료와 갈리는 유일한 신호다(텍스트 구분은 상세팝업 pill).
     final orderNumberColor =
         isCancelled || isDone ? AppStyles.gray6 : palette.fg;
     final countColor = isCancelled || isDone ? AppStyles.gray6 : Colors.black;
+    // 취소선은 취소 전용이다. 미픽업까지 그으면 둘을 가르는 신호가 사라진다.
     final showCountStrikethrough = isCancelled;
 
     // 상태별 보더 및 그림자
@@ -130,6 +138,8 @@ class _OrderCardWidgetState extends ConsumerState<OrderCardWidget> {
     switch (status) {
       case OrderStatus.NEW:
         return AppStyles.kMainColor;
+      case OrderStatus.NOT_PICKED_UP:
+        return AppStyles.kNotPickedUp;
       case OrderStatus.PREPARING:
       case OrderStatus.READY:
       case OrderStatus.DONE:

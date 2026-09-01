@@ -384,6 +384,7 @@
         "ready": "ピックアップ",
         "cancelled": "取消",
         "done": "完了",
+        "not_picked_up": "未ピックアップ",
         "type_dine_in": "店内",
         "type_takeout": "持ち帰り",
         "type_both": "複合",

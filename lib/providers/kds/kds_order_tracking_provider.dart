@@ -56,8 +56,12 @@ class KdsOrderTracking extends _$KdsOrderTracking {
         }
       }
 
-      // 2. 완료 탭: 픽업요청(READY) 상태로 처음 진입하거나, 완료(DONE) 처리됐을 때
-      if (status == OrderStatus.READY || status == OrderStatus.DONE) {
+      // 2. 완료 탭: 픽업요청(READY) 상태로 처음 진입하거나, 완료(DONE)/미픽업
+      //    처리됐을 때. 미픽업은 별도 탭이 아니라 완료 탭에 합류하므로 4번째
+      //    분기를 만들지 않고 여기에 넣는다 (탭 합류 결정과 동선을 맞춘다).
+      if (status == OrderStatus.READY ||
+          status == OrderStatus.DONE ||
+          status == OrderStatus.NOT_PICKED_UP) {
         if (!_previousOrderIds.contains(id)) {
           // 완료 탭에 새로 나타남 (이전 상태 추적 안 됨)
           shouldHighlight = true;

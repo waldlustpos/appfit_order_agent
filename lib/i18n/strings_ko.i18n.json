@@ -384,6 +384,7 @@
         "ready": "픽업",
         "cancelled": "취소",
         "done": "완료",
+        "not_picked_up": "미픽업",
         "type_dine_in": "매장",
         "type_takeout": "포장",
         "type_both": "복합",

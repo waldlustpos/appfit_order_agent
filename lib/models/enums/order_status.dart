@@ -5,7 +5,27 @@ enum OrderStatus {
   READY, // 픽업대기 (준비완료)
   DONE, // 완료 (픽업됨)
   CANCELLED, // 취소
+  NOT_PICKED_UP, // 미픽업 (고객이 찾아가지 않아 종결) — 취소와 구분된다
 }
+
+/// 미픽업의 서버 상태 문자열. **가칭 — 서버 스펙 미확정(2026-09).**
+///
+/// 확정되면 이 상수와 [kNotPickedUpServerAliases] 만 고치면 된다.
+/// `ApiService._mapAppFitOrderStatus` 는 [kServerOrderStatus] 를 조회할 뿐이라
+/// 손댈 일이 없다. 상세는 docs/ORDER_NOT_PICKED_UP.md.
+const String kNotPickedUpServerStatus = 'NOT_PICKED_UP';
+
+/// 확정 전 방어 별칭. 매핑표에 없는 값은 CANCELLED 로 떨어지므로, 서버가 다른
+/// 표기를 고르면 **미픽업 주문이 화면에 '취소' 로 보이는 무증상 실패**가 된다.
+/// 앱 배포가 서버 배포보다 늦을 수 있어 미리 받아둔다.
+///
+/// 미픽업 개념에서 벗어나기 어려운 표기로만 제한했다. **확정 즉시 원소 1개로
+/// 줄일 것** — 별칭을 넓게 두면 서버가 다른 뜻으로 쓰는 값을 오매핑한다.
+const Set<String> kNotPickedUpServerAliases = <String>{
+  kNotPickedUpServerStatus,
+  'NOT_PICKUP',
+  'NO_SHOW',
+};
 
 /// 서버 주문 상태 문자열 → [OrderStatus]. **앱 전역 단일 매핑표.**
 ///
@@ -31,6 +51,11 @@ const Map<String, OrderStatus> kServerOrderStatus = <String, OrderStatus>{
   'CANCELED': OrderStatus.CANCELLED,
   'CANCELLED': OrderStatus.CANCELLED,
   'FAILED': OrderStatus.CANCELLED,
+  // 미픽업 — 가칭 + 방어 별칭([kNotPickedUpServerAliases] 와 같은 집합).
+  // const 유지를 위해 펼치지 않고 직접 나열한다.
+  'NOT_PICKED_UP': OrderStatus.NOT_PICKED_UP,
+  'NOT_PICKUP': OrderStatus.NOT_PICKED_UP,
+  'NO_SHOW': OrderStatus.NOT_PICKED_UP,
 };
 
 /// 로컬 전이 후 `OrderModel.orderStatus`(서버 원문 상태 문자열)에 채울 대표값.
@@ -43,10 +68,11 @@ String orderStatusToServer(OrderStatus status) => switch (status) {
       OrderStatus.READY => 'READY',
       OrderStatus.DONE => 'DONE',
       OrderStatus.CANCELLED => 'CANCELLED',
+      OrderStatus.NOT_PICKED_UP => kNotPickedUpServerStatus,
     };
 
 /// 상태 진행도(단조 격자). NEW < PREPARING < READY < DONE.
-/// CANCELLED 는 진행도 비교에서 제외(터미널 분기로 별도 처리).
+/// 터미널 상태([kTerminalStatusPriority])는 진행도 비교에서 제외한다.
 const Map<OrderStatus, int> kOrderStatusProgress = <OrderStatus, int>{
   OrderStatus.NEW: 0,
   OrderStatus.PREPARING: 1,
@@ -54,16 +80,38 @@ const Map<OrderStatus, int> kOrderStatusProgress = <OrderStatus, int>{
   OrderStatus.DONE: 3,
 };
 
+/// 진행도 격자 **밖**의 종결 상태. 앞에 올수록 강하다.
+///
+/// 격자에 넣지 않는 것이 핵심이다 — 넣으면 `kOrderStatusProgress[s] ?? 0` 폴백에
+/// 걸려 NEW 급으로 취급되고, 서버가 stale READY 를 돌려줄 때마다 종결된 주문이
+/// **폴링 주기마다 되살아난다**.
+///
+/// CANCELLED 가 NOT_PICKED_UP 보다 강한 근거:
+/// - 취소는 환불/결제취소를 수반하고 취소 영수증 발행 트리거다. 취소를 미픽업으로
+///   가리면 금전 사실이 화면·영수증에서 사라진다. 반대는 오해를 낳을 뿐 금전
+///   사실은 보존된다 — 비대칭 손실.
+/// - 미픽업 처리 후 클레임으로 환불(NOT_PICKED_UP → CANCELLED)은 현실적이지만
+///   역방향은 성립하지 않는다.
+const List<OrderStatus> kTerminalStatusPriority = <OrderStatus>[
+  OrderStatus.CANCELLED,
+  OrderStatus.NOT_PICKED_UP,
+];
+
 /// 서버 응답과 로컬 상태를 병합할 때 다운그레이드(예: PREPARING→NEW)를 막기 위한 헬퍼.
 ///
 /// 서버 PUT 직후 GET 응답이 구버전을 돌려주는 타이밍에서, 로컬이 이미
 /// 더 진행된 상태라면 서버의 구버전 상태로 덮어쓰지 않는다.
-/// CANCELLED 는 터미널 상태이므로 어느 한쪽이라도 CANCELLED 이면 우선한다.
+/// 터미널 상태는 어느 한쪽에만 있어도 우선하며, 둘 다 터미널이면
+/// [kTerminalStatusPriority] 순서로 이긴다.
+///
+/// **교환법칙을 만족해야 한다** — 이 함수는 `refreshOrders` 에서 `(local, server)`
+/// 로, `OrderSocketManager` 에서 `(order.status, eventStatus)` 로 불린다. 인자
+/// 순서에 결과가 의존하면 폴링과 소켓이 서로를 덮어쓰며 화면이 깜빡인다.
 ///
 /// 순수 함수(ref/state 비의존) — 상태 단조성 불변식의 단일 정의 지점.
 OrderStatus resolveMergedStatus(OrderStatus local, OrderStatus server) {
-  if (server == OrderStatus.CANCELLED || local == OrderStatus.CANCELLED) {
-    return OrderStatus.CANCELLED;
+  for (final terminal in kTerminalStatusPriority) {
+    if (local == terminal || server == terminal) return terminal;
   }
   final lo = kOrderStatusProgress[local] ?? 0;
   final so = kOrderStatusProgress[server] ?? 0;

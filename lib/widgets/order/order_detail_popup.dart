@@ -869,6 +869,7 @@ class _StatusPill extends StatelessWidget {
       OrderStatus.READY => t.order.ready,
       OrderStatus.DONE => t.order.done,
       OrderStatus.CANCELLED => t.order.cancelled,
+      OrderStatus.NOT_PICKED_UP => t.order.not_picked_up,
     };
 
     return Container(

@@ -11,6 +11,7 @@ import 'package:appfit_order_agent/models/order_menu_model.dart';
 import 'package:appfit_order_agent/models/order_model.dart';
 import 'package:appfit_order_agent/models/store_model.dart';
 import 'package:appfit_order_agent/providers/misc_providers.dart';
+import 'package:appfit_order_agent/providers/order/order_computed_providers.dart';
 import 'package:appfit_order_agent/providers/order/order_provider.dart';
 import 'package:appfit_order_agent/providers/order/order_timer_manager.dart';
 import 'package:appfit_order_agent/providers/store_provider.dart';
@@ -539,6 +540,74 @@ void main() {
         h.container.read(orderProvider).orders.single.status,
         OrderStatus.CANCELLED,
       );
+    });
+
+    test('NOT_PICKED_UP 은 터미널 — 서버 stale READY 응답에 부활하지 않는다', () async {
+      // P0 회귀 방지. 미픽업을 진행도 격자에 넣으면 `?? 0` 폴백으로 NEW 급이
+      // 되어, 폴링이 stale READY 를 돌려줄 때마다 픽업대기로 되살아난다.
+      final h = await _buildProvider();
+      h.notifier.queueOrderExternal(
+        _order(orderNo: 'A', status: OrderStatus.NOT_PICKED_UP),
+      );
+      await _wait(450);
+
+      h.api.ordersResponse = [
+        _order(orderNo: 'A', status: OrderStatus.READY),
+      ];
+      await h.notifier.refreshOrders();
+
+      expect(
+        h.container.read(orderProvider).orders.single.status,
+        OrderStatus.NOT_PICKED_UP,
+      );
+    });
+
+    test('CANCELLED 가 NOT_PICKED_UP 보다 강하다 — 환불 사실이 가려지지 않는다', () async {
+      final h = await _buildProvider();
+      h.notifier.queueOrderExternal(
+        _order(orderNo: 'A', status: OrderStatus.NOT_PICKED_UP),
+      );
+      await _wait(450);
+
+      h.api.ordersResponse = [
+        _order(orderNo: 'A', status: OrderStatus.CANCELLED),
+      ];
+      await h.notifier.refreshOrders();
+
+      expect(
+        h.container.read(orderProvider).orders.single.status,
+        OrderStatus.CANCELLED,
+      );
+    });
+  });
+
+  group('(b-2) 미픽업 집계 — 완료 탭 합류, 취소와 분리', () {
+    test('KDS 완료 탭에 DONE 과 함께 뜨고, 취소 탭에는 안 뜬다', () async {
+      final h = await _buildProvider(initialServerOrders: [
+        _order(orderNo: 'D', status: OrderStatus.DONE),
+        _order(orderNo: 'N', status: OrderStatus.NOT_PICKED_UP),
+        _order(orderNo: 'C', status: OrderStatus.CANCELLED),
+      ]);
+      await h.notifier.refreshOrders();
+
+      final tabs = h.container.read(kdsTabOrdersProvider);
+      expect(tabs.completed.map((o) => o.orderId), containsAll(['D', 'N']));
+      expect(tabs.completedCount, 2);
+      // 미픽업이 취소 탭에 섞이면 취소 건수 집계가 오염된다.
+      expect(tabs.cancelled.map((o) => o.orderId), ['C']);
+      expect(tabs.cancelledCount, 1);
+    });
+
+    test('메인 모드 완료 섹션에도 합류한다', () async {
+      final h = await _buildProvider(initialServerOrders: [
+        _order(orderNo: 'N', status: OrderStatus.NOT_PICKED_UP),
+        _order(orderNo: 'R', status: OrderStatus.READY),
+      ]);
+      await h.notifier.refreshOrders();
+
+      final sections = h.container.read(orderStatusOrdersProvider);
+      expect(sections.completedOrders.map((o) => o.orderId), ['N']);
+      expect(sections.pickupedOrders.map((o) => o.orderId), ['R']);
     });
   });
 

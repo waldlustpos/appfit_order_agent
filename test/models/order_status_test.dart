@@ -46,27 +46,117 @@ void main() {
           OrderStatus.CANCELLED);
       expect(resolveMergedStatus(OrderStatus.CANCELLED, OrderStatus.NEW),
           OrderStatus.CANCELLED);
-      expect(
-          resolveMergedStatus(OrderStatus.CANCELLED, OrderStatus.CANCELLED),
+      expect(resolveMergedStatus(OrderStatus.CANCELLED, OrderStatus.CANCELLED),
           OrderStatus.CANCELLED);
     });
 
-    test('진행도 격자 단조성: 모든 (local, server) 쌍에서 결과가 두 입력 중 더 진행된 쪽 (CANCELLED 제외)', () {
+    test('진행도 격자 단조성: 모든 (local, server) 쌍에서 결과가 두 입력 중 더 진행된 쪽 (터미널 제외)', () {
       const progress = kOrderStatusProgress;
-      final nonCancelled = OrderStatus.values
-          .where((s) => s != OrderStatus.CANCELLED)
+      // 터미널 상태는 격자 밖이라 progress 에 없다 — 여기서 걸러내지 않으면
+      // progress[s]! 가 null-check 로 터진다.
+      final nonTerminal = OrderStatus.values
+          .where((s) => !kTerminalStatusPriority.contains(s))
           .toList();
-      for (final local in nonCancelled) {
-        for (final server in nonCancelled) {
+      for (final local in nonTerminal) {
+        for (final server in nonTerminal) {
           final resolved = resolveMergedStatus(local, server);
           final expected =
               (progress[local]! >= progress[server]!) ? local : server;
           expect(resolved, expected,
               reason: 'local=$local server=$server 에서 더 진행된 상태가 채택돼야 함');
           // 결과 진행도는 두 입력의 최대값
-          expect(progress[resolved]!,
-              progress[local]! > progress[server]! ? progress[local] : progress[server]);
+          expect(
+              progress[resolved]!,
+              progress[local]! > progress[server]!
+                  ? progress[local]
+                  : progress[server]);
         }
+      }
+    });
+
+    test('격자 밖 터미널: kOrderStatusProgress 에 터미널 상태가 없어야 한다', () {
+      // 터미널을 격자에 넣으면 `?? 0` 폴백에 걸려 NEW 급으로 취급되고,
+      // 서버 stale 응답에 종결 주문이 폴링마다 되살아난다.
+      for (final terminal in kTerminalStatusPriority) {
+        expect(kOrderStatusProgress.containsKey(terminal), isFalse,
+            reason: '$terminal 은 진행도 격자에 들어가면 안 된다');
+      }
+      // 반대로 격자는 비터미널 상태를 전부 덮어야 한다 (?? 0 폴백 도달 금지).
+      for (final s in OrderStatus.values) {
+        if (kTerminalStatusPriority.contains(s)) continue;
+        expect(kOrderStatusProgress.containsKey(s), isTrue,
+            reason: '$s 는 진행도 격자에 있어야 한다');
+      }
+    });
+  });
+
+  group('resolveMergedStatus — NOT_PICKED_UP 터미널', () {
+    test('미픽업은 진행 상태를 이긴다 — 폴링 stale 응답에 부활하지 않는다 (양방향)', () {
+      // 실제 P0 시나리오: READY → 미픽업 직후 폴링이 stale READY 를 돌려준다.
+      for (final other in [
+        OrderStatus.NEW,
+        OrderStatus.PREPARING,
+        OrderStatus.READY,
+        OrderStatus.DONE,
+      ]) {
+        expect(resolveMergedStatus(OrderStatus.NOT_PICKED_UP, other),
+            OrderStatus.NOT_PICKED_UP,
+            reason: 'local=미픽업 server=$other');
+        expect(resolveMergedStatus(other, OrderStatus.NOT_PICKED_UP),
+            OrderStatus.NOT_PICKED_UP,
+            reason: 'local=$other server=미픽업');
+      }
+    });
+
+    test('취소가 미픽업보다 강하다 — 환불 사실이 가려지면 안 된다 (양방향)', () {
+      expect(
+          resolveMergedStatus(OrderStatus.CANCELLED, OrderStatus.NOT_PICKED_UP),
+          OrderStatus.CANCELLED);
+      expect(
+          resolveMergedStatus(OrderStatus.NOT_PICKED_UP, OrderStatus.CANCELLED),
+          OrderStatus.CANCELLED);
+    });
+
+    test('교환법칙: 모든 쌍에서 f(a,b) == f(b,a)', () {
+      // 폴링은 (local, server), 소켓은 (order.status, eventStatus) 로 부른다.
+      // 인자 순서에 결과가 의존하면 두 경로가 서로를 덮어쓰며 화면이 깜빡인다.
+      for (final a in OrderStatus.values) {
+        for (final b in OrderStatus.values) {
+          expect(resolveMergedStatus(a, b), resolveMergedStatus(b, a),
+              reason: 'a=$a b=$b 에서 교환법칙이 깨졌다');
+        }
+      }
+    });
+  });
+
+  group('서버 상태 문자열 매핑표', () {
+    test('kServerOrderStatus — 서버 어휘가 전부 매핑된다', () {
+      expect(kServerOrderStatus['PENDING'], OrderStatus.NEW);
+      expect(kServerOrderStatus['NEW'], OrderStatus.NEW);
+      expect(kServerOrderStatus['ACCEPTED'], OrderStatus.PREPARING);
+      expect(kServerOrderStatus['PREPARING'], OrderStatus.PREPARING);
+      expect(kServerOrderStatus['READY'], OrderStatus.READY);
+      expect(kServerOrderStatus['PICKUP_REQUESTED'], OrderStatus.READY);
+      expect(kServerOrderStatus['DONE'], OrderStatus.DONE);
+      expect(kServerOrderStatus['COMPLETED'], OrderStatus.DONE);
+      expect(kServerOrderStatus['CANCELED'], OrderStatus.CANCELLED);
+      expect(kServerOrderStatus['CANCELLED'], OrderStatus.CANCELLED);
+      expect(kServerOrderStatus['FAILED'], OrderStatus.CANCELLED);
+    });
+
+    test('미픽업 가칭 별칭이 전부 NOT_PICKED_UP 으로 매핑된다', () {
+      // 서버 스펙 확정 전 방어. 별칭이 빠지면 미픽업이 '취소' 로 보인다.
+      for (final alias in kNotPickedUpServerAliases) {
+        expect(kServerOrderStatus[alias], OrderStatus.NOT_PICKED_UP,
+            reason: '별칭 $alias 가 매핑표에 없다');
+      }
+      expect(kNotPickedUpServerAliases, contains(kNotPickedUpServerStatus));
+    });
+
+    test('orderStatusToServer 는 매핑표로 왕복한다', () {
+      for (final s in OrderStatus.values) {
+        expect(kServerOrderStatus[orderStatusToServer(s)], s,
+            reason: '$s 의 대표 문자열이 매핑표에서 자기 자신으로 돌아오지 않는다');
       }
     });
   });

@@ -388,6 +388,7 @@
         "ready": "Pickup",
         "cancelled": "Cancelled",
         "done": "Done",
+        "not_picked_up": "Not Picked Up",
         "type_dine_in": "Dine-in",
         "type_takeout": "Takeout",
         "type_both": "Both",

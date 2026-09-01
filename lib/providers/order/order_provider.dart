@@ -579,6 +579,7 @@ class Order extends _$Order {
         case OrderStatus.READY:
         case OrderStatus.DONE:
         case OrderStatus.CANCELLED:
+        case OrderStatus.NOT_PICKED_UP:
           // 접수(PREPARING) 상태 유입 시의 알림/출력. 두 경우에만 연다:
           //   ① KDS 모드 — 다른 기기가 접수한 주문을 주방 화면이 받아 출력하는 축
           //   ② 생성 시점부터 PREPARING 인 주문(NICE_KIOSK 류) — 모드 무관
@@ -1790,7 +1791,10 @@ class Order extends _$Order {
   ) {
     // 종결 상태 전이는 replication lag 대응 캐시에 등록.
     // 폴링이 stale 응답으로 active 상태를 돌려줘도 부활을 차단한다.
-    if (newStatus == OrderStatus.DONE || newStatus == OrderStatus.CANCELLED) {
+    // kTerminalStatusPriority 로 판정해야 새 종결 상태(미픽업 등)를 추가할 때
+    // 여기를 빠뜨리지 않는다 — resolveMergedStatus 와 같은 목록을 본다.
+    if (newStatus == OrderStatus.DONE ||
+        kTerminalStatusPriority.contains(newStatus)) {
       _recentRemovals.mark(orderId);
     }
     // Find the order in the *current state* to update it
