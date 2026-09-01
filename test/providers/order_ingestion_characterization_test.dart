@@ -6,7 +6,6 @@ import 'dart:async';
 import 'package:appfit_order_agent/constants/order_constants.dart';
 import 'package:appfit_order_agent/core/orders/alert_manager.dart';
 import 'package:appfit_order_agent/core/orders/sound_service.dart';
-import 'package:appfit_order_agent/exceptions/api_exceptions.dart';
 import 'package:appfit_order_agent/models/force_bulk_done_model.dart';
 import 'package:appfit_order_agent/models/order_menu_model.dart';
 import 'package:appfit_order_agent/models/order_model.dart';
@@ -22,6 +21,8 @@ import 'package:appfit_order_agent/services/output_queue_service.dart';
 import 'package:appfit_order_agent/services/preference_service.dart';
 import 'package:appfit_order_agent/services/print_service.dart';
 import 'package:appfit_order_agent/services/soundgraph_hook.dart';
+import 'package:appfit_order_agent/utils/socket_event_suppressor.dart';
+import 'package:appfit_core/appfit_core.dart' as appfit_core;
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -130,21 +131,6 @@ class _FakeApiService implements ApiService {
     final err = forceThrows;
     if (err != null) throw err;
     return forceResponse ?? _forceAllSuccess(orderNos);
-  }
-
-  /// markOrderNotPickedUp 호출 기록 / 스크립트.
-  final List<String> notPickedUpCalls = [];
-  bool notPickedUpResult = true;
-
-  /// 던질 예외. 서버 미배포 404 는 ApiException 으로 올라온다.
-  Object? notPickedUpThrows;
-
-  @override
-  Future<bool> markOrderNotPickedUp(String orderId) async {
-    notPickedUpCalls.add(orderId);
-    final err = notPickedUpThrows;
-    if (err != null) throw err;
-    return notPickedUpResult;
   }
 
   @override
@@ -1055,15 +1041,24 @@ void main() {
     });
   });
 
-  group('(g-2) markOrderNotPickedUp — READY 주문 미픽업 종결', () {
-    test('READY 주문이 NOT_PICKED_UP 이 되고 orderId 로 요청한다', () async {
+  group('(g-2) 미픽업 종결 — updateOrderStatus 경로 흡수', () {
+    // 서버 스펙 확정으로 미픽업은 전용 엔드포인트가 아니라 기존
+    // `PUT /v0/order/{orderNo}` + `action: NO_SHOW` 를 탄다. 그래서 전용 provider
+    // 메서드를 없애고 updateOrderStatus 로 흡수했다 — in-flight 락, 멱등 조기반환,
+    // 예외 rethrow 는 (f) 그룹이 이미 상태 무관하게 고정하고 있으므로
+    // 여기서는 **미픽업 고유 성질**만 남긴다.
+
+    test('READY 주문이 NOT_PICKED_UP 으로 전이하고 그 상태로 요청된다', () async {
       final a = _order(orderNo: 'A', status: OrderStatus.READY);
       final h = await _buildProvider(initialServerOrders: [a]);
       await h.notifier.refreshOrders();
 
-      expect(await h.notifier.markOrderNotPickedUp(a), isTrue);
+      expect(
+        await h.notifier.updateOrderStatus(a, OrderStatus.NOT_PICKED_UP),
+        isTrue,
+      );
 
-      expect(h.api.notPickedUpCalls, ['A']);
+      expect(h.api.statusUpdates, contains(('A', OrderStatus.NOT_PICKED_UP)));
       expect(h.container.read(orderProvider).orders.single.status,
           OrderStatus.NOT_PICKED_UP);
     });
@@ -1077,7 +1072,7 @@ void main() {
       final a = _order(orderNo: 'A', status: OrderStatus.READY);
       final h = await _buildProvider(initialServerOrders: [a]);
       await h.notifier.refreshOrders();
-      await h.notifier.markOrderNotPickedUp(a);
+      await h.notifier.updateOrderStatus(a, OrderStatus.NOT_PICKED_UP);
 
       // replication lag: 폴링이 아직 READY 인 구버전을 돌려준다.
       h.api.ordersResponse = [_order(orderNo: 'A', status: OrderStatus.READY)];
@@ -1089,41 +1084,32 @@ void main() {
     });
 
     test('이미 미픽업이면 API 를 다시 치지 않는다 (왕복 절약)', () async {
+      // 전용 메서드의 `status == NOT_PICKED_UP` 조기반환을 흡수 후에도 잃지
+      // 않는지 — updateOrderStatus 의 범용 `status == newStatus` 가 대신한다.
       final a = _order(orderNo: 'A', status: OrderStatus.NOT_PICKED_UP);
       final h = await _buildProvider(initialServerOrders: [a]);
       await h.notifier.refreshOrders();
 
-      expect(await h.notifier.markOrderNotPickedUp(a), isTrue);
-      expect(h.api.notPickedUpCalls, isEmpty);
-    });
-
-    test('서버 미배포 404(ApiException)는 삼키지 않고 호출부로 rethrow 한다', () async {
-      // 상세팝업이 서버 메시지를 그대로 다이얼로그에 띄우려면 예외가 올라와야 한다.
-      final a = _order(orderNo: 'A', status: OrderStatus.READY);
-      final h = await _buildProvider(initialServerOrders: [a]);
-      await h.notifier.refreshOrders();
-      h.api.notPickedUpThrows =
-          ApiException('미픽업 처리에 실패했습니다. (서버 미지원일 수 있습니다)');
-
-      await expectLater(
-        () => h.notifier.markOrderNotPickedUp(a),
-        throwsA(isA<ApiException>()),
+      expect(
+        await h.notifier.updateOrderStatus(a, OrderStatus.NOT_PICKED_UP),
+        isTrue,
       );
-      // 상태는 그대로 READY 여야 한다 — 실패했는데 낙관적으로 옮기면 안 된다.
-      expect(h.container.read(orderProvider).orders.single.status,
-          OrderStatus.READY);
+      expect(h.api.statusUpdates, isEmpty);
     });
 
-    test('예외로 끝나도 락이 풀려 다시 시도할 수 있다', () async {
+    test('소켓 이벤트를 억제하지 않는다 — 서버가 미픽업 이벤트를 발행하지 않는다', () async {
+      // expectedEventType 이 `_ => null` 로 떨어지는 것이 정본이다.
+      // 억제를 걸면 TTL 동안 타 기기의 진짜 이벤트까지 삼킨다.
       final a = _order(orderNo: 'A', status: OrderStatus.READY);
       final h = await _buildProvider(initialServerOrders: [a]);
       await h.notifier.refreshOrders();
-      h.api.notPickedUpThrows = StateError('boom');
 
-      expect(await h.notifier.markOrderNotPickedUp(a), isFalse);
-      expect(await h.notifier.markOrderNotPickedUp(a), isFalse);
+      await h.notifier.updateOrderStatus(a, OrderStatus.NOT_PICKED_UP);
 
-      expect(h.api.notPickedUpCalls.length, 2);
+      for (final type in appfit_core.OrderEventType.values) {
+        expect(SocketEventSuppressor().shouldIgnore('A', type.value), isFalse,
+            reason: '${type.value} 가 억제 등록되면 안 된다');
+      }
     });
   });
 

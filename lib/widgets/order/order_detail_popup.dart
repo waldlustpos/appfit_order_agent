@@ -777,32 +777,30 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
     // 그래서 _handleStatusUpdate 를 쓴다: 성공하면 팝업을 닫고, 카드가 완료
     // 섹션/탭으로 옮겨가는 것 자체가 성공 신호라 별도 성공 다이얼로그가 없다.
     //
-    // 서버 엔드포인트가 아직 없다 — 지금 누르면 404 가 나고 서버 메시지(또는
-    // 기본 문구)가 에러 다이얼로그로 뜬다. 의도된 동작이다.
+    // 확인 다이얼로그는 유지한다 — 되돌릴 수 없는 종결 처리라서
+    // 픽업요청/주문완료(즉시 실행)와 다르게 한 번 묻는다.
     Future<void> markNotPickedUp() async {
-      final currentOrder = ref.read(orderDetailProvider).order;
-      if (currentOrder == null) return;
-      final orderInfo = 'displayNum=${currentOrder.displayNum}, '
-          'simpleNum=${currentOrder.shopOrderNo}, orderId=${currentOrder.orderId}';
-      logToFile(tag: LogTag.UI_ACTION, message: '미픽업 처리 버튼: $orderInfo');
+      logToFile(
+          tag: LogTag.UI_ACTION,
+          message: '미픽업 처리 버튼: displayNum=${order.displayNum}, '
+              'simpleNum=${order.shopOrderNo}, orderId=${order.orderId}');
 
       final confirmed = await CommonDialog.showConfirmDialog(
         context: context,
         title: t.order_detail.dialog_not_picked_up_confirm_title,
         content: t.order_detail
-            .dialog_not_picked_up_confirm_content(n: currentOrder.displayNum),
+            .dialog_not_picked_up_confirm_content(n: order.displayNum),
         confirmText: t.common.confirm,
         cancelText: t.common.cancel,
       );
       if (confirmed != true || !mounted) return;
 
       await _handleStatusUpdate(
-        () =>
-            ref.read(orderProvider.notifier).markOrderNotPickedUp(currentOrder),
+        () => _updateOrderStatus(OrderStatus.NOT_PICKED_UP),
         'not_picked_up',
-        // 여러 주문이 같은 문구로 실패(미배포 404)하면 기본 dedupe 가 두 번째부터
+        // 여러 주문이 같은 문구로 실패하면 기본 dedupe(title+content)가 두 번째부터
         // 삼킨다 — 주문별로 분리한다.
-        dedupeKey: 'not_picked_up_fail_${currentOrder.orderId}',
+        dedupeKey: 'not_picked_up_fail_${order.orderId}',
       );
     }
 

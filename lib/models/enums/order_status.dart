@@ -8,23 +8,27 @@ enum OrderStatus {
   NOT_PICKED_UP, // 미픽업 (고객이 찾아가지 않아 종결) — 취소와 구분된다
 }
 
-/// 미픽업의 서버 상태 문자열. **가칭 — 서버 스펙 미확정(2026-09).**
+/// 미픽업 주문의 **조회 응답 상태 문자열**.
+///
+/// 요청 어휘인 action(`OrderAction.NO_SHOW`)과는 별개 축이다 — 서버가 둘을 다른
+/// 단어로 쓰는 전례가 있다(`ACCEPT`→`ACCEPTED`). action 은 `NO_SHOW` 로
+/// **확정**됐고, 조회 응답 status 가 같은 단어인지는 **스테이징 실측 대기**다.
 ///
 /// 확정되면 이 상수와 [kNotPickedUpServerAliases] 만 고치면 된다.
 /// `ApiService._mapAppFitOrderStatus` 는 [kServerOrderStatus] 를 조회할 뿐이라
 /// 손댈 일이 없다. 상세는 docs/ORDER_NOT_PICKED_UP.md.
-const String kNotPickedUpServerStatus = 'NOT_PICKED_UP';
+const String kNotPickedUpServerStatus = 'NO_SHOW';
 
-/// 확정 전 방어 별칭. 매핑표에 없는 값은 CANCELLED 로 떨어지므로, 서버가 다른
-/// 표기를 고르면 **미픽업 주문이 화면에 '취소' 로 보이는 무증상 실패**가 된다.
-/// 앱 배포가 서버 배포보다 늦을 수 있어 미리 받아둔다.
+/// 실측 전 방어 별칭. 매핑표에 없는 값은 CANCELLED 로 떨어지므로, 응답 status 가
+/// action 과 다른 단어면 **미픽업 주문이 화면에 '취소' 로 보이는 무증상 실패**가
+/// 된다. 그 사고는 화면만 봐서는 알 수 없다.
 ///
-/// 미픽업 개념에서 벗어나기 어려운 표기로만 제한했다. **확정 즉시 원소 1개로
-/// 줄일 것** — 별칭을 넓게 두면 서버가 다른 뜻으로 쓰는 값을 오매핑한다.
+/// **스테이징 실측 후 원소 1개로 줄일 것.** 판정은 화면이 아니라 로그로 한다 —
+/// 별칭이 먹으면 화면은 정상으로 보이고, 미매핑일 때만
+/// `알 수 없는 주문 상태` 경고가 뜬다.
 const Set<String> kNotPickedUpServerAliases = <String>{
   kNotPickedUpServerStatus,
-  'NOT_PICKUP',
-  'NO_SHOW',
+  'NOT_PICKED_UP',
 };
 
 /// 서버 주문 상태 문자열 → [OrderStatus]. **앱 전역 단일 매핑표.**
@@ -51,11 +55,10 @@ const Map<String, OrderStatus> kServerOrderStatus = <String, OrderStatus>{
   'CANCELED': OrderStatus.CANCELLED,
   'CANCELLED': OrderStatus.CANCELLED,
   'FAILED': OrderStatus.CANCELLED,
-  // 미픽업 — 가칭 + 방어 별칭([kNotPickedUpServerAliases] 와 같은 집합).
+  // 미픽업 — 정본 + 실측 전 방어 별칭([kNotPickedUpServerAliases] 와 같은 집합).
   // const 유지를 위해 펼치지 않고 직접 나열한다.
-  'NOT_PICKED_UP': OrderStatus.NOT_PICKED_UP,
-  'NOT_PICKUP': OrderStatus.NOT_PICKED_UP,
   'NO_SHOW': OrderStatus.NOT_PICKED_UP,
+  'NOT_PICKED_UP': OrderStatus.NOT_PICKED_UP,
 };
 
 /// 로컬 전이 후 `OrderModel.orderStatus`(서버 원문 상태 문자열)에 채울 대표값.
