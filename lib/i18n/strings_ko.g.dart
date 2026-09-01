@@ -1218,9 +1218,9 @@ class Translations$settings$label_printer$ko {
   /// ko: '라벨 프린터 사용'
   String get title => '라벨 프린터 사용';
 
-  /// ko: 'USB 연결된 라벨 프린터를 사용합니다. (50mm x 70mm) 지원 모델: REXOD RXLA-561, BIXOLON XD5-40d'
+  /// ko: 'USB 연결된 라벨 프린터를 사용합니다. 지원 모델: REXOD RXLA-561 (50mm x 70mm), BIXOLON G30 (40/58mm 연속용지)'
   String get desc =>
-      'USB 연결된 라벨 프린터를 사용합니다. (50mm x 70mm)\n지원 모델: REXOD RXLA-561, BIXOLON XD5-40d';
+      'USB 연결된 라벨 프린터를 사용합니다.\n지원 모델: REXOD RXLA-561 (50mm x 70mm), BIXOLON G30 (40/58mm 연속용지)';
 }
 
 // Path: settings.label_qr

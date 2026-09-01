@@ -74,7 +74,6 @@
 }
 -keep class co.kr.waldlust.order.receive.overlay.OverlayHelper { *; }
 -keep class co.kr.waldlust.order.receive.util.print.LabelPrinter { *; }
--keep class co.kr.waldlust.order.receive.util.print.BixolonLabelDriver { *; }
 -keep class co.kr.waldlust.order.receive.util.print.SunmiPrintHelper { *; }
 -keep class co.kr.waldlust.order.receive.OrderAgentService { *; }
 
@@ -101,7 +100,15 @@
 -keep class com.lvrenyang.** { *; }
 -dontwarn com.lvrenyang.**
 
-# BIXOLON Label SDK (XD5-40d)
+# BIXOLON 공용 라이브러리 - G30(UPOS)이 물고 있다. XD5-40d 지원 종료 후에도 남는다.
+# 실제 커버 대상은 두 개뿐이다 (com.bixolon.labelprinter 는 jar 와 함께 삭제됨):
+#   com.bixolon.commonlib - libcommon jar. UPOS jar 24개 클래스가 참조.
+#   com.bixolon.pdflib     - 우리 스텁. POSPrinterBaseService.validateDevice() 가
+#                            참조하는데 그 catch (Exception) 은 NoClassDefFoundError 를
+#                            못 잡는다 -> shrink 되면 G30 connect 경로에서 크래시.
+# -dontwarn 도 별도로 load-bearing: UPOS jar 가 스텁에 없는 pdflib 멤버를 참조한다.
+# 지우면 debug 는 멀쩡하고 release 에서만 G30 이 죽는다. 좁히려면 release 빌드 +
+# G30 실기기 스모크를 먼저 통과시킬 것.
 -keep class com.bixolon.** { *; }
 -dontwarn com.bixolon.**
 

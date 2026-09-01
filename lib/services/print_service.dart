@@ -31,7 +31,8 @@ class PrinterStatus {
   final bool isExternalConnected;
   final bool isLabelConnected;
 
-  /// 연결된 라벨 프린터 기종명 (예: 'BIXOLON XD5-40d'). 미연결/미식별이면 null.
+  /// 연결된 라벨 프린터 기종명 (예: 'BIXOLON G30', 'REXOD RXLA-561').
+  /// 미연결/미식별이면 null.
   final String? labelPrinterModel;
 
   PrinterStatus({
@@ -61,13 +62,17 @@ class PrinterStatus {
 /// 문자열을 여기저기 새로 쓰지 말고 항상 이 상수를 참조할 것.
 const String kBixolonG30ModelName = 'BIXOLON G30';
 
-/// 라벨 프린터 VID/PID → 사용자 표시용 기종명.
-/// LabelPrinter.java / BixolonLabelDriver.java / BixolonPosDriver.java 화이트리스트와 동기 유지.
+/// 라벨 프린터 VID/PID → 사용자 표시용 기종명. 지원 대상이 아니면 null.
+/// LabelPrinter.java / BixolonPosDriver.java 화이트리스트와 동기 유지.
 ///
-/// BIXOLON 은 XD5-40d(Label SDK)와 G30(UPOS SDK)이 VID 0x1504 를 공유해 PID로
-/// 갈라야 한다. G30 PID 는 실기기로 확인됨(0x0147) — Android
-/// `BixolonPosDriver.KNOWN_PRODUCT_IDS` 와 동기 유지. [productName] "G30" 부분일치는
-/// PID 미매칭 개체(리퍼브/다른 로트)를 위한 보조 판정.
+/// BIXOLON 은 VID 0x1504 만으로는 G30 을 확정하지 못한다 — PID 로 가른다.
+/// G30 PID 는 실기기로 확인됨(0x0147) — Android `BixolonPosDriver.KNOWN_PRODUCT_IDS`
+/// 와 동기 유지. [productName] "G30" 부분일치는 PID 미매칭 개체(리퍼브/다른 로트)를
+/// 위한 보조 판정.
+///
+/// ★ 둘 다 안 맞는 0x1504 기기는 **의도적으로 null**(미식별)이다. XD5-40d 지원 종료로
+/// 폴백 대상이 사라졌다 — 넓혀서 G30 으로 몰면 UPOS 로 구동하다 실패해 원인이 흐려진다.
+/// 새 BIXOLON 개체를 지원하려면 그 PID 를 여기와 `KNOWN_PRODUCT_IDS` 양쪽에 추가할 것.
 String? labelPrinterModelName({
   required int vendorId,
   required int productId,
@@ -81,7 +86,6 @@ String? labelPrinterModelName({
     if (productName != null && productName.toUpperCase().contains('G30')) {
       return kBixolonG30ModelName;
     }
-    return 'BIXOLON XD5-40d';
   }
   return null;
 }
@@ -432,29 +436,30 @@ class PrintService {
 
           String identification = '';
 
-          // 1. 라벨 프린터 식별 (LabelPrinter.java / BixolonLabelDriver.java /
-          //    BixolonPosDriver.java 와 동기화)
-          // VID:0x4B43(19267), PID:0x3538(13624)  Caysn D2
-          // VID:0x4B43(19267), PID:0x3830(14384)  Caysn D3
-          // VID:0x0FE6(4070),  PID:0x811E(33054)  REXOD RXLA-561 (운영 모델)
-          // VID:0x1504(5380)                      BIXOLON (VID-only 매칭 — XD5-40d 실기기
-          //   PID:0x0106(262) 확인, G30 은 PID 미확인. 타 BIXOLON 라벨 기종 호환 위해
-          //   VID-only 유지하고 기종 구분은 표시명(labelPrinterModelName)에서만 한다.)
+          // 1. 라벨 프린터 식별 — 화이트리스트는 [labelPrinterModelName] 하나뿐이다
+          //    (LabelPrinter.java / BixolonPosDriver.java 와 동기화).
+          //    Caysn D2 · Caysn D3 · REXOD RXLA-561(운영 모델) · BIXOLON G30.
+          //
+          // 조건을 여기에 복제하지 않는 이유: "연결됨" 판정과 기종 판정이 갈라지면
+          // 미식별 0x1504 기기가 **연결됨으로 표시되면서 인쇄는 전부 실패**하는 상태가
+          // 된다. 그러면 매장은 UI 를 믿고 프린터가 아니라 앱/서버를 의심한다.
+          // "연결 안 됨" 이 즉시 올바른 곳(케이블/기종)을 가리킨다.
+          //
           // 주의: 범용 USB-Serial 칩(PL2303 0x067B:0x2303 등) 은 넣지 말 것 —
           // 외부 ESC/POS 영수증 프린터를 라벨로 오인한다. (Windows 후보와 동일.)
-          bool isKnownLabelPrinter = (vendorId == 0x4B43 &&
-                  (productId == 0x3538 || productId == 0x3830)) ||
-              (vendorId == 0x0FE6 && productId == 0x811E) ||
-              (vendorId == 0x1504);
+          // 주의: Android `device_filter.xml` 은 여기와 달리 0x1504 를 VID-only 로
+          // 등록한다 — 그건 attach 권한 승계 경로라 목적이 다르다. 같이 조이지 말 것.
+          // 루프 밖 [labelModel] 은 누적값이다 — 뒤따르는 비-라벨 장치가 지우지
+          // 않도록 지역 변수로 받아 식별된 경우에만 올린다.
+          final detectedModel = labelPrinterModelName(
+              vendorId: vendorId,
+              productId: productId,
+              productName: device['productName'] as String?);
 
-          if (isKnownLabelPrinter) {
+          if (detectedModel != null) {
             isLabelConnected = true;
-            labelModel = labelPrinterModelName(
-                vendorId: vendorId,
-                productId: productId,
-                productName: device['productName'] as String?);
-            identification =
-                ' [라벨 프린터 식별됨${labelModel != null ? ' $labelModel' : ''}]'
+            labelModel = detectedModel;
+            identification = ' [라벨 프린터 식별됨 $detectedModel]'
                 ' VID:$vendorId / PID:$productId';
           }
           // 2. 외부 영수증 프린터 식별
@@ -599,7 +604,8 @@ class PrintService {
       // 취식구분 앞 출처 태그([APP]/[KIOSK]) 노출 여부 — '키오스크 주문 주문서 및
       // 알림소리' 설정을 그대로 재사용한다. 내장(Sunmi Java)/외부(Dart ESC-POS) 양쪽이
       // 이 플래그를 JSON payload 에서 읽는다.
-      orderMap['showOrderSourceTag'] = _preferenceService.getKioskPrintAndSound();
+      orderMap['showOrderSourceTag'] =
+          _preferenceService.getKioskPrintAndSound();
       final orderJson = jsonEncode(orderMap);
 
       // 캐시된 설정값이 없는 경우에만 로드

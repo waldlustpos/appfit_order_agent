@@ -9,7 +9,10 @@
     <usb-device vendor-id="4070" product-id="33054" />
     <!-- VID:0x067B, PID:0x2303 -->
     <usb-device vendor-id="1659" product-id="8963" />
-    <!-- VID:0x1504 BIXOLON - VID-only 매칭 (XD5-40d 실기기 PID:0x0106(262) 확인,
-         타 BIXOLON 라벨 기종 호환 위해 의도적으로 조이지 않음) -->
+    <!-- VID:0x1504 BIXOLON G30 (실기기 PID:0x0147 확인) - 여기는 의도적으로 VID-only.
+         이 필터는 attach 권한 승계 경로이고 BixolonPosDriver 가 그것에 의존한다.
+         드라이버 선택(BixolonPosDriver.isG30Attached)과 Dart 표시 판정
+         (print_service.dart labelPrinterModelName)은 PID/제품명까지 보는 좁은 조건이며,
+         목적이 다르므로 서로 갈라져 있는 것이 정상이다. 여기를 같이 조이지 말 것. -->
     <usb-device vendor-id="5380" />
 </resources>

@@ -208,12 +208,9 @@ public class MainActivity extends FlutterActivity {
                         receiptPrinter.onUsbDetached(device);
                     }
                     if (device != null) {
-                        // BIXOLON 라벨 프린터 분리 — 논블로킹 (내부에서 VID 확인).
-                        // G30/XD5 모두 VID 0x1504 를 공유하므로 두 드라이버 모두 통지한다 —
-                        // 각자 내부에서 자기 것이 아니면 no-op.
+                        // BIXOLON G30 라벨 프린터 분리 — 논블로킹 (내부에서 VID 확인,
+                        // 자기 것이 아니면 no-op).
                         co.kr.waldlust.order.receive.util.print.BixolonPosDriver
-                                .onUsbDetached(device);
-                        co.kr.waldlust.order.receive.util.print.BixolonLabelDriver
                                 .onUsbDetached(device);
                     }
                 }
@@ -450,7 +447,6 @@ public class MainActivity extends FlutterActivity {
             SunmiPrintHelper.getInstance().initSunmiPrinterService(this);
         }
         co.kr.waldlust.order.receive.util.print.LabelPrinter.init(this);
-        co.kr.waldlust.order.receive.util.print.BixolonLabelDriver.init(this);
         co.kr.waldlust.order.receive.util.print.BixolonPosDriver.init(this);
     }
 

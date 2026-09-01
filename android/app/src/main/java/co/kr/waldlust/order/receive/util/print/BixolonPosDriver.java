@@ -20,15 +20,15 @@ import co.kr.waldlust.order.receive.MainActivity;
 /**
  * BIXOLON G30 라벨 프린터 드라이버 (USB 전용).
  *
- * <p>★ G30 은 {@link BixolonLabelDriver}(XD5-40d)와 <b>같은 SDK 계열이 아니다.</b> BIXOLON 이
- * G30 에 배포하는 것은 Label SDK(SLCS) 가 아니라 <b>UPOS/JavaPOS SDK</b>
+ * <p>★ 이 드라이버는 {@link LabelPrinter}(Caysn/REXOD)와 <b>공유하는 코드가 없다.</b> BIXOLON 이
+ * G30 에 배포하는 것은 라벨 명령셋(SLCS) 이 아니라 <b>UPOS/JavaPOS SDK</b>
  * (V2.2.10, {@code com.bxl.**} / {@code jpos.**})이고, {@code PRODUCT_NAME_G30 = "G30"} 이
  * {@link BXLConfigLoader} 에 POS 프린터 카테고리로 등록돼 있다. 연결·인쇄·상태조회 API 가
- * 전부 다르므로 XD5 드라이버를 상속/재사용하지 않고 새로 작성한다.
+ * 전부 다르므로 기존 라벨 드라이버를 상속/재사용하지 않고 새로 작성했다.
  *
- * <p>용지도 다르다 — XD5-40d 는 갭 라벨(고정 크기 낱장 + 갭센서 + 피러 떼기대기)이지만
+ * <p>용지도 다르다 — Caysn/REXOD 는 갭 라벨(고정 크기 낱장 + 갭센서 + 피러 떼기대기)이지만
  * G30 은 <b>연속 용지</b>(가로 고정 + 세로 무제한, 커터로 장 구분)다. 그래서 이 드라이버에는
- * 떼기대기(PAUSED_IN_PEELER)나 상태 byte variant 학습 같은 XD5 특유 로직이 전혀 없다 —
+ * 떼기대기(PAUSED_IN_PEELER)나 상태 byte variant 학습 같은 갭 라벨 특유 로직이 전혀 없다 —
  * 존재하지 않는 상태를 흉내내면 영원히 안 풀리는 대기가 된다.
  *
  * <p><b>UPOS 동기 모드의 완료 판정</b>: {@code setAsyncMode(false)} 로 열면 JavaPOS 표준상
@@ -48,7 +48,8 @@ import co.kr.waldlust.order.receive.MainActivity;
  *   <li>flush 단계({@code transactionPrint(NORMAL)})에서 예외 → 전송 여부 불명 →
  *       {@code getCoverOpen()} 재조회로 2차 판별. 응답하면 연결이 살아있다는 뜻이므로
  *       submit-wins(true) — false 를 주면 Dart 재시도가 같은 라벨을 한 장 더 발사한다
- *       (Caysn 745번 2장 사고, XD5 {@code endTransactionPrint=-1} 처리와 동일 뿌리).
+ *       (Caysn 745번 2장 사고, 구 XD5-40d 드라이버의 {@code endTransactionPrint=-1}
+ *       처리와 동일 뿌리).
  *       조회도 실패하면 연결 자체가 죽은 것으로 보고 재시도 위임(false).</li>
  * </ul>
  *
@@ -58,7 +59,7 @@ import co.kr.waldlust.order.receive.MainActivity;
 public class BixolonPosDriver {
     private static final String TAG = "BixolonPosDriver";
 
-    /** BIXOLON vendor id (0x1504 = 5380). XD5-40d 와 동일 — device_filter.xml 은 VID-only. */
+    /** BIXOLON vendor id (0x1504 = 5380). device_filter.xml 은 이 VID 를 PID 없이 등록한다. */
     public static final int BIXOLON_VENDOR_ID = 0x1504;
 
     /**
@@ -72,11 +73,27 @@ public class BixolonPosDriver {
     private static final String LOGICAL_NAME = "G30";
 
     /**
-     * 사전 이진화 임계값 — XD5-40d 와 동일 근거(SDK 자체 이진화 신뢰 불가, 얇은 요소 소실).
-     * {@link BixolonLabelDriver#binarizeForPrint} 를 그대로 재사용한다(값 자체는 그쪽 상수가
-     * 진실의 근원 — 여기서 별도로 유지하지 않는다).
+     * 사전 이진화 임계값 (luminance &lt; threshold → 검정). {@link #binarizeForPrint} 와
+     * {@code printBitmap} 의 level 인자가 함께 쓴다.
+     *
+     * <p>SDK 자체 이진화에 맡기지 않는 근거(구 XD5-40d 드라이버에서 계승, 실기기 검증):
+     * SDK level 이진화는 임계가 낮게 동작해 AA 로 회색화된 얇은 글자·1px 구분선·
+     * black26 구분자(흰 배경 합성 시 ≈189)가 소실됐다(순흑 로고/큰 글자만 선명).
+     * Java 에서 결정론적으로 이진화해 Caysn thresholding 출력과 시각 동등을 맞춘다.
+     *
+     * <p>값 근거: 라벨 팔레트의 가장 밝은 잉크가 black26(≈189) 이므로 그보다 높게,
+     * 흰 배경(255) 과는 여유를 두고 210. 출력이 너무 두꺼우면 낮추고 얇은 요소가
+     * 빠지면 올린다.
+     *
+     * <p>★ 조정 시 (0,255) 를 벗어나지 말 것 — 같은 상수를 SDK {@code printBitmap} 의
+     * level 인자로도 넘기고 있다. 사전 이진화 후 픽셀이 순흑/순백뿐이라 그 인자는
+     * 실질적으로 무의미하지만, 극단값은 SDK 쪽 의미론을 깨울 수 있다.
+     *
+     * <p>★ 이 값의 근거가 레포에 남은 <b>유일한 사본</b>이다. Windows 쪽 복제본 2곳
+     * (구 {@code label_bmp_converter.dart} / {@code bxllapi_constants.dart})은 XD5-40d
+     * 지원 종료와 함께 삭제됐다 — BXLPAPI 이식 시 재유도하지 말고 이 값을 가져갈 것.
      */
-    private static final int PRINT_THRESHOLD = 210;
+    private static final int BINARIZE_THRESHOLD = 210;
 
     /**
      * 전송폭 상한 — **헤드 물리 최대폭**(getRecLineWidth() 보고값 576dot ≈ 72mm)이다.
@@ -112,7 +129,7 @@ public class BixolonPosDriver {
     private static volatile boolean sConnected = false;
 
     /**
-     * USB detach 통지 플래그. {@link BixolonLabelDriver#sDetachRequested} 와 동일 근거 —
+     * USB detach 통지 플래그 (구 XD5-40d 드라이버에서 계승한 근거) —
      * printBitmap 이 복구대기로 클래스 lock 을 오래 쥘 수 있어 메인 스레드가 직접
      * synchronized close() 에 들어가면 ANR 위험. 플래그만 세우고 close 는 백그라운드 위임.
      */
@@ -123,9 +140,12 @@ public class BixolonPosDriver {
     }
 
     /**
-     * G30 장치 존재 여부 — NativeMethodHandler 의 벤더 라우팅 판정. {@link BixolonLabelDriver
-     * #isBixolonAttached} 보다 <b>먼저</b> 검사해야 한다(더 좁은 조건이 먼저) — 안 그러면
-     * VID-only 매칭인 XD5 경로로 G30 이 오라우팅된다.
+     * G30 장치 존재 여부 — NativeMethodHandler 의 벤더 라우팅 판정.
+     *
+     * <p>판정이 <b>좁다</b>(VID + PID/제품명). BIXOLON 지원 기종이 G30 하나뿐이라 VID-only 로
+     * 넓히고 싶어지지만 그러지 않는다 — 미식별 0x1504 기기를 G30 으로 몰아 UPOS 로 구동하면
+     * 실패 원인이 흐려진다. 넓히려면 대상 기기의 PID 를 {@link #KNOWN_PRODUCT_IDS} 에
+     * 추가하는 쪽이 맞다. 미식별 0x1504 는 어느 드라이버로도 가지 않는다(폴백 없음).
      */
     public static boolean isG30Attached(Context ctx) {
         UsbManager usbManager = (UsbManager) ctx.getSystemService(Context.USB_SERVICE);
@@ -136,7 +156,13 @@ public class BixolonPosDriver {
         return false;
     }
 
-    private static boolean isG30Device(UsbDevice device) {
+    /**
+     * 단일 디바이스 G30 판정. package-private — {@link UsbReceiptPrinter#isLabelPrinter}
+     * 가 영수증 프린터 claim 대상에서 G30 을 제외하는 데 쓴다. 조건을 그쪽에 복제하면
+     * 화이트리스트가 또 갈라진다(2026-09-01 사고: G30 추가 때 UsbReceiptPrinter 쪽만
+     * 갱신이 빠져 영수증 경로가 G30 을 선점 → 라벨 인쇄가 exclusive claim 실패).
+     */
+    static boolean isG30Device(UsbDevice device) {
         if (device.getVendorId() != BIXOLON_VENDOR_ID) return false;
         for (int pid : KNOWN_PRODUCT_IDS) {
             if (device.getProductId() == pid) return true;
@@ -198,7 +224,7 @@ public class BixolonPosDriver {
             // 보장한다. 아래 clamp 는 헤드 물리 최대폭(MAX_PRINT_WIDTH_DOTS=576)이 상한
             // — 용지폭이 아니다(58mm 비트맵을 잘라내지 않기 위함, 상수 주석 참조).
             final int width = Math.min(bitmap.getWidth(), MAX_PRINT_WIDTH_DOTS);
-            final Bitmap prepared = BixolonLabelDriver.binarizeForPrint(bitmap);
+            final Bitmap prepared = binarizeForPrint(bitmap);
 
             // 원본/이진화 비트맵 크기와 검정 픽셀 비율을 남긴다 — blackRatio=0 이면
             // Dart 쪽(ContinuousLabelPainter)이 빈 이미지를 만든 것이고, >0 인데
@@ -217,7 +243,7 @@ public class BixolonPosDriver {
                 // 고정돼 있어 소프트웨어로 조정 불가 — 좌우 시각 여백은 Dart 측
                 // LabelMediaSpec.continuous40 의 캔버스 폭/margin 으로만 다룬다.
                 sSdk.printBitmap(POSPrinterConst.PTR_S_RECEIPT, prepared, width,
-                        POSPrinterConst.PTR_BM_LEFT, PRINT_THRESHOLD);
+                        POSPrinterConst.PTR_BM_LEFT, BINARIZE_THRESHOLD);
                 // 라벨(장) 구분은 갭 센서가 아니라 커터 — Feed Partial Cut.
                 sSdk.printNormal(POSPrinterConst.PTR_S_RECEIPT, ESC_PREFIX + "90fP");
             } catch (JposException bufferEx) {
@@ -261,7 +287,7 @@ public class BixolonPosDriver {
 
     /**
      * 앱 시작 시점의 warm-up — 연결만 수행, 인쇄는 하지 않는다.
-     * {@link BixolonLabelDriver#warmup()} 의 G30 대응물. 벤더 분기는 인쇄 경로와 동일 규칙을
+     * {@link LabelPrinter#warmup(int)} 의 G30 대응물. 벤더 분기는 인쇄 경로와 동일 규칙을
      * 써야 한다 — 어긋나면 첫 인쇄가 모드 불일치로 포트를 닫고 다시 연다.
      */
     public static synchronized boolean warmup() {
@@ -373,7 +399,8 @@ public class BixolonPosDriver {
     // ─────────────────────────────────────────────────────────────────────────
 
     /**
-     * 진입 게이트 — 용지없음/커버열림은 운영자 개입 신뢰, 무한 복구대기 (XD5 정책과 동등).
+     * 진입 게이트 — 용지없음/커버열림은 운영자 개입 신뢰, 무한 복구대기
+     * (Caysn/REXOD 경로와 동등한 정책).
      * 그 외 조회 자체가 실패하면(연결 사망) false.
      */
     private static boolean waitEntryGateLocked(String orderTag) {
@@ -426,6 +453,36 @@ public class BixolonPosDriver {
         } catch (Exception e) {
             return false;
         }
+    }
+
+    /**
+     * 인쇄 전 사전 이진화 — luminance &lt; {@link #BINARIZE_THRESHOLD} → 순흑, 그 외 순백.
+     * 결과 픽셀이 0/255 뿐이라 SDK level 이진화 의미론에서 완전히 독립된다.
+     * 490x600 기준 수 ms (labelPrintExecutor 스레드에서 실행).
+     */
+    private static Bitmap binarizeForPrint(Bitmap src) {
+        final int w = src.getWidth();
+        final int h = src.getHeight();
+        final int[] pixels = new int[w * h];
+        src.getPixels(pixels, 0, w, 0, 0, w, h);
+        for (int i = 0; i < pixels.length; i++) {
+            final int p = pixels[i];
+            final int a = p >>> 24;
+            int r = (p >> 16) & 0xFF;
+            int g = (p >> 8) & 0xFF;
+            int b = p & 0xFF;
+            if (a < 255) {
+                // 투명 픽셀은 흰 배경에 합성 (painter 가 흰 배경을 먼저 칠하므로 방어용).
+                r = (r * a + 255 * (255 - a)) / 255;
+                g = (g * a + 255 * (255 - a)) / 255;
+                b = (b * a + 255 * (255 - a)) / 255;
+            }
+            final int lum = (r * 299 + g * 587 + b * 114) / 1000;
+            pixels[i] = (lum < BINARIZE_THRESHOLD) ? 0xFF000000 : 0xFFFFFFFF;
+        }
+        Bitmap out = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+        out.setPixels(pixels, 0, w, 0, 0, w, h);
+        return out;
     }
 
     /** 진단용 — 이진화된(0xFF000000/0xFFFFFFFF 뿐) 비트맵의 검정 픽셀 비율. */

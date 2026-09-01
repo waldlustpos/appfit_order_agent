@@ -1,6 +1,6 @@
 /// 라벨 프린터 용지 규격 — 캔버스 폭·높이 정책을 painter/드라이버에 전달하는 값 객체.
 ///
-/// 갭 라벨(Caysn/REXOD/BIXOLON XD5-40d)은 고정 크기 낱장이라 [widthDots]/
+/// 갭 라벨(Caysn D2/D3, REXOD RXLA-561)은 고정 크기 낱장이라 [widthDots]/
 /// [maxHeightDots] 가 곧 실제 인쇄 크기다. G30(연속 용지 + 커터)은 세로가
 /// 가변이라 [maxHeightDots] 는 상한(cap)일 뿐이고 실제 높이는 콘텐츠 길이로
 /// 정해진다 — [variableHeight] 가 그 분기를 표시한다.
@@ -46,7 +46,7 @@ class LabelMediaSpec {
   /// 콘텐츠 폭(좌우 여백 제외).
   double get contentWidthDots => widthDots - sideMarginDots - rightMarginDots;
 
-  /// 기존 4기종(Caysn/REXOD/XD5-40d) — [LabelPainter] 의 현행 상수를 그대로
+  /// 갭 라벨 기종(Caysn D2/D3, REXOD RXLA-561) — [LabelPainter] 의 현행 상수를 그대로
   /// 담는다. **값을 바꾸지 말 것** — 3기종이 이 값으로 검증돼 있다.
   static const gap490x600 = LabelMediaSpec(
     widthDots: 490,

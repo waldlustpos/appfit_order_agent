@@ -3,13 +3,19 @@ package com.bixolon.pdflib;
 /**
  * BIXOLON Bixolon_pdf.aar 스텁 (PDF 직접 인쇄 모듈 — 본 앱 미사용).
  *
- * <p>BixolonLabelPrinter(V2.1.1) 생성자가 pdflib 클래스를 무조건 참조하고, 부재 시
- * catch(NoClassDefFoundError)로 삼키지만 printStackTrace() 를 호출해 연결마다
- * logcat 에 스택트레이스 소음이 찍힌다. 실제 aar(수 MB) 대신 최소 스텁으로 참조를
- * 충족시켜 소음을 제거한다. PDF 인쇄 API 를 쓰게 되면 이 스텁 패키지
- * (com.bixolon.pdflib.*)를 삭제하고 진짜 Bixolon_pdf.aar 를 넣을 것.
+ * <p><b>★ 삭제 금지 — G30(UPOS SDK)이 이 패키지를 참조한다.</b> 원래는 XD5-40d 의
+ * Label SDK 소음 제거용으로 들어왔지만(그쪽은 부재 시 catch 후 printStackTrace 로
+ * logcat 을 더럽히는 정도였다), 지금은 UPOS jar 의
+ * {@code com.bxl.services.posprinter.POSPrinterService114} 와
+ * {@code POSPrinterBaseService.validateDevice()} 가 참조한다 — bytecode 전수 조사로 확정.
  *
- * <p>참조 멤버는 SDK jar bytecode 전수 조사로 확정 (BixolonLabelDriver 참고).
+ * <p>그리고 {@code validateDevice()} 의 가드는 {@code catch (Exception)} 이라
+ * <b>{@code NoClassDefFoundError}(Error)를 못 잡는다.</b> 즉 이 스텁이 사라지면
+ * {@code BixolonPosDriver.ensureConnectedLocked} → {@code setDeviceEnabled(true)} 에서
+ * G30 이 크래시한다. "XD5 잔재" 로 보고 지우지 말 것.
+ *
+ * <p>PDF 인쇄 API 를 쓰게 되면 이 스텁 패키지(com.bixolon.pdflib.*)를 삭제하고
+ * 진짜 Bixolon_pdf.aar 를 넣을 것.
  */
 public class License {
     private static final License INSTANCE = new License();

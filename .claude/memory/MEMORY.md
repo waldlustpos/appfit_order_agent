@@ -38,7 +38,6 @@
 - [Sentry Crons 앱 실행중 판정 검증](project_sentry_crons_liveness.md) — heartbeat 끊기면 missed 자동감지→이슈. HTTP envelope 로 모니터 upsert. 모니터당 과금. 테스트만·미도입 (2026-07-22)
 - [의존성 tier① 업그레이드 실행](project_deps_tier1_upgrade.md) — 저위험 5묶음 브랜치 실행(미푸시). tier②(Sentry/serial/Riverpod)·tier③ 로드맵 대기.
 - [slang4 다파일 + analyze baseline 함정](reference_slang4_multifile_and_analyze_baseline.md) — slang4=다파일 생성(strings_<locale>.g.dart 커밋 필수)+lazy:false. analyze warning baseline 69(0 아님).
-- [BIXOLON XD5-40d 라벨프린터 Android 지원](project_bixolon_xd5_40d.md) — VID 0x1504 자동 라우팅으로 기존 PNG 파이프라인 재사용. so 필수·pdflib 불필요. 실기기 검증 대기 (2026-07-23)
 - [브랜드 자산 대형캔버스 bbox 크롭 함정](reference_brand_asset_large_canvas_bbox_crop.md) — 4500×4500류 대형 여백 캔버스는 §4.1/gen_receipt_logo.dart 표준 파이프라인 전에 alpha bbox 크롭 필수(자동 크롭 없음).
 - [MHST 브랜드 이미지 4종 교체 + D3mini 우선순위 반전](project_mhst_brand_image_2026_08.md) — 라벨/영수증/로그인/세컨모니터 교체, D3mini 영상→이미지 우선 반전. 실기기 검증·커밋(7c6fb22) 완료. 동시 세션 git add/commit 레이스 겪음 (2026-08-03)
 - [REXOD 라벨프린터 신호 실측 정본](reference_rexod_label_printer_signals.md) — PAPERNOFETCH 정상동작(통념 반박), QueryPrintResult는 떼기 안 기다림, GetPrinterPrintedInfo pageId 판정불가, 펌웨어 보류 실재(19.2초). 관찰 불가한 가드 = 없는 가드.
@@ -46,7 +45,6 @@
 - [Android/Windows 라벨 동작 차이 5건](project_label_printer_platform_divergence.md) — 비프음 비대칭 원인=떼기대기 시점. 통일은 Android 방향(Windows로 맞추면 비프음 소멸). 플랫폼 비교를 근거로 쓸 때 교란 주의
 - [라벨 완료 판정 다중 신호화](project_label_completion_multi_signal.md) — query 단일→+PAPERNOFETCH edge(3e700f6). 보류는 정상 운영이라 안 빨라짐 — 기대효과를 보류 건수로 계산하지 말 것 (2026-08-07)
 - [Windows 라벨 비프음 복원](project_windows_label_beep_restore.md) — 완료 시 떼기대기 제거+레벨→edge(4f222b3, 검증완료). 대기를 없앨 땐 그 대기가 떠받치던 사전조건을 먼저 찾을 것
-- [BIXOLON Android 완료 판정 재설계](project_bixolon_label_beep_android.md) — '필러 미장착' 전제 기각. 증상 부재 ≠ 원인 부재(구조가 발생을 막고 있었음). edge 귀속 레이스 포함. 실기기 검증 대기 (2026-08-07)
 - [신규 라벨 QR cupIdx 충돌 버그+수정](project_label_qr_cupidx_collision.md) — 표시번호-컵순번 포맷이 메뉴별 리셋 labelSeq 사용해 다른메뉴도 전부 "-0" 충돌. order-wide labelIndex로 교체, 미커밋 (2026-08-04)
 - [동시 배포 세션 버전 레이스](feedback_concurrent_deploy_version_race.md) — 승인 후에도 실행 직전 pubspec.yaml 재확인 필수. 다른 세션이 build-number 계속 올리며 먼저 배포한 사례 2회 (2026-08-04)
 - [fleet-monitoring 브랜치 유지 전략](project_fleet_monitoring_branch_strategy.md) — main+fleet 파일럿 구성 유지, main 신규 커밋은 주기적으로 merge(리베이스 아님)로 반영. 첫 병합(5f02d5d) analyze/test 검증 후 push 완료 (2026-08-05)
@@ -73,6 +71,8 @@
 - [appfit-fleet 백엔드 구조](project_appfit_fleet_backend.md) — Cloudflare Workers+D1, 이미 배포됨. 중첩 미추적 하위디렉터리 함정 주의 (2026-08-20)
 - [Fleet 저장공간/메모리 현황 추가 설계](project_fleet_resource_monitoring_plan.md) — 네이티브 코드 방식 확정(system_info2 게시자 미검증으로 기각), 앱+백엔드 계획 완료·구현 미착수 (2026-08-20)
 - [BIXOLON G30 40mm+58mm 레이아웃](project_bixolon_g30_40mm_layout.md) — 인쇄시작위치 하드웨어고정 / 측정경로 320 clamp가 가짜 실측값 생성 / 반전인쇄는 stroke 아닌 fontSize가 지렛대. 58mm=52.5mm 실측확정, Windows 남음 (2026-08-26)
+- [BIXOLON XD5-40d 지원 종료 — 남은 자산은 전부 G30 소유](project_bixolon_xd5_removal_residue.md) — libbxl_common.so/libcommon/pdflib 스텁은 G30 현역(오삭제 시 release 전용 크래시). 삭제 경계는 벤더가 아니라 심볼. 버저 SDK 조사만 승계, 하드웨어 결론은 미승계 (2026-09-01)
+- [G30 exclusive claim 고착](reference_g30_usb_claim_stuck.md) — 해결은 프린터 전원 재인가(앱 재시작 무효). usblp 바인딩·UsbProtectControlService·영수증 선점은 정상시에도 관측되는 착시 증거. 코드 차이 없는데 증상 있으면 환경을 볼 것
 - [Sunmi App Store 패키지](reference_sunmi_app_store_package.md) — woyou.market 단일. market:// 는 Play 로 샘. <queries> 검증은 dumpsys package queries, 판정 기기는 D3MINI(A13).
 - [Windows per-user 설치 전환](project_windows_peruser_install.md) — 구현·검증·main 병합 완료. 매머드 195 설치본 배포 중, OTA 채널 갱신 미완. 설치본 먼저→채널 나중 순서 필수 (2026-08-27)
 - [Defender 예외 조회는 기기마다 다름](reference_defender_exclusion_query.md) — 비상승 Get-MpPreference 가 안내 문자열 1줄을 exitCode 0 으로 반환. 경로 모양으로 판정할 것.

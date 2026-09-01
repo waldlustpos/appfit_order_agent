@@ -102,28 +102,24 @@ Windows COM 경로는 **두 가지 물리 연결을 동일 코드로 지원**한
 ```mermaid
 flowchart TD
     LBL["LabelPrintData<br/>BMP 비트맵 + QR 인코드"]
-    LBL -->|Windows| WRT{"WindowsLabelRouter<br/>VID 스캔 (매 인쇄 재평가)"}
+    LBL -->|Windows| WRT{"WindowsLabelRouter<br/>벤더 seam (현재 분기 1개)"}
     LBL -->|Android| LMC["MethodChannel printLabel"]
 
-    WRT -->|"BIXOLON 0x1504 연결됨 (우선)"| BWB["BixolonWindowsLabelBackend<br/>BXLLAPI_x64.dll FFI"]
-    WRT -->|그 외| WB["WindowsLabelPrinterBackend<br/>autoreplyprint FFI"]
+    WRT -->|"Caysn/REXOD (G30 Windows 미이식)"| WB["WindowsLabelPrinterBackend<br/>autoreplyprint FFI"]
     WB --> FFI["autoreplyprint SDK (C DLL)"]
     FFI --> CB["NativeCallable 상태 콜백<br/>비콘 캐시 갱신"]
     CB --> QPR["QueryPrintResult<br/>타임아웃 1000ms"]
-    BWB --> BMP["사전 이진화(210) → 임시 BMP<br/>PrintImageLibW + Prints"]
-    BMP --> BST["CheckStatus 동기 폴링<br/>(진입 게이트 + 완료 폴링)"]
 
-    LMC --> RT{"VID 라우팅<br/>(매 인쇄 재평가)"}
-    RT -->|"BIXOLON 0x1504 + PID 0x0147 (G30, 우선)"| BPD["BixolonPosDriver.java<br/>BIXOLON G30 (UPOS/JavaPOS)"]
-    RT -->|"BIXOLON 0x1504 연결됨"| BXD["BixolonLabelDriver.java<br/>BIXOLON XD5-40d"]
+    LMC --> RT{"VID/PID 라우팅<br/>(매 인쇄 재평가)"}
+    RT -->|"BIXOLON 0x1504 + PID 0x0147/제품명 G30"| BPD["BixolonPosDriver.java<br/>BIXOLON G30 (UPOS/JavaPOS)"]
     RT -->|그 외| LJ["LabelPrinter.java<br/>Caysn/REXOD 라벨 프린터"]
     LJ --> LCB["CP_OnPrinterStatusEvent 콜백<br/>volatile 비콘 캐시"]
-    BXD --> BST["getStatus 동기 폴링<br/>(진입 게이트 + 완료 폴링)"]
     BPD --> BTX["transactionPrint(NORMAL)<br/>동기 블로킹 — 완료 폴링 불필요"]
 ```
 
-- **Windows**: `WindowsLabelRouter`가 SetupAPI VID 스캔(win32, deferred import)으로 벤더를 매 인쇄 재평가 — BIXOLON(0x1504) 연결 시 `BixolonWindowsLabelBackend`(BXLLAPI_x64.dll FFI, 완전 동기·폴링 기반, PNG→사전 이진화 BMP 임시 파일→`PrintImageLibW`+`Prints`), 그 외 `WindowsLabelPrinterBackend`(AutoReplyPrint SDK FFI, Java 패턴 1:1 포팅, `NativeCallable.listener` 상태/완료 콜백, `QueryPrintResult` 타임아웃 1000ms, 라벨 모드는 포트 닫힐 때까지 유지). 두 백엔드 모두 Android 와 동일한 에러 의미론(복구대기·submit-wins) 공유. **G30 은 아직 미이식** — §3.5 "남은 작업" 참조.
-- **Android**: MethodChannel `printLabel` → `NativeMethodHandler` 가 연결된 USB VID/PID 로 벤더 분기 — BIXOLON(VID 0x1504) 중에서도 **PID 0x0147(G30)을 먼저 체크**하고(`BixolonPosDriver.isG30Attached`), 그 외 BIXOLON 은 `BixolonLabelDriver.java`(XD5-40d, Label SDK), 나머지는 `LabelPrinter.java`(Caysn autoreplyprint). G30 은 UPOS/JavaPOS SDK(`com.bxl.**`/`jpos.**`) 기반이라 XD5-40d 의 Label SDK/SLCS 와 완전히 다른 API 표면을 쓴다 — `setAsyncMode(false)` 동기 모드라 `transactionPrint(PTR_TP_NORMAL)` 자체가 물리 인쇄 완료까지 블로킹하므로 XD5-40d/Caysn 처럼 별도 완료 폴링 루프가 없다. 인자 `autoReplyMode`/`useFeedToTear`/`useBackToPrint`/`useCalibrate` 는 Caysn 전용(BIXOLON 경로 전부 무시), `orderNo`/`labelIndex`/`totalLabels` 는 공통. 세 드라이버 모두 동일한 에러 의미론 공유: 용지없음/커버열림=무한 복구대기, 기타 에러=0.5s 게이트 후 false(Dart 재시도), 전송 완료 후는 submit-wins(중복 인쇄 방지) — G30 은 `PTR_TP_TRANSACTION`(버퍼링)→`PTR_TP_NORMAL`(flush)이 그 경계.
+- **지원 기종은 2종**: **REXOD RXLA-561**(Caysn autoreplyprint SDK, 갭 라벨) + **BIXOLON G30**(UPOS/JavaPOS SDK, 연속 용지). Caysn D2/D3 는 화이트리스트에 남아 있으나 판매 모델은 아니다. BIXOLON XD5-40d 지원은 2026-09 종료 — §3.4 참조.
+- **Windows**: `WindowsLabelRouter`는 지금 분기가 하나뿐이지만 **벤더 seam 으로 의도적으로 유지**한다(G30 Windows 이식 시 두 번째 분기가 그 자리에 들어온다 — §3.5 "남은 작업"). 실제 출력은 `WindowsLabelPrinterBackend`(AutoReplyPrint SDK FFI, Java 패턴 1:1 포팅, `NativeCallable.listener` 상태/완료 콜백, `QueryPrintResult` 타임아웃 1000ms, 라벨 모드는 포트 닫힐 때까지 유지). Android 와 동일한 에러 의미론(복구대기·submit-wins) 공유. **G30 은 Windows 미이식** — 꽂아도 Caysn 화이트리스트에 걸러져 인쇄되지 않는다.
+- **Android**: MethodChannel `printLabel` → `NativeMethodHandler` 가 연결된 USB VID/PID 로 벤더 분기 — **G30(VID 0x1504 + PID 0x0147, 또는 제품명 "G30")을 먼저 체크**하고(`BixolonPosDriver.isG30Attached`), 나머지는 `LabelPrinter.java`(Caysn autoreplyprint). G30 판정은 **좁다** — VID 만 맞는 미식별 BIXOLON 기기는 Caysn 화이트리스트에 걸러져 **어느 드라이버로도 인쇄되지 않는다**(XD5-40d 종료로 0x1504 의 폴백 대상이 없어졌고, 이는 의도된 동작이다). G30 은 UPOS/JavaPOS SDK(`com.bxl.**`/`jpos.**`) 기반이고 `setAsyncMode(false)` 동기 모드라 `transactionPrint(PTR_TP_NORMAL)` 자체가 물리 인쇄 완료까지 블로킹하므로 Caysn 처럼 별도 완료 폴링 루프가 없다. 인자 `autoReplyMode`/`useFeedToTear`/`useBackToPrint`/`useCalibrate` 는 Caysn 전용(G30 경로는 전부 무시), `orderNo`/`labelIndex`/`totalLabels` 는 공통. 두 드라이버 모두 동일한 에러 의미론 공유: 용지없음/커버열림=무한 복구대기, 기타 에러=0.5s 게이트 후 false(Dart 재시도), 전송 완료 후는 submit-wins(중복 인쇄 방지) — G30 은 `PTR_TP_TRANSACTION`(버퍼링)→`PTR_TP_NORMAL`(flush)이 그 경계.
 - **QR 페이로드**: `qrPayloadStrategyProvider`가 브랜드별 전략 선택(현재 모두 `DefaultQrPayloadStrategy` = `{OrderNo}-{ShopItemId}-{CupIdx}`). 자세한 흐름은 [docs/BRAND_I18N_FLOW.md](BRAND_I18N_FLOW.md).
 - FFI Isolate boxing·hot-reload 주의는 메모리 `ffi_isolate_boxing`, `hot_reload_cold_restart` 참조.
 
@@ -219,8 +215,8 @@ true 라 **아직 나오지도 않은 라벨을 첫 폴링에서 완료로 판�
 명령을 얹지 않는 Windows 의 좋은 성질이다(Android 는 이 명령이 ACK 대기 창 안에 있다).
 
 **BIXOLON 경로는 이 커밋에서 건드리지 않았다.** `takenWait` 동안 대기하는 같은 모양이지만
-벤더·펌웨어가 달라 buzzer 동작이 미검증이었다. Android BIXOLON 은 이후 §3.4 에서 해소했고,
-Windows BIXOLON(`bixolon_windows_label_backend.dart`)은 Android 실기기 검증 후로 남겨 두었다.
+벤더·펌웨어가 달라 buzzer 동작이 미검증이었다. 당시 BIXOLON 경로는 XD5-40d 였고, 그 기종은
+2026-09 지원 종료됐다(§3.4) — 여기 남은 결론은 **Caysn/REXOD 경로에 대한 것**이다.
 
 #### 실기기 검증 (Windows POS, 2026-08-07)
 
@@ -258,187 +254,32 @@ Windows BIXOLON(`bixolon_windows_label_backend.dart`)은 Android 실기기 검�
 > 만들지는 않지만(다음 인쇄의 idle 게이트가 흡수), 떼어진 직후 용지 소진 등으로 펌웨어가
 > 인쇄에 실패하면 조용히 놓칠 수 있는 틈이 남아 있다. 양 플랫폼 공통 과제.
 
-### 3.4 BIXOLON Android 완료 판정 재설계 (2026-08-07)
+### 3.4 BIXOLON XD5-40d 지원 종료 (2026-09-01)
 
-`BixolonLabelDriver` 는 §3.2·§3.3 의 두 수정에서 모두 제외돼 있었다. 그 결과 이 경로만
-**Windows Caysn 이 `4f222b3` 이전에 갖고 있던 구조**를 그대로 유지하고 있었다.
+XD5-40d 기종 지원을 종료하면서 이 절(Android 완료 판정 재설계, 2026-08-07)의 본문을
+삭제했다. 지원 대상은 REXOD RXLA-561 + BIXOLON G30 두 기종이다.
 
-#### 착수 전 확인 — 전제 두 개가 실측으로 뒤집혔다
+지워진 것: `BixolonLabelDriver.java`(Label SDK/SLCS 드라이버) · `BixolonLabelPrinterLibrary_V2.1.1.jar` ·
+Windows BXLLAPI FFI 스택 5개 파일 + `BXLLAPI_x64.dll` 번들.
+**남은 BIXOLON 자산(`libbxl_common.so` · `libcommon` jar · `com.bixolon.pdflib` 스텁 ·
+proguard `com.bixolon.**` keep)은 전부 G30 소유다** — XD5 잔재로 보고 지우면 안 된다
+(메모리 노트 `project_bixolon_xd5_removal_residue.md`).
 
-| 전제 | 실제 |
-|---|---|
-| "XD5-40d 표준기는 필러 미장착이라 `PAUSED_IN_PEELER` 가 안 뜬다" (드라이버 javadoc) | **틀렸다.** 2026-07-23 실기기 8장 주문에서 라벨마다 떼기대기에 진입했고, 떼는 즉시 다음 장이 인쇄됐다(빨리 떼면 ≈1.9s, 늦게 떼면 6~8s로 사용자 행동과 상관). 구현 시점의 가정이 실측 뒤에도 주석에 남아 있었고, 그 주석이 이 작업의 착수를 한 번 막았다 |
-| "비프음이 안 나니 XD5-40d 에는 버저가 없다" | **판정 불가였다.** `printBitmap` 이 `synchronized` 인데 완료 폴링이 내 라벨을 뗄 때까지 무한 대기해, 다음 제출이 lock 에 막혀 **펌웨어가 "라벨 미회수 + 다음 페이지 대기" 상태에 도달한 적이 없다.** 울릴 계기 자체가 없었다 |
+**절 번호는 비워 둔다** — 메모리 노트가 "§3.5(40mm)·§3.6(58mm)" 을 명시 인용하고 있어
+재번호를 매기면 그 포인터가 끊기는 게 아니라 엉뚱한 절로 해소된다.
 
-BIXOLON SDK 에는 buzzer 제어 API 가 **없다** — Android V2.1.1 jar(21 클래스) / `libcommon`
-(135 클래스) / `libbxl_common.so` 심볼 / Windows `BXLLAPI` V3.10 헤더 전수 확인. SLCS `Add*`
-커맨드 목록에도 없다. 반면 `libbxl_common.so` 의 펌웨어 다운로더 이미지 타입 테이블에는
-`Buzzer Driver image` 섹션이 `Printer Driver`·`Sensor Driver` 와 나란히 있다(제품군에 버저가
-있다는 정황이지 XD5-40d 개별 탑재의 증명은 아니다). **즉 Caysn 과 같은 경로 — 다음 인쇄를
-펌웨어에 도달시키는 것 — 외에 비프음을 낼 수단이 없다.**
-
-#### 완료 판정 4신호
-
-`!isAnyError && !isBusy` **레벨 단독** 판정을 아래로 교체했다. 총 상한 30초와 submit-wins
-분기는 유지. **평가 순서 자체가 정확성의 일부다.**
-
-| 순 | 신호 | 완료 사유 로그 |
-|---|---|---|
-| ① | `PAUSED_IN_PEELER` **상승 edge** = 내 라벨이 배출됨 | `라벨나옴` (보류를 거쳤으면 `떼기대기`) |
-| ② | edge 는 아직인데 peel 레벨 true = 앞 라벨이 남아 내 페이지가 붙잡힘 → **무한 대기** | (대기, `떼기대기` 로그) |
-| ③ | busy 가 **섰다가** 내려감 | `프린터응답` |
-| ④ | 체류시간(`MIN_PRINT_DWELL_MS` 1초) 경과 + idle + 무에러 | `상태정상` |
-
-- **②가 ③·④ 앞에 있어야 한다.** 보류 중에도 이미지 버퍼 빌드로 busy 가 잠깐 섰다 내려갈
-  수 있어, ③을 먼저 보면 **아직 배출되지 않은 라벨을 완료로 판정**한다.
-- **③이 "상승"을 요구하는 이유**: 제출 직후 sleep 없이 첫 폴링이 도는데 펌웨어가 busy 를
-  세우기 전이면 레벨만 보고 **인쇄 시작 전에 완료 판정**을 했다(기존 결함).
-- **③은 한 폴링 더 확인하고 확정한다.** peel 비트가 busy 하강보다 반 박자 늦게 서는 경우,
-  곧바로 반환하면 그 edge 가 아직 세어지지 않은 채 다음 라벨이 `riseBefore` 를 잡는다 →
-  **앞 라벨의 edge 를 자기 것으로 오인**해 인쇄 시작 전에 완료 판정하고, 귀속 어긋남이 이후
-  라벨로 연쇄한다. 대기 중 edge 가 오면 ①이 가져가므로 귀속이 바로잡힌다. 비용은 peel 이
-  끝내 안 설 때만 폴링 1회(200ms)이고, ①이 이기는 정상 경로에서는 0 이다.
-- **④가 없으면 지금보다 나빠진다.** BASIC variant(1바이트 응답)는 byte1 이 0 패딩이라 ①·③이
-  영원히 성립하지 않는다. 폴백 없이 바꾸면 30초 소진 → 실패 → Dart 재시도 → **중복 인쇄**.
-  기준선은 `pollStart` 라 떼기대기/복구대기에서 함께 리셋되고, 그래서 보류가 풀린 직후
-  (펌웨어가 아직 인쇄를 시작 안 한 창)에 ④가 먼저 터지지 않는다.
-
-#### ★ 떼기 대기를 성공 경로에서 걷어냈다
-
-①이 오면 peel 이 여전히 true 여도(= 내 라벨을 아무도 안 뗐어도) **즉시 반환**한다. 다음
-`printBitmap` 이 lock 을 얻고, 진입 게이트는 `PAUSED_IN_PEELER` 를 보지 않으므로(`isAnyError`
-는 byte0 만, `waitIdleLocked` 는 busy 비트만) 제출이 그대로 펌웨어에 도달한다. §3.1 의 불변식
-**"떼지 않은 상태에서 다음 인쇄 명령이 펌웨어에 도달한다"** 가 BIXOLON 에서도 성립한다.
-
-> ⚠️ **두 변경은 분리할 수 없다.** 떼기 대기만 걷어내고 레벨 판정을 두면 앞 라벨이 남은 채
-> 인쇄가 시작되고, 레벨은 이미 true 라 아직 나오지도 않은 라벨을 첫 폴링에서 완료로 판정한다
-> (§3.3 이 Windows 에서 만난 것과 같은 함정). 큐 깊이는 1을 유지한다 — 내 라벨이 배출돼야
-> 반환하므로 미인쇄 페이지가 두 장 쌓이지 않는다.
-
-#### 진단: 상태 variant 를 로그에 남긴다
-
-`readStatusLocked` 는 연결당 1회 프로브로 EXTENDED(2바이트)/BASIC(1바이트)을 학습하는데 그
-결과를 남기지 않았다. BASIC 이면 떼기대기·busy 게이트가 **영구 no-op** 이므로:
-
-> **"떼기대기 로그가 없다" ≠ "필러가 없다".** 이 둘을 구분할 수 없으면 현장 진단이 오독된다.
-
-`상태응답=확장(2바이트)` / `상태응답=기본(1바이트)` 를 학습 시점에 기록한다.
-
-#### 공통화 방침 — 코드는 공유하지 않고 패턴과 어휘만 이식
-
-두 드라이버는 신호 획득 모델이 다르다(Caysn = SDK 콜백 비콘 + 블로킹 질의, BIXOLON =
-`getStatus()` 200ms 폴링). 공통 추상 클래스는 그 차이를 감추는 잘못된 추상화라 만들지 않았다.
-이식한 것은 ① edge 카운터 패턴(단조·**어디서도 리셋 금지**·`!=` 비교) ② 완료 사유 어휘
-(`라벨나옴`/`프린터응답`/`떼기대기`) ③ 불변식 문구뿐이다. **grep 키워드는 운영 계약**이라
-어휘 통일이 실질 가치다.
-
-> ⚠️ `sPeelRiseCount` 와 `sLastPeelLevel` 은 `closeLocked()` 에서도 리셋하지 않는다. 레벨을
-> false 로 되돌리면 재연결 직후 첫 읽기가 **없던 edge 를 만들어낸다.** 놓친 edge 는 ③으로
-> 폴백되지만(안전) 만들어낸 edge 는 곧바로 오검출이다 — 해악이 비대칭이라 항상 후자를 피한다.
-
-#### 1차 실기기 결과 — 떼기대기는 동작, 그리고 이상 상태 프레임 `0x5630` 발견
-
-8장 주문 재출력(앞 3장은 천천히, 뒤는 바로바로 떼기). **8/8 출력·중복 0**, 그리고
-`떼기대기` 분기가 3회 정상 진입해 각각 9.1s / 8.0s / 5.6s 뒤 완료됐다 —
-**보류·해제 메커니즘 자체는 설계대로 동작한다.**
-
-다만 `인쇄중 복구대기 진입 [커버열림] status=0x5630` 이 5회 찍혔고, 매번 201ms(폴링 1회)
-만에 "복구감지" 됐다. 비트로 풀면:
-
-| | 값 | 해석 | 미정의 비트 |
-|---|---|---|---|
-| byte0 | `0x56` | 커버열림 + 헤드과열 + 리본소진 **동시** | `0x02` |
-| byte1 | `0x30` | 떼기대기 | `0x10` |
-
-정상 인쇄 중에 성립할 수 없는 조합이고 **두 바이트 모두 미정의 비트**를 갖는다. ASCII 로는
-`"V0"` — **상태가 아니라 직전 명령 응답의 잔여 바이트**를 읽은 것으로 본다.
-
-> ⚠️ **이 프레임은 커버열림 오판 하나의 문제가 아니었다.** byte1 의 `0x20` 이 떼기대기
-> 비트라, 이 프레임이 edge 카운터에 들어가면 **없던 peel 상승 edge 를 만들어낸다.**
-
-로그 8건이 이 모델과 정확히 일치했다 — **`커버열림` 로그 유무와 소요시간이 완벽히 역상관**한다:
-
-| seq | 경과 | 완료 사유 | `커버열림` | 해석 |
-|---|---|---|---|---|
-| #12 | 469ms | 라벨나옴 | 없음 | 직전 peel=false → 유령 edge → **조기 완료** |
-| #13~15 | 9112 / 8010 / 5654ms | 떼기대기 | 있음 | peel=true 라 rise 불가 → 오류 분기로 빠짐 → 진짜 보류 |
-| #16 | 498ms | 라벨나옴 | 없음 | 앞 라벨을 바로 떼어 peel=false → 유령 edge |
-| #17 | 2031ms | 라벨나옴 | 있음 | peel=true → rise 없음 → 오류 분기 → 이후 진짜 배출 |
-| #18 | 397ms | 라벨나옴 | 없음 | 유령 edge |
-| #19 | 2083ms | 라벨나옴 | 있음 | 진짜 배출 |
-
-역상관이 생기는 이유는 **평가 순서**다. 신호 ①이 `isRecoverableError` 보다 앞이라, 유령 edge 가
-생긴 회차는 즉시 반환해 `커버열림` 을 아예 로그하지 않는다. 즉 **두 증상은 같은 프레임의
-두 얼굴**이다.
-
-**대응**: `readStatusLocked` 앞에 프레임 검증을 넣었다. 정의된 비트 마스크(byte0 `0xFC` /
-byte1 `0xE0`) 밖의 비트가 있으면 상태로 취급하지 않고, 잔여를 흘려보내려 최대 3회 재읽기한 뒤
-그래도 이상하면 **읽기 실패(null)** 로 넘겨 기존 재시도 경로가 받게 한다.
-★ 이상 프레임은 절대 edge 카운터·에러 판정에 먹이지 않는다. `상태프레임 이상 0xXXXX` 로 남겨
-발생 빈도를 셀 수 있게 했다(관측 불가한 가드를 남기지 않기 위함).
-
-> 부수 효과로 **정상 라벨의 실제 소요시간이 드러난다.** ~400ms 대가 유령 edge 였다면 실측은
-> ~2초 대가 된다. 재검증에서 `출력끝` 분포를 다시 볼 것.
-
-#### 2차 실기기 (프레임 검증 적용 후) — ★ 비프음은 울리지 않는다
-
-같은 8장 주문, cold start(`#1` 부터). `상태응답=확장(2바이트)` 학습 확인.
-
-| 관측 | 결과 |
-|---|---|
-| `떼기대기` 진입 | **5회**(`#2`~`#6`) — 앞 라벨 미회수 상태에서 내 페이지가 펌웨어에 들어간 채 보류 |
-| **비프음** | **울리지 않음** |
-| `커버열림` 오판 | **0건** |
-| `상태프레임 이상` | **0건** (아래 단서 참조) |
-| 보류 없는 정상 인쇄 소요 | `#7` 1397ms / `#8` 1648ms (`#1` 2319ms 는 connect 포함 warm-up) |
-| 결과 | 8/8 출력, 중복 0 |
-
-**비프음 질문의 답이 나왔다.** 조건은 확실히 만들어졌다 — `떼기대기` 는 "내 페이지가 이미
-펌웨어에 있는데 앞 라벨이 필러를 막고 있다" 를 뜻하고, 앞 라벨을 떼는 즉시 보류가 풀려
-인쇄된 것이 그 증거다(진입 게이트가 5초를 태우지 않고 곧바로 제출됐다). 그 상태에서 **소리가
-나지 않았다.** 즉 **XD5-40d 표준기 펌웨어는 이 조건에서 buzzer 를 울리지 않는다** — SDK 에
-buzzer API 가 없다는 조사 결과와 일관된다(`.so` 의 `Buzzer Driver` 섹션은 제품군 공용 라이브러리
-것이라 이 모델의 탑재를 뜻하지 않는다).
-
-> ⚠️ **소요시간이 실측을 뒤집었다.** 보류 없는 정상 인쇄가 **1.4~1.6초**다. 1차 로그의
-> ~400ms 대는 물리적으로 불가능한 값이었고, 유령 edge 진단(§ 위)이 맞았음을 뒷받침한다.
-
-> ⚠️ **프레임 검증 가드는 아직 발화하지 않았다.** `상태프레임 이상` 이 0건이라는 것은
-> "가드가 잡아냈다" 가 아니라 **"이번 실행에는 이상 프레임이 아예 없었다"** 는 뜻이다
-> (발화하면 로그가 남는다). 커버열림 오판 0건과 소요시간 정상화도 같은 사실로 설명된다.
-> 1차는 `#12`~`#19`(오래 유지된 연결), 2차는 `#1`~`#8`(cold start) 라 **연결 수명과 상관이
-> 있을 가능성**이 있다. 가드의 실제 효과는 이상 프레임이 재현될 때 확인된다.
-
-#### 3차 확인 — 이 기종에는 버저가 없다 (확정)
-
-**커버를 열거나 용지를 빼도 소리가 나지 않는다.** 진짜 에러에서조차 무음이므로 "버저는
-있는데 이 조건에만 안 쓴다"가 아니라 **버저 하드웨어 자체가 없다.** SDK 전수 조사에서
-buzzer API 가 0건이었던 것과 일치한다. 같은 확인에서 **커버열림·용지없음 복구 경로는 정상
-동작**함을 함께 확인했다(§4-2 회귀 항목 해소).
-
-> ⚠️ **"비프음이 없으니 떼기 대기를 되살려도 된다" 는 추론은 틀렸다.** 비프음은 이 설계의
-> **계기였을 뿐 근거가 아니다.** 대기를 되돌리면 (1) 다음 제출이 클래스 lock 에 막혀 큐
-> 전체가 사람 손을 기다리고, (2) 그 대기가 "인쇄 시작 시 필러가 비어 있다" 를 암묵적으로
-> 보장해 주던 탓에 완료 판정이 레벨 검사로 버텨 왔으므로 **배출 전 라벨을 완료로 판정하는
-> 결함**까지 함께 돌아온다. 두 변경은 여전히 분리 불가다.
-
-로그 문구도 정정했다 — BIXOLON 경로는 `떼기대기 (앞 라벨을 안 뗌 — **무음 보류**)` 로 쓴다.
-grep 키워드 `떼기대기` 는 Caysn 과 공통으로 유지하되, 이 기종에서 사실이 아닌
-"비프음 울림" 을 그대로 복사하지 않는다. **로그가 거짓을 주장하면 진단이 오염된다.**
-
-#### 남은 판단 — 알림이 필요하면 앱이 내야 한다
-
-`SoundService` + audioplayers 기존 자산으로 가능하다. 다만 소리가 프린터가 아닌 **본체**에서
-나므로 매장 배치(라벨=USB 별개 본체)에 따라 유용성이 갈린다 — 도입 여부는 별도 판단.
-현재는 **보류**(2026-08-07).
-
-#### 아직 검증 안 된 것
-
-① `상태정상`(BASIC variant 폴백) 도달 여부 ② REXOD 무영향 ③ 이상 프레임 재현 시 가드 동작.
+살아남은 결론 2가지:
+- **사전 이진화 임계 210** — SDK 자체 이진화가 저임계로 동작해 얇은 요소가 소실되는
+  문제. G30 이 `BixolonPosDriver.BINARIZE_THRESHOLD` 로 승계했고, **그 javadoc 이 레포에
+  남은 유일한 근거 사본**이다(Windows 복제본 2곳은 함께 삭제됨).
+- **BIXOLON SDK 에 buzzer API 는 없다** — `libcommon`(135클래스)·`libbxl_common.so` 심볼
+  전수 조사 결과. 두 자산 모두 G30 과 공유하므로 이 조사는 **G30 에도 유효하고 재조사가
+  불필요**하다. 단 XD5 의 "버저 하드웨어 미탑재" 결론은 개별 하드웨어 사실이라 G30 으로
+  승계되지 않는다(G30 실기기 확인 미실시).
 
 ### 3.5 BIXOLON G30 (UPOS) — 신규 기종 통합 + 40mm 연속용지 레이아웃 (2026-08-21)
 
-기존 3기종(Caysn/REXOD/XD5-40d)은 전부 **갭 라벨**(고정 크기 낱장)이라 490×600 고정 캔버스
+갭 라벨 기종(Caysn D2/D3, REXOD RXLA-561)은 고정 크기 낱장이라 490×600 고정 캔버스
 PNG 한 장이면 됐다. G30 은 **연속 용지 + 커터**라 그 전제가 깨진다 — 세로 가변 레이아웃이
 필요하고, SDK 도 완전히 다르다(UPOS/JavaPOS, `BixolonPosDriver.java` — §3 도입부 참조).
 
@@ -455,8 +296,8 @@ PNG 한 장이면 됐다. G30 은 **연속 용지 + 커터**라 그 전제가 �
 캐시)는 `LabelDrawOps` mixin(신규, `lib/utils/label_draw_ops.dart`)으로 뽑아 기존
 `LabelPainter`(490×600)와 공유 — Dart 프라이버시가 파일 단위라 언더스코어를 뗀 순수 이동.
 용지 규격은 `LabelMediaSpec`(신규, `lib/services/label_printer/label_media_spec.dart`) 값
-객체로 캔버스 폭/높이/좌우여백을 기종별로 분리(`gap490x600`은 기존 상수 그대로 — 3기종
-회귀 0, `continuous40`이 G30).
+객체로 캔버스 폭/높이/좌우여백을 기종별로 분리(`gap490x600`은 기존 상수 그대로 — 갭 라벨
+기종 회귀 0, `continuous40`이 G30).
 
 #### 실기기 기하 확정 — 시행착오 기록
 
@@ -495,10 +336,13 @@ quiet zone(모듈 4개 폭 흰 배경)이 `clampQuietTopTo`/`clampQuietBottomTo`
 
 - **Windows(BXLPAPI) 이식 — 미착수.** Android UPOS 와는 별도 명령셋(BXLPAPI). 레이아웃(PNG
   생성)은 `ContinuousLabelPainter`/`Continuous58LabelPainter`+`LabelMediaSpec`을 그대로 재사용
-  가능 — 이식 대상은 순수 전송 계층뿐. 첫 수정 대상 두 곳: `print_service.dart` 가 Windows
-  경로에 `LabelPainter.width/height`(490/600)를 하드코딩하는 지점과,
-  `windows_label_router.dart` 의 `connectedModelName` 이 `'BIXOLON XD5-40d'` 로 하드코딩돼
-  Windows 에서는 G30 분기 자체가 안 타는 지점.
+  가능 — 이식 대상은 순수 전송 계층뿐. 할 일 두 가지:
+  ① `print_service.dart` 가 Windows 경로에 `LabelPainter.width/height`(490/600)를
+  하드코딩하는 지점을 실제 생성 이미지 크기로 교체(연속용지는 세로 가변).
+  ② `windows_label_router.dart` 에 **G30 분기를 신규 추가**(기존 하드코딩 수정이 아니다 —
+  XD5-40d 의 `'BIXOLON XD5-40d'` 하드코딩은 §3.4 에서 이미 제거됐고, 라우터 파일은 바로
+  이 분기가 들어올 자리로 남겨 둔 것이다). `connectedModelName` / `printPng` /
+  `warmupOpen` 세 지점이 대상.
 
 ### 3.6 BIXOLON G30 — 58mm 연속용지 레이아웃 (2026-08-26)
 
@@ -622,13 +466,11 @@ flowchart LR
 | [com_port_print_service.dart](../lib/services/com_port_print_service.dart) | COM 포트·DLE EOT 1 프로브·`serial_port_win32` |
 | [receipt_escpos_builder.dart](../lib/services/receipt_escpos_builder.dart) | CP949 ESC/POS 바이트 빌드 |
 | [print_service.dart](../lib/services/print_service.dart) | transport 주입·연결 점검·MethodChannel 호스트 |
-| [windows_label_router.dart](../lib/services/label_printer/windows/windows_label_router.dart) | 라벨 Windows 벤더 라우터 (VID 자동감지) |
+| [windows_label_router.dart](../lib/services/label_printer/windows/windows_label_router.dart) | 라벨 Windows 벤더 seam — 현재 Caysn 단일, G30 이식 대기 |
 | [windows_label_printer_backend.dart](../lib/services/label_printer/windows/windows_label_printer_backend.dart) | 라벨 Windows FFI 백엔드 (Caysn/REXOD) |
-| [bixolon_windows_label_backend.dart](../lib/services/label_printer/windows/bixolon_windows_label_backend.dart) | 라벨 Windows FFI 백엔드 (BIXOLON XD5-40d) |
 | [qr_payload_strategy.dart](../lib/services/label_printer/qr_payload_strategy.dart) | 라벨 QR 페이로드 브랜드 전략 |
 | [UsbReceiptPrinter.java](../android/app/src/main/java/co/kr/waldlust/order/receive/util/print/UsbReceiptPrinter.java) | Android USB bulkTransfer·`WriteResult` |
 | [LabelPrinter.java](../android/app/src/main/java/co/kr/waldlust/order/receive/util/print/LabelPrinter.java) | Android 라벨 프린터 (Caysn/REXOD) |
-| [BixolonLabelDriver.java](../android/app/src/main/java/co/kr/waldlust/order/receive/util/print/BixolonLabelDriver.java) | Android 라벨 프린터 (BIXOLON XD5-40d, Label SDK) |
 | [BixolonPosDriver.java](../android/app/src/main/java/co/kr/waldlust/order/receive/util/print/BixolonPosDriver.java) | Android 라벨 프린터 (BIXOLON G30, UPOS/JavaPOS) — Windows 미이식 |
 | [label_media_spec.dart](../lib/services/label_printer/label_media_spec.dart) | 용지 규격 값 객체(`gap490x600`/`continuous40`/`continuous58`) — 캔버스 폭·높이·좌우여백 |
 | [continuous_label_painter.dart](../lib/utils/continuous_label_painter.dart) | G30 40mm 연속용지 세로 가변 레이아웃 painter |

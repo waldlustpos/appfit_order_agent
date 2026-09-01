@@ -209,7 +209,7 @@ class OutputService {
       const layoutVersion = 1;
 
       // G30(연속용지)은 490×600 고정 캔버스와 요소 구성이 달라 별도 painter 로
-      // 분기한다. 다른 3기종(Caysn/REXOD/XD5-40d)은 갭 라벨이라 기존 LabelPainter
+      // 분기한다. 갭 라벨 기종(Caysn D2/D3, REXOD RXLA-561)은 기존 LabelPainter
       // 그대로 — 회귀 없음.
       //
       // G30 안에서 40mm/58mm 는 **또 다른 레이아웃**이다(58mm 는 40mm 의 확대판이
@@ -466,7 +466,8 @@ class OutputService {
 
   /// SDK 호출 1지점. 플랫폼 분기는 [PrintService.printLabel] 내부에서 처리:
   /// - Windows: autoreplyprint.dll FFI (CP_Label_DrawImageFromData, PNG bytes)
-  /// - Android: MethodChannel (Caysn AutoReplyPrint Java SDK, PNG bytes)
+  /// - Android: MethodChannel (Caysn AutoReplyPrint Java SDK 또는 BIXOLON UPOS
+  ///   SDK — 네이티브가 USB VID/PID 로 라우팅, PNG bytes)
   ///
   /// 양 플랫폼 모두 PNG bytes 입력. 분류/필터/Painter/retry 흐름은 위층에서
   /// 동일하게 처리하므로 양 플랫폼 라벨 출력 결과는 동등하다.

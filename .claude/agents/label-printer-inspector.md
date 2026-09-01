@@ -1,6 +1,6 @@
 ---
 name: label-printer-inspector
-description: 라벨 프린터 파이프라인(OutputQueueService·OutputService / Android MethodChannel printLabel·LabelPrinter.java·Caysn SDK / Windows windows_label_router·windows_label_printer_backend·autoreplyprint·BXL FFI)을 진단합니다. "라벨 누락", "라벨 디버깅", "프린터 큐", "ACK 누락", "FFI", "autoreplyprint", "커버열림", "noPaperCanceled stuck", "메뉴 없어 라벨 생략", "라벨 재발행", "markPendingReprint", "복구 큐" 등의 요청에 위임.
+description: 라벨 프린터 파이프라인(OutputQueueService·OutputService / Android MethodChannel printLabel·LabelPrinter.java·Caysn SDK / Android BixolonPosDriver.java·BIXOLON UPOS SDK / Windows windows_label_router·windows_label_printer_backend·autoreplyprint FFI)을 진단합니다. "라벨 누락", "라벨 디버깅", "프린터 큐", "ACK 누락", "FFI", "autoreplyprint", "커버열림", "noPaperCanceled stuck", "메뉴 없어 라벨 생략", "라벨 재발행", "markPendingReprint", "복구 큐" 등의 요청에 위임.
 tools: Read, Glob, Grep, Bash
 ---
 

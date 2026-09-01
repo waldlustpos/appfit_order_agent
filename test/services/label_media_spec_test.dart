@@ -4,7 +4,7 @@ import 'package:appfit_order_agent/services/label_printer/label_media_spec.dart'
 import 'package:appfit_order_agent/utils/label_painter.dart';
 
 /// `LabelMediaSpec.gap490x600` 이 [LabelPainter] 의 현행 상수와 정확히 일치하는지
-/// 고정한다 — G30 spec 도입이 기존 3기종(Caysn/REXOD/XD5-40d) 캔버스 크기를
+/// 고정한다 — G30 spec 도입이 갭 라벨 기종(Caysn D2/D3, REXOD RXLA-561) 캔버스 크기를
 /// 건드리지 않았음을 보장하는 회귀 가드.
 void main() {
   group('LabelMediaSpec.gap490x600 — 기존 LabelPainter 상수와 일치', () {

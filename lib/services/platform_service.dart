@@ -467,7 +467,7 @@ class PlatformService {
   ///
   /// Windows 의 `WindowsLabelRouter.warmupOpen` 과 같은 역할이다. 이것이 없으면
   /// 세션 최초 open 을 첫 주문의 라벨이 대신 지불하고, 실패 시 `실패 [연결오류]`
-  /// 후 1.5초 뒤 재시도에서야 인쇄된다. 네이티브는 벤더(BIXOLON / Caysn)를
+  /// 후 1.5초 뒤 재시도에서야 인쇄된다. 네이티브는 벤더(BIXOLON G30 / Caysn·REXOD)를
   /// 인쇄 경로와 **같은 규칙**으로 라우팅한다.
   ///
   /// ★ [autoReplyMode] 는 실제 인쇄가 넘기는 값과 반드시 같아야 한다

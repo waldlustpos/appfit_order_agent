@@ -10,7 +10,7 @@ import android.os.Build;
 /**
  * 라벨 프린터 USB 권한 요청 공용 헬퍼.
  *
- * <p>원래 이 로직은 {@link BixolonLabelDriver} 안에만 있었고, Caysn/REXOD 경로
+ * <p>원래 이 로직은 구 XD5-40d 드라이버 안에만 있었고, Caysn/REXOD 경로
  * ({@link LabelPrinter})는 SDK 내부(autoreplyprint.aar 의 {@code NZUSBClientIO.Open})
  * 요청에 의존해 왔다. 그 구현은 {@code PendingIntent.getBroadcast(..., flags=0)} 을
  * 쓰는데, <b>Android 12+ 단말에서는</b> FLAG_IMMUTABLE/FLAG_MUTABLE 중 하나가 필수라

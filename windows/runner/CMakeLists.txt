@@ -56,19 +56,3 @@ if(EXISTS "${AUTOREPLYPRINT_DLL}")
 else()
   message(WARNING "autoreplyprint.dll not found at ${AUTOREPLYPRINT_DLL} -- label printer will fail at runtime.")
 endif()
-
-# Bundle BIXOLON label printer SDK DLL (XD5-40d).
-# Same deployment pattern as autoreplyprint.dll above.
-set(BXLLAPI_DLL "${PROJECT_SOURCE_DIR}/../../external/bixolon/win64/BXLLAPI_x64.dll")
-if(EXISTS "${BXLLAPI_DLL}")
-  add_custom_command(TARGET ${BINARY_NAME} POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${BXLLAPI_DLL}"
-            "$<TARGET_FILE_DIR:${BINARY_NAME}>"
-    COMMENT "Copying BXLLAPI_x64.dll next to runner exe")
-  install(FILES "${BXLLAPI_DLL}"
-    DESTINATION "${CMAKE_INSTALL_PREFIX}"
-    COMPONENT Runtime)
-else()
-  message(WARNING "BXLLAPI_x64.dll not found at ${BXLLAPI_DLL} -- BIXOLON label printer will fail at runtime.")
-endif()

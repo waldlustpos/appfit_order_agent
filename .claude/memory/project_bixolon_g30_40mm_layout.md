@@ -27,6 +27,6 @@ BIXOLON G30(연속용지+커터, UPOS/JavaPOS SDK) Android 드라이버 + **40mm
 **현재 상태 / 남은 것**:
 - 40mm·58mm 레이아웃, 설정 배선, 테스트, 문서 전부 완료. **미커밋.** `flutter analyze` 18건(전부 기존), `flutter test` 579 통과.
 - 실물 확인 남음: 검정 바 폰트/stroke 조합(약하면 다음 지렛대는 fs26 → Pretendard-Bold 번들 +1.6MB), 좌측 여백 0 전제.
-- Windows(BXLPAPI) 이식 미착수 — 첫 수정 대상은 `print_service.dart` 의 490/600 하드코딩과 `windows_label_router.connectedModelName` 의 'XD5-40d' 하드코딩(Windows 는 G30 분기 자체가 안 탄다).
+- Windows(BXLPAPI) 이식 미착수 — 할 일 ① `print_service.dart` 의 490/600 하드코딩을 실제 생성 이미지 크기로 교체 ② `windows_label_router` 에 **G30 분기 신규 추가**(구 'XD5-40d' 하드코딩은 2026-09-01 제거됐고, 라우터 파일은 그 분기가 들어올 자리로 의도적으로 남겨 둔 것 — [[project-bixolon-xd5-removal-residue]]).
 
 [[feedback_concurrent_session_git_state]] 대로 커밋 직전 git status 재확인할 것 — 40mm 작업 때 다른 세션의 `api_service.dart` 미스테이징 변경이 섞였던 전례가 있다.
