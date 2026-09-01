@@ -186,6 +186,11 @@ class _FakeOutputQueueService implements OutputQueueService {
   final List<String> addedOrderIds = [];
   final List<String> labelOnlyOrderIds = [];
 
+  /// `playSound` 까지 기록한다. 이 파라미터는 인쇄 게이트가 아니라 실제 재생
+  /// 스위치라(OutputService.notifyNewOrder → playNotificationSound), 알림 경로와
+  /// 합쳐 "주문 1건당 사운드 트리거 몇 회" 를 검증하려면 여기 값이 필요하다.
+  final List<({String orderId, bool playSound})> addCalls = [];
+
   @override
   void add(
     OrderModel order, {
@@ -194,6 +199,7 @@ class _FakeOutputQueueService implements OutputQueueService {
     bool forceOrderReceipt = false,
   }) {
     addedOrderIds.add(order.orderId);
+    addCalls.add((orderId: order.orderId, playSound: playSound));
   }
 
   @override
@@ -1207,6 +1213,45 @@ void main() {
       final call = h.alerts.calls.first;
       expect(call.overlay, isTrue);
       expect(call.appBar, isTrue);
+    });
+  });
+
+  group('(k) 폴링 자동접수 — 주문 1건당 알림음 트리거는 1회', () {
+    // 회귀 방어: _processNewOrdersWhenRefresh 는 출력 큐에 playSound:true 를 넘기면서
+    // 곧이어 triggerNewOrderAlert(playSound:) 도 호출해, 같은 주문이 두 번 울렸다.
+    // 큐의 playSound 는 인쇄 게이트가 아니라 실제 재생 스위치이고
+    // (NewOrderJob → OutputService.notifyNewOrder → playNotificationSound),
+    // SoundService 는 주문 단위 dedup 이 없어 호출 수만큼 그대로 재생한다.
+    //
+    // 소켓 경로(_processNewOrder)는 알림을 먼저 울리고 큐에는 playSound:false 를
+    // 넘기는 계약이었는데, 폴링 경로만 이 계약에서 벗어나 있었다.
+    test('refreshOrders 로 자동접수된 주문은 알림 1회 + 큐는 무음', () async {
+      await PreferenceService().setAutoReceipt(true);
+      addTearDown(() => PreferenceService().setAutoReceipt(false));
+
+      // 소켓(queueOrderExternal)이 아니라 서버 응답으로 유입시켜 폴링 경로를 태운다.
+      final h = await _buildProvider(
+        initialServerOrders: [_order(orderNo: 'A')],
+      );
+      await _wait(600); // 자동접수 PUT + 후속 알림/enqueue 소화
+
+      // 폴링 경로의 자동접수가 실제로 돌았는지 먼저 고정(전제 검증).
+      expect(h.api.statusUpdates, contains(('A', OrderStatus.PREPARING)));
+
+      // 큐는 출력만 담당 — 여기서 소리가 나면 알림과 합쳐 2회가 된다.
+      expect(h.output.addCalls.where((c) => c.orderId == 'A').length, 1);
+      expect(
+        h.output.addCalls.where((c) => c.playSound).isEmpty,
+        isTrue,
+        reason: '알림음은 triggerNewOrderAlert 단독 책임 — 큐는 무음이어야 한다',
+      );
+
+      // 사운드 트리거 총합 = 알림 1회.
+      expect(
+        h.alerts.calls.where((c) => c.sound).length,
+        1,
+        reason: '설정 1회인데 2회 울리던 회귀 — 주문 1건당 트리거는 정확히 1회',
+      );
     });
   });
 }

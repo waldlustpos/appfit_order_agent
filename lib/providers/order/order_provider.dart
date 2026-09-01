@@ -965,7 +965,13 @@ class Order extends _$Order {
                 '[Order Processing] NEW 주문 자동접수 성공 — 출력/알림 트리거: ${order.orderId} (notify=$shouldNotify)');
             if (shouldNotify) {
               // 라벨/주문서 출력 (큐 직렬화) — 폴링 경로(L1825)와 동일 패턴.
-              _outputQueueService.add(acceptedOrder, playSound: true);
+              // playSound: false — 알림음은 아래 triggerNewOrderAlert 가 단독으로
+              // 책임진다. 이 파라미터는 인쇄 게이트가 아니라 실제 재생 스위치라
+              // (NewOrderJob → OutputService.notifyNewOrder → playNotificationSound),
+              // true 로 두면 같은 주문이 큐에서 한 번 + 알림에서 한 번, 총 2회 울린다.
+              // SoundService 는 주문 단위 dedup 이 없어 호출 수만큼 그대로 재생한다.
+              // 소켓 경로(L782)·PREPARING 경로(L646)와 동일한 계약.
+              _outputQueueService.add(acceptedOrder, playSound: false);
             } else {
               logger.d(
                   '[Order Processing] 키오스크/POS 출력·알람 OFF로 주문서 출력 스킵: ${order.orderId}');
