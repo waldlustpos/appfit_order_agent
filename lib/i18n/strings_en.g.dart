@@ -340,7 +340,6 @@ class _Translations$order_detail$en extends Translations$order_detail$ko {
 	@override String get status_update_fail => 'Failed to change status.';
 	@override String get repickup_success => 'Pickup re-request notification sent.';
 	@override String get repickup_fail => 'Failed to send pickup re-request.';
-	@override String get not_picked_up_fail => 'Failed to mark the order as not picked up.';
 	@override String get dialog_kiosk_cancel_title => 'Cancel Order';
 	@override String get dialog_kiosk_cancel_content => 'Please cancel kiosk orders at the kiosk device.';
 	@override String dialog_cancel_confirm_content({required Object n}) => 'Do you want to cancel order #${n}?';

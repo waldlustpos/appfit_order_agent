@@ -602,9 +602,6 @@ class Translations$order_detail$ko {
 	/// ko: '픽업 재요청에 실패했습니다.'
 	String get repickup_fail => '픽업 재요청에 실패했습니다.';
 
-	/// ko: '미픽업 처리에 실패했습니다.'
-	String get not_picked_up_fail => '미픽업 처리에 실패했습니다.';
-
 	/// ko: '주문 취소'
 	String get dialog_kiosk_cancel_title => '주문 취소';
 

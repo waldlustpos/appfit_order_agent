@@ -454,7 +454,6 @@
         "status_update_fail": "주문 상태 변경에 실패했습니다.",
         "repickup_success": "픽업 재요청 알림을 발송했습니다.",
         "repickup_fail": "픽업 재요청에 실패했습니다.",
-        "not_picked_up_fail": "미픽업 처리에 실패했습니다.",
         "dialog_kiosk_cancel_title": "주문 취소",
         "dialog_kiosk_cancel_content": "키오스크 주문은 키오스크 기기에서 취소해주세요.",
         "dialog_cancel_confirm_content": "{n}번 주문을 취소하시겠습니까?",

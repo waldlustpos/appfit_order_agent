@@ -461,7 +461,6 @@
         "status_update_fail": "Failed to change status.",
         "repickup_success": "Pickup re-request notification sent.",
         "repickup_fail": "Failed to send pickup re-request.",
-        "not_picked_up_fail": "Failed to mark the order as not picked up.",
         "dialog_kiosk_cancel_title": "Cancel Order",
         "dialog_kiosk_cancel_content": "Please cancel kiosk orders at the kiosk device.",
         "dialog_cancel_confirm_content": "Do you want to cancel order #{n}?",
