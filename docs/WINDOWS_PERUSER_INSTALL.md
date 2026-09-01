@@ -402,6 +402,13 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; \
   `1-0) 산출물 버전 검증` 게이트가 낡은 Release 폴더를 새 번호로 올리는 사고를
   막는다.
 
+- 이 순서는 이제 **선택이 아니다**. `deploy_windows.ps1` 이 ZIP·버전 JSON 과 함께
+  **설치본도 업로드**하기 때문이다(원격 고정명
+  `appfit_order_agent[_mammoth]_windows_setup.exe`, Fleet 다운로드 페이지가 링크).
+  `dist\` 에 이번 버전 설치본이 없거나 러너 exe 보다 오래됐으면
+  `1-0b) 설치본 검증` 이 **아무것도 업로드하지 않고** 중단한다 — 설치본 파일명에는
+  빌드번호가 없어 semver 비교로는 낡은 설치본을 못 거르므로 mtime 을 본다.
+
 - **첫 배포 전 확인**: 이 전환은 매장 PC 에서 구설치 제거(UAC 1회)를 동반하므로,
   기존 매장은 OTA 로 자동 이관되지 않는다. OTA 는 계속 Program Files 설치본을
   갱신할 뿐이고(그 경로는 검증됨), per-user 로 옮기려면 **새 설치본을 한 번

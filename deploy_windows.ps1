@@ -1,6 +1,14 @@
 ﻿###############################################################################
-# Flutter Windows Release 빌드 후 Lightsail(EC2) 서버에 ZIP 업로드 및
-# Windows 버전 JSON 자동 업데이트 스크립트 (PowerShell)
+# Flutter Windows Release 빌드 후 Lightsail(EC2) 서버에 ZIP(OTA) + 설치본(exe)
+# 업로드 및 Windows 버전 JSON 자동 업데이트 스크립트 (PowerShell)
+#
+# 서버에 올라가는 파일은 세 개다.
+#   1. <채널>.zip          앱이 자기 자신을 갱신하는 OTA 포맷 (사람이 받을 파일이 아님)
+#   2. <채널>_setup.exe    신규 설치용 Inno Setup 설치본. Fleet 다운로드 페이지가 링크
+#   3. <채널>_version.json 앱이 업데이트를 판정하는 파일. 항상 마지막에 올린다
+#
+# 2번은 이 스크립트가 만들지 않는다. build_installer.ps1 이 dist\ 에 만들어 둔 것을
+# 그대로 올리며, 없거나 낡았으면 아무것도 업로드하지 않고 중단한다(1-0b 단계).
 #
 # 사용법:
 #   .\deploy_windows.ps1 [-Brand common|mammoth]   빌드부터 업로드까지 전부 수행
@@ -48,6 +56,13 @@ $REMOTE_DIR        = "/var/www/docs/waldpay_html"
 # 공통 채널 ZIP 을 받아도 파일명이 달라 자연 업데이트가 걸리지 않는다.
 $ZIP_NAME          = if ($Brand -eq 'mammoth') { "appfit_order_agent_mammoth_windows.zip" } else { "appfit_order_agent_windows.zip" }
 $VERSION_JSON_NAME = if ($Brand -eq 'mammoth') { "appfit_order_agent_mammoth_windows_version.json" } else { "appfit_order_agent_windows_version.json" }
+# 설치본(Inno Setup) 원격 이름. 로컬은 dist\<BaseName>-Setup-<semver>.exe 로 버전이
+# 박히지만, 원격은 ZIP/APK 채널과 같은 고정명으로 올린다. Fleet 다운로드 페이지
+# (appfit-fleet/src/types.ts 의 RELEASE_ARTIFACTS)가 이 URL 을 그대로 링크하므로
+# 주소가 릴리즈마다 바뀌면 안 된다. 버전은 아래 version JSON 이 말해준다.
+# 이 ZIP 은 앱의 자가 업데이트(OTA) 전용이고, 사람이 신규 설치할 때 받는 것은
+# 이 설치본이다.
+$INSTALLER_NAME    = if ($Brand -eq 'mammoth') { "appfit_order_agent_mammoth_windows_setup.exe" } else { "appfit_order_agent_windows_setup.exe" }
 Write-Host "[INFO] Brand: $Brand / Channel: $ZIP_NAME"
 
 # 브랜드 전환 시 CMake 캐시가 이전 BINARY_NAME 을 참조해 두 exe 가 같은
@@ -220,6 +235,48 @@ if ($exeVersion -ne $WinVersionLine) {
 Write-Host "[OK] 버전 일치: $exeVersion"
 Write-Host ("     exe 링크 시각: {0}" -f (Get-Item $exePath).LastWriteTime)
 
+# 1-0b) 설치본(Inno Setup) 검증.
+# Fleet 다운로드 페이지가 링크하는 파일이라 ZIP 과 같은 실행에서 함께 올린다.
+# 검증을 업로드보다 앞에 두는 이유: 여기서 중단되면 서버는 손대지 않은 상태로
+# 남는다(version JSON 만 새 빌드를 가리키는 반쪽 배포가 생기지 않는다).
+Write-Host "==== 1-0b) 설치본 검증 ===="
+$InstallerBaseName = if ($Brand -eq 'mammoth') { 'AppfitOrderAgentMammoth' } else { 'AppfitOrderAgent' }
+$installerPath = Join-Path "dist" "$InstallerBaseName-Setup-$WinBuildName.exe"
+if (-not (Test-Path $installerPath)) {
+    Write-Error "[오류] 설치본 없음: $installerPath"
+    Write-Error "       먼저 .\build_installer.ps1 -Brand $Brand 를 실행한 뒤"
+    Write-Error "       .\deploy_windows.ps1 -Brand $Brand -SkipBuild 로 배포하세요."
+    exit 1
+}
+
+# Inno 가 VersionInfoVersion={#MyAppVersion} 로 semver 를 새긴다. Windows 가
+# '3.3.6' 을 '3.3.6.0' 으로 돌려주는 경우가 있어 앞 3자리만 비교한다.
+$installerVersionRaw = (Get-Item $installerPath).VersionInfo.ProductVersion
+$installerVersion = try { ([version]$installerVersionRaw).ToString(3) } catch { $installerVersionRaw }
+if ($installerVersion -ne $WinBuildName) {
+    Write-Error "[오류] 설치본 버전 불일치: installer=$installerVersionRaw, pubspec=$WinBuildName"
+    Write-Error "       dist 에 있는 것이 다른 버전의 설치본입니다."
+    exit 1
+}
+
+# 가장 중요한 검사. 설치본 파일명에는 빌드번호(+n)가 없어서 3.3.6+185 와
+# 3.3.6+186 이 같은 이름을 덮어쓴다. 즉 semver 만으로는 낡은 설치본을 못 거른다.
+# 러너 exe 가 설치본보다 나중에 링크됐다면 설치본 안의 exe 와 지금 ZIP 에 담길
+# exe 는 해시가 다르다 - 이 파일 머리말의 -SkipBuild 규약이 지키려는 바로 그
+# 불변식이 깨진 상태다(Defender 평판은 해시 단위로 쌓인다).
+$installerTime = (Get-Item $installerPath).LastWriteTime
+$runnerTime    = (Get-Item $exePath).LastWriteTime
+if ($installerTime -lt $runnerTime) {
+    Write-Error "[오류] 설치본이 러너 exe 보다 오래됐습니다."
+    Write-Error ("       설치본: {0} / 러너 exe: {1}" -f $installerTime, $runnerTime)
+    Write-Error "       빌드 후 설치본을 다시 만들지 않아, 설치본과 ZIP 이 서로 다른"
+    Write-Error "       exe 를 담게 됩니다. .\build_installer.ps1 -Brand $Brand 를 먼저"
+    Write-Error "       돌리고 .\deploy_windows.ps1 -Brand $Brand -SkipBuild 로 배포하세요."
+    exit 1
+}
+Write-Host "[OK] 설치본: $installerPath ($installerVersionRaw)"
+Write-Host ("     설치본 시각: {0}" -f $installerTime)
+
 # 브랜드 sentinel 갱신 (다음 실행의 브랜드 전환 감지용)
 New-Item -ItemType Directory -Force -Path "build\windows" | Out-Null
 Set-Content -Path $BrandSentinel -Value $Brand -NoNewline
@@ -332,6 +389,15 @@ $scpDest = "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/"
 if ($LASTEXITCODE -ne 0) { Write-Error "[오류] scp ZIP 업로드 실패!"; exit 1 }
 Write-Host "[INFO] ZIP 업로드 완료"
 
+# 3-1) 설치본 업로드 (원격에서 고정명으로 이름 변경)
+# 순서 주의: version JSON 이 마지막이어야 한다. 앱이 업데이트를 판정할 때 보는
+# 파일이라 그게 배포의 커밋 지점이고, 바이너리 두 개가 먼저 올라가 있어야 한다.
+Write-Host "==== 3-1) Upload installer to Lightsail(EC2) server via SCP ===="
+$scpInstallerDest = "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/${INSTALLER_NAME}"
+& scp -o StrictHostKeyChecking=no -i $PEM_KEY_PATH $installerPath $scpInstallerDest
+if ($LASTEXITCODE -ne 0) { Write-Error "[오류] scp 설치본 업로드 실패!"; exit 1 }
+Write-Host "[INFO] 설치본 업로드 완료: $INSTALLER_NAME"
+
 # 4) Windows 빌드 번호 (pubspec.yaml 정본 사용)
 Write-Host "==== 4) Use build number from pubspec.yaml ===="
 $buildNumber = $WinBuildNumber
@@ -359,6 +425,7 @@ Write-Host "==== 6) Archive Windows ZIP to local Project Files ===="
 Write-Host "###############################################################################"
 Write-Host "[완료] Windows 배포 완료!"
 Write-Host "서버 경로: ${REMOTE_HOST}:${REMOTE_DIR}/${ZIP_NAME}"
-Write-Host "OTA 업데이트 URL: http://waldpay.kokonutstamp2.com/$ZIP_NAME"
-Write-Host "버전 JSON URL: http://waldpay.kokonutstamp2.com/$VERSION_JSON_NAME (version=$buildNumber)"
+Write-Host "OTA 업데이트 URL: https://waldpay.kokonutstamp2.com/$ZIP_NAME"
+Write-Host "설치본 URL(신규 설치용): https://waldpay.kokonutstamp2.com/$INSTALLER_NAME"
+Write-Host "버전 JSON URL: https://waldpay.kokonutstamp2.com/$VERSION_JSON_NAME (version=$buildNumber)"
 Write-Host "###############################################################################"

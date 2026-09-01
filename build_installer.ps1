@@ -334,8 +334,9 @@ Write-Host ""
 Write-Host "Next steps:"
 Write-Host "  1) Double-click the installer on a clean Windows PC to verify install/uninstall."
 Write-Host "  2) Verify OTA self-update compatibility (expect UAC prompt, then robocopy success)."
-Write-Host "  3) Upload to Lightsail manually, e.g.:"
-Write-Host "       scp -i ~/.ssh/LightsailDefaultKey-ap-northeast-3.pem $installerPath ec2-user@52.78.172.188:/var/www/docs/waldpay_html/"
+Write-Host "  3) Deploy. Do NOT scp the installer by hand - deploy_windows.ps1 uploads it"
+Write-Host "     under the fixed remote name that the Fleet download page links to:"
+Write-Host "       .\deploy_windows.ps1 -Brand $Brand -SkipBuild"
 
 # Open Explorer with the new installer pre-selected.
 $absInstallerPath = (Resolve-Path $installerPath).Path

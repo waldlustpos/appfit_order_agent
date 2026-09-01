@@ -27,6 +27,9 @@ OTA 서버 배포는 별도(`/deploy-windows`, `deploy_windows.ps1`)다.
   - **installer** — `build_installer.ps1 -Brand <브랜드>` → Inno Setup 으로
     `dist\AppfitOrderAgent-Setup-<semver>.exe`(common) 또는
     `dist\AppfitOrderAgentMammoth-Setup-<semver>.exe`(mammoth) 생성(신규 설치/재설치용). ISCC(Inno Setup 6) 필요.
+    이 파일을 **손으로 scp 하지 않는다** — 서버 업로드는 `/deploy-windows`
+    (`deploy_windows.ps1 -SkipBuild`)가 고정명(`appfit_order_agent[_mammoth]_windows_setup.exe`)
+    으로 ZIP 과 함께 올린다. Fleet 다운로드 페이지가 그 고정 URL 을 링크한다.
   - **release_folder** — `build_windows.ps1 -Brand <브랜드>` → `build\windows\x64\runner\Release` 폴더 빌드 (아카이브 시 `appfit_order_agent_<브랜드>_windows.zip` 으로 압축 보관).
 
 2-티어 아티팩트 모델 — 같은 코드·같은 버전이고 다른 것은 exe명·ProductName·

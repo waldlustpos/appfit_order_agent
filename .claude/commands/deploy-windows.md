@@ -3,7 +3,10 @@ description: Windows 릴리즈 빌드(ZIP) 후 Lightsail 서버에 OTA 배포 (c
 ---
 
 이 명령어는 **Windows** Release 빌드를 ZIP으로 압축해 Lightsail 서버에 업로드하는 **비가역적 OTA 배포**다.
-Android 배포는 별도(`/deploy-android`, `deploy_apk.sh`), 신규 설치용 인스톨러(`Setup.exe`)도 별도(`/release-windows`, `build_installer.ps1`)다. 아래 순서를 반드시 지킨다.
+Android 배포는 별도(`/deploy-android`, `deploy_apk.sh`)다. 신규 설치용 인스톨러(`Setup.exe`)는 `/release-windows`(`build_installer.ps1`)가 **만들고**, 서버 업로드는 이 명령어가 ZIP 과 함께 한다 — 그래서 설치본 빌드가 선행 조건이다. 아래 순서를 반드시 지킨다.
+
+**서버에 올라가는 파일은 세 개다**: OTA ZIP · 설치본 exe · 버전 JSON(항상 마지막).
+설치본이 없거나 러너 exe 보다 낡았으면 `deploy_windows.ps1` 이 **아무것도 올리지 않고 중단**한다(`1-0b) 설치본 검증`).
 
 ## 2-티어 아티팩트 · 아티팩트당 채널 1세트
 
@@ -17,6 +20,20 @@ OTA 채널은 아티팩트마다 하나다 (`lib/config/update_config.dart`):
 | --- | --- | --- |
 | common | `appfit_order_agent_windows.zip` / `appfit_order_agent_windows_version.json` | 한국·일본 전 매장 공용. **레거시 무접미 채널 — 계속 사용(동결 아님)**. 기존 설치본이 자연 업데이트됨 |
 | mammoth | `appfit_order_agent_mammoth_windows.zip` / `appfit_order_agent_mammoth_windows_version.json` | 매머드 전용(신설) |
+
+설치본은 채널이 아니지만 같은 규칙으로 이름을 맞춘 **고정명**으로 올라간다. Fleet
+다운로드 페이지(`appfit-fleet` 의 `RELEASE_ARTIFACTS`)가 이 URL 을 링크하므로 주소가
+릴리즈마다 바뀌면 안 된다 — 로컬의 `dist\<BaseName>-Setup-<semver>.exe` 를 원격에서
+이름만 바꿔 올린다.
+
+| 브랜드 | 설치본 원격 파일명 |
+| --- | --- |
+| common | `appfit_order_agent_windows_setup.exe` |
+| mammoth | `appfit_order_agent_mammoth_windows_setup.exe` |
+
+> **ZIP 과 설치본의 용도가 다르다**: ZIP 은 앱이 자기 자신을 갱신하는 OTA 포맷이고,
+> 사람이 신규 설치할 때 받는 것은 설치본이다. Fleet 다운로드 페이지의 Windows
+> 카드가 설치본을 주는 이유다.
 
 > **Android 와 정책이 다르다**: Android 는 구 패키지 일본 매장 때문에 공통이
 > 무접미 레거시 채널을 동결하고 `_release` 채널을 쓰지만, Windows 는 패키지
@@ -86,22 +103,21 @@ git log --oneline -3
 
 ## 3단계 — 사용자가 yes 입력 시에만 실행
 
-`deploy_windows.ps1` 은 PowerShell 스크립트다. **레포 루트에서** PowerShell 로 실행한다 (Bash 툴에서는 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File` 로 호출):
-```
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./deploy_windows.ps1 -Brand common
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./deploy_windows.ps1 -Brand mammoth
-```
-
-> 에이전트 셸에서 PowerShell 호출이 거부/실패하면, 사용자에게 **레포 루트의 PowerShell 터미널에서 직접** `.\deploy_windows.ps1 -Brand <브랜드>` 을 실행하도록 안내한다.
-
-### 설치본과 같은 릴리즈를 낼 때는 `-SkipBuild`
-
-같은 버전의 **설치본(Setup.exe)과 OTA ZIP 을 함께 낼 때**는 이 순서로 돌린다:
+둘 다 PowerShell 스크립트다. **레포 루트에서** 이 순서로 실행한다 (Bash 툴에서는 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File` 로 호출):
 
 ```
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./build_installer.ps1 -Brand <브랜드>
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./deploy_windows.ps1 -Brand <브랜드> -SkipBuild
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./deploy_windows.ps1  -Brand <브랜드> -SkipBuild
 ```
+
+> 에이전트 셸에서 PowerShell 호출이 거부/실패하면, 사용자에게 **레포 루트의 PowerShell 터미널에서 직접** 위 두 줄을 실행하도록 안내한다.
+
+**`deploy_windows.ps1` 단독 실행(= `-SkipBuild` 없이)은 이제 성립하지 않는다.**
+설치본까지 함께 올려야 하는데 그건 `build_installer.ps1` 만 만들 수 있고, 단독
+실행은 러너 exe 를 다시 링크해 기존 설치본을 자동으로 "낡음" 판정에 빠뜨린다.
+`1-0b) 설치본 검증`이 그 자리에서 중단시킨다.
+
+### 왜 이 순서인가
 
 두 스크립트가 각각 `flutter build` 를 돌리면 러너 exe 가 두 번 링크되는데, MSVC
 링커는 링크마다 PE 헤더의 `TimeDateStamp` 와 PDB 서명 GUID 를 새로 새긴다.
@@ -115,10 +131,15 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./deploy_windows.ps1 -Br
 > 구버전이라, 업데이트를 받아도 같은 팝업을 계속 본다. 스크립트의
 > `1-0) 산출물 버전 검증` 단계가 exe 의 `ProductVersion` 과 `pubspec.yaml` 의
 > `version` 을 대조해 업로드 전에 중단시킨다(두 모드 모두에서 동작).
+>
+> 설치본에는 같은 검사가 통하지 않는다 — 파일명·`VersionInfoVersion` 에 빌드번호
+> (`+n`)가 없어서 `3.3.6+185` 와 `3.3.6+186` 이 같은 이름을 덮어쓰기 때문이다.
+> 그래서 `1-0b` 는 **설치본이 러너 exe 보다 새 것인지**(mtime)를 본다. 설치본이
+> 더 오래됐다면 설치본 안의 exe 와 ZIP 의 exe 가 다른 링크 산출물이라는 뜻이다.
 
 ## 실행 후
 
-- 업로드된 ZIP 파일명·버전 JSON(`version=<빌드번호>`)·OTA URL을 요약
+- 업로드된 ZIP·설치본 exe·버전 JSON(`version=<빌드번호>`)과 세 URL 을 요약
 - 배포 성공분은 `deploy_windows.ps1` 가 **자동 아카이브**(`archive_windows.ps1`)한다 — `!Project Files/appfit_order_agent/windows/<브랜드>/<버전>/` 에 ZIP + `release_notes.txt` 보관 후 폴더가 열린다
 - 오류 발생 시 원인 분석 후 수정 방법 제안
   - `.env` 누락(APPFIT_AES_KEY) 시 환경 변수 안내

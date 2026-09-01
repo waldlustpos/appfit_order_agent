@@ -68,6 +68,7 @@ Tier 1 승격은 셋 다 충족해야 합니다: ① 자체 스토어 리스팅/
     - 매머드 패키지가 공통 채널의 APK 를 받으면 **패키지 불일치로 설치가 실패**합니다. 그래서 자동 업데이트를 끄는 게 아니라 자기 채널로 돌립니다. 운영상 매머드 배포는 Sunmi 스토어 경로지만, **빈 채널은 안전망이 아니므로**(404 는 조용히 삼켜집니다) 릴리즈마다 매머드 채널도 함께 채웁니다.
     - ⚠️ 레거시 무접미 채널(`appfit_order_agent.apk` / `appfit_order_agent_version.json`)은 **동결(FROZEN)**. 구 패키지(`co.kr.waldlust.order.receive`)로 설치된 일본 매장 1곳 전용이라 `.appfit` APK 를 올리면 패키지 불일치로 설치 실패 — 업로드 금지. 구 `_japan`/`_korea`/`_appfit` 채널은 폐기(미사용).
   - Windows — `appfit_order_agent_windows_version.json` / `appfit_order_agent_windows.zip` (레거시 무접미 채널 **계속 사용** — 패키지 개념이 없고 exe명이 동일해 기존 설치본이 자연 업데이트. Android 와 정책 반대)
+  - Windows 신규 설치본(채널 아님) — `appfit_order_agent_windows_setup.exe` / `appfit_order_agent_mammoth_windows_setup.exe`. `deploy_windows.ps1` 이 ZIP·버전 JSON 과 같은 실행에서 **고정명으로** 함께 올립니다(로컬은 `dist\<BaseName>-Setup-<semver>.exe`). 앱이 폴링하지 않고 Fleet 다운로드 페이지가 링크하는 대상입니다 — ZIP 은 앱의 자가 업데이트 전용이라 사람이 받을 파일이 아닙니다.
   - ⚠️ 한 채널 안에서는 국가 구분이 없으므로 업로드 즉시 **한국/일본 동시 롤아웃**됩니다(지역별 시차 배포 불가).
 - **실행**: Android 스크립트는 브랜드 인자를 받습니다 — `./build_main.sh [common|mammoth|all]`, `./deploy_apk.sh [common|mammoth]`. Windows 스크립트(`.\build_windows.ps1`, `.\deploy_windows.ps1`, `.\build_installer.ps1`)는 아직 인자가 없습니다(매머드 Windows 아티팩트는 미구현 — Phase C).
 - Android 는 `productFlavors { common, mammoth }` 를 쓰며 **`--flavor` 없는 빌드는 실패**합니다. `common` 은 `applicationIdSuffix` 가 없어 기존 함대의 applicationId 가 그대로입니다. Windows exe명(CMake BINARY_NAME)·mutex·설치 GUID 는 아직 통일돼 있어 한 머신에 하나만 설치되며, 재설치 시 in-place 업그레이드됩니다.
@@ -165,8 +166,8 @@ alps/full_rlk6580_we_c_m/rlk6580_we_c_m:11/1241/1241:user/release-keys
 | 스크립트 | 역할 |
 | --- | --- |
 | `build_windows.ps1` / `build_windows.sh` | 로컬 release 빌드 (zip 산출 X). `pubspec.yaml`의 `version` → `--build-name` / `--build-number` 주입. |
-| `deploy_windows.ps1` | release 빌드 + VC++ 런타임 DLL 번들링 + zip 패키징 + Lightsail SCP 업로드 + `version.json` 갱신 (OTA 채널). CMake install prefix 점검 후 필요 시 `cmake -A x64`로 재구성. |
-| `build_installer.ps1` | release 빌드 + VC++ 런타임 DLL 번들링 + Inno Setup으로 `dist\AppfitOrderAgent-Setup-<semver>.exe` 생성. **신규 설치용** — OTA에는 사용하지 않음. |
+| `deploy_windows.ps1` | release 빌드 + VC++ 런타임 DLL 번들링 + zip 패키징 + Lightsail SCP 업로드(**ZIP + 설치본 exe**) + `version.json` 갱신 (OTA 채널). CMake install prefix 점검 후 필요 시 `cmake -A x64`로 재구성. 설치본은 만들지 않고 `dist\` 의 것을 올리며, 없거나 러너 exe 보다 낡았으면 업로드 전에 중단(`1-0b`). |
+| `build_installer.ps1` | release 빌드 + VC++ 런타임 DLL 번들링 + Inno Setup으로 `dist\AppfitOrderAgent-Setup-<semver>.exe` 생성. **신규 설치용** — OTA 갱신에는 쓰이지 않지만 서버 업로드는 `deploy_windows.ps1 -SkipBuild` 가 담당(손으로 scp 하지 말 것). |
 
 ### Inno Setup 스크립트
 
