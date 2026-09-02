@@ -49,21 +49,20 @@ class _OrderCardWidgetState extends ConsumerState<OrderCardWidget> {
     // 매장/포장 구분은 카드에 표시하지 않으므로(다이얼로그 배지에서만 확인), 출처색 OFF
     // 일 때는 매장/포장 무관 기본 팔레트(SpecialProductType.none)를 사용한다.
     final useSourceColor = ref.watch(orderSourceColorProvider);
+    // 미픽업은 완료와 같은 종결 표현을 쓴다 — muted 배경 + 회색 번호.
+    // 메인 카드는 번호·수량만 있는 정사각이라 배지 자리가 없어서 완료와 겉모습이
+    // 같아진다. 구분은 탭해서 여는 상세팝업의 상태 pill 이 진다.
+    final isSettled = isDone || isNoShow;
     final palette = useSourceColor
         ? AppStyles.orderSourcePalette(orderToCheck.source,
-            isCancelled: isCancelled,
-            isNoShow: isNoShow,
-            muted: isDone)
+            isCancelled: isCancelled, muted: isSettled)
         : AppStyles.orderPalette(SpecialProductType.none,
-            isCancelled: isCancelled,
-            isNoShow: isNoShow,
-            muted: isDone);
+            isCancelled: isCancelled, muted: isSettled);
     final backgroundColor = palette.bg;
-    // 미픽업은 회색으로 죽이지 않는다 — 정사각 카드라 라벨 자리가 없어서
-    // 주문번호 색이 취소/완료와 갈리는 유일한 신호다(텍스트 구분은 상세팝업 pill).
     final orderNumberColor =
-        isCancelled || isDone ? AppStyles.gray6 : palette.fg;
-    final countColor = isCancelled || isDone ? AppStyles.gray6 : Colors.black;
+        isCancelled || isSettled ? AppStyles.gray6 : palette.fg;
+    final countColor =
+        isCancelled || isSettled ? AppStyles.gray6 : Colors.black;
     // 취소선은 취소 전용이다. 미픽업까지 그으면 둘을 가르는 신호가 사라진다.
     final showCountStrikethrough = isCancelled;
 
@@ -138,8 +137,6 @@ class _OrderCardWidgetState extends ConsumerState<OrderCardWidget> {
     switch (status) {
       case OrderStatus.NEW:
         return AppStyles.kMainColor;
-      case OrderStatus.NO_SHOW:
-        return AppStyles.kNoShow;
       case OrderStatus.PREPARING:
       case OrderStatus.READY:
       case OrderStatus.DONE:
