@@ -16,7 +16,6 @@ import 'package:appfit_order_agent/widgets/order/order_detail_popup.dart';
 import 'package:appfit_order_agent/widgets/common/common_dialog.dart';
 import 'package:appfit_order_agent/widgets/common/app_toolbar_button.dart';
 import 'package:appfit_order_agent/widgets/common/fault_injection_ribbon.dart';
-import 'package:appfit_order_agent/widgets/common/sync_status_banner.dart';
 import 'package:appfit_order_agent/models/order_model.dart';
 import 'package:appfit_order_agent/widgets/home/order_card_widget.dart';
 import 'package:appfit_order_agent/i18n/strings.g.dart';
@@ -529,8 +528,6 @@ class _KdsScreenState extends ConsumerState<KdsScreen>
                 children: [
                   // 장애 주입 무장 리본 (개발 전용, 비무장 시 높이 0)
                   const FaultInjectionRibbon(),
-                  // 서버 응답 지연 배너 (정상일 때는 높이 0)
-                  const SyncStatusBanner(),
                   // 탭 바 (이미 계산된 카운트 사용)
                   DecoratedBox(
                     decoration: BoxDecoration(

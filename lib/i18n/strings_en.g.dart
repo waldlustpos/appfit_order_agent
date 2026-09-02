@@ -82,7 +82,6 @@ class _Translations$common$en extends Translations$common$ko {
 	@override String get unknown => 'Unknown';
 	@override String get later => 'Later';
 	@override late final _Translations$common$api_error$en api_error = _Translations$common$api_error$en._(_root);
-	@override late final _Translations$common$sync$en sync = _Translations$common$sync$en._(_root);
 }
 
 // Path: login
@@ -489,19 +488,6 @@ class _Translations$common$api_error$en extends Translations$common$api_error$ko
 	@override String get not_found => 'The requested information could not be found.';
 	@override String get server => 'A temporary server error occurred. Please try again later.';
 	@override String get generic => 'We couldn\'t process your request. Please try again later.';
-}
-
-// Path: common.sync
-class _Translations$common$sync$en extends Translations$common$sync$ko {
-	_Translations$common$sync$en._(TranslationsEn root) : this._root = root, super.internal(root);
-
-	final TranslationsEn _root; // ignore: unused_field
-
-	// Translations
-	@override String get degraded => 'Server is slow to respond — order sync is delayed';
-	@override String last_updated({required Object time}) => 'Last updated ${time}';
-	@override String get never_updated => 'Not updated yet';
-	@override String get retry_now => 'Retry now';
 }
 
 // Path: login.tabs

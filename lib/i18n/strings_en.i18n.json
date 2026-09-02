@@ -23,12 +23,6 @@
             "not_found": "The requested information could not be found.",
             "server": "A temporary server error occurred. Please try again later.",
             "generic": "We couldn't process your request. Please try again later."
-        },
-        "sync": {
-            "degraded": "Server is slow to respond — order sync is delayed",
-            "last_updated": "Last updated {time}",
-            "never_updated": "Not updated yet",
-            "retry_now": "Retry now"
         }
     },
     "login": {
