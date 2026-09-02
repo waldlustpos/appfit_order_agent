@@ -300,7 +300,8 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen> {
       return _buildCountChipsRow(totalCount, cancelledCount);
     }
 
-    final historyStateAsync = ref.watch(orderHistoryProvider);
+    // 노출 설정이 적용된 목록을 봐야 카드 수와 건수가 어긋나지 않는다.
+    final historyStateAsync = ref.watch(visibleOrderHistoryProvider);
     return historyStateAsync.when(
       data: (orders) {
         final totalCount = orders.length;

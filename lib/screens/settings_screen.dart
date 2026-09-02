@@ -204,6 +204,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ref.read(orderHistoryScrollProvider.notifier).state =
           _isOrderHistoryScroll;
       ref.read(orderSourceColorProvider.notifier).state = _isOrderSourceColor;
+      // 주문내역(과거 날짜)이 watch 하는 reactive 사본 — 갱신하지 않으면 이미 계산된
+      // 목록이 남아 설정을 바꿔도 과거 조회에만 반영되지 않는다.
+      ref.read(showKioskOrderProvider.notifier).state = _isKioskOrderVisible;
+      ref.read(showPosOrderProvider.notifier).state = _isPosOrderVisible;
     } catch (e) {
       logger.e('Error saving settings: $e');
       if (mounted) {
