@@ -162,8 +162,8 @@ lib/
 | --- | --- | --- |
 | 네이티브 레이어 | Java (`android/.../receive/`) — MainActivity·NativeMethodHandler(MethodChannel `co.kr.waldlust.order.receive.appfit_order_agent`) | C++ (`windows/runner/`) — main.cpp 단일 인스턴스 뮤텍스 `Global\AppfitOrderAgent_SingleInstance_Mutex` |
 | 내장 영수증 | Sunmi `SunmiPrintHelper` (ESC/POS) | 없음 |
-| 외부 영수증 transport | USB 범용 — `bulkTransfer` (3-tier endpoint 선택 + 4-tier 후보 판정) | COM 시리얼 단일 경로 (`serial_port_win32`) — Winspool 폴백 의도적 배제 |
-| 외부 영수증 false-success 방지 | `verifyConnection` (ESC `@` probe) | DLE EOT 1 probe (`cbInQue` 폴링 300ms) |
+| 외부 영수증 transport | USB 범용 — `bulkTransfer` (3-tier endpoint 선택 + 4-tier 후보 판정) | 2경로 통합 자동 스캔 — COM 시리얼(`serial_port_win32`) / usbprint 직접 전송(SetupDi + `CreateFile`/`WriteFile`). 케이블 종류 무관하게 재연결이 잡는다. Winspool 폴백은 여전히 의도적 배제 |
+| 외부 영수증 false-success 방지 | `verifyConnection` (ESC `@` probe) | COM: DLE EOT 1 probe (`cbInQue` 폴링 300ms) / usbprint: `DIGCF_PRESENT` 열거 + ESC `@` write |
 | 라벨 transport | Caysn AutoReplyPrint Java SDK (`autoreplyprint.aar`) — MethodChannel `printLabel` | `autoreplyprint.dll` Dart FFI (vendored `external/autoreplyprint/win64/`) — `WindowsLabelPrinterBackend` 직접 호출 |
 | 라벨 ACK 신호 | `statusCallback` ACK 정상 동작 | ACK 미발화 펌웨어 존재 → paperFetch 비콘이 주 신호. stuck 시 3종 active clear |
 | FFI/스레드 격리 | MethodChannel이 native 별도 thread 처리 | 동기 SDK 호출은 `Isolate.run` boxing (handle raw address만 cross-isolate) |

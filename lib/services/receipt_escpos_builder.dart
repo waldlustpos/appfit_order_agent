@@ -28,6 +28,28 @@ class _TextSeg extends _Seg {
 }
 
 class ReceiptEscPosBuilder {
+  /// 외부 영수증 프린터의 1행 컬럼 수 **기본값**(= CP949 인코딩 바이트 수).
+  ///
+  /// 기종마다 실효 컬럼이 다르다 — 48 = PR800(576dot), 42 = POSBANK A8. 같은
+  /// 바이트를 보내도 42 짜리 프린터는 48 컬럼 구분선을 42 에서 접어 `-` 6개가
+  /// 다음 줄로 밀리고 수량 컬럼까지 한 줄 밀린다.
+  ///
+  /// 폭은 기기 설정([PreferenceService.getExternalPrinterColumns])이 정본이고
+  /// 이 값은 **미설정 시 폴백**이다. ESC/POS 에는 "몇 컬럼이냐" 를 묻는 표준
+  /// 질의가 없어서(`GS W` 는 쓰기 전용) 자동 판별이 불가능하다 — 알려진 기종은
+  /// VID:PID 로 프리시드하고(`knownPrinterColumns`), 나머지는
+  /// [buildWidthRulerBytes] 눈금자로 사람이 확인한다.
+  ///
+  /// **42 를 기본으로 두는 이유는 "실패하는 방향"이다.** 폭을 실제보다 크게
+  /// 잡으면 구분선과 수량 칸이 다음 줄로 밀려 출력물이 망가지지만, 작게 잡으면
+  /// 우측 여백이 남을 뿐 읽을 수는 있다. 모르는 기종에서는 조용히 망가지는 쪽보다
+  /// 여백이 남는 쪽으로 실패해야 한다. POSBANK 계열(A8·A11 실측)이 42 이고 넓은
+  /// 쪽(PR800 48)은 예외 테이블로 잡는다.
+  static const int defaultColumns = 42;
+
+  /// 설정 UI 가 제시하는 폭 후보. 80mm(48) / 80mm 좁은 인쇄영역(42) / 58mm(32).
+  static const List<int> columnOptions = [48, 42, 32];
+
   final List<_Seg> _segs = [];
 
   void raw(List<int> bytes) => _segs.add(_RawSeg(bytes));
@@ -182,7 +204,7 @@ class ReceiptEscPosBuilder {
   static Future<List<String>> debugReceiptLines({
     required Map<String, dynamic> jsonOrder,
     bool isCancel = false,
-    int width = 48,
+    int width = defaultColumns,
   }) async {
     final b = ReceiptEscPosBuilder();
     await _appendReceipt(b, jsonOrder, isCancel, width, null);
@@ -193,7 +215,7 @@ class ReceiptEscPosBuilder {
   static Future<List<String>> debugOrderLines({
     required Map<String, dynamic> jsonOrder,
     bool isCancel = false,
-    int width = 48,
+    int width = defaultColumns,
   }) async {
     final b = ReceiptEscPosBuilder();
     await _appendOrder(b, jsonOrder, isCancel, width, null);
@@ -313,7 +335,7 @@ class ReceiptEscPosBuilder {
   static Future<Uint8List> buildReceiptBytes({
     required Map<String, dynamic> jsonOrder,
     required bool isCancel,
-    int width = 48,
+    int width = defaultColumns,
     Uint8List? logoImageBytes,
   }) async {
     final b = ReceiptEscPosBuilder();
@@ -325,7 +347,7 @@ class ReceiptEscPosBuilder {
   static Future<Uint8List> buildOrderBytes({
     required Map<String, dynamic> jsonOrder,
     required bool isCancel,
-    int width = 48,
+    int width = defaultColumns,
     Uint8List? logoImageBytes,
   }) async {
     final b = ReceiptEscPosBuilder();
@@ -337,11 +359,63 @@ class ReceiptEscPosBuilder {
   static Future<Uint8List> buildTestPageBytes({
     String? comPort,
     int? baudRate,
-    int width = 48,
+    int width = defaultColumns,
   }) async {
     final b = ReceiptEscPosBuilder();
     _appendTestPage(b, comPort, baudRate, width);
     return await b.toBytesCp949();
+  }
+
+  /// 설정 UI "용지 폭 확인" — 폭 후보별 눈금자.
+  ///
+  /// ESC/POS 에는 프린터에게 컬럼 수를 묻는 표준 질의가 없다(`GS I` 로 모델명은
+  /// 읽히지만 양방향 인터페이스 + 모델 테이블이 필요하고, `GS W` 는 쓰기 전용이라
+  /// 프린터가 자기 인쇄 영역을 알려주지 않는다). 그래서 **사람이 눈으로 확인**한다.
+  ///
+  /// [columnOptions] 각 값마다 정확히 그 폭을 채우는 막대를 한 줄씩 찍는다.
+  /// 용지보다 넓은 막대는 프린터가 접어서 다음 줄에 꼬리를 남기므로, **넘치지 않은
+  /// 가장 위의 줄**이 곧 용지 폭이다. 안내 문구는 가장 좁은 후보(32)에서도 접히지
+  /// 않도록 짧게 유지할 것 — 안내가 접히면 진단 자체가 헷갈린다.
+  ///
+  /// 좌측 여백(`GS L`) 때문에 좁아 보이는 경우와 구분하는 것도 이 출력의 몫이다:
+  /// 막대가 왼쪽 끝에서 시작하지 않고 앞에 빈칸이 있으면 컬럼 수가 아니라 여백
+  /// 문제이므로, 폭을 줄이는 대신 `GS L 0` 송출을 검토해야 한다.
+  static Future<Uint8List> buildWidthRulerBytes({int? currentColumns}) async {
+    final b = ReceiptEscPosBuilder();
+    b
+      ..init()
+      ..setAlign(EscPos.alignLeft)
+      ..boldOn()
+      ..textLn('[용지 폭 확인]')
+      ..boldOff()
+      ..textLn('넘치지 않은 가장 위 줄이')
+      ..textLn('현재 용지 폭입니다.')
+      ..ln();
+
+    for (final n in columnOptions) {
+      b.textLn(widthRulerLine(n));
+    }
+
+    b
+      ..ln()
+      ..textLn('현재 설정: ${currentColumns ?? defaultColumns}칸')
+      ..ln()
+      ..ln()
+      ..ln()
+      ..cut();
+    return await b.toBytesCp949();
+  }
+
+  /// 정확히 [n] 컬럼을 채우는 눈금자 한 줄. `48>----...----#` 형태.
+  ///
+  /// 앞의 숫자는 그 줄이 몇 칸짜리인지 알려주고, 끝의 `#` 는 "여기가 끝" 표시라
+  /// 꼬리가 다음 줄로 넘어갔는지 한눈에 보인다. 모두 ASCII 라 CP949 에서 1바이트.
+  @visibleForTesting
+  static String widthRulerLine(int n) {
+    final head = '$n>';
+    final fill = n - head.length - 1;
+    if (fill < 0) return head;
+    return '$head${'-' * fill}#';
   }
 
   /// 기기 호출(DEVICE_CALL_REQUESTED) 알림 슬립 — deviceId / 일시 / 문구.
@@ -349,7 +423,7 @@ class ReceiptEscPosBuilder {
     required String deviceId,
     required String dateTime,
     required String phrase,
-    int width = 48,
+    int width = defaultColumns,
   }) async {
     final b = ReceiptEscPosBuilder();
     _appendDeviceCall(b, deviceId, dateTime, phrase, width);
@@ -579,9 +653,10 @@ class ReceiptEscPosBuilder {
             ? jsonOrder['displayOrderNum'] as String
             : (jsonOrder['ordrSimpleId'] as String? ?? '');
     // 주문번호 줄 전체(라벨+번호)를 fontLarge(0x11, 2x2)로 출력한다.
-    // 가로 2배는 실효 컬럼을 48→24로 줄이는데 '주문번호: 0006' 은 28컬럼이라
-    // 좁은 용지에서는 프린터가 줄을 접을 수 있다. 접히면 라벨을 줄이거나
-    // 번호만 키우는 쪽으로 되돌린다.
+    // 가로 2배는 실효 컬럼을 [defaultColumns] 의 절반으로 줄인다 — 42 기준 21,
+    // 48 기준 24. '주문번호: 0006' 은 2배 적용 시 28컬럼이라 양쪽 모두 프린터가
+    // 줄을 접을 수 있고, 42 로 내리면 여유가 3컬럼 더 줄어든다. 접히면 라벨을
+    // 줄이거나 번호만 키우는 쪽으로 되돌린다.
     b
       ..setSize(EscPos.fontLarge)
       ..textLn('${lbl('order_no', '주문번호')}: $displayNum')
@@ -639,7 +714,7 @@ class ReceiptEscPosBuilder {
         final countStr = isCancel ? '-$menuCount' : '$menuCount';
 
         // 주방에서 잘 보이도록 메뉴/옵션 모두 세로 2배로 출력 (kokonut_order_agent_v2 와 동일).
-        // fontTall(0x01)은 가로 배율 1배라 width=48 컬럼 계산이 그대로 유효하다.
+        // fontTall(0x01)은 가로 배율 1배라 [width] 기준 컬럼 계산이 그대로 유효하다.
         // fontLarge(0x11)는 가로 2배라 패딩된 라인에 쓰면 컬럼이 깨진다.
         b.setSize(EscPos.fontTall);
         _row(b, menuName, menuW, [(countStr, countW)]);

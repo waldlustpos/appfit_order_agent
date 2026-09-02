@@ -8,6 +8,8 @@ import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/services/preference_service.dart';
 import 'package:appfit_order_agent/services/printer_job_queue.dart';
 import 'package:appfit_order_agent/services/receipt_escpos_builder.dart';
+import 'package:appfit_order_agent/services/usb_print_descriptor.dart'
+    show parseUsbIdsFromDevicePath, usbIdKey;
 
 // Windows 전용 transport (win32 + serial_port_win32 의존).
 // Android 런타임에서는 절대 로드되지 않도록 deferred 로 import — 안 그러면
@@ -30,6 +32,13 @@ class ExternalReceiptPrinter {
   static bool _cachedLogoIsNull = false;
   static bool _winTransportLoaded = false;
 
+  /// 이 기기의 외부 프린터 컬럼 폭. 미설정이면 기본값(48).
+  ///
+  /// 기종마다 실효 컬럼이 달라(PR800 48 / POSBANK A8 42) 하드코딩할 수 없다.
+  /// 자세한 배경은 [PreferenceService.getExternalPrinterColumns] 참조.
+  static int columnsOf(PreferenceService pref) =>
+      pref.getExternalPrinterColumns() ?? ReceiptEscPosBuilder.defaultColumns;
+
   Future<bool> printOrder(
     Map<String, dynamic> orderMap, {
     bool isCancel = false,
@@ -37,6 +46,7 @@ class ExternalReceiptPrinter {
     final data = await ReceiptEscPosBuilder.buildOrderBytes(
       jsonOrder: orderMap,
       isCancel: isCancel,
+      width: columnsOf(PreferenceService()),
       logoImageBytes: await loadReceiptLogoBytes(),
     );
     final displayNum = _displayNum(orderMap);
@@ -50,6 +60,7 @@ class ExternalReceiptPrinter {
     final data = await ReceiptEscPosBuilder.buildReceiptBytes(
       jsonOrder: orderMap,
       isCancel: isCancel,
+      width: columnsOf(PreferenceService()),
       logoImageBytes: await loadReceiptLogoBytes(),
     );
     final displayNum = _displayNum(orderMap);
@@ -57,14 +68,44 @@ class ExternalReceiptPrinter {
   }
 
   /// 설정 화면 "테스트 출력" 버튼용. Windows / Android 동일 레이아웃.
+  ///
+  /// 출력물의 포트/보레이트 줄은 **어느 경로로 나온 종이인지**를 손에 쥔 채로
+  /// 확인하기 위한 것이다. usbprint 경로는 보레이트 개념이 없으므로 null 을 넘겨
+  /// '-' 로 찍고, 장치 경로는 42컬럼에 안 들어가므로 VID:PID 로 줄인다.
   Future<bool> printTestPage() async {
     final pref = PreferenceService();
+    final isUsbPrint = Platform.isWindows &&
+        pref.getExternalPrinterConnection() ==
+            PreferenceService.extPrinterConnUsbPrint;
     final data = await ReceiptEscPosBuilder.buildTestPageBytes(
-      comPort:
-          pref.getComPortName() ?? (Platform.isAndroid ? 'USB' : 'WINSPOOL'),
-      baudRate: pref.getComPortBaudRate(),
+      comPort: isUsbPrint
+          ? _usbPrintPortLabel(pref.getUsbPrintDevicePath())
+          : (pref.getComPortName() ?? (Platform.isAndroid ? 'USB' : '-')),
+      baudRate: isUsbPrint ? null : pref.getComPortBaudRate(),
+      width: columnsOf(pref),
     );
     return _sendBytes(data, 'TEST');
+  }
+
+  /// 설정 화면 "용지 폭 확인" 버튼용 눈금자 출력.
+  ///
+  /// 폭 설정을 **적용하지 않고** 후보 폭별 막대를 전부 찍는다 — 지금 설정이 틀려서
+  /// 확인하는 것이므로 그 값으로 레이아웃을 잡으면 진단이 안 된다.
+  Future<bool> printWidthRuler() async {
+    final data = await ReceiptEscPosBuilder.buildWidthRulerBytes(
+      currentColumns: columnsOf(PreferenceService()),
+    );
+    return _sendBytes(data, 'RULER');
+  }
+
+  static String _usbPrintPortLabel(String? devicePath) {
+    if (devicePath == null || devicePath.isEmpty) return 'USB (미선택)';
+    final ids = parseUsbIdsFromDevicePath(devicePath);
+    final vid = ids.vendorId;
+    final pid = ids.productId;
+    if (vid == null || pid == null) return 'USB';
+    String hex4(int v) => v.toRadixString(16).toUpperCase().padLeft(4, '0');
+    return 'USB ${hex4(vid)}:${hex4(pid)}';
   }
 
   /// 기기 호출(DEVICE_CALL_REQUESTED) 알림 슬립 출력. Windows / Android 동일.
@@ -77,6 +118,7 @@ class ExternalReceiptPrinter {
       deviceId: deviceId,
       dateTime: dateTime,
       phrase: phrase,
+      width: columnsOf(PreferenceService()),
     );
     return _sendBytes(data, '기기호출_$deviceId');
   }
@@ -100,6 +142,35 @@ class ExternalReceiptPrinter {
       return await win_transport.isConnected();
     }
     return false;
+  }
+
+  /// (Android) 연결된 외부 영수증 프린터의 USB VID/PID. 못 찾으면 null.
+  ///
+  /// 기종별 용지 폭 프리시드용이다 — ESC/POS 에 컬럼 수 질의가 없어서
+  /// (`GS W` 는 쓰기 전용) VID/PID 로 알려진 기종을 가려내는 것이 유일하게
+  /// 자동화 가능한 경로다. Windows 는 usbprint 장치 경로 / COM 포트의 SetupAPI
+  /// `SPDRP_HARDWAREID` 에서 같은 값을 얻는다.
+  ///
+  /// 반환 형식은 Windows 쪽과 맞춰 `'VID:PID'` 대문자 16진수 문자열이라
+  /// `knownColumnsForDeviceString` 에 그대로 넣을 수 있다.
+  Future<String?> connectedUsbIdString() async {
+    if (!Platform.isAndroid) return null;
+    try {
+      final ids =
+          await platform.invokeMapMethod<String, dynamic>('getExternalPrinterIds');
+      if (ids == null) return null;
+      final vid = (ids['vendorId'] as num?)?.toInt();
+      final pid = (ids['productId'] as num?)?.toInt();
+      final key = usbIdKey(vendorId: vid, productId: pid);
+      // knownColumnsForDeviceString 은 'vid_xxxx&pid_xxxx' 패턴을 찾으므로
+      // 그 형태로 감싸서 돌려준다 (Windows 장치 문자열과 같은 파서를 쓰기 위함).
+      if (key == null) return null;
+      final parts = key.split(':');
+      return 'vid_${parts[0]}&pid_${parts[1]}';
+    } catch (e) {
+      logger.w('[ExternalReceiptPrinter] getExternalPrinterIds 실패: $e');
+      return null;
+    }
   }
 
   /// (Android) UsbReceiptPrinter.discover() 재호출 — 권한 dialog 표시 / 재오픈.

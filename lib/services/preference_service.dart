@@ -1193,4 +1193,66 @@ class PreferenceService {
   int getComPortBaudRate() => _prefs.getInt(_keyComPortBaudRate) ?? 115200;
   Future<void> setComPortBaudRate(int baudRate) async =>
       _prefs.setInt(_keyComPortBaudRate, baudRate);
+
+  /// Windows 외부 영수증 프린터가 **현재 붙어 있는 경로의 종류**.
+  ///
+  /// 사용자가 고르는 설정이 아니라 **재연결 스캔이 채택한 결과**다 — 케이블이
+  /// 시리얼이든 USB든 앱이 알아서 잡는 것이 목표라, 사용자에게 종류를 묻지 않는다.
+  /// (수동 교정은 설정 화면의 통합 드롭다운에서 하고, 그때도 이 값이 함께 갱신된다.)
+  ///
+  /// 같은 USB 영수증 프린터라도 Windows 바인딩이 두 갈래로 갈리며 **서로소**다:
+  /// - [extPrinterConnCom] : 프린터가 CDC-ACM 을 노출해 가상 COM 포트가 생기거나
+  ///   물리 RS-232 로 붙은 경우 (PR800 = `USB\VID_0D28&PID_4C59` → COM3).
+  ///   `ComPortPrintService` 가 처리하며 식별자는 [getComPortName].
+  /// - [extPrinterConnUsbPrint] : USB Printer class 만 노출해 usbprint.sys 가 붙고
+  ///   COM 포트가 없는 경우 (POSBANK A8 = `USB\VID_0483&PID_A319`).
+  ///   `UsbPrintService` 가 처리하며 식별자는 [getUsbPrintDevicePath].
+  ///
+  /// **기본값은 COM** 이라 기존 현장 단말(저장된 COM 포트 보유)의 동작은 그대로다.
+  static const String _keyExtPrinterConn = 'APPFIT_EXT_PRINTER_CONN';
+  static const String extPrinterConnCom = 'com';
+  static const String extPrinterConnUsbPrint = 'usbprint';
+
+  String getExternalPrinterConnection() {
+    final v = _prefs.getString(_keyExtPrinterConn);
+    return v == extPrinterConnUsbPrint ? extPrinterConnUsbPrint : extPrinterConnCom;
+  }
+
+  Future<void> setExternalPrinterConnection(String mode) async =>
+      _prefs.setString(
+        _keyExtPrinterConn,
+        mode == extPrinterConnUsbPrint ? extPrinterConnUsbPrint : extPrinterConnCom,
+      );
+
+  /// usbprint 경로의 장치 인터페이스 경로. 재연결 스캔이 채택했거나 사용자가
+  /// 드롭다운에서 고른 값.
+  ///
+  /// null 이면 전송 경로는 `PrinterNoDevice` 다 — COM 경로의 `comPort == null` 과
+  /// 같은 규율. 채택은 **ESC/POS 응답을 확인한 장치**에 대해서만 일어나고 라벨
+  /// 프린터 VID 는 열거 단계에서 이미 빠져 있다. "목록에 하나뿐이니 probe 없이
+  /// 그냥 쓰기" 같은 완화는 넣지 말 것 — 그게 Winspool 금지의 실질이다.
+  ///
+  /// 주의: 이 경로는 USB 허브의 물리 포트를 포함하므로 **다른 포트로 옮겨 꽂으면
+  /// 값이 바뀐다**. 그래서 재연결 스캔이 저장값 실패 시 다른 후보까지 훑는다.
+  static const String _keyUsbPrintDevicePath = 'APPFIT_USB_PRINT_DEVICE_PATH';
+
+  String? getUsbPrintDevicePath() => _prefs.getString(_keyUsbPrintDevicePath);
+  Future<void> setUsbPrintDevicePath(String path) async =>
+      _prefs.setString(_keyUsbPrintDevicePath, path);
+
+  /// 외부 영수증 프린터의 1행 컬럼 수. **Windows/Android 공통** — 같은 A8 이
+  /// Sunmi 단말에 물려도 42 컬럼이다.
+  ///
+  /// null = 미설정이며 호출부가 `ReceiptEscPosBuilder.defaultColumns`(48)로
+  /// 폴백한다. ESC/POS 에 컬럼 수 질의가 없어 자동 판별이 불가능하므로
+  /// (`GS W` 는 쓰기 전용) 값은 ① 알려진 USB 기종 프리시드 ② 눈금자 출력을 보고
+  /// 사용자가 고른 값 두 경로로만 채워진다.
+  ///
+  /// 프리시드는 **이 값이 null 일 때만** 개입한다 — 사용자가 한 번이라도 고른
+  /// 뒤에는 재연결로 대상이 바뀌어도 그 선택을 덮지 않는다.
+  static const String _keyExtPrinterColumns = 'APPFIT_EXT_PRINTER_COLUMNS';
+
+  int? getExternalPrinterColumns() => _prefs.getInt(_keyExtPrinterColumns);
+  Future<void> setExternalPrinterColumns(int columns) async =>
+      _prefs.setInt(_keyExtPrinterColumns, columns);
 }
