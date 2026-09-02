@@ -20,12 +20,6 @@ import 'package:appfit_order_agent/models/order_model.dart';
 import 'package:appfit_order_agent/widgets/home/order_card_widget.dart';
 import 'package:appfit_order_agent/i18n/strings.g.dart';
 
-// 키오스크 주문 노출 설정을 위한 StateProvider (order_history_screen과 동일)
-final kioskOrderVisibilityProvider = StateProvider<bool>((ref) {
-  final preferenceService = ref.read(preferenceServiceProvider);
-  return preferenceService.getShowKioskOrder();
-});
-
 class KdsScreen extends ConsumerStatefulWidget {
   const KdsScreen({super.key});
 

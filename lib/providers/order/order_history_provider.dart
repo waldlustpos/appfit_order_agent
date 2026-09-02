@@ -31,13 +31,30 @@ final orderFilterProvider =
 final orderSortDirectionProvider =
     StateProvider<OrderSortDirection>((ref) => OrderSortDirection.DESC);
 
+// 출처(키오스크/POS) 노출 설정까지 적용한 과거 주문 목록.
+//
+// 오늘 목록은 OrderProvider 가 유입 시점에 이미 걸러서 state 에 넣지만
+// (`_shouldShowOrder`), 과거 날짜는 API 결과를 그대로 받으므로 여기서 같은 기준을
+// 다시 적용한다. 이 단계를 건너뛰면 "노출 OFF 인데 과거 조회에서만 보인다"는
+// 날짜별 비대칭이 생긴다. 목록과 상단 건수 칩이 **같은 이 프로바이더**를 봐야
+// 건수와 카드 수가 어긋나지 않는다.
+final visibleOrderHistoryProvider =
+    Provider<AsyncValue<List<OrderModel>>>((ref) {
+  final showKiosk = ref.watch(showKioskOrderProvider);
+  final showPos = ref.watch(showPosOrderProvider);
+  final ordersAsync = ref.watch(orderHistoryProvider);
+
+  return ordersAsync.whenData(
+      (orders) => filterOrdersBySourceVisibility(orders, showKiosk, showPos));
+});
+
 // 필터링된 주문 목록을 제공하는 프로바이더
 // 날짜별 주문과 필터를 결합하여 필터링된 결과 제공
 final filteredOrderHistoryProvider =
     Provider<AsyncValue<List<OrderModel>>>((ref) {
   final filter = ref.watch(orderFilterProvider);
   final sortDirection = ref.watch(orderSortDirectionProvider);
-  final ordersAsync = ref.watch(orderHistoryProvider);
+  final ordersAsync = ref.watch(visibleOrderHistoryProvider);
 
   return ordersAsync.when(
     data: (orders) {
@@ -49,6 +66,25 @@ final filteredOrderHistoryProvider =
     error: (error, stackTrace) => AsyncError(error, stackTrace),
   );
 });
+
+// 출처 노출 설정에 따른 필터링 — `OrderHelperMethods.shouldShowOrder` 의 출처 판정과
+// 같은 기준(`classifyOrderSource`)을 쓴다. 날짜·상태 조건은 여기서 보지 않는다:
+// 주문내역은 과거 날짜를 조회하는 화면이고, 상태는 `filterOrders` 가 따로 거른다.
+// 양쪽 모두 ON(기본값)이면 입력 리스트를 그대로 돌려주므로 불필요한 복사·리빌드가 없다.
+List<OrderModel> filterOrdersBySourceVisibility(
+    List<OrderModel> orders, bool showKiosk, bool showPos) {
+  if (showKiosk && showPos) return orders;
+  return orders.where((order) {
+    switch (classifyOrderSource(order.source)) {
+      case OrderSourceType.kiosk:
+        return showKiosk;
+      case OrderSourceType.pos:
+        return showPos;
+      case OrderSourceType.app:
+        return true;
+    }
+  }).toList();
+}
 
 // 필터에 따른 주문 필터링 로직
 // 반환값은 읽기 전용으로 취급할 것 — ALL 분기는 입력 리스트를 그대로(별칭) 돌려주므로
