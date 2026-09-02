@@ -159,13 +159,25 @@ class AppStyles {
   static const Color kAmber = Color(0xFFF59E0B);
   static const Color kAmberAlpha = Color(0x14F59E0B);
 
-  /// 미픽업(NO_SHOW)은 **완료(DONE)와 같은 초록 계열**을 쓴다.
+  /// 미픽업(NO_SHOW) 배지·상태 pill 전경 — **완료(DONE)와 같은 초록 계열이되
+  /// 한 톤 깊은 에메랄드.** [green100](#37dc28, 라임)보다 어둡고 채도가 낮아
+  /// "완료 쪽 상태" 로 읽히되 같은 색은 아니다.
+  static const Color kNoShow = Color(0xFF16A34A);
+
+  /// 배지·상태 pill 배경 (8% 알파). 다른 상태 토큰과 같은 농도.
+  static const Color kNoShowAlpha = Color(0x1416A34A);
+
+  /// 완료 탭 카드 배경 — 완료가 쓰는 중성 [gray2] 자리에 들어간다.
   ///
-  /// 미픽업은 알림이 아니라 종결이라, 완료 탭에서 경고색으로 튀면 안 된다.
-  /// 완료와의 구분은 색이 아니라 **텍스트**가 진다 — KDS 카드의 '미픽업' 배지와
-  /// 상세팝업 상태 pill. 별도 토큰을 두지 않고 [green100] 을 그대로 참조한다.
-  static const Color kNoShow = green100;
-  static const Color kNoShowAlpha = green100Alpha;
+  /// **카드는 초록으로 물들이지 않는다.** 종결 주문 카드는 회색 계열로 가라앉아
+  /// 있어야 진행 중 주문과 갈리기 때문이다. 대신 중성 램프에서 한 단계 아래인
+  /// [gray3] 를 써서 완료와 나란히 놓였을 때만 미세하게 갈린다 — 메인 정사각
+  /// 카드는 배지 자리가 없어 이 한 톤이 유일한 구분 신호다.
+  ///
+  /// 카드 테두리 기본값도 [gray3] 라 미픽업 카드는 **테두리가 배경에 묻는다**
+  /// (완료는 gray2 면 + gray3 윤곽). 버그가 아니라 결과적으로 구분을 하나 더
+  /// 얹는 쪽이라 그대로 둔다.
+  static const Color kNoShowMutedBg = gray3;
 
   /// 메인 핑크 10% 알파 — NEW 상태 배경용. 부팅 시 applyBrand 로 덮어씌움
   static Color kMainColorAlpha = BrandTheme.appfitDefault.primaryAlpha;
@@ -332,11 +344,13 @@ class AppStyles {
   /// - [isCancelled]: true면 [type]을 무시하고 빨강 계열 반환
   /// - [isNoShow]: true면 [type]을 무시하고 딥오렌지 계열 반환.
   /// - [muted]: KDS 픽업·완료 탭처럼 bg를 중성(gray2)으로 고정하되 fg는 유지.
-  ///   **미픽업도 완료와 같이 muted 로 넘긴다** — 종결 상태라 카드에서 튀면 안 되고,
-  ///   구분은 '미픽업' 배지 텍스트가 진다.
+  /// - [isNoShow]: 미픽업도 종결이라 **[muted] 로 함께 넘기되** 배경만 한 톤 진한
+  ///   회색([kNoShowMutedBg])으로 바꾼다. 전경·번호색은 완료와 같으므로 "끝난 주문"
+  ///   으로 읽히면서도 완료와 나란히 놓였을 때 갈린다. muted 가 아니면 무시된다.
   static OrderPalette orderPalette(
     SpecialProductType type, {
     bool isCancelled = false,
+    bool isNoShow = false,
     bool muted = false,
   }) {
     if (isCancelled) {
@@ -348,7 +362,7 @@ class AppStyles {
       SpecialProductType.both => gray9,
       SpecialProductType.none => kBlue,
     };
-    if (muted) return OrderPalette(gray2, fg);
+    if (muted) return OrderPalette(isNoShow ? kNoShowMutedBg : gray2, fg);
     final bg = switch (type) {
       SpecialProductType.dineIn => kSubAlpha,
       SpecialProductType.takeout => kBlueAlpha,
@@ -362,13 +376,14 @@ class AppStyles {
   ///
   /// '주문 출처별 색상' 설정이 ON일 때 [orderPalette] 대신 사용한다.
   /// - [isCancelled]: 취소는 빨강 계열 (상태 우선)
-  /// - [muted]: KDS 픽업·완료처럼 bg를 중성(gray2)으로 고정하되 fg는 유지.
-  ///   미픽업도 완료와 같이 muted 로 넘긴다([orderPalette] 참조)
+  /// - [isNoShow]/[muted]: [orderPalette] 와 동일 — 미픽업은 muted 배경만
+  ///   옅은 초록 워시로 바뀐다
   /// - 키오스크: 파랑(kBlueAlpha/kBlue), POS: 슬레이트그레이(kPosOrderBg/Fg),
   ///   앱(그 외): 연두 배경/초록 전경 — 분류는 [classifyOrderSource] 기준
   static OrderPalette orderSourcePalette(
     String source, {
     bool isCancelled = false,
+    bool isNoShow = false,
     bool muted = false,
   }) {
     if (isCancelled) {
@@ -379,7 +394,7 @@ class AppStyles {
       OrderSourceType.pos => (kPosOrderBg, kPosOrderFg),
       OrderSourceType.app => (kAppOrderBg, kAppOrderFg),
     };
-    if (muted) return OrderPalette(gray2, fg);
+    if (muted) return OrderPalette(isNoShow ? kNoShowMutedBg : gray2, fg);
     return OrderPalette(bg, fg);
   }
 
