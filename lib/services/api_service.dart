@@ -283,6 +283,12 @@ class ApiService {
         case OrderStatus.DONE:
           action = OrderAction.DONE.name;
           break;
+        case OrderStatus.NO_SHOW:
+          // 미픽업. 서버 허용 선행 상태는 NEW·PREPARING·READY 이고 DONE 은
+          // 거부되는데, 그 거부는 아래 INVALID_ORDER_STATUS 분기가
+          // "이미 완료된 주문입니다." 로 안내한다.
+          action = OrderAction.NO_SHOW.name;
+          break;
         default:
           logger
               .w('[AppFit API] updateOrderStatus: 지원하지 않는 상태 변경입니다. ($status)');
@@ -317,6 +323,7 @@ class ApiService {
               OrderStatus.READY => '이미 픽업 요청된 주문입니다.',
               OrderStatus.DONE => '이미 완료된 주문입니다.',
               OrderStatus.PREPARING => '이미 수락된 주문입니다.',
+              OrderStatus.NO_SHOW => '이미 미픽업 처리된 주문입니다.',
               _ => null,
             };
           } catch (_) {
@@ -684,30 +691,19 @@ class ApiService {
     return orders;
   }
 
+  /// 서버 상태 문자열 → [OrderStatus]. **앱의 실제 프로덕션 파서다**
+  /// ([getOrder]/[_getOrdersPage] 가 호출). `OrderModel.fromJson` 쪽 파서는
+  /// 프로덕션 호출부가 없으므로 여기를 안 고치면 아무 효과가 없다.
+  ///
+  /// 매핑표는 [kServerOrderStatus] 하나뿐이다 — 새 상태는 거기에 추가한다.
   OrderStatus _mapAppFitOrderStatus(String status) {
-    switch (status.toUpperCase()) {
-      case 'PENDING':
-      case 'NEW':
-        return OrderStatus.NEW;
-      case 'ACCEPTED':
-      case 'PREPARING':
-        return OrderStatus.PREPARING;
-      case 'READY':
-        return OrderStatus.READY;
-      case 'DONE':
-      case 'COMPLETED':
-        return OrderStatus.DONE;
-      case 'CANCELED':
-      case 'CANCELLED':
-      case 'FAILED':
-        return OrderStatus.CANCELLED;
-      default:
-        // 미지의 상태값은 CANCELLED 로 떨어진다 — 주문이 조용히 취소로 표시되는
-        // 무증상 실패라 경고를 남겨 즉시 드러나게 한다(warning 이상은 파일 기록).
-        // 서버 스키마에 실재하는 'UNKNOWN' 이 대표적인 미매핑 케이스다.
-        logger.w('[AppFit API] 알 수 없는 주문 상태 "$status" → CANCELLED 로 처리됨');
-        return OrderStatus.CANCELLED;
-    }
+    final mapped = kServerOrderStatus[status.toUpperCase()];
+    if (mapped != null) return mapped;
+    // 미지의 상태값은 CANCELLED 로 떨어진다 — 주문이 조용히 취소로 표시되는
+    // 무증상 실패라 경고를 남겨 즉시 드러나게 한다(warning 이상은 파일 기록).
+    // 서버 스키마에 실재하는 'UNKNOWN' 이 대표적인 미매핑 케이스다.
+    logger.w('[AppFit API] 알 수 없는 주문 상태 "$status" → CANCELLED 로 처리됨');
+    return OrderStatus.CANCELLED;
   }
 
   Future<bool> updateShopOperatingStatus(String storeId, bool isOn) async {

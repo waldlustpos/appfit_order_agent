@@ -227,10 +227,27 @@ void main() {
       expect(await mapped('DONE'), OrderStatus.DONE);
       expect(await mapped('CANCELLED'), OrderStatus.CANCELLED);
       expect(await mapped('FAILED'), OrderStatus.CANCELLED);
+      // PICKUP_REQUESTED 는 이 프로덕션 파서에 없어서 CANCELLED 로 떨어지던
+      // 값이다(테스트 전용 파서에만 있었다). 방어로 매핑표에 넣었다.
+      expect(await mapped('PICKUP_REQUESTED'), OrderStatus.READY);
       // 미매핑 값(스키마에 실재하는 UNKNOWN 포함)은 CANCELLED 로 떨어진다.
       // 무증상 실패라 프로덕션 코드가 경고 로그를 남긴다 — 동작 자체는 보존.
       expect(await mapped('UNKNOWN'), OrderStatus.CANCELLED);
       expect(await mapped('SOMETHING_NEW'), OrderStatus.CANCELLED);
+    });
+
+    // 응답 status 원문이 실측 전이라 방어 별칭을 함께 받는다. 이 매핑이 빠지면
+    // 미픽업 주문이 화면에 '취소' 로 보이는 무증상 실패가 된다.
+    test('미픽업 상태 문자열을 NO_SHOW 로 매핑한다 (정본 + 방어 별칭)', () async {
+      Future<OrderStatus> mapped(String status) async {
+        final h = _harness((_) => _page([_item(status: status)]));
+        final orders =
+            await h.container.read(apiServiceProvider).getOrders('TPCP00001');
+        return orders.single.status;
+      }
+
+      expect(await mapped('NO_SHOW'), OrderStatus.NO_SHOW);
+      expect(await mapped('NOT_PICKED_UP'), OrderStatus.NO_SHOW);
     });
   });
 }

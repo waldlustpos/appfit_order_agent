@@ -168,7 +168,7 @@ void main() {
       final manager = build();
       final accepted = _order('A').copyWith(
         status: OrderStatus.PREPARING,
-        orderStatus: '2007',
+        orderStatus: 'PREPARING',
       );
 
       final result =
@@ -176,7 +176,7 @@ void main() {
 
       expect(result.status, OrderStatus.PREPARING);
       // 원본 상태코드도 보존한다 — 상태를 안 바꿨는데 코드만 바뀌면 어긋난다.
-      expect(result.orderStatus, '2007');
+      expect(result.orderStatus, 'PREPARING');
     });
 
     test('ORDER_ACCEPTED 인데 API 가 아직 NEW 면 PREPARING 으로 앞당긴다 (기존 동작 유지)', () {
@@ -186,35 +186,35 @@ void main() {
           manager.enforceStatusFromEventForTest(_order('A'), 'ORDER_ACCEPTED');
 
       expect(result.status, OrderStatus.PREPARING);
-      expect(result.orderStatus, '2007');
+      expect(result.orderStatus, 'PREPARING');
     });
 
     test('ORDER_CANCELLED 는 진행도와 무관하게 터미널로 확정된다', () {
       final manager = build();
       final done = _order('A').copyWith(
         status: OrderStatus.DONE,
-        orderStatus: '2020',
+        orderStatus: 'DONE',
       );
 
       final result =
           manager.enforceStatusFromEventForTest(done, 'ORDER_CANCELLED');
 
       expect(result.status, OrderStatus.CANCELLED);
-      expect(result.orderStatus, '9001');
+      expect(result.orderStatus, 'CANCELLED');
     });
 
     test('알 수 없는 이벤트 타입은 주문을 그대로 통과시킨다', () {
       final manager = build();
       final ready = _order('A').copyWith(
         status: OrderStatus.READY,
-        orderStatus: '2009',
+        orderStatus: 'READY',
       );
 
       final result =
           manager.enforceStatusFromEventForTest(ready, 'SOMETHING_ELSE');
 
       expect(result.status, OrderStatus.READY);
-      expect(result.orderStatus, '2009');
+      expect(result.orderStatus, 'READY');
     });
   });
 

@@ -175,6 +175,9 @@ class OutputQueueService {
   /// 사용자 영수증 재출력 요청 추가 (영수증 + 라벨 동시 재출력, 사운드 없음).
   /// 영수증/라벨 프린터의 USB 자원 경쟁 방지를 위해 영수증 큐에 직렬화한다.
   void addReceiptReprint(OrderModel order) {
+    // NO_SHOW 은 **일부러 제외**한다 — 미픽업은 환불이 아니라 운영상 종결이라
+    // 취소 영수증을 발행하지 않는다. 서버가 미픽업에 금전 처리를 붙이면 재검토할 것
+    // (docs/ORDER_NO_SHOW.md 서버 확인 항목 5).
     final isCancelled = order.status == OrderStatus.CANCELLED;
     _receiptQueue.add(ReceiptReprintJob(order, isCancelReceipt: isCancelled));
   }

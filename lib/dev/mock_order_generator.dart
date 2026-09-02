@@ -37,7 +37,7 @@ class MockOrderGenerator {
       final mockOrder = OrderModel(
         orderNo: orderNo,
         shopOrderNo: shopOrderNo,
-        orderStatus: '2003', // NEW (api response style)
+        orderStatus: 'NEW', // api response style
         orderedAt: orderedAt,
         totalAmount: 4500,
         status: OrderStatus.NEW,

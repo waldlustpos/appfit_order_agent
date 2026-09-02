@@ -507,7 +507,7 @@ class OutputService {
       // 취소 상태로 보정하여 출력
       final orderForCancel = base.copyWith(
         status: OrderStatus.CANCELLED,
-        orderStatus: '9001',
+        orderStatus: orderStatusToServer(OrderStatus.CANCELLED),
         updateTime: DateTime.now(),
       );
 

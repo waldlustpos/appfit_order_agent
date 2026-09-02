@@ -214,7 +214,7 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
         if (!widget.isFromHistory) {
           final updatedOrder = currentOrder.copyWith(
             status: newStatus,
-            orderStatus: _getStatusCode(newStatus),
+            orderStatus: orderStatusToServer(newStatus),
             updateTime: DateTime.now(),
           );
 
@@ -235,23 +235,12 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
     }
   }
 
-  String _getStatusCode(OrderStatus status) {
-    switch (status) {
-      case OrderStatus.NEW:
-        return "2003";
-      case OrderStatus.PREPARING:
-        return "2007";
-      case OrderStatus.READY:
-        return "2009";
-      case OrderStatus.DONE:
-        return "2020";
-      case OrderStatus.CANCELLED:
-        return "9001";
-    }
-  }
-
+  /// [dedupeKey] 를 주면 실패 다이얼로그의 중복 억제 키를 주문별로 분리한다.
+  /// 기본 키는 title+content 라, 여러 주문이 **같은 문구로** 실패하면 두 번째부터
+  /// 조용히 삼켜진다(`repickup_fail_${orderId}` 와 같은 이유).
   Future<void> _handleStatusUpdate(
-      Future<bool> Function() updateFunction, String actionId) async {
+      Future<bool> Function() updateFunction, String actionId,
+      {String? dedupeKey}) async {
     String? errorMessage;
     final currentOrder = ref.read(orderDetailProvider).order;
     final orderInfo = currentOrder != null
@@ -285,6 +274,7 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
           context: context,
           title: t.common.error_title,
           content: errorMessage,
+          dedupeKey: dedupeKey,
         );
       }
     }
@@ -783,6 +773,42 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
           onPressed: requestRepickup,
         );
 
+    // 미픽업 처리 — 픽업 재요청과 달리 **주문 상태를 바꾼다**(READY → 미픽업).
+    // 그래서 _handleStatusUpdate 를 쓴다: 성공하면 팝업을 닫고, 카드가 완료
+    // 섹션/탭으로 옮겨가는 것 자체가 성공 신호라 별도 성공 다이얼로그가 없다.
+    //
+    // 확인 다이얼로그는 유지한다 — 되돌릴 수 없는 종결 처리라서
+    // 픽업요청/주문완료(즉시 실행)와 다르게 한 번 묻는다.
+    Future<void> markNoShow() async {
+      logToFile(
+          tag: LogTag.UI_ACTION,
+          message: '미픽업 처리 버튼: displayNum=${order.displayNum}, '
+              'simpleNum=${order.shopOrderNo}, orderId=${order.orderId}');
+
+      final confirmed = await CommonDialog.showConfirmDialog(
+        context: context,
+        title: t.order_detail.dialog_no_show_confirm_title,
+        content: t.order_detail
+            .dialog_no_show_confirm_content(n: order.displayNum),
+        confirmText: t.common.confirm,
+        cancelText: t.common.cancel,
+      );
+      if (confirmed != true || !mounted) return;
+
+      await _handleStatusUpdate(
+        () => _updateOrderStatus(OrderStatus.NO_SHOW),
+        'no_show',
+        // 여러 주문이 같은 문구로 실패하면 기본 dedupe(title+content)가 두 번째부터
+        // 삼킨다 — 주문별로 분리한다.
+        dedupeKey: 'no_show_fail_${order.orderId}',
+      );
+    }
+
+    Widget noShowBtn() => AsyncActionButton(
+          text: t.order_detail.btn_no_show,
+          onPressed: markNoShow,
+        );
+
     final isFromHistory = widget.isFromHistory;
     logger.d(
         '현재 주문 상태: ${order.status}, isFromHistory: $isFromHistory, isKdsMode: $isKdsMode');
@@ -802,10 +828,10 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
       }
     }
 
-    // KDS 모드 + READY: 픽업 탭 상세창. 재출력 + 픽업 재요청 노출.
+    // KDS 모드 + READY: 픽업 탭 상세창. 재출력 + 픽업 재요청 + 미픽업 노출.
     if (isKdsMode && order.status == OrderStatus.READY) {
       return (
-        secondary: [...reprintButtons(), repickupBtn()],
+        secondary: [...reprintButtons(), repickupBtn(), noShowBtn()],
         primary: completeOrderBtn(isMainAction: true),
       );
     }
@@ -854,7 +880,7 @@ class _OrderDetailPopupState extends ConsumerState<OrderDetailPopup> {
 
     if (order.status == OrderStatus.READY) {
       return (
-        secondary: [...reprintButtons(), repickupBtn()],
+        secondary: [...reprintButtons(), repickupBtn(), noShowBtn()],
         primary: completeOrderBtn(isMainAction: true),
       );
     }
@@ -884,6 +910,7 @@ class _StatusPill extends StatelessWidget {
       OrderStatus.READY => t.order.ready,
       OrderStatus.DONE => t.order.done,
       OrderStatus.CANCELLED => t.order.cancelled,
+      OrderStatus.NO_SHOW => t.order.no_show,
     };
 
     return Container(

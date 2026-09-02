@@ -11,6 +11,7 @@ import 'package:appfit_order_agent/models/order_menu_model.dart';
 import 'package:appfit_order_agent/models/order_model.dart';
 import 'package:appfit_order_agent/models/store_model.dart';
 import 'package:appfit_order_agent/providers/misc_providers.dart';
+import 'package:appfit_order_agent/providers/order/order_computed_providers.dart';
 import 'package:appfit_order_agent/providers/order/order_provider.dart';
 import 'package:appfit_order_agent/providers/order/order_timer_manager.dart';
 import 'package:appfit_order_agent/providers/store_provider.dart';
@@ -20,6 +21,8 @@ import 'package:appfit_order_agent/services/output_queue_service.dart';
 import 'package:appfit_order_agent/services/preference_service.dart';
 import 'package:appfit_order_agent/services/print_service.dart';
 import 'package:appfit_order_agent/services/soundgraph_hook.dart';
+import 'package:appfit_order_agent/utils/socket_event_suppressor.dart';
+import 'package:appfit_core/appfit_core.dart' as appfit_core;
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -476,7 +479,7 @@ void main() {
       await _wait(450);
 
       h.api.ordersResponse = [
-        a.copyWith(status: OrderStatus.DONE, orderStatus: '2020'),
+        a.copyWith(status: OrderStatus.DONE, orderStatus: 'DONE'),
       ];
       await h.notifier.refreshOrders();
 
@@ -539,6 +542,74 @@ void main() {
         h.container.read(orderProvider).orders.single.status,
         OrderStatus.CANCELLED,
       );
+    });
+
+    test('NO_SHOW 은 터미널 — 서버 stale READY 응답에 부활하지 않는다', () async {
+      // P0 회귀 방지. 미픽업을 진행도 격자에 넣으면 `?? 0` 폴백으로 NEW 급이
+      // 되어, 폴링이 stale READY 를 돌려줄 때마다 픽업대기로 되살아난다.
+      final h = await _buildProvider();
+      h.notifier.queueOrderExternal(
+        _order(orderNo: 'A', status: OrderStatus.NO_SHOW),
+      );
+      await _wait(450);
+
+      h.api.ordersResponse = [
+        _order(orderNo: 'A', status: OrderStatus.READY),
+      ];
+      await h.notifier.refreshOrders();
+
+      expect(
+        h.container.read(orderProvider).orders.single.status,
+        OrderStatus.NO_SHOW,
+      );
+    });
+
+    test('CANCELLED 가 NO_SHOW 보다 강하다 — 환불 사실이 가려지지 않는다', () async {
+      final h = await _buildProvider();
+      h.notifier.queueOrderExternal(
+        _order(orderNo: 'A', status: OrderStatus.NO_SHOW),
+      );
+      await _wait(450);
+
+      h.api.ordersResponse = [
+        _order(orderNo: 'A', status: OrderStatus.CANCELLED),
+      ];
+      await h.notifier.refreshOrders();
+
+      expect(
+        h.container.read(orderProvider).orders.single.status,
+        OrderStatus.CANCELLED,
+      );
+    });
+  });
+
+  group('(b-2) 미픽업 집계 — 완료 탭 합류, 취소와 분리', () {
+    test('KDS 완료 탭에 DONE 과 함께 뜨고, 취소 탭에는 안 뜬다', () async {
+      final h = await _buildProvider(initialServerOrders: [
+        _order(orderNo: 'D', status: OrderStatus.DONE),
+        _order(orderNo: 'N', status: OrderStatus.NO_SHOW),
+        _order(orderNo: 'C', status: OrderStatus.CANCELLED),
+      ]);
+      await h.notifier.refreshOrders();
+
+      final tabs = h.container.read(kdsTabOrdersProvider);
+      expect(tabs.completed.map((o) => o.orderId), containsAll(['D', 'N']));
+      expect(tabs.completedCount, 2);
+      // 미픽업이 취소 탭에 섞이면 취소 건수 집계가 오염된다.
+      expect(tabs.cancelled.map((o) => o.orderId), ['C']);
+      expect(tabs.cancelledCount, 1);
+    });
+
+    test('메인 모드 완료 섹션에도 합류한다', () async {
+      final h = await _buildProvider(initialServerOrders: [
+        _order(orderNo: 'N', status: OrderStatus.NO_SHOW),
+        _order(orderNo: 'R', status: OrderStatus.READY),
+      ]);
+      await h.notifier.refreshOrders();
+
+      final sections = h.container.read(orderStatusOrdersProvider);
+      expect(sections.completedOrders.map((o) => o.orderId), ['N']);
+      expect(sections.pickupedOrders.map((o) => o.orderId), ['R']);
     });
   });
 
@@ -967,6 +1038,78 @@ void main() {
 
       // 실패 후 운영자가 다시 누르는 것은 정당한 요청이다.
       expect(h.api.forceCalls.length, 2);
+    });
+  });
+
+  group('(g-2) 미픽업 종결 — updateOrderStatus 경로 흡수', () {
+    // 서버 스펙 확정으로 미픽업은 전용 엔드포인트가 아니라 기존
+    // `PUT /v0/order/{orderNo}` + `action: NO_SHOW` 를 탄다. 그래서 전용 provider
+    // 메서드를 없애고 updateOrderStatus 로 흡수했다 — in-flight 락, 멱등 조기반환,
+    // 예외 rethrow 는 (f) 그룹이 이미 상태 무관하게 고정하고 있으므로
+    // 여기서는 **미픽업 고유 성질**만 남긴다.
+
+    test('READY 주문이 NO_SHOW 으로 전이하고 그 상태로 요청된다', () async {
+      final a = _order(orderNo: 'A', status: OrderStatus.READY);
+      final h = await _buildProvider(initialServerOrders: [a]);
+      await h.notifier.refreshOrders();
+
+      expect(
+        await h.notifier.updateOrderStatus(a, OrderStatus.NO_SHOW),
+        isTrue,
+      );
+
+      expect(h.api.statusUpdates, contains(('A', OrderStatus.NO_SHOW)));
+      expect(h.container.read(orderProvider).orders.single.status,
+          OrderStatus.NO_SHOW);
+    });
+
+    test('미픽업 처리 후 서버 stale READY 응답이 와도 되살아나지 않는다', () async {
+      // 이번 작업의 핵심 회귀 테스트. 이 케이스를 막는 것은 resolveMergedStatus
+      // (터미널 우선) **하나뿐**이다 — _recentRemovals 필터는 서버가 active
+      // (NEW/PREPARING)로 돌려줄 때만 걸리고 READY 응답은 통과시킨다
+      // (order_provider.dart 의 isActiveOrderStatus 조건). 두 방어는 서로 다른
+      // stale 을 덮는 것이지 겹치지 않는다.
+      final a = _order(orderNo: 'A', status: OrderStatus.READY);
+      final h = await _buildProvider(initialServerOrders: [a]);
+      await h.notifier.refreshOrders();
+      await h.notifier.updateOrderStatus(a, OrderStatus.NO_SHOW);
+
+      // replication lag: 폴링이 아직 READY 인 구버전을 돌려준다.
+      h.api.ordersResponse = [_order(orderNo: 'A', status: OrderStatus.READY)];
+      await h.notifier.refreshOrders();
+
+      final orders = h.container.read(orderProvider).orders;
+      expect(orders.where((o) => o.status == OrderStatus.READY), isEmpty,
+          reason: '미픽업 처리한 주문이 픽업대기로 부활하면 안 된다');
+    });
+
+    test('이미 미픽업이면 API 를 다시 치지 않는다 (왕복 절약)', () async {
+      // 전용 메서드의 `status == NO_SHOW` 조기반환을 흡수 후에도 잃지
+      // 않는지 — updateOrderStatus 의 범용 `status == newStatus` 가 대신한다.
+      final a = _order(orderNo: 'A', status: OrderStatus.NO_SHOW);
+      final h = await _buildProvider(initialServerOrders: [a]);
+      await h.notifier.refreshOrders();
+
+      expect(
+        await h.notifier.updateOrderStatus(a, OrderStatus.NO_SHOW),
+        isTrue,
+      );
+      expect(h.api.statusUpdates, isEmpty);
+    });
+
+    test('소켓 이벤트를 억제하지 않는다 — 서버가 미픽업 이벤트를 발행하지 않는다', () async {
+      // expectedEventType 이 `_ => null` 로 떨어지는 것이 정본이다.
+      // 억제를 걸면 TTL 동안 타 기기의 진짜 이벤트까지 삼킨다.
+      final a = _order(orderNo: 'A', status: OrderStatus.READY);
+      final h = await _buildProvider(initialServerOrders: [a]);
+      await h.notifier.refreshOrders();
+
+      await h.notifier.updateOrderStatus(a, OrderStatus.NO_SHOW);
+
+      for (final type in appfit_core.OrderEventType.values) {
+        expect(SocketEventSuppressor().shouldIgnore('A', type.value), isFalse,
+            reason: '${type.value} 가 억제 등록되면 안 된다');
+      }
     });
   });
 

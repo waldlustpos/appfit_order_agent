@@ -20,7 +20,8 @@ import 'package:appfit_order_agent/services/platform_service.dart';
 part 'api_health_provider.g.dart';
 
 /// HTTP 계층 건강도. [ApiService] 가 요청 결과마다 기록하고,
-/// UI(동기화 배너)와 복구 트리거가 구독한다.
+/// 복구 트리거(회복 시 즉시 재동기화)와 원격 관제가 구독한다.
+/// 화면에 지연을 알리던 동기화 배너는 제거돼 UI 구독자는 없다.
 ///
 /// 앱 전역 상태이므로 keepAlive. 화면 전환으로 리셋되면 안 된다.
 @Riverpod(keepAlive: true)
@@ -29,9 +30,8 @@ class ApiHealthNotifier extends _$ApiHealthNotifier {
   ApiHealth build() => const ApiHealth();
 
   /// 열화 진입 시각. 회복 이벤트의 지속시간 계산 기준이고, healthy 구간에서는
-  /// null 이다. [ApiHealth] 모델이 아니라 notifier 에 두는 이유: 배너가
-  /// `select` 로 모델을 구독하므로, 화면과 무관한 진단 필드를 모델에 얹으면
-  /// 리빌드 판정만 흐려진다.
+  /// null 이다. [ApiHealth] 모델이 아니라 notifier 에 두는 이유: 모델은
+  /// 구독자(복구 리스너)의 전이 판정용 값만 담아야 상태 비교가 흐려지지 않는다.
   DateTime? _degradedSince;
 
   /// 열화 구간에서 도달한 **최대** 연속 실패 횟수.
@@ -199,7 +199,7 @@ class ApiHealthNotifier extends _$ApiHealthNotifier {
           lastSuccessAt: state.lastSuccessAt,
         ),
         StackTrace.current,
-        hint: '매장 HTTP 열화 감지 — 동기화 배너 표시됨',
+        hint: '매장 HTTP 열화 감지',
         extras: {
           'consecutive_failures': state.consecutiveFailures,
           'last_failure_kind': state.lastFailureKind ?? '-',

@@ -116,7 +116,10 @@ class OrderHelperMethods {
     return true; // 모든 NEW 주문은 항상 알림/출력
   }
 
-  /// 주문 상태가 활성 상태인지 확인
+  /// 주문 상태가 활성 상태인지 확인.
+  ///
+  /// NO_SHOW 은 터미널이므로 **일부러 뺀다** — 이게 false 여야
+  /// `refreshOrders` 의 부활 차단 필터(_recentRemovals)를 통과한다.
   bool isActiveOrderStatus(OrderStatus status) {
     return status == OrderStatus.NEW || status == OrderStatus.PREPARING;
   }
@@ -125,7 +128,8 @@ class OrderHelperMethods {
   bool isCompletedOrderStatus(OrderStatus status) {
     return status == OrderStatus.READY ||
         status == OrderStatus.DONE ||
-        status == OrderStatus.CANCELLED;
+        status == OrderStatus.CANCELLED ||
+        status == OrderStatus.NO_SHOW;
   }
 
   /// 기존 상세 정보를 보존하면서 새 주문 목록과 병합

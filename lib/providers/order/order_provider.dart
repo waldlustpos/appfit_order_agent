@@ -579,6 +579,7 @@ class Order extends _$Order {
         case OrderStatus.READY:
         case OrderStatus.DONE:
         case OrderStatus.CANCELLED:
+        case OrderStatus.NO_SHOW:
           // 접수(PREPARING) 상태 유입 시의 알림/출력. 두 경우에만 연다:
           //   ① KDS 모드 — 다른 기기가 접수한 주문을 주방 화면이 받아 출력하는 축
           //   ② 생성 시점부터 PREPARING 인 주문(NICE_KIOSK 류) — 모드 무관
@@ -1314,7 +1315,7 @@ class Order extends _$Order {
           final currentOrder = state.orders[index];
           orderToQueue = currentOrder.copyWith(
             status: OrderStatus.CANCELLED,
-            orderStatus: "9001", // Cancelled status code
+            orderStatus: orderStatusToServer(OrderStatus.CANCELLED),
             updateTime: DateTime.now(),
           );
 
@@ -1337,7 +1338,7 @@ class Order extends _$Order {
             // 주문 상태 업데이트
             orderToQueue = details.copyWith(
               status: OrderStatus.CANCELLED,
-              orderStatus: '9001', // 취소 상태 코드
+              orderStatus: orderStatusToServer(OrderStatus.CANCELLED),
               updateTime: DateTime.now(),
             );
             logger.w(
@@ -1350,8 +1351,8 @@ class Order extends _$Order {
 
         if (orderToQueue != null) {
           queueOrderExternal(orderToQueue);
-          _updateOrderInCache(
-              orderId, OrderStatus.CANCELLED, "9001"); // Update cache
+          _updateOrderInCache(orderId, OrderStatus.CANCELLED,
+              orderStatusToServer(OrderStatus.CANCELLED)); // Update cache
           logger.d("Order cancellation queued locally: $orderId");
         }
 
@@ -1504,7 +1505,7 @@ class Order extends _$Order {
           if (readyOrders.any((r) => r.orderId == order.orderId)) {
             return order.copyWith(
               status: OrderStatus.DONE,
-              orderStatus: '2020',
+              orderStatus: orderStatusToServer(OrderStatus.DONE),
               updateTime: DateTime.now(),
             );
           }
@@ -1712,6 +1713,11 @@ class Order extends _$Order {
 
     // 자가 PUT 의 echo 로 돌아올 소켓 이벤트 타입. 실패 시 억제를 **해제**해야 하므로
     // try 밖에 둔다 (catch/finally 에서도 참조 가능해야 한다).
+    //
+    // NO_SHOW 은 `_ => null` 로 떨어지는 게 맞다 — 서버가 미픽업에 대해
+    // **외부 이벤트를 발행하지 않기로 확정**했으므로 억제할 echo 가 없다
+    // (docs/ORDER_NO_SHOW.md §5). 나중에 서버가 이벤트를 추가하면 여기에
+    // 케이스 1줄을 더하는 것으로 끝난다.
     final String? expectedEventType = switch (newStatus) {
       OrderStatus.PREPARING => appfit_core.OrderEventType.orderAccepted.value,
       OrderStatus.READY =>
@@ -1790,7 +1796,10 @@ class Order extends _$Order {
   ) {
     // 종결 상태 전이는 replication lag 대응 캐시에 등록.
     // 폴링이 stale 응답으로 active 상태를 돌려줘도 부활을 차단한다.
-    if (newStatus == OrderStatus.DONE || newStatus == OrderStatus.CANCELLED) {
+    // kTerminalStatusPriority 로 판정해야 새 종결 상태(미픽업 등)를 추가할 때
+    // 여기를 빠뜨리지 않는다 — resolveMergedStatus 와 같은 목록을 본다.
+    if (newStatus == OrderStatus.DONE ||
+        kTerminalStatusPriority.contains(newStatus)) {
       _recentRemovals.mark(orderId);
     }
     // Find the order in the *current state* to update it

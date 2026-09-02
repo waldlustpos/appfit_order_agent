@@ -23,12 +23,6 @@
             "not_found": "The requested information could not be found.",
             "server": "A temporary server error occurred. Please try again later.",
             "generic": "We couldn't process your request. Please try again later."
-        },
-        "sync": {
-            "degraded": "Server is slow to respond — order sync is delayed",
-            "last_updated": "Last updated {time}",
-            "never_updated": "Not updated yet",
-            "retry_now": "Retry now"
         }
     },
     "login": {
@@ -388,6 +382,7 @@
         "ready": "Pickup",
         "cancelled": "Cancelled",
         "done": "Done",
+        "no_show": "Not Picked Up",
         "type_dine_in": "Dine-in",
         "type_takeout": "Takeout",
         "type_both": "Both",
@@ -474,14 +469,15 @@
         "cancel_reason_order_surge": "High Order Volume",
         "dialog_repickup_confirm_title": "Pickup Re-request",
         "dialog_repickup_confirm_content": "Do you want to re-request pickup for order #{n}?",
-        "dialog_not_picked_up_confirm_title": "Not Picked Up",
-        "dialog_not_picked_up_confirm_content": "Process order #{n} as not picked up?",
+        "dialog_no_show_confirm_title": "Mark Not Picked Up",
+        "dialog_no_show_confirm_content": "Process order #{n} as not picked up?",
         "dialog_complete_confirm_content": "Do you want to complete order #{n}?",
         "print_receipt_fail": "Receipt printing failed: {error}",
         "btn_receipt_reprint": "Reprint Receipt",
         "btn_label_reprint": "Reprint Label",
         "btn_pickup_request": "Request Pickup",
         "btn_repickup": "Re-request Pickup",
+        "btn_no_show": "Mark Not Picked Up",
         "btn_order_accept": "Accept",
         "btn_order_complete": "Complete",
         "btn_order_cancel": "Cancel",

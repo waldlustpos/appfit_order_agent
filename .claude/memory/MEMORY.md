@@ -38,6 +38,7 @@
 - [Sentry Crons 앱 실행중 판정 검증](project_sentry_crons_liveness.md) — heartbeat 끊기면 missed 자동감지→이슈. HTTP envelope 로 모니터 upsert. 모니터당 과금. 테스트만·미도입 (2026-07-22)
 - [의존성 tier① 업그레이드 실행](project_deps_tier1_upgrade.md) — 저위험 5묶음 브랜치 실행(미푸시). tier②(Sentry/serial/Riverpod)·tier③ 로드맵 대기.
 - [slang4 다파일 + analyze baseline 함정](reference_slang4_multifile_and_analyze_baseline.md) — slang4=다파일 생성(strings_<locale>.g.dart 커밋 필수)+lazy:false. analyze warning baseline 69(0 아님).
+- [macOS flutter test baseline 실패 1건](reference_macos_test_baseline_failure.md) — build_brand_scope_test 는 Windows 경로 전제라 항상 실패. 신규 실패와 혼동 금지, 출력은 tr '\r' '\n' 필요.
 - [브랜드 자산 대형캔버스 bbox 크롭 함정](reference_brand_asset_large_canvas_bbox_crop.md) — 4500×4500류 대형 여백 캔버스는 §4.1/gen_receipt_logo.dart 표준 파이프라인 전에 alpha bbox 크롭 필수(자동 크롭 없음).
 - [MHST 브랜드 이미지 4종 교체 + D3mini 우선순위 반전](project_mhst_brand_image_2026_08.md) — 라벨/영수증/로그인/세컨모니터 교체, D3mini 영상→이미지 우선 반전. 실기기 검증·커밋(7c6fb22) 완료. 동시 세션 git add/commit 레이스 겪음 (2026-08-03)
 - [REXOD 라벨프린터 신호 실측 정본](reference_rexod_label_printer_signals.md) — PAPERNOFETCH 정상동작(통념 반박), QueryPrintResult는 떼기 안 기다림, GetPrinterPrintedInfo pageId 판정불가, 펌웨어 보류 실재(19.2초). 관찰 불가한 가드 = 없는 가드.

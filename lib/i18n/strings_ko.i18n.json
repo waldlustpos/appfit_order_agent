@@ -23,12 +23,6 @@
             "not_found": "요청한 정보를 찾을 수 없습니다.",
             "server": "일시적인 서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
             "generic": "요청을 처리하지 못했습니다. 잠시 후 다시 시도해주세요."
-        },
-        "sync": {
-            "degraded": "서버 응답 지연 — 주문 동기화가 지연되고 있습니다",
-            "last_updated": "마지막 갱신 {time}",
-            "never_updated": "아직 갱신되지 않음",
-            "retry_now": "지금 재시도"
         }
     },
     "login": {
@@ -384,6 +378,7 @@
         "ready": "픽업",
         "cancelled": "취소",
         "done": "완료",
+        "no_show": "미픽업",
         "type_dine_in": "매장",
         "type_takeout": "포장",
         "type_both": "복합",
@@ -467,14 +462,15 @@
         "cancel_reason_order_surge": "주문량 폭증",
         "dialog_repickup_confirm_title": "픽업 재요청",
         "dialog_repickup_confirm_content": "#{n}번 주문 픽업을 재요청하시겠습니까?",
-        "dialog_not_picked_up_confirm_title": "미픽업 처리",
-        "dialog_not_picked_up_confirm_content": "#{n}번 주문을 미픽업 처리하시겠습니까?",
+        "dialog_no_show_confirm_title": "미픽업 처리",
+        "dialog_no_show_confirm_content": "#{n}번 주문을 미픽업 처리하시겠습니까?",
         "dialog_complete_confirm_content": "#{n}번 주문을 완료 처리하시겠습니까?",
         "print_receipt_fail": "영수증 출력에 실패했습니다: {error}",
         "btn_receipt_reprint": "영수증 재출력",
         "btn_label_reprint": "라벨 재출력",
         "btn_pickup_request": "픽업 요청",
         "btn_repickup": "픽업 재요청",
+        "btn_no_show": "미픽업 처리",
         "btn_order_accept": "주문 접수",
         "btn_order_complete": "주문 완료",
         "btn_order_cancel": "주문 취소",

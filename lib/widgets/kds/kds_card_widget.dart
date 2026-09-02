@@ -34,6 +34,10 @@ class KdsCardHeaderWidget extends ConsumerWidget {
     return total;
   }
 
+  /// 완료 탭에는 DONE 과 NO_SHOW 이 **섞여 있다**(미픽업 전용 탭이 없다).
+  /// 그래서 완료 분기만은 cardType 이 아니라 실제 상태를 봐야 배경 워시가 갈린다.
+  bool get _isNoShow => order.status == OrderStatus.NO_SHOW;
+
   OrderPalette _palette(bool useSourceColor) {
     // '주문 출처별 색상' 설정 ON 이면 매장/포장 색 대신 앱/키오스크 출처 색으로.
     if (useSourceColor) {
@@ -41,7 +45,8 @@ class KdsCardHeaderWidget extends ConsumerWidget {
       return switch (cardType) {
         CardType.progress => AppStyles.orderSourcePalette(source),
         CardType.pickup => AppStyles.orderSourcePalette(source, muted: true),
-        CardType.completed => AppStyles.orderSourcePalette(source, muted: true),
+        CardType.completed => AppStyles.orderSourcePalette(source,
+            isNoShow: _isNoShow, muted: true),
         CardType.cancelled =>
           AppStyles.orderSourcePalette(source, isCancelled: true),
       };
@@ -51,7 +56,8 @@ class KdsCardHeaderWidget extends ConsumerWidget {
     return switch (cardType) {
       CardType.progress => AppStyles.orderPalette(type),
       CardType.pickup => AppStyles.orderPalette(type, muted: true),
-      CardType.completed => AppStyles.orderPalette(type, muted: true),
+      CardType.completed =>
+        AppStyles.orderPalette(type, isNoShow: _isNoShow, muted: true),
       CardType.cancelled => AppStyles.orderPalette(type, isCancelled: true),
     };
   }
@@ -93,10 +99,39 @@ class KdsCardHeaderWidget extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.s4),
-          Text(
-            t.kds.order_time(
-                time: DateFormat('HH:mm:ss').format(order.orderedAt)),
-            style: AppTextStyles.caption.copyWith(color: AppStyles.gray6),
+          Row(
+            children: [
+              Flexible(
+                child: Text(
+                  t.kds.order_time(
+                      time: DateFormat('HH:mm:ss').format(order.orderedAt)),
+                  style: AppTextStyles.caption.copyWith(color: AppStyles.gray6),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              // 완료 탭은 DONE 과 카드 색이 같으므로 **이 배지가 유일한 구분**이다.
+              if (_isNoShow) ...[
+                const SizedBox(width: AppSpacing.s4),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.s4,
+                    vertical: 1,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppStyles.kNoShowAlpha,
+                    borderRadius: AppRadius.bSm,
+                  ),
+                  child: Text(
+                    t.order.no_show,
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppStyles.kNoShow,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
         ],
       ),

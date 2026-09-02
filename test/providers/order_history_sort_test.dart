@@ -36,6 +36,7 @@ void main() {
   final t9 = DateTime.utc(2026, 1, 1, 9, 0);
   final t10 = DateTime.utc(2026, 1, 1, 10, 0);
   final t11 = DateTime.utc(2026, 1, 1, 11, 0);
+  final t12 = DateTime.utc(2026, 1, 1, 12, 0);
 
   group('sortOrders 는 입력을 변형하지 않는다 (크래시 회귀)', () {
     // 회귀: OrderState.initial().orders 는 const 리스트라 제자리 정렬 시
@@ -113,22 +114,27 @@ void main() {
       _order(
           orderNo: 'cancelled', orderedAt: t10, status: OrderStatus.CANCELLED),
       _order(orderNo: 'preparing', orderedAt: t10),
+      _order(
+          orderNo: 'notpicked',
+          orderedAt: t12,
+          status: OrderStatus.NO_SHOW),
     ];
 
     test('ALL → 전체를 최신순으로', () {
       final result = sortOrders(
           filterOrders(orders, OrderFilter.ALL), OrderSortDirection.DESC);
-      expect(result.length, 4);
-      expect(result.first.orderId, 'ready');
+      expect(result.length, 5);
+      expect(result.first.orderId, 'notpicked');
     });
 
-    test('COMPLETED → DONE/READY 만', () {
+    test('COMPLETED → DONE/READY/미픽업', () {
       final result = sortOrders(
           filterOrders(orders, OrderFilter.COMPLETED), OrderSortDirection.ASC);
-      expect(result.map((o) => o.orderId), ['done', 'ready']);
+      expect(result.map((o) => o.orderId), ['done', 'ready', 'notpicked']);
     });
 
-    test('CANCELLED → 취소 주문만', () {
+    test('CANCELLED → 취소 주문만 (미픽업은 섞이지 않는다)', () {
+      // 미픽업이 취소 필터에 들어가면 취소 건수 칩 집계가 오염된다.
       final result = sortOrders(
           filterOrders(orders, OrderFilter.CANCELLED), OrderSortDirection.ASC);
       expect(result.map((o) => o.orderId), ['cancelled']);

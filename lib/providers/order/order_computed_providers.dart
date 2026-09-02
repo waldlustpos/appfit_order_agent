@@ -28,9 +28,12 @@ final orderStatusOrdersProvider = Provider<
       .toList()
     ..sort((a, b) => a.orderedAt.compareTo(b.orderedAt));
 
+  // 미픽업도 '완료' 섹션에 합류한다 — 별도 섹션을 만들지 않고 카드 색으로 구분.
   final completedOrders = orders
       .where((o) =>
-          o.status == OrderStatus.DONE || o.status == OrderStatus.CANCELLED)
+          o.status == OrderStatus.DONE ||
+          o.status == OrderStatus.CANCELLED ||
+          o.status == OrderStatus.NO_SHOW)
       .toList()
     ..sort((a, b) => b.orderedAt.compareTo(a.orderedAt));
 
@@ -81,8 +84,13 @@ final kdsTabOrdersProvider = Provider<
       progressTabSortDirection);
   final pickup = sortOrders(orders.where((o) => o.status == OrderStatus.READY),
       pickupTabSortDirection);
+  // 미픽업은 완료 탭에 합류한다(6번째 탭을 만들지 않는다). 취소 탭에 넣지 않는
+  // 이유는 취소 건수 집계가 오염되기 때문 — 미픽업은 환불이 아니다.
+  // 카드에서는 딥오렌지 색 + 배지로 완료와 구분한다.
   final completed = sortOrders(
-      orders.where((o) => o.status == OrderStatus.DONE),
+      orders.where((o) =>
+          o.status == OrderStatus.DONE ||
+          o.status == OrderStatus.NO_SHOW),
       completedTabSortDirection);
   final cancelled = sortOrders(
       orders.where((o) => o.status == OrderStatus.CANCELLED),

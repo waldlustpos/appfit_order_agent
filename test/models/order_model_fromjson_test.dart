@@ -11,7 +11,7 @@ Map<String, dynamic> _fullOrderJson() => {
       'orderNo': 'ORD-1001',
       'shopOrderNo': '12',
       'displayOrderNo': '7',
-      'orderStatus': '2003',
+      'orderStatus': 'NEW',
       'orderedAt': '2026-01-02T09:30:00.000',
       'totalAmount': 9500,
       'storeId': 'store-1',
@@ -80,7 +80,7 @@ void main() {
       expect(o.orderNo, 'ORD-1001');
       expect(o.shopOrderNo, '12');
       expect(o.displayOrderNo, '7');
-      expect(o.orderStatus, '2003');
+      expect(o.orderStatus, 'NEW');
       expect(o.status, OrderStatus.NEW);
       expect(o.orderedAt, DateTime.parse('2026-01-02T09:30:00.000'));
       expect(o.totalAmount, 9500.0);
@@ -132,22 +132,31 @@ void main() {
       expect(o.displayNum, '0007'); // displayOrderNo 우선 + 4자리 패딩
     });
 
-    test('상태 코드 매핑 테이블 (숫자 코드 + 문자열 코드)', () {
+    test('상태 문자열 매핑 테이블 (kServerOrderStatus 위임)', () {
       OrderStatus statusOf(String code) =>
           OrderModel.fromJson({'orderStatus': code}).status;
 
-      expect(statusOf('2003'), OrderStatus.NEW);
-      expect(statusOf('2007'), OrderStatus.PREPARING);
-      expect(statusOf('2009'), OrderStatus.READY);
-      expect(statusOf('2020'), OrderStatus.DONE);
-      expect(statusOf('9001'), OrderStatus.CANCELLED);
-      expect(statusOf('2099'), OrderStatus.CANCELLED); // 미픽업 → 취소 취급
-      expect(statusOf('9999'), OrderStatus.CANCELLED);
+      expect(statusOf('PENDING'), OrderStatus.NEW);
       expect(statusOf('NEW'), OrderStatus.NEW);
       expect(statusOf('ACCEPTED'), OrderStatus.PREPARING);
+      expect(statusOf('PREPARING'), OrderStatus.PREPARING);
+      expect(statusOf('READY'), OrderStatus.READY);
       expect(statusOf('PICKUP_REQUESTED'), OrderStatus.READY);
-      expect(statusOf('CANCELED'), OrderStatus.CANCELLED);
+      expect(statusOf('DONE'), OrderStatus.DONE);
       expect(statusOf('COMPLETED'), OrderStatus.DONE);
+      expect(statusOf('CANCELED'), OrderStatus.CANCELLED);
+      expect(statusOf('CANCELLED'), OrderStatus.CANCELLED);
+      expect(statusOf('FAILED'), OrderStatus.CANCELLED);
+    });
+
+    test('구 시스템 숫자 코드는 더 이상 매핑되지 않는다 (CANCELLED 폴백)', () {
+      // kokonut 시절 코드. 서버로 나가지도 프린터가 읽지도 않던 데드 웨이트라
+      // 제거했다 — 혹시 유입되면 미지 값과 동일하게 취급된다.
+      for (final legacy in ['2003', '2007', '2009', '2020', '9001', '2099']) {
+        expect(OrderModel.fromJson({'orderStatus': legacy}).status,
+            OrderStatus.CANCELLED,
+            reason: '숫자 코드 $legacy 는 매핑표에 없어야 한다');
+      }
     });
 
     test('현재 동작 고정(버그 의심): 알 수 없는 상태 코드는 CANCELLED 로 강제 매핑', () {

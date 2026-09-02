@@ -25,7 +25,6 @@ import 'package:appfit_order_agent/widgets/home/drawer_menu.dart';
 import 'package:appfit_order_agent/screens/settings_screen.dart';
 import 'package:appfit_order_agent/widgets/common/common_dialog.dart';
 import 'package:appfit_order_agent/widgets/common/fault_injection_ribbon.dart';
-import 'package:appfit_order_agent/widgets/common/sync_status_banner.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:appfit_order_agent/services/monitoring/monitoring_sync_provider.dart';
 import 'package:appfit_order_agent/screens/kds_screen.dart';
@@ -577,9 +576,6 @@ class HomeContent extends ConsumerWidget {
       children: [
         // 장애 주입 무장 리본 (개발 전용, 비무장 시 높이 0)
         const FaultInjectionRibbon(),
-        // 서버 응답 지연 배너 — KDS 모드와 같은 위젯을 쓴다. 장애는 모드를
-        // 가리지 않고, 두 모드 모두 같은 HTTP 파이프라인 위에서 돈다.
-        const SyncStatusBanner(),
         Expanded(child: _buildNormalBody(selectedIndex, ref)),
       ],
     );

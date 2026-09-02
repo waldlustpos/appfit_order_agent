@@ -170,7 +170,13 @@ class OrderSocketManager {
             logger.w('[AppFit Event] 무효 페이로드: ${outcome.reason}');
             break;
           case appfit_core.SocketDispatchKind.unknownEventType:
-            logger.d('[AppFit Event] 미처리 이벤트 타입: ${outcome.reason}');
+            // [WEBSOCKET] 태그로 파일 화이트리스트를 통과시킨다(logger.dart).
+            // logger.d 는 기본적으로 파일에 안 남는데, 그러면 **서버가 새 이벤트를
+            // 쏘기 시작해도 기기 로그로는 알 수 없다** — 미픽업처럼 이벤트 도입이
+            // 예정된 기능의 롤아웃을 관측할 수 없다.
+            // 빈도 위험은 낮다: DEVICE_CALL_REQUESTED 는 dispatcher 앞에서
+            // 가로채고, 알려진 주문 이벤트는 OrderEventType 이 전부 커버한다.
+            logger.d('[WEBSOCKET] 미지 이벤트 타입(앱이 모르는 값): ${outcome.reason}');
             break;
           case appfit_core.SocketDispatchKind.ignoredByShopCode:
             logger.d('[AppFit Event] ${outcome.reason}');
@@ -480,18 +486,10 @@ class OrderSocketManager {
         '[SocketManager] 상태 보정 적용 ($eventType): ${order.status} -> $newStatus');
     return order.copyWith(
       status: newStatus,
-      orderStatus: _statusCodeOf(newStatus) ?? order.orderStatus,
+      // 보정으로 상태를 바꿀 때 서버 원문 문자열도 함께 맞춘다.
+      orderStatus: orderStatusToServer(newStatus),
     );
   }
-
-  /// 상태에 대응하는 서버 상태코드. 보정으로 상태를 바꿀 때 코드도 함께 맞춘다.
-  static String? _statusCodeOf(OrderStatus status) => switch (status) {
-        OrderStatus.NEW => '2003',
-        OrderStatus.PREPARING => '2007',
-        OrderStatus.READY => '2009',
-        OrderStatus.DONE => '2020',
-        OrderStatus.CANCELLED => '9001',
-      };
 
   /// 생성 시점부터 이미 접수(PREPARING) 상태인 주문인가.
   ///

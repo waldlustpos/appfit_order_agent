@@ -9,8 +9,10 @@
 ///   기준인 60초 간격을 그대로 유지했다.
 ///
 /// 결국 **HTTP 요청 자체의 성패가 유일하게 남은 진실 신호**여서, 그것을 직접
-/// 센다. 이 상태는 (1) 사용자에게 지연을 알리는 배너와 (2) 회복 시점 감지 후
-/// 즉시 재동기화하는 트리거로 쓰인다.
+/// 센다. 이 상태는 (1) 회복 시점 감지 후 즉시 재동기화하는 트리거와
+/// (2) 원격 관제(Sentry 열화·회복 이벤트, `api_health` 태그)로 쓰인다.
+/// 매장 화면에 지연을 알리던 동기화 배너는 제거됐다 — 사용자에게 보여주는
+/// 표시 계층은 없고, 판정은 전부 자동 복구·관제용이다.
 ///
 /// 모델은 수동 작성(freezed 미사용) — 프로젝트 규약.
 class ApiHealth {
@@ -20,7 +22,7 @@ class ApiHealth {
   /// 마지막으로 API 가 성공한 시각. 앱 시작 후 한 번도 성공하지 못했으면 null.
   final DateTime? lastSuccessAt;
 
-  /// 마지막 실패의 종류(`DioExceptionType.name`). 배너 문구 분기와 진단용.
+  /// 마지막 실패의 종류(`DioExceptionType.name`). 원격 관제 진단용.
   final String? lastFailureKind;
 
   const ApiHealth({
@@ -33,8 +35,8 @@ class ApiHealth {
   ///
   /// 폴링만 놓고 보면 2회 = 최대 2분이라 느려 보이지만, 실제로는 사용자 액션
   /// (픽업 요청·완료 처리)의 실패가 훨씬 빨리 카운트를 채운다 — 장애 로그에서는
-  /// 20초 안에 5회가 쌓였다. 1회로 낮추면 단발 blip 에도 배너가 깜빡여
-  /// 오히려 신뢰를 잃는다.
+  /// 20초 안에 5회가 쌓였다. 1회로 낮추면 단발 blip 에도 열화 전이가 발생해
+  /// 재동기화·Sentry 이벤트가 헛돈다.
   static const int degradedThreshold = 2;
 
   bool get isDegraded => consecutiveFailures >= degradedThreshold;
