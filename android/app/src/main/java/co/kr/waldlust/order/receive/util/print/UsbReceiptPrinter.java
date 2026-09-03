@@ -184,6 +184,36 @@ public class UsbReceiptPrinter {
     }
 
     /**
+     * 현재 열려 있는 영수증 프린터의 USB 식별자.
+     * <p>
+     * Dart 측이 기종별 용지 폭(컬럼 수)을 프리시드하는 데 쓴다 -- ESC/POS 에는
+     * "몇 컬럼이냐" 를 묻는 표준 질의가 없어서 VID/PID 로 알려진 기종을 가려내는
+     * 것이 유일하게 자동화 가능한 경로다. Windows 는 장치 경로 / SetupAPI
+     * hardwareId 에서 같은 값을 얻는다.
+     * <p>
+     * 아직 열려 있지 않으면 후보만 찾아서 답한다 -- 폭 조회 때문에 디바이스를
+     * 열거나 권한 다이얼로그를 띄우지는 않는다.
+     *
+     * @return int[]{ vendorId, productId }, 알 수 없으면 null.
+     */
+    public int[] connectedDeviceIds() {
+        synchronized (lock) {
+            if (openDevice != null) {
+                return new int[] { openDevice.getVendorId(), openDevice.getProductId() };
+            }
+            if (usbManager == null) return null;
+            HashMap<String, UsbDevice> devices = usbManager.getDeviceList();
+            if (devices == null) return null;
+            for (UsbDevice d : devices.values()) {
+                if (isLabelPrinter(d)) continue;
+                if (!isReceiptCandidate(d)) continue;
+                return new int[] { d.getVendorId(), d.getProductId() };
+            }
+            return null;
+        }
+    }
+
+    /**
      * 가볍지만 실제 USB write 까지 확인하는 connection probe.
      * ESC @ (printer initialize, 2 bytes) 를 bulk OUT 으로 짧은 timeout 으로 보낸다.
      * 전송 실패면 connection 을 tear-down 해 다음 discover() 가 복구할 수 있게 한다.

@@ -89,3 +89,4 @@
 - [버블 복귀가 느린 5초 두 개](project_bubble_restore_transition_timeout.md) — ①onNewIntent 중복 moveTaskToFront=전환 타임아웃(수정) ②홈키 stopAppSwitches 5초(OS 정책, 수용·우회 반증). 기준=마지막 홈키 시각(홈화면에서 또 눌러도 재무장), T2mini 한정·D3mini 무증상. 30시행 통제실험 확정 (2026-09-03)
 - [멤버십 미가입 접수](project_membership_unregistered_intake.md) — 서버 자동가입 정책(매머드 1차)이 근거. 내역 API는 건너뜀. Dio 인터셉터가 Sentry 선발화하는 함정 (2026-08-31)
 - [PREPARING 유입 출력 게이트](project_preparing_intake_output_gate.md) — 생성시점 PREPARING(NICE_KIOSK)이 일반 모드 무출력. KDS 게이트가 원인, isSourceNotifyEnabled 필수. 폴링은 서버 변경 없이 불가 (2026-09-01)
+- [Windows usbprint 경로 + 영수증 폭 기종별](project_external_printer_usbprint_and_width.md) — A8=usbprint 단독(COM 없음), PR800=CDC. 기본폭 42는 "안전한 실패방향". 실기 검증 대기·미커밋 (2026-09-02)

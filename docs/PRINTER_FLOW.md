@@ -46,11 +46,17 @@ flowchart TD
 ```mermaid
 flowchart TD
     EXT["ExternalReceiptPrinter<br/>플랫폼-무관 진입점"]
-    EXT -->|Windows: deferred import| WIN["ComPortPrintService"]
+    EXT -->|Windows: deferred import| WT["WindowsTransport"]
     EXT -->|Android| AND["AndroidUsbTransport"]
+
+    WT -->|"연결방식 = com (기본)"| WIN["ComPortPrintService"]
+    WT -->|"연결방식 = usbprint"| UP["UsbPrintService"]
 
     WIN --> PROBE["DLE EOT 1 프로브<br/>_dleEot1 = 0x10 0x04 0x01"]
     PROBE --> SERIAL["serial_port_win32<br/>openWithSettings / writeBytes"]
+
+    UP --> ENUM["SetupDi DIGCF_PRESENT 열거<br/>GUID_DEVINTERFACE_USBPRINT"]
+    ENUM --> CF["CreateFile / WriteFile 8KB 청크<br/>(Isolate.run boxing)"]
 
     AND --> MC["MethodChannel<br/>printReceiptBytes"]
     MC --> USBJ["UsbReceiptPrinter.java<br/>bulkTransfer 8KB 청크"]
@@ -70,7 +76,8 @@ flowchart TD
 | `PrinterNoDevice(reason)` | 디바이스 없음/미연결 | O |
 | `PrinterTransportError(reason)` | 전송 실패 | O |
 
-- **Windows deferred import**: `serial_port_win32`의 정적 initializer가 Android 런타임에서 `kernel32.dll`을 찾으려다 크래시하는 것을 막기 위해 Windows transport를 지연 로드.
+- **Windows 2경로 + 통합 자동 스캔**: 같은 USB 영수증 프린터라도 드라이버 바인딩이 갈려서 COM(가상 시리얼/물리 RS-232)과 usbprint(USB 프린터 클래스) 두 갈래가 필요하다. 사용자는 종류를 고르지 않고, **재연결이 양쪽을 훑어 응답하는 장치를 채택**한다 (§2.2). 저장은 "종류 + 종류별 식별자" 쌍이며 기본값은 `com`이라 기존 현장 단말은 그대로 동작한다.
+- **Windows deferred import**: `serial_port_win32` / `win32`의 정적 initializer가 Android 런타임에서 `kernel32.dll`을 찾으려다 크래시하는 것을 막기 위해 Windows transport를 지연 로드. `usb_print_service.dart`도 같은 규율 아래 있으며, native 의존이 없는 값 객체만 `usb_print_descriptor.dart` / `com_port_descriptor.dart`로 분리해 UI가 참조한다.
 - **DLE EOT 1 프로브**: USB-Serial CDC 칩이 프린터 전원 OFF에도 bus power로 살아 있어 발생하는 false-positive("연결됨" 오판)를 차단. `_probeTimeout`(300ms), `_probeMaxAttempts`(5) 등으로 생존을 직접 확인 — 자세한 권위 판정은 메모리 `external_printer_liveness` 참조.
 - **Android VID 화이트/블랙리스트**: Posbank(0x1552)·NXP(0x0D28) 허용, ASIX Ethernet(0x0B95) 제외. 청크 `CHUNK_SIZE` 8KB, 타임아웃 5000ms.
 
@@ -94,6 +101,73 @@ Windows COM 경로는 **두 가지 물리 연결을 동일 코드로 지원**한
 5. open 직후 `EscapeCommFunction(SETDTR/SETRTS)` assert — DTR/DSR 흐름제어 프린터가 host not-ready로 수신/응답을 보류하는 것을 방지.
 
 **시리얼 무응답 트러블슈팅 순서**: ① COM enumerate 확인(케이블/드라이버) → ② open throw면 위 1·2(DCB) 의심 → ③ probe-timeout이면 보레이트 스윕(115200 우선) → 프린터 전원 → 배선(널모뎀) 순으로 분리. DLE EOT 1(`0x10 0x04 0x01`)의 정상 온라인 응답은 `0x16`.
+
+### 2.2 Windows USBPRINT 직접 전송 — COM 포트를 만들지 않는 프린터 (2026-09-02)
+
+**증상**: POSBANK A8을 Windows PC에 연결해도 앱이 인식하지 못한다. 케이블·전원은 정상이고 같은 프린터가 Sunmi T2mini(Android)에서는 아무 설정 없이 출력된다.
+
+**원인**: COM 경로가 없다. 버그가 아니라 **경로 부재**다. `pnputil /enum-devices /connected` + 레지스트리 실측:
+
+| 장치 | 인스턴스 ID | 열거 형태 | 노출 인터페이스 | Windows 드라이버 | COM |
+| --- | --- | --- | --- | --- | --- |
+| PR800 | `USB\VID_0D28&PID_4C59` | 복합(`MI_00`+`MI_01`) | Printer(7) + **CDC-ACM** | usbser.sys | **COM3** |
+| POSBANK A8 | `USB\VID_0483&PID_A319` | 단일 | **Printer(7)만** | usbprint.sys | 없음 |
+| BIXOLON G30(라벨) | `USBPRINT\BIXOLON_G30` | — | Printer(7) | usbprint.sys | 없음 |
+
+**이건 신·구 세대 차이가 아니다.** USB Printer class(cls=7)가 1998년부터의 정통 표준이고, PR800처럼 CDC-ACM을 얹는 쪽이 **RS-232 시절 POS 소프트웨어를 그대로 쓰게 해주는 호환 계층**이다. 국내 POS가 오랫동안 COM만 지원해서 제조사가 CDC를 덧붙여 팔았고, 이 앱이 COM 단일 경로였던 것도 그 관행을 따른 결과다.
+
+**Android가 그냥 됐던 이유**: Android엔 usbprint.sys도 usbser.sys도 없어서 `UsbManager`로 **앱이 직접** 인터페이스/엔드포인트를 고른다(`UsbReceiptPrinter.selectInterfaceAndEndpoint` 4-tier — Tier 0 NXP복합→CDC-data, **Tier 1 Printer class(7) ← A8**, Tier 2 vendor-spec, Tier 3 any bulk OUT). 드라이버가 만들어준 이름이 아니라 장치가 노출한 엔드포인트를 보므로 두 기종이 한 코드로 처리된다. `UsbPrintService`는 Windows를 같은 층위로 내린 것 — **Android `bulkTransfer`의 Windows 대응물**이다.
+
+**구현** ([usb_print_service.dart](../lib/services/usb_print_service.dart))
+
+- 열거: `SetupDiGetClassDevs(GUID_DEVINTERFACE_USBPRINT, DIGCF_PRESENT|DIGCF_DEVICEINTERFACE)` → `SetupDiEnumDeviceInterfaces` → `SetupDiGetDeviceInterfaceDetail`(2-pass). 이름은 `SPDRP_FRIENDLYNAME`, 없으면 `SPDRP_DEVICEDESC`.
+- 전송: `CreateFile(경로, GENERIC_WRITE, share=0)` → 8KiB 청크 `WriteFile` → `CloseHandle`. **`Isolate.run` boxing** — 로고 포함 영수증이 80KiB까지 가고 동기 win32 호출이 main thread를 막는다(라벨 FFI와 동일 규율). isolate 안에서는 로깅/플랫폼 채널 금지, 결과 값만 반환.
+- 생존 확인: 열거 존재 + `ESC @`(2바이트) write. Android `verifyConnection`과 같은 신호.
+
+**COM과의 비대칭 하나**: COM 경로가 DLE EOT 핑을 꼭 필요로 했던 이유는 USB-CDC 칩이 프린터 전원 OFF에도 bus power로 살아남아 포트가 유지되기 때문(false-success)이었다. usbprint devnode는 전원 OFF/분리 시 **사라지므로** `DIGCF_PRESENT` 열거 자체가 정직한 생존 신호다 — 여기서 DLE EOT를 흉내낼 필요가 없다.
+
+**연결 대상은 통합 자동 스캔이 고른다** ([external_printer_target.dart](../lib/services/external_printer_target.dart) + `ExternalPrinterSubSettings._reconnectWindows`). 두 경로는 **서로소 집합**이라 — 물리 RS-232 프린터는 USB 장치가 아니라 usbprint에 안 나오고, usbprint.sys에 바인딩된 프린터는 CDC가 없어 COM을 안 만든다 — "어느 쪽이 더 낫다"가 아니라 둘 다 필요하다. 그래서 사용자에게 종류를 묻지 않는다.
+
+재연결 스캔 순서(`orderScanCandidates`, 순수 함수·테스트로 고정): **저장 대상 → usbprint 후보 → COM 후보**. usbprint를 먼저 훑는 이유는 성능이 아니라 안전이다 — usbprint 후보는 USB Printer class라 프린터임이 확실하고 probe가 수 ms지만, COM 후보에는 캐시드로어·저울 같은 무관한 장비가 섞여 있고 probe가 포트당 수백 ms 걸린다. 확실한 쪽을 먼저 훑어 조기 종료하면 무관한 장비를 덜 건드린다. 스캔은 **재연결 버튼을 눌렀을 때만** 돈다(화면 진입 시 자동 스캔 없음).
+
+**Winspool 금지 정책과의 관계 — 이 경로는 그 금지에 해당하지 않는다.** 금지의 실질은 "사용자가 고르지 않은 OS 기본 프린터로 영수증이 새어나가는 사고"다. 자동 채택 자체는 COM 경로가 예전부터 하던 일이고, 위험했던 건 *무엇이든 가리킬 수 있는 추상*(기본 프린터 = PDF 라이터·네트워크 프린터·라벨)이었다. 다음 세 조건이 그 추상을 대신한다 — **하나라도 무너지면 그때는 금지에 저촉된다**:
+
+1. **스풀러 미경유** — `OpenPrinter`/`StartDocPrinter`가 아니라 장치 인터페이스를 `CreateFile`로 직접 연다. 프린터 큐·기본 프린터 개념이 코드에 없다.
+2. **채택은 ESC/POS 응답을 받은 장치만** — 열거만으로는 채택하지 않는다. "후보가 하나뿐이니 probe 없이 그냥 쓰기" 같은 완화를 넣지 말 것. 채택 전까지는 `PrinterNoDevice`이며 테스트 출력 버튼도 잠긴다.
+3. **라벨 프린터 제외** — VID `0x1504`(BIXOLON) / `0x4B43`(Caysn) / `0x0FE6`(REXOD)를 열거에서 뺀다. 현장 PC에 G30도 usbprint로 잡혀 있어 제외가 없으면 정확히 그 금지된 사고가 재현된다. ★ 이 목록은 `windows_label_printer_backend._kUsbPortCandidates` / `UsbReceiptPrinter.isLabelPrinter` / `UsbPrintService._labelPrinterVendors` **세 곳을 함께 유지**할 것.
+
+**함정**: `SP_DEVICE_INTERFACE_DETAIL_DATA_W`의 `cbSize`는 x64에서 **8**(정렬 때문)이지만 `DevicePath` 필드의 **오프셋은 4**다. 8에서 읽으면 경로 앞 2글자가 잘린다.
+
+**usbprint 트러블슈팅**: ① 목록에 안 보임 → 전원/케이블 (DIGCF_PRESENT라 꽂혀 있으면 반드시 나온다) → 라벨 VID로 제외됐는지 확인 → ② `open-access-denied` → 해당 장치의 Windows 프린터 큐가 생겨 스풀러가 핸들을 점유했거나 벤더 유틸이 열어둔 상태 → ③ `write-failed` → 케이블/펌웨어.
+
+### 2.3 영수증 컬럼 폭 — 기종마다 다르다 (2026-09-02)
+
+같은 ESC/POS 바이트를 보내도 프린터의 **실효 컬럼 수**가 다르면 레이아웃이 무너진다. PR800은 48컬럼(576dot), **POSBANK 계열(A8·A11 실측)은 42컬럼**이다. 48로 만든 구분선(`'-' * 48`)을 A8에 보내면 42에서 줄이 접혀 `-` 6개가 다음 줄로 밀리고, 그 여파로 헤더의 수량 컬럼도 한 줄 밀린다.
+
+**자동 판별은 불가능하다.** ESC/POS에는 "몇 컬럼이냐"를 묻는 표준 질의가 없다 — `GS W`(인쇄 영역 폭)는 쓰기 전용이고 프린터가 자기 영역을 알려주지 않으며, `GS I 69`로 모델명 문자열은 읽을 수 있지만 양방향 인터페이스 + 모델 테이블이 필요해 비용 대비 효과가 없다. 그래서 세 겹으로 해결한다.
+
+**폭이 정해지는 순서** (`ExternalReceiptPrinter.columnsOf`)
+
+1. **사용자 설정** — `PreferenceService.getExternalPrinterColumns()`. 항상 이긴다.
+2. **기종 프리시드** — `knownPrinterColumns`(VID:PID → 컬럼). **설정이 null일 때만** 개입. Windows는 usbprint 장치 경로 / COM 포트의 SetupAPI `SPDRP_HARDWAREID`에서, Android는 MethodChannel `getExternalPrinterIds`에서 VID/PID를 얻어 **같은 테이블**을 쓴다.
+3. **기본값 42** — `ReceiptEscPosBuilder.defaultColumns`.
+
+**기본값이 42인 이유는 "실패하는 방향"이다.** 폭을 실제보다 **크게** 잡으면 구분선과 수량 칸이 다음 줄로 밀려 출력물이 망가지지만, **작게** 잡으면 우측 여백이 남을 뿐 읽을 수는 있다. 모르는 기종에서는 조용히 망가지는 쪽보다 여백이 남는 쪽으로 실패해야 한다. 그래서 테이블에는 **넓은 기종만 예외로** 등재한다 — 현재 `0D28:4C59`(PR800 계열 NXP LPC) → 48 하나뿐이다.
+
+기존 설치본 회귀 방지: 폭 설정이 없던 시절의 단말은 저장값이 null이라 42로 떨어진다. PR800 단말은 외부 프린터 설정 화면을 여는 것만으로(`_initialEnumerate` / Android는 `_preseedColumnsAndroid`) 48을 되찾는다 — 재연결을 누를 필요가 없다.
+
+폭을 좁히면 메뉴 컬럼이 함께 줄어드니 함께 볼 것:
+
+| 문서 | 메뉴 컬럼 | 48 | 42 |
+| --- | --- | --- | --- |
+| 주문서 | `width - 10` | 38 (한글 19자) | 32 (한글 16자) |
+| 영수증 | `width - 10 - 10` | 28 (한글 14자) | 22 (한글 11자) |
+
+또한 주문번호 줄은 `fontLarge`(가로 2배)라 실효 컬럼이 절반(42→21)이고 `'주문번호: 0006'`은 2배 적용 시 28컬럼이므로 **양쪽 폭 모두 프린터가 줄을 접을 수 있다** — 42에서 여유가 3컬럼 더 줄어든다.
+
+**모르는 기종의 폭을 알아내는 법 — 설정의 "용지 폭 확인" 버튼** (`buildWidthRulerBytes`). 48/42/32 각 폭을 정확히 채우는 막대(`48>---...---#`)를 한 줄씩 찍는다. 용지보다 넓은 막대는 접혀서 다음 줄에 꼬리를 남기므로 **넘치지 않은 가장 위의 막대**가 그 프린터의 폭이다. 막대 왼쪽에 빈칸이 생기면 컬럼 수가 아니라 좌측 여백(`GS L`) 문제이므로, 폭을 줄이는 대신 `GS L 0` 송출을 검토해야 한다.
+
+컬럼 정렬 명제는 [receipt_escpos_builder_test.dart](../test/services/receipt_escpos_builder_test.dart)가 **42/48 양쪽으로 파라미터화**되어 고정하고, 눈금자 막대가 정확히 그 폭인지도 함께 고정한다(막대가 1칸이라도 짧으면 눈금자가 거짓말을 한다).
 
 ---
 

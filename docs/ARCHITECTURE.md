@@ -145,7 +145,7 @@ ACCEPTED 진입 시 메뉴별 `ordrCnt` 만큼 라벨을 자동 출력. 진입�
 |  | 외부 영수증 프린터 | 라벨 프린터 |
 |---|---|---|
 | **Android** | `ExternalReceiptPrinter._sendBytes` → `PrinterJobQueue.enqueue` → `AndroidUsbTransport.send` → MethodChannel `printReceiptBytes` → `NativeMethodHandler.java` → `UsbReceiptPrinter.java` → `bulkTransfer` (3-tier endpoint 선택 + 4-tier 후보 판정) | `OutputService.printOrderLabels` → MethodChannel `printLabel` → `LabelPrinter.java` → Caysn AutoReplyPrint Java SDK (PNG bytes) |
-| **Windows** | `ExternalReceiptPrinter._sendBytes` → `PrinterJobQueue.enqueue` → `WindowsTransport.send` → `ComPortPrintService.sendRaw` → `serial_port_win32` SerialPort (COM 단일 경로, DLE EOT 1 probe) | `OutputService.printOrderLabels` → `LabelPrintOrchestrator.printOrderLabels` → `WindowsLabelPrinterBackend.printPng` → `autoreplyprint.dll` Dart FFI (`CP_Port_OpenUsb` / `CP_Label_PageBegin` / `DrawImageFromData` / `PagePrint`) |
+| **Windows** | `ExternalReceiptPrinter._sendBytes` → `PrinterJobQueue.enqueue` → `WindowsTransport.send` → **연결 방식 분기**: `com`(기본) → `ComPortPrintService.sendRaw` → `serial_port_win32` SerialPort (DLE EOT 1 probe) / `usbprint` → `UsbPrintService.sendRaw` → SetupDi 열거 + `CreateFile`/`WriteFile` (스풀러 미경유, 사용자 명시 선택) | `OutputService.printOrderLabels` → `LabelPrintOrchestrator.printOrderLabels` → `WindowsLabelPrinterBackend.printPng` → `autoreplyprint.dll` Dart FFI (`CP_Port_OpenUsb` / `CP_Label_PageBegin` / `DrawImageFromData` / `PagePrint`) |
 | **Dart 진입점** | `ExternalReceiptPrinter` ([external_receipt_printer.dart](../lib/services/external_receipt_printer.dart)) | `PrintService.printLabel` ([print_service.dart](../lib/services/print_service.dart)) — 내부에서 `Platform.isWindows` 분기 |
 
 ### 공통화된 부분 (양 OS 동일 코드 경로)
@@ -172,9 +172,9 @@ ACCEPTED 진입 시 메뉴별 `ordrCnt` 만큼 라벨을 자동 출력. 진입�
 | **외부 영수증 디바이스 enumerate** | `UsbManager` 통한 VID/PID + product name 패턴 | `SerialPort.getAvailablePorts()` |
 | **외부 영수증 권한** | `ACTION_USB_PERMISSION` BroadcastReceiver + 시스템 다이얼로그 | 없음 (COM 포트 점유 충돌만 존재) |
 | **외부 영수증 false-success 방지** | `verifyConnection` (ESC `@` probe) | `_probePrinter` (DLE EOT 1 ping → `cbInQue` 폴링 300ms) |
-| **외부 영수증 endpoint 선택** | 3-tier endpoint (NXP CDC tier 0 → USB Printer class tier 1 → vendor specific tier 2 → bulk OUT tier 3) + 4-tier 후보 판정 (BLOCKLIST/STRICT/WHITELIST/RELAXED) | N/A — COM 포트 단일 destination |
+| **외부 영수증 endpoint 선택** | 3-tier endpoint (NXP CDC tier 0 → USB Printer class tier 1 → vendor specific tier 2 → bulk OUT tier 3) + 4-tier 후보 판정 (BLOCKLIST/STRICT/WHITELIST/RELAXED) | 재연결 통합 스캔 — COM + usbprint 를 함께 열거하고 저장 대상 → usbprint → COM 순으로 probe, ESC/POS 응답을 받은 첫 장치를 채택 (라벨 VID 제외) |
 | **외부 영수증 점유/lag 방어** | USB 권한 / 좀비 detach 미발생 안전망 (`reconnectExternalPrinter`) | `serial_port_win32` cache 잔재 + USB-Serial CDC re-enumerate lag + 외부 프로세스 점유 (close 후 enumerate polling, 3-way settle warm/cold/failure-cooldown, 8가지 사유 분류) |
-| **외부 영수증 결과 차단 정책** | N/A | Winspool RAW 폴백 의도적 배제 (사용자 합의: OS default 프린터에 영수증 송출 사고 차단) |
+| **외부 영수증 결과 차단 정책** | N/A | Winspool RAW 폴백 의도적 배제 (사용자 합의: OS default 프린터에 영수증 송출 사고 차단). usbprint 직접 전송은 이 금지에 **해당하지 않음** — 스풀러/기본 프린터 미경유 + 자동 선택 없음 + 라벨 VID 제외 ([PRINTER_FLOW.md §2.2](PRINTER_FLOW.md)) |
 | **라벨 transport** | Caysn AutoReplyPrint Java SDK (`autoreplyprint.aar`) | `autoreplyprint.dll` Dart FFI (`AutoReplyPrintBindings`) |
 | **라벨 디바이스 open** | `LabelPrinter.printBitmap()` 안에서 SDK 가 enumerate + open 일임 | `CP_Port_EnumUsb` + `CP_Port_OpenUsb` (VID:PID 4종 화이트리스트, OS 디바이스 경로 `\\?\usb#...` 우선 정렬) |
 | **라벨 ACK / 비콘 신호** | `statusCallback` (PrintedEvent + InfoStatus 통합) | `printerAddOnStatus` + `printerAddOnPrinted` 별개 등록, paperFetch 비콘이 주 신호 (ACK race 안전망) |

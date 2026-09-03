@@ -935,6 +935,13 @@ class PrintService {
     return useBuiltin || useExternal;
   }
 
+  /// 설정 화면 "용지 폭 확인" 버튼용 — 폭 후보별 눈금자를 **외부 프린터로만** 출력.
+  ///
+  /// 내장(Sunmi) 프린터는 raw bytes 를 못 받고 폭도 고정이라 대상이 아니다.
+  /// 진단 목적이므로 현재 폭 설정을 적용하지 않는다
+  /// ([ExternalReceiptPrinter.printWidthRuler] 주석 참조).
+  Future<bool> printWidthRuler() => ExternalReceiptPrinter().printWidthRuler();
+
   // 서비스 정리
   void dispose() {
     _cachedBuiltinPrinter = null;

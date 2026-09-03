@@ -21,6 +21,7 @@ import android.view.WindowManager;
 
 import androidx.annotation.NonNull;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -210,6 +211,27 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
                     ok = false;
                 }
                 result.success(ok);
+                break;
+            }
+
+            case "getExternalPrinterIds": {
+                // 연결된 외부 영수증 프린터의 USB VID/PID. Dart 가 기종별 용지 폭
+                // 프리시드에 쓴다 (ESC/POS 에 컬럼 수 질의가 없어 VID/PID 가
+                // 유일한 자동 판별 수단). 못 찾으면 null -- 호출부가 기본값을 쓴다.
+                Map<String, Object> ids = null;
+                try {
+                    if (MainActivity.receiptPrinter != null) {
+                        int[] vp = MainActivity.receiptPrinter.connectedDeviceIds();
+                        if (vp != null) {
+                            ids = new HashMap<>();
+                            ids.put("vendorId", vp[0]);
+                            ids.put("productId", vp[1]);
+                        }
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "getExternalPrinterIds error", e);
+                }
+                result.success(ids);
                 break;
             }
 

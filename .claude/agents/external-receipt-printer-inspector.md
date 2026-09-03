@@ -50,7 +50,16 @@ tools: Read, Glob, Grep, Bash
 
 - **W1. Deferred-load 의무 (`external_receipt_printer_windows.dart`)**: win32 / serial_port_win32 패키지의 native static initializer 가 `kernel32.dll` lookup 시도 → Android 런타임 즉시 크래시. `external_receipt_printer.dart:18` + `print_service.dart:20` 두 곳에서 `deferred as win_transport` 로 import 필수. 호출 전 반드시 `await win_transport.loadLibrary()`. 신규 파일에서 non-deferred import 한 줄만 회귀해도 Android 빌드 실행 시 즉시 다이.
 - **W2. `loadLibrary()` 후 `setTransport`, 실패 시 큐 영구 NoDevice**: `await win_transport.loadLibrary(); queue.setTransport(win_transport.WindowsTransport());`(`print_service.dart:88-95`). 로드 실패 catch 가 있지만 setTransport 호출 안 되면 큐 영구 NoDevice. 운영 시 `[PrintService] WindowsTransport 로드 실패` 로그가 시그널.
-- **W3. COM 단일 경로 (Winspool 경로 제거됨)**: `WindowsTransport.send` 는 `comPort == null || isEmpty` 면 즉시 `PrinterNoDevice('no COM port configured')`, 설정돼 있으면 `ComPortPrintService.sendRaw` 만 시도하고 실패 시 사유별 결과 반환(`external_receipt_printer_windows.dart:33-75`). Winspool RAW 폴백은 의도적으로 배제: 사용자가 명시 설정하지 않은 OS default 프린터(라벨 프린터 / Microsoft Print to PDF 등) 가 외부 영수증으로 잘못 잡혀 isConnected 가 false-positive 가 되거나 실제 영수증이 라벨 프린터로 송출되는 사고 차단. Winspool 임의 부활 시 false-success / 디바이스 오인 회귀.
+- **W3. Windows 2경로 (COM / usbprint) — Winspool 은 여전히 배제**: `WindowsTransport.send` 는 `PreferenceService.getExternalPrinterConnection()`(기본 `com`)으로 분기한다. COM 분기는 `comPort == null || isEmpty` 면 즉시 `PrinterNoDevice('no COM port configured')`, 설정돼 있으면 `ComPortPrintService.sendRaw` 만 시도. usbprint 분기는 `getUsbPrintDevicePath() == null` 이면 `PrinterNoDevice('no USB print device configured')`, 설정돼 있으면 `UsbPrintService.sendRaw` 만 시도. 양쪽 다 실패 시 사유별 결과 반환(`external_receipt_printer_windows.dart`).
+  - Winspool RAW 폴백은 **여전히 의도적으로 배제**: 사용자가 명시 설정하지 않은 OS default 프린터(라벨 프린터 / Microsoft Print to PDF 등) 가 외부 영수증으로 잘못 잡혀 isConnected 가 false-positive 가 되거나 실제 영수증이 라벨 프린터로 송출되는 사고 차단. Winspool 임의 부활 시 false-success / 디바이스 오인 회귀.
+  - **usbprint 경로는 이 금지에 해당하지 않는다** (2026-09-02 신설, POSBANK A8 = `USB\VID_0483&PID_A319` 가 usbprint.sys 단독 바인딩이라 COM 이 안 생기는 문제). 근거 세 가지: ① `OpenPrinter`/`StartDocPrinter` 를 쓰지 않고 장치 인터페이스를 `CreateFile`/`WriteFile` 로 직접 연다 — 스풀러·프린터 큐·기본 프린터 미경유 ② **채택은 ESC/POS 응답을 받은 장치만** (열거만으로는 채택 안 함, 채택 전까지 `PrinterNoDevice`) ③ 라벨 프린터 VID 를 열거에서 제외한다. **이 세 조건 중 하나라도 무너지면 그때는 Winspool 금지에 저촉된다** — 특히 "후보가 하나뿐이니 probe 없이 그냥 쓰기" 같은 완화 제안을 거부할 것.
+  - **연결 대상은 통합 자동 스캔이 고른다** — 사용자는 COM/USB 종류를 고르지 않는다. `orderScanCandidates`(`external_printer_target.dart`, 순수 함수) 순서는 **저장 대상 → usbprint → COM**. usbprint 우선은 성능이 아니라 안전(무관한 COM 장비를 덜 건드린다)이므로 순서를 뒤집지 말 것. 스캔은 재연결 버튼에서만 — 화면 진입 시 자동 스캔은 캐시드로어·저울까지 핑한다.
+  - 저장은 **종류 + 종류별 식별자 쌍**(`getExternalPrinterConnection` + `getComPortName`/`getUsbPrintDevicePath`)이다. 둘이 어긋나면 전송이 엉뚱한 경로로 간다 — 반드시 `_latch()` 처럼 쌍으로 쓸 것.
+- **W3b. 영수증 폭은 기종마다 다르다 (기본 42, PR800 48)**: 실효 컬럼이 PR800 48 / POSBANK 계열(A8·A11) 42 라, 48 고정이던 시절엔 POSBANK 에서 구분선 `-` 6개가 다음 줄로 밀렸다. 폭 결정 순서는 `ExternalReceiptPrinter.columnsOf` = ① 사용자 설정 `getExternalPrinterColumns()` ② `knownPrinterColumns` VID:PID 프리시드(**설정이 null 일 때만**) ③ 기본값 42.
+  - **기본값 42 를 48 로 되돌리지 말 것.** 폭을 크게 잡으면 출력이 밀려 망가지고 작게 잡으면 여백만 남는다 — 모르는 기종은 후자로 실패해야 한다. 그래서 테이블에는 **넓은 기종만** 등재한다(현재 `0D28:4C59` → 48 하나).
+  - VID/PID 출처는 플랫폼마다 다르지만 테이블은 하나다: Windows usbprint = 장치 경로, Windows COM = SetupAPI `SPDRP_HARDWAREID`(포트명엔 VID/PID 가 없다 — `ExternalPrinterTarget.hardwareId` 가 이래서 존재한다), Android = MethodChannel `getExternalPrinterIds`.
+  - ESC/POS 에 컬럼 수 질의는 **없다**. `GS W` 는 쓰기 전용. 모르는 기종은 설정의 "용지 폭 확인"(`buildWidthRulerBytes`) 눈금자로 사람이 확인한다. 막대 왼쪽에 빈칸이 생기면 컬럼 수가 아니라 좌측 여백(`GS L`) 문제다.
+  - 회귀 점검: `grep -rn "OpenPrinter(\|StartDocPrinter(\|WritePrinter(\|getDefaultPrinterName(" lib/` 는 계속 0건이어야 한다(호출 형태로 매칭 — `usb_print_service.dart` 주석이 이 API 이름을 "쓰지 않는다"는 근거로 언급한다). `UsbPrintService._labelPrinterVendors`(0x1504/0x4B43/0x0FE6)가 비어 있거나 축소됐으면 라벨 프린터가 영수증 후보로 노출되는 회귀다.
 - **W5. settle delay warm(150ms) / cold(1500ms), `_warmWindow=60s`**: `_lastSuccessfulSendAt` 가 60초 이내 → warm, 아니면 cold(`com_port_print_service.dart:38, 42-44, 110-113`). cold 1.5s 는 PR800 펌웨어 부팅 / USB-Serial 재인식 직후 명령 무시 방지. warm 단일값 회귀 시 cold-start 명령 미스 → 첫 잡 backoff 추가 시도.
 - **W6. `SerialPort` 싱글턴 캐시(`portName` 기반) — 매번 새 인스턴스 아님**: `SerialPort('COM3', openNow: false)` 가 동일 portName 에 대해 캐시 객체 반환(`com_port_print_service.dart:75`). 첫 호출의 BaudRate 만 적용되는 패키지 quirk 가 있어 매 호출마다 `openWithSettings` 로 dcb 갱신. 이전 잔여 listener / `_readStream` 가 남아있을 수 있음.
 - **W7. DLE EOT 1 probe (`_probePrinter`) — false-success 방지의 핵심**: USB-Serial CDC chip 이 USB bus power 로 살아있어 본체 OFF 라도 open/write 가 success 로 떨어지는 false-success 를 막는다. 1) PurgeComm(PURGE_RXCLEAR) → 2) `[0x10, 0x04, 0x01]` 3바이트 송신 → 3) 300ms 안에 `ClearCommError(...).cbInQue > 0` 폴링(20ms 간격) → 4) 응답 도착 시 PurgeComm 한 번 더(`com_port_print_service.dart:28-35, 121-128, 173-221`). probe 실패 = `sendRaw false → PrinterBusy → backoff`(커밋 `0c0f7e7`).
@@ -150,14 +159,25 @@ tools: Read, Glob, Grep, Bash
 3. cold 1.5s 후 probe 통과해야 PR800 펌웨어 부팅 명령 미스 안 함
 4. probe 실패 후 backoff 재시도가 정상 발화하는지(invariant W7)
 
-#### 시나리오 Win-D: 외부 프린터 "연결됨" 인데 출력 안 됨 / 디바이스 오인 — COM 단일 경로 (의도)
+#### 시나리오 Win-D: 외부 프린터 "연결됨" 인데 출력 안 됨 / 디바이스 오인 — 명시 선택 규율 (의도)
 
-증상: COM 포트 미설정 상태에서 외부 프린터가 "연결됨"으로 잘못 표시되거나 의도하지 않은 디바이스로 영수증이 송출됨. Winspool 경로는 제거됐으므로 이 증상은 발생하지 않아야 정상.
+증상: 대상 미설정 상태에서 외부 프린터가 "연결됨"으로 잘못 표시되거나 의도하지 않은 디바이스로 영수증이 송출됨. 두 경로 모두 자동 선택이 없으므로 이 증상은 발생하지 않아야 정상.
 
-1. `WindowsTransport.send` 가 `comPort == null || isEmpty` 면 즉시 `PrinterNoDevice('no COM port configured')` 반환하는지(invariant W3)
-2. `isConnected()` 가 COM 포트 enumerate 결과만 보고 판정하는지 — OS default 프린터 fallback 없음(`external_receipt_printer_windows.dart:78-83`)
-3. Winspool RAW 폴백 / `WinspoolRawClient` / `getWindowsPrinterName` 회귀 import 가 없는지 grep: `grep -rn "Winspool\|winspool_raw_client\|WindowsPrinterName" lib/`
-4. 사용자 매장이 COM 미설정이면 외부 프린터 토글을 OFF 로 안내 — Winspool fallback 부활은 false-positive / 디바이스 오인 회귀
+1. `WindowsTransport.send` 가 대상 미설정 시 즉시 `PrinterNoDevice` 반환하는지 — COM 은 `comPort == null || isEmpty`, usbprint 는 `getUsbPrintDevicePath() == null || isEmpty` (invariant W3)
+2. `isConnected()` 가 저장된 대상만 보고 판정하는지 — OS default 프린터 fallback 없음, usbprint 는 목록 첫 항목 자동 채택 없음(`external_receipt_printer_windows.dart`)
+3. Winspool RAW 폴백 / `WinspoolRawClient` / `getWindowsPrinterName` 회귀 import 가 없는지 grep: `grep -rn "winspool_raw_client\|WindowsPrinterName\|OpenPrinter(\|StartDocPrinter(" lib/`
+4. usbprint 열거가 라벨 프린터를 제외하는지 — `UsbPrintService._labelPrinterVendors` 에 0x1504/0x4B43/0x0FE6 이 있는지. 현장 PC 에 BIXOLON G30 이 usbprint 로 잡히므로 이 제외가 빠지면 영수증이 라벨 프린터로 송출될 수 있다
+5. 사용자 매장이 대상 미설정이면 외부 프린터 토글을 OFF 로 안내 — 자동 선택/Winspool fallback 부활은 false-positive / 디바이스 오인 회귀
+
+#### 시나리오 Win-F: POSBANK A8 등이 Windows 에서 "안 잡힘"
+
+증상: 케이블·전원 정상이고 Android 에서는 출력되는데 Windows 설정 화면 COM 목록에 없다.
+
+1. **재연결부터 누르게 한다**: 통합 스캔이 usbprint 후보까지 훑어 잡는다. 그 프린터가 CDC-ACM 을 노출하지 않으면 COM 포트는 아예 안 생기므로 COM 목록만 봐서는 영영 안 보인다
+2. 근거 확인 명령: `pnputil /enum-devices /connected` 에서 해당 장치의 **드라이버 이름**을 본다 — `usbprint.inf` 면 COM 이 없는 것이 정상이고, `usbser.sys`/`SERIALCOMM` 에 있으면 COM 경로 대상
+3. `reg query "HKLM\HARDWARE\DEVICEMAP\SERIALCOMM"` 로 COM 포트 실재 확인
+4. 복합 장치(`MI_00`/`MI_01` 자식 노드)면 CDC 를 가진 기종이고, 단일 노드면 Printer class 단독일 가능성이 높다
+5. 상세 배경은 [docs/PRINTER_FLOW.md](../../docs/PRINTER_FLOW.md) §2.2
 
 #### 시나리오 Win-E: Android 빌드 실행 시 즉시 크래시
 
