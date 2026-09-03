@@ -156,7 +156,6 @@ class _Translations$settings$en extends Translations$settings$ko {
 	@override late final _Translations$settings$kds_ignore_status$en kds_ignore_status = _Translations$settings$kds_ignore_status$en._(_root);
 	@override late final _Translations$settings$kds_accept_orders$en kds_accept_orders = _Translations$settings$kds_accept_orders$en._(_root);
 	@override late final _Translations$settings$label_category_filter$en label_category_filter = _Translations$settings$label_category_filter$en._(_root);
-	@override late final _Translations$settings$label_paper$en label_paper = _Translations$settings$label_paper$en._(_root);
 	@override late final _Translations$settings$developer_options$en developer_options = _Translations$settings$developer_options$en._(_root);
 	@override late final _Translations$settings$kiosk$en kiosk = _Translations$settings$kiosk$en._(_root);
 	@override late final _Translations$settings$pos$en pos = _Translations$settings$pos$en._(_root);
@@ -627,7 +626,7 @@ class _Translations$settings$label_printer$en extends Translations$settings$labe
 
 	// Translations
 	@override String get title => 'Use Label Printer';
-	@override String get desc => 'Use USB-connected label printer.\nSupported models: REXOD RXLA-561 (50mm x 70mm), BIXOLON G30 (40/58mm continuous)';
+	@override String get desc => 'Use USB-connected label printer.\nSupported models: REXOD RXLA-561 (50mm x 70mm), BIXOLON G30 (58mm continuous)';
 }
 
 // Path: settings.label_qr
@@ -825,20 +824,6 @@ class _Translations$settings$label_category_filter$en extends Translations$setti
 	@override String get desc_none => 'No category selected — every category is printed.';
 	@override String desc_selected({required Object count, required Object total, required Object names}) => 'Printing ${count} of ${total} categories — ${names}';
 	@override String get btn_configure => 'Select categories';
-}
-
-// Path: settings.label_paper
-class _Translations$settings$label_paper$en extends Translations$settings$label_paper$ko {
-	_Translations$settings$label_paper$en._(TranslationsEn root) : this._root = root, super.internal(root);
-
-	final TranslationsEn _root; // ignore: unused_field
-
-	// Translations
-	@override String get title => 'Label Paper Size';
-	@override String get desc_40 => 'Prints with the 40mm paper layout.';
-	@override String get desc_58 => 'Prints with the 58mm paper layout.';
-	@override String get btn_40 => '40mm';
-	@override String get btn_58 => '58mm';
 }
 
 // Path: settings.developer_options

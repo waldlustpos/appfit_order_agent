@@ -156,7 +156,6 @@ class _Translations$settings$ja extends Translations$settings$ko {
 	@override late final _Translations$settings$kds_ignore_status$ja kds_ignore_status = _Translations$settings$kds_ignore_status$ja._(_root);
 	@override late final _Translations$settings$kds_accept_orders$ja kds_accept_orders = _Translations$settings$kds_accept_orders$ja._(_root);
 	@override late final _Translations$settings$label_category_filter$ja label_category_filter = _Translations$settings$label_category_filter$ja._(_root);
-	@override late final _Translations$settings$label_paper$ja label_paper = _Translations$settings$label_paper$ja._(_root);
 	@override late final _Translations$settings$developer_options$ja developer_options = _Translations$settings$developer_options$ja._(_root);
 	@override late final _Translations$settings$kiosk$ja kiosk = _Translations$settings$kiosk$ja._(_root);
 	@override late final _Translations$settings$pos$ja pos = _Translations$settings$pos$ja._(_root);
@@ -618,7 +617,7 @@ class _Translations$settings$label_printer$ja extends Translations$settings$labe
 
 	// Translations
 	@override String get title => 'ラベルプリンター使用';
-	@override String get desc => 'USB接続されたラベルプリンターを使用します。\n対応モデル: REXOD RXLA-561 (50mm x 70mm)、BIXOLON G30 (40/58mm 連続紙)';
+	@override String get desc => 'USB接続されたラベルプリンターを使用します。\n対応モデル: REXOD RXLA-561 (50mm x 70mm)、BIXOLON G30 (58mm 連続紙)';
 }
 
 // Path: settings.label_qr
@@ -816,20 +815,6 @@ class _Translations$settings$label_category_filter$ja extends Translations$setti
 	@override String get desc_none => '指定されたカテゴリがないため、すべてのカテゴリを出力します。';
 	@override String desc_selected({required Object total, required Object count, required Object names}) => '${total}件中${count}件のカテゴリのみ出力します — ${names}';
 	@override String get btn_configure => 'カテゴリを選択';
-}
-
-// Path: settings.label_paper
-class _Translations$settings$label_paper$ja extends Translations$settings$label_paper$ko {
-	_Translations$settings$label_paper$ja._(TranslationsJa root) : this._root = root, super.internal(root);
-
-	final TranslationsJa _root; // ignore: unused_field
-
-	// Translations
-	@override String get title => 'ラベル用紙サイズ';
-	@override String get desc_40 => '40mm用紙のレイアウトで印刷します。';
-	@override String get desc_58 => '58mm用紙のレイアウトで印刷します。';
-	@override String get btn_40 => '40mm';
-	@override String get btn_58 => '58mm';
 }
 
 // Path: settings.developer_options

@@ -279,6 +279,10 @@ proguard `com.bixolon.**` keep)은 전부 G30 소유다** — XD5 잔재로 보�
 
 ### 3.5 BIXOLON G30 (UPOS) — 신규 기종 통합 + 40mm 연속용지 레이아웃 (2026-08-21)
 
+> **40mm 는 2026-09-03 부로 서비스 대상이 아니다.** 이 절의 기종 통합·렌더링 방식·SDK 통합은
+> 그대로 유효하지만, 40mm **레이아웃**(`ContinuousLabelPainter`)은 호출부가 없는 잔존 코드다.
+> 현재 G30 이 쓰는 레이아웃은 §3.6 의 58mm 하나뿐이다.
+
 갭 라벨 기종(Caysn D2/D3, REXOD RXLA-561)은 고정 크기 낱장이라 490×600 고정 캔버스
 PNG 한 장이면 됐다. G30 은 **연속 용지 + 커터**라 그 전제가 깨진다 — 세로 가변 레이아웃이
 필요하고, SDK 도 완전히 다르다(UPOS/JavaPOS, `BixolonPosDriver.java` — §3 도입부 참조).
@@ -381,15 +385,27 @@ quiet zone(모듈 4개 폭 흰 배경)이 `clampQuietTopTo`/`clampQuietBottomTo`
 clamp 와 대칭) QR 박스 안으로 가둔다 — 간격(gap)으로 막으려면 32dot 이상이 필요해 가로 폭이
 아깝고, `modulePx` 에 따라 흔들리는 취약한 불변식이 된다.
 
-#### 용지 사이즈 선택 배선
+#### 용지 사이즈 선택 배선 — 폐지 (2026-09-03)
 
-G30 은 한 대가 가이드 부품 교체만으로 40/58 을 겸용하는데 **SDK 가 로드된 용지 폭을 보고하지
-않는다**(자동 감지 불가) — 매장이 고른 값이 유일한 근거다. `PreferenceService.KEY_LABEL_PAPER_SIZE`
-(int mm, 기본 **40**)에 저장하고, 설정 화면의 "라벨 프린터 사용" 하위 설정에서 **G30 연결 시에만**
-40mm/58mm 선택 버튼을 노출한다(다른 기종은 전부 고정 크기 갭 라벨이라 선택지를 보여주면 오설정을
-유도한다). 기본이 40 이라 기존 매장은 아무것도 안 해도 종전 레이아웃 그대로다.
-`output_service.dart` 와 개발자 옵션의 "테스트 출력(3장)" 이 **같은 분기**를 쓴다 — 자동출력과
-다른 레이아웃이 나가면 그 버튼으로 하는 검증 자체가 무의미해지기 때문.
+**40mm 는 서비스 대상이 아니다.** G30 은 58mm 연속용지 하나로 고정이고, 아래 배선은 전부
+제거됐다(이력으로만 남긴다):
+
+- 설정 "라벨 프린터 사용" 하위의 40mm/58mm 선택 버튼 (`LabelPrinterSubSettings`) — 위젯의
+  `labelPaperSizeMm`/`onLabelPaperSizeChanged` 파라미터와 `SettingsScreen` 의 상태·저장까지 삭제
+- i18n `settings.label_paper.*` 4키(3로캘) 삭제 + 지원 모델 안내 문구를 "BIXOLON G30 (58mm
+  연속용지)" 로 정정
+- `output_service.dart` / 개발자 옵션 "테스트 출력(3장)" 의 `isG30Wide` 분기 → G30 이면 58mm
+  단일 경로. 눈금자 진단도 물리폭 58 고정
+- `PreferenceService.KEY_LABEL_PAPER_SIZE` 는 **레거시로 남긴다**(기존 단말에 저장된 값 설명용).
+  읽는 코드가 없어졌고 기본값만 58 로 바꿨다
+
+`ContinuousLabelPainter`(40mm)와 `LabelMediaSpec.continuous40`·`continuousForPaperMm` 은 **코드에
+남아 있으나 호출부가 없다** — 40mm 복구 가능성을 열어 둔 의도적 잔존이다. 40mm 을 되살릴 때는
+위 목록을 역순으로 복원하면 된다.
+
+> 원래 이 절의 근거였던 것: G30 은 한 대가 가이드 부품 교체만으로 40/58 을 겸용하는데 SDK 가
+> 로드된 용지 폭을 보고하지 않아(자동 감지 불가) 매장이 고른 값이 유일한 근거였다. 그래서
+> 설정 선택이 필요했다. 서비스 용지가 하나로 정해지면서 그 근거 자체가 사라졌다.
 
 #### 실기기 기하 확정 — 유효 인쇄폭 52.5mm
 
@@ -574,7 +590,7 @@ flowchart LR
 | [LabelPrinter.java](../android/app/src/main/java/co/kr/waldlust/order/receive/util/print/LabelPrinter.java) | Android 라벨 프린터 (Caysn/REXOD) |
 | [BixolonPosDriver.java](../android/app/src/main/java/co/kr/waldlust/order/receive/util/print/BixolonPosDriver.java) | Android 라벨 프린터 (BIXOLON G30, UPOS/JavaPOS) — Windows 미이식 |
 | [label_media_spec.dart](../lib/services/label_printer/label_media_spec.dart) | 용지 규격 값 객체(`gap490x600`/`continuous40`/`continuous58`) — 캔버스 폭·높이·좌우여백 |
-| [continuous_label_painter.dart](../lib/utils/continuous_label_painter.dart) | G30 40mm 연속용지 세로 가변 레이아웃 painter |
+| [continuous_label_painter.dart](../lib/utils/continuous_label_painter.dart) | G30 40mm 연속용지 세로 가변 레이아웃 painter — **호출부 없음**(40mm 서비스 종료, §3.5 상단) |
 | [continuous58_label_painter.dart](../lib/utils/continuous58_label_painter.dart) | G30 58mm 연속용지 painter (번호+QR 가로 배치·검정 반전 바·옵션 1열) |
 | [label_ruler_test_image.dart](../lib/utils/label_ruler_test_image.dart) | 유효 인쇄폭 실측용 mm 눈금자 진단 이미지 (개발자 옵션에서 출력) |
 | [label_draw_ops.dart](../lib/utils/label_draw_ops.dart) | 라벨 draw 프리미티브 mixin + 옵션 셀 기하(3개 painter 공유) |

@@ -121,12 +121,12 @@ class PreferenceService {
   static const String KEY_LABEL_CATEGORY_KEYS_PREFIX =
       "APPFIT_LABEL_CAT_KEYS_"; // JSON array (정렬 저장)
 
-  /// 장착한 라벨 용지 폭(mm). 현재 의미가 있는 기종은 BIXOLON G30 하나 —
-  /// 한 대가 가이드 부품 교체만으로 40/58 을 겸용하는데 SDK 가 로드된 용지 폭을
-  /// 보고하지 않아(자동 감지 불가) 매장이 고른 값이 유일한 근거다.
-  /// 기본 40 — 기존 매장은 아무것도 안 해도 종전 레이아웃 그대로다.
+  /// 장착한 라벨 용지 폭(mm). **레거시** — 40mm 가 서비스 대상에서 빠지면서
+  /// (2026-09-03) 설정 화면의 선택 UI 와 출력 경로의 40/58 분기를 모두 제거했다.
+  /// G30 은 58mm 연속용지 하나로 고정이라 이 값을 읽는 코드는 남아 있지 않다.
+  /// 키 자체는 기존 단말에 저장된 값을 설명하기 위해 남긴다.
   static const String KEY_LABEL_PAPER_SIZE =
-      "KOKONUT_LABEL_PAPER_SIZE"; // int mm (40 | 58, 기본 40)
+      "KOKONUT_LABEL_PAPER_SIZE"; // int mm (레거시, 기본 58)
 
   static const String KEY_IS_SOCKET_ENABLED =
       "KEY_IS_SOCKET_ENABLED"; // 소켓 사용 여부
@@ -777,8 +777,8 @@ class PreferenceService {
       _prefs.getBool(KEY_LABEL_USE_CALIBRATE) ?? false;
   bool getLabelUseQrPrint() => _prefs.getBool(KEY_LABEL_USE_QR_PRINT) ?? false;
 
-  /// 장착한 라벨 용지 폭(mm). 기본 40 — [KEY_LABEL_PAPER_SIZE] 참조.
-  int getLabelPaperSizeMm() => _prefs.getInt(KEY_LABEL_PAPER_SIZE) ?? 40;
+  /// 장착한 라벨 용지 폭(mm). 레거시 — 읽는 코드 없음([KEY_LABEL_PAPER_SIZE] 참조).
+  int getLabelPaperSizeMm() => _prefs.getInt(KEY_LABEL_PAPER_SIZE) ?? 58;
 
   // ── 라벨 출력 카테고리 지정 ───────────────────────────────────────────────
   //

@@ -107,7 +107,7 @@
         },
         "label_printer": {
             "title": "Use Label Printer",
-            "desc": "Use USB-connected label printer.\nSupported models: REXOD RXLA-561 (50mm x 70mm), BIXOLON G30 (40/58mm continuous)"
+            "desc": "Use USB-connected label printer.\nSupported models: REXOD RXLA-561 (50mm x 70mm), BIXOLON G30 (58mm continuous)"
         },
         "label_qr": {
             "title": "Print QR Code",
@@ -199,13 +199,6 @@
             "desc_none": "No category selected — every category is printed.",
             "desc_selected": "Printing {count} of {total} categories — {names}",
             "btn_configure": "Select categories"
-        },
-        "label_paper": {
-            "title": "Label Paper Size",
-            "desc_40": "Prints with the 40mm paper layout.",
-            "desc_58": "Prints with the 58mm paper layout.",
-            "btn_40": "40mm",
-            "btn_58": "58mm"
         },
         "developer_options": {
             "title": "Developer Options",

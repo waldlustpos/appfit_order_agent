@@ -107,7 +107,7 @@
         },
         "label_printer": {
             "title": "ラベルプリンター使用",
-            "desc": "USB接続されたラベルプリンターを使用します。\n対応モデル: REXOD RXLA-561 (50mm x 70mm)、BIXOLON G30 (40/58mm 連続紙)"
+            "desc": "USB接続されたラベルプリンターを使用します。\n対応モデル: REXOD RXLA-561 (50mm x 70mm)、BIXOLON G30 (58mm 連続紙)"
         },
         "label_qr": {
             "title": "QRコード出力",
@@ -199,13 +199,6 @@
             "desc_none": "指定されたカテゴリがないため、すべてのカテゴリを出力します。",
             "desc_selected": "{total}件中{count}件のカテゴリのみ出力します — {names}",
             "btn_configure": "カテゴリを選択"
-        },
-        "label_paper": {
-            "title": "ラベル用紙サイズ",
-            "desc_40": "40mm用紙のレイアウトで印刷します。",
-            "desc_58": "58mm用紙のレイアウトで印刷します。",
-            "btn_40": "40mm",
-            "btn_58": "58mm"
         },
         "developer_options": {
             "title": "開発者オプション",

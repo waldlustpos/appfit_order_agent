@@ -18,7 +18,6 @@ import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/services/print_service.dart';
 import 'package:appfit_order_agent/utils/label_painter.dart';
 import 'package:appfit_order_agent/utils/continuous58_label_painter.dart';
-import 'package:appfit_order_agent/utils/continuous_label_painter.dart';
 import 'package:appfit_order_agent/utils/label_ruler_test_image.dart';
 import 'package:appfit_order_agent/services/label_printer/label_media_spec.dart';
 import 'package:appfit_order_agent/widgets/custom_switch.dart';
@@ -344,11 +343,6 @@ class _SettingsLabelTestSectionState
       // 경로와 동일 분기. 이 버튼으로 목업 대조/실기기 검증을 하므로 자동출력과
       // 다른 레이아웃이 나가면 검증 자체가 무의미해진다.
       final bool isG30 = status.labelPrinterModel == kBixolonG30ModelName;
-      // 40mm/58mm 도 서로 다른 레이아웃이라 설정값을 그대로 따라간다 — 자동출력과
-      // 다른 용지 레이아웃이 나가면 이 버튼으로 하는 검증이 무의미해진다.
-      final int paperMm =
-          ref.read(preferenceServiceProvider).getLabelPaperSizeMm();
-      final bool isG30Wide = isG30 && paperMm == 58;
       // G30 은 세로 가변 레이아웃이라 3장을 일부러 짧음/보통/김 으로 다르게
       // 구성한다 — 셋 다 같은 길이면 이 버튼으로는 가변 높이가 실제로
       // 동작하는지 확인할 수 없다(실물 출력 피드백으로 발견).
@@ -370,7 +364,7 @@ class _SettingsLabelTestSectionState
       final sw = Stopwatch()..start();
       for (int i = 1; i <= 3; i++) {
         final labelSw = Stopwatch()..start();
-        final imageBytes = isG30Wide
+        final imageBytes = isG30
             ? await Continuous58LabelPainter.generateContinuous58LabelImage(
                 spec: LabelMediaSpec.continuous58,
                 menuName: g30MenuNames[i - 1],
@@ -383,26 +377,15 @@ class _SettingsLabelTestSectionState
                 orderIndex: i,
                 orderTotal: 3,
               )
-            : isG30
-                ? await ContinuousLabelPainter.generateContinuousLabelImage(
-                    spec: LabelMediaSpec.continuous40,
-                    menuName: g30MenuNames[i - 1],
-                    options: g30Options[i - 1],
-                    memo: g30Memos[i - 1],
-                    shopOrderNo: '0000-$i',
-                    legacyOrderTime: '03/26\n12:00:00',
-                    orderIndex: i,
-                    orderTotal: 3,
-                  )
-                : await LabelPainter.generateLabelImage(
-                    menuName: '테스트 상품 $i',
-                    options: ['옵션A', '옵션B'],
-                    shopOrderNo: '0000',
-                    orderTime: '03/26\n12:00:00',
-                    orderIndex: i,
-                    orderTotal: 3,
-                    layoutVersion: layoutVersion,
-                  );
+            : await LabelPainter.generateLabelImage(
+                menuName: '테스트 상품 $i',
+                options: ['옵션A', '옵션B'],
+                shopOrderNo: '0000',
+                orderTime: '03/26\n12:00:00',
+                orderIndex: i,
+                orderTotal: 3,
+                layoutVersion: layoutVersion,
+              );
         logToFile(
             tag: LogTag.PLATFORM,
             message:
@@ -617,10 +600,10 @@ class _SettingsLabelTestSectionState
   /// 눈금자 진단 출력 — **용지의 실제 인쇄 가능폭을 자로 읽기 위한** 것이다.
   ///
   /// 물리 용지폭 전체를 캔버스로 잡으므로 잘리는 게 정상이고, **어디서** 잘리는지가
-  /// 곧 측정값이다. 설정에서 고른 용지 사이즈를 물리폭으로 쓰고, 그 용지의 spec 을
-  /// 오버레이해 "계획한 콘텐츠 폭이 인쇄 가능 영역 안에 들어가는가" 를 함께 본다.
+  /// 곧 측정값이다. 물리폭은 58mm 고정이고(40mm 는 서비스 대상 아님), 그 용지의
+  /// spec 을 오버레이해 "계획한 콘텐츠 폭이 인쇄 가능 영역 안에 들어가는가" 를 함께 본다.
   ///
-  /// 1회 판독을 신뢰하지 않는다 — 40mm 확정 때도 3회 재현이 필요했다.
+  /// 1회 판독을 신뢰하지 않는다 — 폭 확정 때도 3회 재현이 필요했다.
   Future<void> _printRulerTest() async {
     final printService = ref.read(printServiceProvider);
     final status = ref.read(printerStatusProvider);
@@ -633,15 +616,14 @@ class _SettingsLabelTestSectionState
       return;
     }
 
-    final int paperMm =
-        ref.read(preferenceServiceProvider).getLabelPaperSizeMm();
+    const int paperMm = 58;
     logToFile(
         tag: LogTag.PLATFORM,
         message: '[RulerTest] ====== 눈금자 출력 (${paperMm}mm) ======');
     try {
       final bytes = await LabelRulerTestImage.generate(
         paperWidthMm: paperMm.toDouble(),
-        overlaySpec: LabelMediaSpec.continuousForPaperMm(paperMm),
+        overlaySpec: LabelMediaSpec.continuous58,
       );
       final ok = await printService.printLabel(bytes,
           orderNo: 'RULER${paperMm}mm', labelIndex: 1, totalLabels: 1);

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:appfit_order_agent/constants/app_styles.dart';
-import 'package:appfit_order_agent/i18n/strings.g.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/services/print_service.dart';
@@ -17,15 +16,9 @@ class LabelPrinterSubSettings extends ConsumerStatefulWidget {
   const LabelPrinterSubSettings({
     super.key,
     required this.isUseLabelPrinter,
-    required this.labelPaperSizeMm,
-    required this.onLabelPaperSizeChanged,
   });
 
   final bool isUseLabelPrinter;
-
-  /// 장착한 라벨 용지 폭(mm). 40 | 58.
-  final int labelPaperSizeMm;
-  final void Function(int) onLabelPaperSizeChanged;
 
   @override
   ConsumerState<LabelPrinterSubSettings> createState() =>
@@ -79,71 +72,9 @@ class _LabelPrinterSubSettingsState
           const SizedBox(height: AppSpacing.s12),
           _buildTestPrintRow(),
         ],
-        // 용지 사이즈 선택은 G30 에서만 의미가 있다 — 다른 기종은 전부 고정 크기
-        // 갭 라벨이라 선택지를 보여주면 오히려 오설정을 유도한다.
-        if (widget.isUseLabelPrinter &&
-            status.labelPrinterModel == kBixolonG30ModelName) ...[
-          const SizedBox(height: AppSpacing.s16),
-          _buildPaperSizeRow(),
-        ],
+        // 용지 사이즈(40/58mm) 선택 UI 는 2026-09-03 제거됐다 — 40mm 는 서비스
+        // 대상이 아니고, G30 은 58mm 연속용지 하나로 고정이다.
       ],
-    );
-  }
-
-  /// 40mm/58mm 선택. G30 은 한 대가 가이드 부품 교체만으로 겸용인데 SDK 가 로드된
-  /// 용지 폭을 보고하지 않아 자동 감지가 불가능하다 — 매장이 고른 값이 유일한 근거다.
-  Widget _buildPaperSizeRow() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          t.settings.label_paper.title,
-          style: AppTextStyles.bodySm.copyWith(fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: AppSpacing.s4),
-        Text(
-          widget.labelPaperSizeMm == 58
-              ? t.settings.label_paper.desc_58
-              : t.settings.label_paper.desc_40,
-          style: AppTextStyles.bodySm.copyWith(color: AppStyles.gray6),
-        ),
-        const SizedBox(height: AppSpacing.s8),
-        Row(
-          children: [
-            _buildPaperSizeButton(t.settings.label_paper.btn_40, 40),
-            const SizedBox(width: AppSpacing.s8),
-            _buildPaperSizeButton(t.settings.label_paper.btn_58, 58),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPaperSizeButton(String label, int mm) {
-    final isSelected = widget.labelPaperSizeMm == mm;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () {
-          widget.onLabelPaperSizeChanged(mm);
-          logToFile(tag: LogTag.UI_ACTION, message: '라벨 용지 사이즈 변경 -> ${mm}mm');
-        },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.s12),
-          decoration: BoxDecoration(
-            color: isSelected ? AppStyles.kMainColor : AppStyles.gray2,
-            borderRadius: AppRadius.bSm,
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            label,
-            style: AppTextStyles.bodySm.copyWith(
-              color: isSelected ? Colors.white : AppStyles.gray9,
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            ),
-          ),
-        ),
-      ),
     );
   }
 

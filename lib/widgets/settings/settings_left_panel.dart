@@ -44,7 +44,6 @@ class SettingsLeftPanel extends ConsumerStatefulWidget {
     required this.externalPrintReceipt,
     required this.builtinPrintCall,
     required this.externalPrintCall,
-    required this.labelPaperSizeMm,
     required this.isShowOrderTypeBadge,
     required this.isOrderSourceColor,
     required this.printShowOrderType,
@@ -65,7 +64,6 @@ class SettingsLeftPanel extends ConsumerStatefulWidget {
     required this.onExternalPrintReceiptChanged,
     required this.onBuiltinPrintCallChanged,
     required this.onExternalPrintCallChanged,
-    required this.onLabelPaperSizeChanged,
     required this.onShowOrderTypeBadgeChanged,
     required this.onOrderSourceColorChanged,
     required this.onPrintShowOrderTypeChanged,
@@ -93,8 +91,6 @@ class SettingsLeftPanel extends ConsumerStatefulWidget {
   final bool builtinPrintCall;
   final bool externalPrintCall;
 
-  /// 장착한 라벨 용지 폭(mm). G30 전용 — 40 | 58.
-  final int labelPaperSizeMm;
   final bool isShowOrderTypeBadge;
   final bool isOrderSourceColor;
   final bool printShowOrderType;
@@ -116,7 +112,6 @@ class SettingsLeftPanel extends ConsumerStatefulWidget {
   final void Function(bool) onExternalPrintReceiptChanged;
   final void Function(bool) onBuiltinPrintCallChanged;
   final void Function(bool) onExternalPrintCallChanged;
-  final void Function(int) onLabelPaperSizeChanged;
   final void Function(bool) onShowOrderTypeBadgeChanged;
   final void Function(bool) onOrderSourceColorChanged;
   final void Function(bool) onPrintShowOrderTypeChanged;
@@ -581,8 +576,6 @@ class _SettingsLeftPanelState extends ConsumerState<SettingsLeftPanel> {
                   ),
                   additionalContent: LabelPrinterSubSettings(
                     isUseLabelPrinter: widget.isUseLabelPrinter,
-                    labelPaperSizeMm: widget.labelPaperSizeMm,
-                    onLabelPaperSizeChanged: widget.onLabelPaperSizeChanged,
                   ),
                   showDivider: !showLabelSubItems,
                 ),

@@ -58,7 +58,8 @@ class PrinterStatus {
 }
 
 /// 라벨 프린터 표시명 중 G30 — [OutputService] 가 이 값으로 연속용지 레이아웃
-/// ([ContinuousLabelPainter] / [LabelMediaSpec.continuous40]) 분기를 탄다.
+/// ([Continuous58LabelPainter] / [LabelMediaSpec.continuous58]) 분기를 탄다.
+/// 40mm 는 서비스 대상이 아니라 용지 사이즈 분기는 없다(2026-09-03).
 /// 문자열을 여기저기 새로 쓰지 말고 항상 이 상수를 참조할 것.
 const String kBixolonG30ModelName = 'BIXOLON G30';
 
