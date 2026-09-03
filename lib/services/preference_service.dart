@@ -643,7 +643,14 @@ class PreferenceService {
   String? getRewardType() => _prefs.getString(KEY_REWARD_TYPE);
 
   /// 설치 단위 고유 ID. 없으면 생성·영속 후 반환(이후 항상 동일 값).
-  /// Sunmi 시리얼/Windows deviceId 를 얻지 못하는 단말의 fallback 식별자.
+  ///
+  /// Sunmi 시리얼을 얻지 못하는 단말의 fallback 이자, **Windows 기기의 관제
+  /// 식별자 정본**이다(`DeviceIdentityService`). 관제 서버 D1 의 기기 테이블
+  /// PK 가 `(app_type, device_id)` 라, 이 값이 바뀌면 그 기기는 새 행으로
+  /// 등록되고 기존 행은 영구 유령으로 남는다.
+  ///
+  /// ⚠️ 그러므로 [KEY_INSTALL_ID] 를 지우는 코드를 추가하지 말 것. 로그아웃·
+  /// 매장 전환·설정 초기화 어디에도 넣으면 안 되고, `_prefs.clear()` 도 마찬가지다.
   Future<String> getOrCreateInstallId() async {
     final existing = _prefs.getString(KEY_INSTALL_ID);
     if (existing != null && existing.isNotEmpty) return existing;

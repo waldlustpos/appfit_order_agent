@@ -20,10 +20,13 @@ class DeviceIdentity {
   /// 하드웨어 시리얼(예: "H092W24A1G00862"). 취득 실패 시 null.
   final String? serial;
 
-  /// 명령 타겟팅용 안정 식별자 = serial > Windows deviceId > 설치 UUID.
+  /// 명령 타겟팅용 안정 식별자 = Android 시리얼 > 설치 UUID.
+  /// **Windows 는 항상 설치 UUID 다** — 사유는 [DeviceIdentityService.resolve].
   final String deviceId;
 
-  /// [deviceId] 의 출처(serial/deviceId/installId). 진단용.
+  /// [deviceId] 의 출처. 이 앱이 만드는 값은 `serial` / `installId` 둘뿐이다.
+  /// 관제 대시보드에 보이는 `deviceId` 는 Windows MachineGuid 를 쓰던 시절
+  /// D1 에 기록된 **레거시 값**이고, 앱은 더 이상 생성하지 않는다. 진단용.
   final String idSource;
 
   /// 제조사. Android 는 `Build.MANUFACTURER`, Windows 는 'Microsoft' 고정.
@@ -62,7 +65,8 @@ class DeviceIdentity {
   }
 
   /// 설정화면 "기기" 값. "모델명 (시리얼)" 형식(예: "FYD IM-H092W (H092W24A1G00862)").
-  /// 시리얼이 없으면 fallback 식별자(설치ID)를 괄호에 표기.
+  /// 시리얼이 없으면 fallback 식별자(설치ID)를 괄호에 표기 — Windows 는 시리얼을
+  /// 조회하지 않으므로 **항상** "컴퓨터이름 (설치ID)" 가 된다.
   String get deviceLabel => '$deviceModel (${serial ?? deviceId})';
 
   /// "매장 · 모델명 (시리얼)" 형식의 한 줄 라벨(로그/캡션용).
@@ -74,8 +78,9 @@ class DeviceIdentity {
 
 /// 기기 고유 식별자 해석 서비스.
 ///
-/// 시리얼 우선순위: Android 네이티브(Sunmi 프린터 서비스 / SystemProperties /
-/// Build) > Windows deviceId(MachineGuid) > 설치 UUID. 시리얼은 1회 조회 후
+/// 우선순위: Android 네이티브 시리얼(Sunmi 프린터 서비스 / SystemProperties /
+/// Build) > 설치 UUID. **Windows 는 항상 설치 UUID 다** — 기기에서 읽은 값을
+/// 식별자로 쓰지 않는다(사유는 [resolve] 의 2단계 주석). 시리얼은 1회 조회 후
 /// [PreferenceService] 에 캐시한다. 매장 전환/재로그인으로 매장명·코드가 바뀌면
 /// [invalidate] 로 캐시를 비운다.
 class DeviceIdentityService {
@@ -101,12 +106,12 @@ class DeviceIdentityService {
                 ? 'ios'
                 : 'unknown';
 
-    // 기기 모델명 + 제조사 + OS 버전 + (Windows) deviceId 를 플랫폼 info 1회
-    // 조회로 확보한다. 관제(FleetReporter)와 설정화면이 같은 정본을 본다.
+    // 기기 모델명 + 제조사 + OS 버전을 플랫폼 info 1회 조회로 확보한다.
+    // 관제(FleetReporter)와 설정화면이 같은 정본을 본다. 여기서 얻는 값은
+    // 전부 **표시·보고용**이며 식별자로 쓰지 않는다.
     String deviceModel = 'Unknown';
     String deviceManufacturer = 'Unknown';
     String osVersion = 'unknown';
-    String? windowsDeviceId;
     try {
       final di = DeviceInfoPlugin();
       if (Platform.isAndroid) {
@@ -122,7 +127,6 @@ class DeviceIdentityService {
         osVersion = info.displayVersion.isNotEmpty
             ? info.displayVersion
             : '${info.majorVersion}.${info.minorVersion}.${info.buildNumber}';
-        windowsDeviceId = info.deviceId;
       }
     } catch (e, s) {
       logger.w('[DeviceIdentity] 기기 정보 조회 실패', error: e, stackTrace: s);
@@ -148,15 +152,22 @@ class DeviceIdentityService {
       }
     }
 
-    // 2) Windows deviceId (MachineGuid)
-    if (serialOrId == null &&
-        windowsDeviceId != null &&
-        windowsDeviceId.isNotEmpty) {
-      serialOrId = windowsDeviceId;
-      source = 'deviceId';
-    }
-
-    // 3) fallback: 설치 UUID
+    // 2) 설치 UUID — Android 시리얼 실패 시 폴백이자, **Windows 의 유일한 경로**.
+    //
+    // ⚠️ Windows MachineGuid 를 여기에 다시 끼워 넣지 말 것.
+    // device_info_plus 의 WindowsDeviceInfo.deviceId 는 레지스트리
+    // HKLM\SOFTWARE\Microsoft\SQMClient\MachineId 를 그대로 읽은 값이고,
+    // 하드웨어 파생값이 아니다. sysprep 없이 디스크 이미지를 복제해 배포한
+    // POS 들은 이 값이 전부 같다.
+    //
+    // 실사고(2026-09-03): 동대문구청점(MMTH01050)과 약수역점(MMTH01066)이
+    // 같은 {B4496514-2412-4720-8692-ABBFA52A5903} 으로 보고해 관제 D1 의
+    // PK (app_type, device_id) 한 행을 30초마다 번갈아 덮어썼다. 관제 데이터가
+    // 무의미해졌고, 한 매장은 대시보드에서 사라졌고, 로그 요청이 엉뚱한 매장
+    // PC 로 배달돼 FleetReporter 의 대상 검증에서 INVALID_TARGET 이 났다.
+    // 기기 레지스트리 수정이 불가능한 환경이라 식별 기준 자체를 바꿨다.
+    // "보통은 유일하다" 는 식별자의 조건이 아니다. 경위는
+    // docs/DEVICE_MONITORING.md.
     final String deviceId;
     if (serialOrId != null && serialOrId.isNotEmpty) {
       deviceId = serialOrId;
