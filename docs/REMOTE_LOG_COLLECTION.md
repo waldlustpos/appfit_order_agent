@@ -40,7 +40,7 @@
   - `log_collection_service.dart` — 오케스트레이터(flush→열거→zip→sink) + `LogCollectionStage`
   - `remote_command_handler.dart` — **스캐폴딩** 원격명령 처리(버튼과 동일 경로)
 - `lib/services/monitoring/`
-  - `device_identity_service.dart` — Sunmi 시리얼 > Windows MachineGuid > 설치 UUID
+  - `device_identity_service.dart` — Sunmi 시리얼 > 설치 UUID (Windows 는 설치 UUID 단독. MachineGuid 는 클론 이미지 충돌로 폐기 — `DEVICE_MONITORING.md` §8)
   - `device_status_reporter.dart` — **스캐폴딩** 상태 스냅샷(전송 경로 미구현)
 - `lib/providers/log_collection_provider.dart` — `logUploadSinkProvider`(sink 교체 단일 지점)/`logCollectionServiceProvider`/`deviceIdentityServiceProvider`/`deviceStatusReporterProvider`/`remoteCommandHandlerProvider` (+ `providers.dart` 배럴 export)
 - `lib/widgets/settings/settings_log_collection_section.dart` — 설정화면 "로그 전송" 카드(자기완결형 ConsumerStatefulWidget) — `settings_right_panel.dart`에 삽입

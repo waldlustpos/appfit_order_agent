@@ -45,7 +45,7 @@
 - 테스트 작성·실행 방법(characterization 전략·PreferenceService seam·fake 패턴): [docs/TESTING.md](docs/TESTING.md)
 - 브랜드별 라벨/영수증 로고 자원 분기·BMP 사양·새 브랜드 추가 절차: [docs/BRAND_ASSETS.md](docs/BRAND_ASSETS.md)
 - 리팩토링 로드맵(Phase 0~3·하지 말 것 목록·작업 규율): [docs/REFACTORING.md](docs/REFACTORING.md)
-- 기기 관제(Fleet: 앱 실행상태 heartbeat·기기정보 등록·원격 로그 요청. 백엔드는 별도 레포 `appfit-fleet`, 공통 리포터는 `appfit_core`. **정식 도입 전까지 `FleetConfig.enabled = false` 로 비활성 — 서버 통신 없음.** 켤 때는 그 상수 하나만 true 로, 대상 매장 화이트리스트 정본은 [fleet_targets/](fleet_targets/)): [docs/DEVICE_MONITORING.md](docs/DEVICE_MONITORING.md)
+- 기기 관제(Fleet: 앱 실행상태 heartbeat·기기정보 등록·원격 로그 요청. 백엔드는 별도 레포 `appfit-fleet`, 공통 리포터는 `appfit_core`. **`FleetConfig.enabled = true` — 운영 중이다.** 범위는 Windows + 대상 매장 화이트리스트 한정이며, 최종 판정은 `기능 스위치 AND .env 주입 AND Platform.isWindows AND 대상 매장` 4중 게이트(`fleetEnabledProvider`). 화이트리스트 정본은 [fleet_targets/](fleet_targets/). **기기 식별자는 Android 시리얼 > 설치 UUID 이고 Windows 는 항상 설치 UUID 다** — OS 에서 읽은 값(MachineGuid 등)을 식별자로 쓰면 클론 이미지로 배포된 PC 들이 한 행으로 뭉친다): [docs/DEVICE_MONITORING.md](docs/DEVICE_MONITORING.md)
 - Sentry 에러 알림 라우팅(매장/브랜드별 store_id 태그 → Slack 채널 분기, `routes.json` 정본 + `sentry_alerts/` 스크립트, add-brand 연동): [docs/SENTRY_ALERTS.md](docs/SENTRY_ALERTS.md)
 - As-Is 아키텍처 요약(Outline 게시용·표 중심): [docs/AS-IS.md](docs/AS-IS.md)
 - C4 모델 개념·작성 규약(4개 repo 공통 정본): [docs/C4_GUIDE.md](docs/C4_GUIDE.md)

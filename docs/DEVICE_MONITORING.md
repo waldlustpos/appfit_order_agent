@@ -241,8 +241,57 @@ fleetTargetedProvider ──▶ fleetEnabledProvider = hasFleetConfig && targete
 |---|---|
 | 수신단 미정 → `NoopSink` 만 | Cloudflare Workers + D1 로 확정, 대시보드까지 구현 |
 | `appVariant` 필드(japan/korea) | **삭제.** `APPFIT_VARIANT` 가 제거돼 조달 불가 |
-| 식별자 = 설치 UUID 고정 | `DeviceIdentityService` 정본 사용(시리얼 > MachineGuid > 설치 UUID). core 는 식별자를 만들지 않는다 |
+| 식별자 = 설치 UUID 고정 | `DeviceIdentityService` 정본 사용(Android 시리얼 > 설치 UUID). **Windows 는 설치 UUID 단독** — 한때 MachineGuid 를 끼워 넣었다가 §8 사고로 되돌렸으니, 결국 이 칸의 "이전 문서" 가 옳았다. core 는 식별자를 만들지 않는다 |
 | `MonitoringContext` 재사용 | builder 콜백으로 대체(§3) |
 | `appFitDioProvider` 경유 | **전용 Dio.** 그 인스턴스는 인터셉터가 매장 토큰을 자동 주입해서, 재사용하면 매장 자격증명이 관제 서버로 흘러간다 |
 | 명령 `eventType` enum | `String`. enum 이면 새 명령 타입마다 core 재릴리즈 + 앱 ref 범프가 강제된다 |
 | 60초 heartbeat 로 명령 지연 해소 | **첫 명령 지연 최대 60초는 줄일 수 없다**(명령 생성 시점에 기기가 폴링 중이 아님). `nextIntervalSeconds` 는 미완료 명령이 있는 동안 15초로 낮춰 결과 회수·재시도만 빠르게 한다 |
+
+## 8. 사고 기록 — 클론 이미지가 두 매장을 한 기기로 만들었다 (2026-09-03)
+
+**증상.** 동대문구청점(MMTH01050)에 로그 요청을 보냈는데 36초 뒤
+`INVALID_TARGET — 대상 불일치 (요청 기기={B4496514-2412-4720-8692-ABBFA52A5903}, 매장=MMTH01050)`
+로 실패했다.
+
+**진단.** D1 의 `devices` 한 행을 두 매장이 번갈아 덮어쓰고 있었다.
+
+```
+09:36:55  MMTH01050 동대문구청점  clock_skew=-3951ms
+09:37:18  MMTH01066 약수역점      clock_skew=-569ms
+09:37:56  MMTH01050 동대문구청점  clock_skew=-3940ms
+09:38:20  MMTH01066 약수역점      clock_skew=-546ms
+```
+
+`clock_skew_ms` 가 −3.9초대와 −0.5초대 **두 무리**로 갈린다. 서로 다른 시계를 가진
+두 대의 기기라는 뜻이고, 한 기기가 매장을 오가는 경우로는 설명되지 않는다.
+`store_changed_at` 이 매 heartbeat 마다 `last_seen_at` 과 같아지는 것도 같은 이유다.
+
+**원인.** `device_info_plus` 의 `WindowsDeviceInfo.deviceId` 는 레지스트리
+`HKLM\SOFTWARE\Microsoft\SQMClient\MachineId` 를 그대로 읽은 값이다. 하드웨어
+파생값이 아니라 **OS 설치 이미지에 박혀 있는 소프트웨어 값**이라, sysprep 없이
+디스크 이미지를 복제해 배포한 POS 들은 이 값이 전부 같다. 두 매장의 PC 가 같은
+배치에서 같은 이미지로 세팅된 것으로 보인다(나머지 Windows 3대는 값이 서로 달랐다).
+
+**파급.** ① 두 매장의 `mode`/`business_open`/`socket_connected`/`app_version` 이
+뒤섞여 관제 데이터 자체가 신뢰 불가 ② 약수역점은 대시보드에 자기 행이 없음
+③ 명령 배달은 `WHERE device_id = ?` 로만 매칭되므로 **먼저 heartbeat 를 보낸
+쪽**이 가져가 로그 요청이 엉뚱한 매장에 도착 ④ 두 기기가 같은 행에 경합해 3초
+이내로 겹치면 429 로 한쪽이 밀린다.
+
+다만 **로그가 잘못된 매장 것으로 올라가지는 않았다.** `FleetReporter._runCommand`
+의 대상 검증이 정확히 이 사고를 막으라고 있던 가드다 — 실패는 하되 조용히 틀리지
+않았다.
+
+**결정.** 매장 기기의 레지스트리를 수정할 수 없는 환경이라 **식별 기준 자체를
+바꿨다.** Windows 분기를 걷어내고 설치 UUID(`KEY_INSTALL_ID`, `Random.secure`
+16바이트)를 Windows 의 유일한 경로로 만들었다. 유일성이 OS 관례가 아니라 코드로
+보장된다. 같은 사다리가 `appfit_core` 의 `DefaultFleetIdentityResolver` 에도
+중복 구현돼 있어 함께 고쳤다(core v1.6.0).
+
+**대가.** 설치 UUID 는 `%APPDATA%` 에 산다. OTA·인스톨러 재설치는 이 폴더를
+보존하지만 Windows 사용자 프로필이 새로 만들어지면 새 UUID 가 생겨 유령 행이
+하나 남는다. "유령 행 1개" 와 "두 매장 관제가 통째로 무효" 의 교환이라 받아들였다.
+
+**교훈.** OS 가 주는 GUID 라도 *어디서 생성되는지*를 봐야 한다. 설치 이미지에
+들어 있는 값은 "보통은 유일" 할 뿐이고, 그건 식별자의 조건이 아니다. 그리고 이런
+충돌은 관제 화면만 봐서는 드러나지 않는다 — 명령을 한 번 보내야 보였다.
