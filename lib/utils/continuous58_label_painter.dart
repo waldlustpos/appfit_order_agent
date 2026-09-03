@@ -75,11 +75,19 @@ class Continuous58LabelPainter extends CustomPainter with LabelDrawOps {
   /// 섹션 사이 공통 간격.
   static const double gapUnit = 16;
 
-  static const double headerHeight = 46;
-  static const double headerLogoSize = 40;
+  /// 날짜 2줄(24 x 1.193 x 2 = 57.3)과 [headerLogoSize] 를 모두 담는 높이 —
+  /// 17/40/46 조합을 폰트 확대 비율(24/17 = 1.41)만큼 함께 키운 값이다(2026-09-03).
+  /// 셋 중 하나만 올리면 날짜가 헤더 밖으로 밀리거나(높이) 로고만 작아 보인다(로고).
+  static const double headerHeight = 65;
 
-  /// 날짜 2줄(17 x 1.2 x 2 = 40.8)이 [headerHeight] 안에 들어가는 크기.
-  static const double headerFontSize = 17;
+  /// 로고 원본은 50x50(브랜드 BMP)이라 56 은 nearest 확대(x1.12)다 — 40 일 때의
+  /// 축소(50 -> 40, 행 10개 소실)보다 획 손실은 덜하지만 행 복제가 고르지 않다.
+  /// 인쇄물에서 로고가 거칠면 원본과 1:1 인 50 이 다음 후보다.
+  static const double headerLogoSize = 56;
+
+  /// 날짜 2줄이 [headerHeight] 안에 들어가는 크기(Pretendard 행높이 계수 1.193 —
+  /// hhea ascender 1950 / descender -494 / upem 2048).
+  static const double headerFontSize = 24;
   static const int headerDateMaxLines = 2;
 
   static const double displayNumFontSize = 72;
@@ -99,7 +107,9 @@ class Continuous58LabelPainter extends CustomPainter with LabelDrawOps {
   /// 들어온다(②). 그래서 다른 본문 요소(옵션 20 / 메모 22)보다 크게 잡는다.
   ///
   /// 실기기 1차 출력에서 "가독성 떨어짐" 피드백을 받아 20 → 24 로 올리고
-  /// [subInfoStrokeWidth] 를 함께 넣었다(2026-08-26).
+  /// [subInfoStrokeWidth] 를 함께 넣었다(2026-08-26). 2026-09-03 에 19·22 를
+  /// 시험했다가 24 로 원복 — 이 값을 움직일 땐 [subInfoStrokeWidth] 도 같은 비율로
+  /// 함께 움직여야 counter 가 메워지지 않는다(아래 주석 참조).
   static const double subInfoFontSize = 24;
 
   /// 의사 볼드 두께. Pretendard 는 **Bold(700)가 번들에 없어**(pubspec 이 Medium/
@@ -108,14 +118,23 @@ class Continuous58LabelPainter extends CustomPainter with LabelDrawOps {
   ///
   /// 값 근거(threshold 210 이진화 시뮬레이션, fs24 기준): 0.8 은 '블'/'없음'의
   /// counter 가 전부 살아 있고, **1.2 는 메워져 덩어리가 됐다.** 실제 감열 번짐은
-  /// 시뮬레이션보다 획을 더 얇게 만들므로 안전한 0.8 보다 조금 위인 1.0 을 쓴다.
+  /// 시뮬레이션보다 획을 더 얇게 만들므로 안전한 0.8 보다 조금 위인 1.0 을 썼다.
+  ///
+  /// 중요한 건 절대값이 아니라 **fontSize 대비 비율**이다 — 획 사이 간격이
+  /// fontSize 에 비례하므로, 폰트를 줄이면서 stroke 를 그대로 두면 상대적으로 더
+  /// 굵어져 실패했던 1.2/24(=0.050) 쪽으로 넘어간다. 채택 비율은 1.0/24 = 0.042 이고,
+  /// [subInfoFontSize] 를 바꾸면 이 비율을 유지하도록 함께 조정한다(예: fs22 → 0.9).
+  ///
   /// **더 굵게 필요하면 이 값이 아니라 [subInfoFontSize] 를 올릴 것** — 자세한
   /// 이유는 [LabelDrawOps.drawText] 의 strokeWidth 주석 참조.
   static const double subInfoStrokeWidth = 1.0;
 
   static const double subInfoBarPadX = 8;
 
-  static const double menuNameFontSize = 26;
+  /// 40mm 검증값 26 에서 시작해 실물 판정으로 29 로 올렸다(2026-09-03, +12%).
+  /// 축소 없이 ellipsis 로 자르는 정책이라(`_drawMenuName` 참조) 키우면 2줄 초과분이
+  /// 더 일찍 잘린다 — 세로는 실측(probe)이라 라벨 높이가 알아서 따라간다.
+  static const double menuNameFontSize = 29;
   static const double menuNameLineHeight = 1.25;
   static const int menuNameMaxLines = 2;
 
