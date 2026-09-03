@@ -1306,28 +1306,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
   /// 로그인 직전 매장 ID 프리픽스로 서버 환경을 결정한다.
   ///
-  /// 공통 아티팩트는 live/japanLive 운영 세션에서만 동작한다(dev/staging
-  /// 개발 테스트 보호). 비대칭 주의: live 에서 MHST(매머드 스테이징) 를
-  /// 입력하면 staging 으로 넘어가지만, 그 뒤 staging 세션에서 MMTH 를
-  /// 입력해도 자동으로 돌아오지 않는다 — 개발자가 고른 staging 을 앱이
-  /// 임의로 뺏지 않기 위함이다. 되돌리려면 로그인 화면의 서버 선택에서
-  /// 직접 고른다.
+  /// **가르는 축은 빌드 종류 하나뿐이다.** 아티팩트 브랜드(common/mammoth)는
+  /// 여기에 관여하지 않는다 — 빌드 축의 사정거리는 화면 요소·OTA 채널까지고,
+  /// 서버 결정은 `BrandRegistry` 런타임 정본이다.
   ///
-  /// 매머드 전용 아티팩트는 이 보호가 필요 없다(개발자가 아니라 매장
-  /// 직원만 쓴다 — 서버 선택 배지 자체를 숨겼다). 그래서 현재 선택된 서버와
-  /// 무관하게 완전 양방향 자동 전환한다: MHST 로그인 → staging, MMTH
-  /// 로그인 → live.
-  /// - 등록 브랜드: 그 매장 ID 프리픽스의 서버 환경(BrandMeta.environmentFor)과
-  ///   현재 선택이 다르면 자동 전환한다. 같은 브랜드라도 프리픽스마다 서버가
-  ///   다를 수 있다(매머드: MMTH=live, MHST=staging).
-  /// - 미등록 프리픽스: 명시 선택 이력(manual override)이 없으면 서버선택
-  ///   다이얼로그로 1회 지정을 요구한다. 취소하면 false → 로그인 중단.
+  /// - **릴리즈**: 프리픽스가 정본이다. 등록 브랜드는 현재 선택과 무관하게
+  ///   그 매장 ID 프리픽스의 서버([BrandMeta.environmentFor])로 양방향 자동
+  ///   전환한다. 같은 브랜드라도 프리픽스마다 서버가 다를 수 있다(매머드:
+  ///   MMTH=live, MHST=staging). 미등록 프리픽스는 명시 선택 이력(manual
+  ///   override)이 없으면 서버선택 다이얼로그로 1회 지정을 요구하고, 취소하면
+  ///   false → 로그인 중단.
+  /// - **내부 빌드(debug/profile)**: 자동 전환을 아예 태우지 않는다. 서버 정본은
+  ///   로그인 화면 배지 / 설정 개발자옵션의 **명시 선택**이다. TPCP 처럼 운영과
+  ///   스테이징이 같은 프리픽스를 쓰는 브랜드는 프리픽스로 두 서버를 가릴 수
+  ///   없어서, 자동 전환을 태우면 staging 으로는 영영 붙을 수 없다.
   Future<bool> _resolveEnvironmentForStoreId(String storeId) async {
-    if (!BuildBrand.isMammoth &&
-        _selectedEnv != 'live' &&
-        _selectedEnv != 'japanLive') {
-      return true;
-    }
+    if (AppEnv.showInternalUi) return true;
 
     final brand = BrandRegistry.resolveOrNull(storeId);
     if (brand != null) {

@@ -43,8 +43,8 @@ flowchart TD
     CLAMP["release: dev 잔존값은 live 로 클램프<br/>(main.dart, 저장값도 정정)"]
     CONF["AppFitConfig.configure(environment)"]
     BADGE["로그인 우상단 배지(KR/JP) 탭 → 서버선택 다이얼로그<br/>릴리즈 3종(live/japanLive/staging) / 개발 4종(+dev)"]
-    PREFIX["로그인 시 매장 ID 프리픽스 (BrandRegistry)<br/>TPCP·PAIK·TLJP→japanLive / MMTH·MATA→live / MHST→staging"]
-    UNKNOWN["미등록 프리픽스 + 명시 선택 이력 없음<br/>→ 서버선택 다이얼로그 1회 강제"]
+    PREFIX["로그인 시 매장 ID 프리픽스 (BrandRegistry)<br/><b>릴리즈 빌드에서만</b><br/>TPCP·PAIK·TLJP→japanLive / MMTH·MATA→live / MHST→staging"]
+    UNKNOWN["미등록 프리픽스 + 명시 선택 이력 없음<br/>→ 서버선택 다이얼로그 1회 강제 (릴리즈)"]
 
     START --> CLAMP --> CONF
     BADGE -->|_applyEnvironment| CONF
@@ -54,7 +54,9 @@ flowchart TD
 
 - 저장 키: `appfit_environment`(기본 `live`), 명시 선택 이력: `appfit_environment_manual_override`(배지/다이얼로그에서 선택 시 기록 — 미등록 프리픽스의 1회 다이얼로그 재출현 방지).
 - 전환 시퀀스([login_screen.dart](../lib/screens/login_screen.dart) `_applyEnvironment`): WebSocket 해제 → 환경 저장 → `AppFitConfig.configure` → 토큰/자격증명 정리 → tokenManager/dio invalidate. `appFitNotifierServiceProvider` 는 invalidate 금지(`late final` — disconnect 만). 순서 변경 금지(서버 전환 후 재로그인 크래시 방어).
-- 프리픽스 자동 전환은 **live/japanLive 세션에서만** 동작한다(개발 빌드의 dev/staging 테스트 보호). live 에서 스테이징 프리픽스 입력 → 전환은 되지만, 그 반대(staging 세션에서 live 프리픽스 입력 → 자동 복귀)는 **안 된다** — 개발자가 고른 staging 을 앱이 임의로 뺏지 않기 위함(매머드: `MHST`→staging 은 자동 전환, `MMTH`→live 로의 자동 복귀는 없음. 로그인 화면 서버 선택으로 수동 복귀).
+- 프리픽스 자동 전환을 가르는 축은 **빌드 종류 하나뿐이다**(`AppEnv.showInternalUi`). 아티팩트 브랜드(common/mammoth)는 관여하지 않는다 — 두 아티팩트의 로그인 서버 로직은 완전히 동일하다.
+  - **릴리즈**: 프리픽스가 정본. 현재 선택과 무관하게 **양방향** 자동 전환한다(`MHST`→staging, `MMTH`→live 둘 다). 미등록 프리픽스는 명시 선택 이력이 없으면 서버선택 다이얼로그를 1회 강제한다.
+  - **내부 빌드(debug/profile)**: 자동 전환을 **아예 태우지 않는다**. 서버 정본은 로그인 배지 / 설정 개발자옵션의 명시 선택이다. TPCP 처럼 운영과 스테이징이 **같은 프리픽스**를 쓰는 브랜드는 프리픽스로 두 서버를 가릴 수 없어서, 자동 전환을 태우면 staging 에 영영 붙을 수 없다 — 이 규칙의 존재 이유다(매머드의 `MHST`/`MMTH` 분리는 예외적인 사례지, 일반형이 아니다).
 - 한 브랜드가 프리픽스를 여러 개 가질 수 있다(`BrandMeta.prefixEnvironments`,
   `Map<프리픽스, 서버환경>`). 매머드가 유일한 사례: `MMTH`=운영(live),
   `MHST`=스테이징(staging).

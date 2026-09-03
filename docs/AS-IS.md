@@ -188,8 +188,9 @@ lib/
 
 | 항목 | 내용 |
 | --- | --- |
-| 서버 결정 | 런타임 — 저장값(`appfit_environment`, 기본 `live`) + 로그인 화면 배지(KR/JP) 탭 선택(릴리즈 live/japanLive/staging 3종) + 매장 ID 프리픽스 자동 전환(`BrandMeta.prefixEnvironments`: TPCP·PAIK·TLJP→japanLive, MMTH·MATA→live, MHST→staging) |
-| 미등록 프리픽스 | 명시 선택 이력 없으면 로그인 시 서버선택 다이얼로그 1회 강제 (`appfit_environment_manual_override` 기록) |
+| 서버 결정 | 런타임 — 저장값(`appfit_environment`, 기본 `live`) + 로그인 화면 배지(KR/JP) 탭 선택(릴리즈 live/japanLive/staging 3종) + **릴리즈 한정** 매장 ID 프리픽스 자동 전환(`BrandMeta.prefixEnvironments`: TPCP·PAIK·TLJP→japanLive, MMTH·MATA→live, MHST→staging) |
+| 개발 빌드 | debug/profile 은 프리픽스 자동 전환을 태우지 않음 — 배지/설정 개발자옵션의 명시 선택이 정본(운영·스테이징이 같은 프리픽스인 브랜드의 staging 접속 경로). 아티팩트(common/mammoth)별 차이 없음 |
+| 미등록 프리픽스 | 릴리즈에서 명시 선택 이력 없으면 로그인 시 서버선택 다이얼로그 1회 강제 (`appfit_environment_manual_override` 기록) |
 | Android 채널(공통) | `appfit_order_agent_release_version.json` / `appfit_order_agent_release.apk` |
 | Android 채널(매머드) | `appfit_order_agent_mammoth_release_version.json` / `appfit_order_agent_mammoth_release.apk` |
 | Windows 채널(공통) | `appfit_order_agent_windows_version.json` / `appfit_order_agent_windows.zip` (레거시 무접미, 기존 설치본 자연 업데이트) |

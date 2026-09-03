@@ -61,7 +61,8 @@ flutter test test/<파일_경로>
 Tier 1 승격은 셋 다 충족해야 합니다: ① 자체 스토어 리스팅/유통 경로 요구 ② 그 함대가 해당 브랜드 전용(혼재 없음) ③ 런처 이름·아이콘이 계약·운영 요구사항. 매머드가 패키지를 나눈 이유는 **Sunmi App Store 리스팅이 패키지당 1개**인데 모든 Sunmi 매장이 공통 리스팅에서 설치하기 때문입니다 — 런처 아이콘은 앱 실행 전에 보이므로 런타임 게이팅으로 막을 수 없습니다.
 
 - **서버는 런타임 결정**: 서버(live=한국 / japanLive=일본)는 저장값(`PreferenceService.getEnvironment()`, 기본 `live`)으로 시작하고, 로그인 화면 우상단 배지(KR/JP)를 탭해 변경할 수 있습니다(릴리즈는 live/japanLive/staging 3종, 개발 빌드는 dev 포함 4종).
-- **매장 ID 프리픽스 자동 전환**: 로그인 시 입력한 매장코드의 프리픽스(`BrandMeta.environmentFor` — TPCP·PAIK·TLJP→japanLive, MMTH·MATA→live, **MHST→staging**)로 서버가 자동 전환됩니다. 한 브랜드가 프리픽스를 여러 개 가질 수 있습니다(매머드: `MMTH`=운영, `MHST`=스테이징). 미등록 프리픽스는 명시 선택 이력이 없으면 서버선택 다이얼로그를 1회 띄웁니다. release 에서 dev 잔존 저장값은 시작 시 live 로 클램프됩니다(`main.dart`).
+- **매장 ID 프리픽스 자동 전환 (릴리즈 빌드 전용)**: 릴리즈에서는 로그인 시 입력한 매장코드의 프리픽스(`BrandMeta.environmentFor` — TPCP·PAIK·TLJP→japanLive, MMTH·MATA→live, **MHST→staging**)로 서버가 자동 전환됩니다. 한 브랜드가 프리픽스를 여러 개 가질 수 있습니다(매머드: `MMTH`=운영, `MHST`=스테이징). 미등록 프리픽스는 명시 선택 이력이 없으면 서버선택 다이얼로그를 1회 띄웁니다. release 에서 dev 잔존 저장값은 시작 시 live 로 클램프됩니다(`main.dart`).
+- **개발 빌드(debug/profile)는 자동 전환을 태우지 않습니다**: 서버는 로그인 배지 또는 설정 > 개발자 옵션의 명시 선택이 정본입니다. TPCP 처럼 운영과 스테이징이 같은 프리픽스를 쓰는 브랜드를 staging 으로 테스트하려면 이 길밖에 없습니다. 아티팩트(common/mammoth)에 따른 차이는 없습니다 — 두 빌드의 로그인 서버 로직은 동일합니다.
 - **OTA 채널은 아티팩트마다 정확히 1세트** (`lib/config/ota_config.dart` / `lib/config/update_config.dart`). 채널명은 슬러그에서 규칙 파생하며(`appfit_order_agent_<brand>_release.*`) 손으로 짓지 않습니다. **아티팩트 없이 채널만 늘리지 않습니다.**
   - Android 공통 — `appfit_order_agent_release_version.json` / `appfit_order_agent_release.apk`
   - Android 매머드 — `appfit_order_agent_mammoth_release_version.json` / `appfit_order_agent_mammoth_release.apk`
