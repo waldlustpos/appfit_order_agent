@@ -352,7 +352,7 @@ quiet zone(모듈 4개 폭 흰 배경)이 `clampQuietTopTo`/`clampQuietBottomTo`
 | --- | --- | --- |
 | 헤더 | 로고 좌 / 날짜 1줄 중앙 / n·N 우 | 날짜 **2줄 좌** / 로고 중앙 / n·N 우 |
 | 표시번호·QR | 둘 다 중앙, 세로로 쌓임 | 번호 좌 + QR 우, **한 행에 나란히** |
-| 서브정보 | 평문 1줄 | **콘텐츠 폭 전체 검정 바 + 흰 굵은 글씨** |
+| 서브정보 | 평문 1줄(원두/온도/사이즈 순) | **콘텐츠 폭 전체 검정 바 + 흰 굵은 글씨**(온도/사이즈/원두 순) |
 | 옵션 | 1열 최대 5행 | **2열 최대 4행**(3개 이하는 1열), 초과 시 `+N` |
 
 세로 가변 계약(`paintAndMeasure` → `Picture.toImage(w, h)` 1-pass)과 저수준 draw 프리미티브
@@ -436,27 +436,32 @@ threshold 210 이진화를 그대로 재현해 후보를 비교한 결과가 결
   여전히 약하면 다음 지렛대는 `subInfoFontSize` 26, 그 다음이 Pretendard-Bold 번들(+1.6MB).
 - 좌측 여백 0 전제 — 눈금자에서 좌측 공백이 40mm 때와 다르게 나오면 `sideMarginDots` 재검토.
 
-### 3.7 라벨 출력 카테고리 필터 + 서브정보 지정 (2026-09)
+### 3.7 라벨 출력 카테고리 필터 (2026-09)
 
-**무엇이 바뀌었나.** "어느 상품을 라벨로 낼지"와 "라벨 위쪽에 무엇을 크게 찍을지"는
-TPCP 매장의 POS 코드(`TKP1006` 와플, `TKP012/001~003/004…` 원두·온도·사이즈)로 앱에
-박혀 있었고 `BrandFeature.labelCategoryFilter` 를 가진 브랜드에서만 동작했다. 이제 두
-축 모두 **매장이 설정 화면에서 고르는 값**(`LabelOutputPolicy`)이 정본이다.
-`LabelFilterStrategy`·`OrderCategoryCodes`·`BrandFeature.labelCategoryFilter`·
-`KEY_LABEL_FILTER_MODE` 는 전부 제거됐다.
+**무엇이 바뀌었나.** "어느 상품을 라벨로 낼지"가 TPCP 매장의 POS 코드
+(`TKP1006` = 와플)로 앱에 박혀 있었고 특정 브랜드에서만 동작했다(전체/와플만/와플제외
+3버튼). 이제 **매장이 설정 화면에서 고르는 카테고리 집합**(`LabelOutputPolicy`)이
+정본이다. `TpcpLabelFilterStrategy.selectMenus`·`OrderCategoryCodes.waffleCategoryCodes`·
+`setItemCodes`·`KEY_LABEL_FILTER_MODE` 는 제거됐다.
+
+**라벨 sub-info(원두/온도/사이즈)는 바뀌지 않았다.** 같은 방식으로 매장이 옵션그룹을
+고르게 하는 안을 구현했다가 되돌렸다 — ① 점주가 옵션그룹을 고르는 조작 부담이 크고
+② 그룹 이름·구성이 매장마다 제각각이라 화면만 보고 무엇을 골라야 할지 알기 어렵다.
+라벨에 무엇을 크게 찍을지는 매장 취향보다 브랜드 운영 정책에 가깝다는 판단.
+`LabelSubInfoStrategy` + `BrandFeature.labelSubInfo` 로 남아 있다(§3.1 표의 서브정보 행,
+painter 3종의 `beanType`/`temperature`/`sizeOption` 3인자도 그대로). **두 축을 한 클래스에
+다시 합치지 말 것** — 하나는 매장 설정, 하나는 브랜드 정책이라 수명이 다르다.
 
 ```
 설정 화면 ─ 저장 ─▶ SharedPreferences(매장 범위 키)
                         │  ref.invalidate(labelOutputPolicyProvider)
                         ▼
-OutputService.printOrderLabels ── ref.read(labelOutputPolicyProvider)
-                        │
+OutputService.printOrderLabels ─┬─ ref.read(labelOutputPolicyProvider)   (매장 설정)
+                                └─ ref.read(labelSubInfoStrategyProvider) (브랜드 정책)
                         ▼
-LabelPrintData.fromOrder(policy:) ─┬─ shouldPrintMenu()  → 인쇄 대상 메뉴
-                                   └─ buildSubInfo()     → subInfo 목록(순서 보존)
-                                              ▼
-                     LabelPainter / ContinuousLabelPainter / Continuous58LabelPainter
-                                     (전부 `List<String> subInfo` 를 목록 순서대로)
+LabelPrintData.fromOrder(policy:, subInfoStrategy:)
+                        ├─ policy.shouldPrintMenu()          → 인쇄 대상 메뉴
+                        └─ subInfoStrategy.classifyOptions()  → 원두/온도/사이즈
 ```
 
 **설계상 못 박은 것 (되돌릴 때 근거가 되는 것들)**
@@ -469,20 +474,12 @@ LabelPrintData.fromOrder(policy:) ─┬─ shouldPrintMenu()  → 인쇄 대상
 | **재출력(`isReprint`)은 필터 우회** | 점주가 라벨을 다시 뽑는 시점의 의도는 "그 주문 전부". 종전 TPCP 규약을 그대로 승계 |
 | **카테고리 매칭은 any-match** | 한 상품이 여러 카테고리에 등록되면 카탈로그에 사본이 여러 개 존재한다. 첫 매치만 보면 판정이 응답 배열 순서에 좌우된다 |
 | **카테고리 키는 코드 우선, 빈 코드는 이름 폴백** (`labelCategoryKeyOf`) | 서버가 `categoryPosId` 를 안 주면 `''` 가 된다. 선택 화면과 판정 로직이 **같은 함수**를 써야 저장 키와 조회 키가 어긋나지 않는다 |
-| **서브정보 상한 3개** (`kLabelSubInfoMaxCount`) | 58mm 서브정보 바가 `maxLines: 1` 이라 넘치면 **조용히 잘린다**. 갭 라벨도 줄바꿈/축소가 없어 좌측으로 흘러 인접 요소를 침범한다 |
-| **서브정보 순서 = 설정에서 고른 순서** | 종전에는 painter 3종이 각자 다른 순서(사이즈/온도/원두, 원두/온도/사이즈, 온도/사이즈/원두)로 그렸다. 지금은 전부 목록 순서. **갭 라벨만 오른쪽부터 그리므로 목록을 뒤집어야 한다** — `LabelPainter.subInfoDrawOrder` 가 그 반전을 격리하고 테스트가 고정한다 |
 | **소비된 옵션 제외는 객체 동일성 집합으로** | 이름 문자열로 걸러내면 동명 옵션이 함께 빠진다 |
-| **저장은 매장 범위 키** (`getActiveStoreId()`) | 값이 매장별 POS 코드라 기기 전역으로 두면 다른 매장 로그인 시 엉뚱한 상품이 걸러진다. 매장 미확정이면 setter 가 `false` 를 반환하고 화면이 SnackBar 로 알린다 — 조용히 성공한 척하지 않는다 |
+| **저장은 매장 범위 키** (`getActiveStoreId()`) | 값이 매장별 카테고리 코드라 기기 전역으로 두면 다른 매장 로그인 시 엉뚱한 상품이 걸러진다. 매장 미확정이면 setter 가 `false` 를 반환하고 화면이 SnackBar 로 알린다 — 조용히 성공한 척하지 않는다 |
 | **저장 후 `ref.invalidate(labelOutputPolicyProvider)`** | SharedPreferences 는 변경 알림이 없다. 저장한 화면이 무효화하는 것이 계약 |
 
-**옵션그룹 이름은 파서가 따로 보존한다.** 옵션을 인공 '옵션' 버킷으로 접으면 그룹
-표시명이 유실되므로(`ProductModel.categoryName` 은 버킷명 고정, `categoryCode` 에만 그룹
-POS 코드가 남는다), `parseShopCatalog` 가 `optionGroups`(`ShopOptionGroupModel`)를 카테고리와
-같은 방식으로 분리 반환한다 → `shopOptionGroupListProvider`. 주문이 한 건도 없어도 후보
-목록을 만들 수 있는 근거가 이것이다.
-
-**런타임 분류 키 우선순위는 종전 그대로**: 주문 응답의 `optionGroupPosId`(v1 정본) →
-없으면 카탈로그에서 `shopOptionId` 조인해 `categoryCode`.
+**sub-info 런타임 분류 키 우선순위는 종전 그대로**: 주문 응답의 `optionGroupPosId`
+(v1 정본) → 없으면 카탈로그에서 `shopOptionId` 조인해 `categoryCode`.
 
 ---
 
@@ -517,9 +514,9 @@ flowchart LR
 | [windows_label_router.dart](../lib/services/label_printer/windows/windows_label_router.dart) | 라벨 Windows 벤더 seam — 현재 Caysn 단일, G30 이식 대기 |
 | [windows_label_printer_backend.dart](../lib/services/label_printer/windows/windows_label_printer_backend.dart) | 라벨 Windows FFI 백엔드 (Caysn/REXOD) |
 | [qr_payload_strategy.dart](../lib/services/label_printer/qr_payload_strategy.dart) | 라벨 QR 페이로드 브랜드 전략 |
-| [label_output_policy.dart](../lib/services/label_printer/label_output_policy.dart) | 라벨 출력 카테고리 필터 + 서브정보 정책(매장 설정) — §3.7 |
+| [label_output_policy.dart](../lib/services/label_printer/label_output_policy.dart) | 라벨 출력 카테고리 필터 정책(매장 설정) — §3.7 |
+| [label_subinfo_strategy.dart](../lib/services/label_printer/label_subinfo_strategy.dart) | 라벨 sub-info 옵션 분류(브랜드 전략, TPCP 전용) — §3.7 |
 | [label_category_settings_screen.dart](../lib/screens/label_category_settings_screen.dart) | 출력 카테고리 선택 화면 |
-| [label_subinfo_settings_screen.dart](../lib/screens/label_subinfo_settings_screen.dart) | 서브정보 옵션그룹 선택 화면(순번 = 인쇄 순서) |
 | [UsbReceiptPrinter.java](../android/app/src/main/java/co/kr/waldlust/order/receive/util/print/UsbReceiptPrinter.java) | Android USB bulkTransfer·`WriteResult` |
 | [LabelPrinter.java](../android/app/src/main/java/co/kr/waldlust/order/receive/util/print/LabelPrinter.java) | Android 라벨 프린터 (Caysn/REXOD) |
 | [BixolonPosDriver.java](../android/app/src/main/java/co/kr/waldlust/order/receive/util/print/BixolonPosDriver.java) | Android 라벨 프린터 (BIXOLON G30, UPOS/JavaPOS) — Windows 미이식 |

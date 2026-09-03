@@ -110,7 +110,7 @@ class PreferenceService {
   static const String KEY_LABEL_USE_QR_PRINT =
       "KOKONUT_LABEL_USE_QR_PRINT"; // bool (기본 false)
 
-  // ── 라벨 출력 카테고리 / 서브정보 지정 (매장 범위 키) ─────────────────────
+  // ── 라벨 출력 카테고리 지정 (매장 범위 키) ────────────────────────────────
   //
   // 값이 카테고리 POS 코드·옵션그룹 POS 코드라 **매장마다 의미가 다르다**. 기기
   // 전역 키로 두면 다른 매장으로 로그인했을 때 이전 매장의 코드가 그대로 적용돼
@@ -120,8 +120,6 @@ class PreferenceService {
       "APPFIT_LABEL_CAT_FILTER_ON_"; // bool (기본 false)
   static const String KEY_LABEL_CATEGORY_KEYS_PREFIX =
       "APPFIT_LABEL_CAT_KEYS_"; // JSON array (정렬 저장)
-  static const String KEY_LABEL_SUBINFO_GROUPS_PREFIX =
-      "APPFIT_LABEL_SUBINFO_GROUPS_"; // JSON array (선택 순서 = 인쇄 순서)
 
   /// 장착한 라벨 용지 폭(mm). 현재 의미가 있는 기종은 BIXOLON G30 하나 —
   /// 한 대가 가이드 부품 교체만으로 40/58 을 겸용하는데 SDK 가 로드된 용지 폭을
@@ -782,9 +780,9 @@ class PreferenceService {
   /// 장착한 라벨 용지 폭(mm). 기본 40 — [KEY_LABEL_PAPER_SIZE] 참조.
   int getLabelPaperSizeMm() => _prefs.getInt(KEY_LABEL_PAPER_SIZE) ?? 40;
 
-  // ── 라벨 출력 카테고리 / 서브정보 지정 ────────────────────────────────────
+  // ── 라벨 출력 카테고리 지정 ───────────────────────────────────────────────
   //
-  // 세 값 모두 매장 범위다. 매장이 확정되지 않았으면(로그인 전/세션 소실) 저장은
+  // 두 값 모두 매장 범위다. 매장이 확정되지 않았으면(로그인 전/세션 소실) 저장은
   // **false 를 반환**하고 조회는 기본값으로 수렴한다 — 조용히 성공한 척하면
   // 설정이 사라진 이유를 점주가 알 수 없다.
   //
@@ -846,17 +844,6 @@ class PreferenceService {
   Future<bool> setLabelCategoryKeys(Set<String> keys) => _writeJsonStringList(
         _storeScopedKey(KEY_LABEL_CATEGORY_KEYS_PREFIX),
         keys.toList()..sort(),
-      );
-
-  /// 라벨 서브정보로 인쇄할 옵션그룹 POS 코드. **순서가 곧 인쇄 순서**라
-  /// 정렬하지 않고 저장된 순서를 그대로 보존한다.
-  List<String> getLabelSubInfoGroups() =>
-      _readJsonStringList(_storeScopedKey(KEY_LABEL_SUBINFO_GROUPS_PREFIX));
-
-  Future<bool> setLabelSubInfoGroups(List<String> groupCodes) =>
-      _writeJsonStringList(
-        _storeScopedKey(KEY_LABEL_SUBINFO_GROUPS_PREFIX),
-        groupCodes,
       );
 
   // 영업 상태 저장

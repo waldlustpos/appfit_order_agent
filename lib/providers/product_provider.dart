@@ -3,7 +3,6 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'dart:async';
 import 'package:appfit_order_agent/models/product_model.dart';
 import 'package:appfit_order_agent/models/shop_category_model.dart';
-import 'package:appfit_order_agent/models/shop_option_group_model.dart';
 import 'package:appfit_order_agent/services/platform_service.dart'; // apiServiceProvider를 위해 필요
 import 'package:appfit_order_agent/services/local_server_service.dart'; // LocalServerService를 위해 필요
 import 'package:appfit_order_agent/providers/providers.dart'; // storeProvider를 위해 필요
@@ -11,30 +10,14 @@ import 'package:appfit_order_agent/utils/logger.dart'; // logger import 추가
 
 part 'product_provider.g.dart';
 
-/// 카탈로그를 못 얻었을 때의 폴백. **예외를 던지지 않고 빈 값으로 수렴**하는 것이
-/// 이 provider 의 계약이라(매장 미settle·조회 실패 모두) 소비자는 "카탈로그가
-/// 비어 있을 수 있다"를 전제로 짜야 한다 — 특히 라벨 카테고리 필터는 이 상태에서
-/// fail-open(전량 인쇄)이어야 한다. `LabelOutputPolicy` 참조.
-final _emptyCatalog = (
-  products: <ProductModel>[],
-  categories: <ShopCategoryModel>[],
-  optionGroups: <ShopOptionGroupModel>[],
-);
-
-/// 매장 카탈로그(카테고리 + 상품 + 옵션 + 옵션그룹) 로드 — 서버 응답의 정본.
+/// 매장 카탈로그(카테고리 + 상품 + 옵션) 로드 — 서버 응답의 정본.
 ///
 /// 상품이 0개인 카테고리는 상품 목록에 흔적이 남지 않으므로(서버 `categories[]`
-/// 의 `items` 가 빈 배열), 카테고리를 상품과 분리해 함께 보존한다. 옵션그룹도
-/// 같은 이유로 분리한다(옵션을 '옵션' 버킷으로 접으면 그룹명이 유실된다).
-/// [productProvider], [shopCategoryListProvider], [shopOptionGroupListProvider]
-/// 가 이 값에서 파생된다.
+/// 의 `items` 가 빈 배열), 카테고리를 상품과 분리해 함께 보존한다.
+/// [productProvider] 와 [shopCategoryListProvider] 가 이 값에서 파생된다.
 @Riverpod(keepAlive: true)
-Future<
-    ({
-      List<ProductModel> products,
-      List<ShopCategoryModel> categories,
-      List<ShopOptionGroupModel> optionGroups,
-    })> shopCatalog(Ref ref) async {
+Future<({List<ProductModel> products, List<ShopCategoryModel> categories})>
+    shopCatalog(Ref ref) async {
   logger.i('ShopCatalog build() 시작');
 
   // 매장 ID가 준비될 때까지 대기.
@@ -51,7 +34,7 @@ Future<
     storeAsync = ref.read(storeProvider);
     if (storeAsync.isLoading) {
       logger.d('ShopCatalog build: store 미settle — 조회 보류');
-      return _emptyCatalog;
+      return (products: <ProductModel>[], categories: <ShopCategoryModel>[]);
     }
   }
   final finalStoreId = storeAsync.value?.storeId;
@@ -60,7 +43,7 @@ Future<
 
   if (finalStoreId == null || finalStoreId.isEmpty) {
     logger.d('ShopCatalog build: StoreId not ready.');
-    return _emptyCatalog;
+    return (products: <ProductModel>[], categories: <ShopCategoryModel>[]);
   }
 
   logger.i(
@@ -73,9 +56,8 @@ Future<
     final catalog = await apiService.getShopCatalog(finalStoreId);
     final products = catalog.products;
 
-    logger.i('ShopCatalog build: Loaded ${products.length} products, '
-        '${catalog.categories.length} categories and '
-        '${catalog.optionGroups.length} option groups.');
+    logger.i('ShopCatalog build: Loaded ${products.length} products and '
+        '${catalog.categories.length} categories.');
 
     // LocalServerService 캐시 업데이트
     try {
@@ -87,15 +69,11 @@ Future<
       logger.w('LocalServerService 캐시 업데이트 실패', error: e);
     }
 
-    return (
-      products: products,
-      categories: catalog.categories,
-      optionGroups: catalog.optionGroups,
-    );
+    return (products: products, categories: catalog.categories);
   } catch (e, stackTrace) {
     logger.e('ShopCatalog build: Error loading products',
         error: e, stackTrace: stackTrace);
-    return _emptyCatalog;
+    return (products: <ProductModel>[], categories: <ShopCategoryModel>[]);
   }
 }
 
@@ -107,14 +85,6 @@ Future<
 @Riverpod(keepAlive: true)
 Future<List<ShopCategoryModel>> shopCategoryList(Ref ref) async =>
     (await ref.watch(shopCatalogProvider.future)).categories;
-
-/// 매장 옵션 그룹 목록 — 라벨 서브정보(subInfo) 설정 화면의 후보 정본.
-///
-/// 순서는 서버 응답 등장 순서(파서의 dedupe 삽입 순서) 그대로다. 옵션 상품에서
-/// 역산하면 그룹명이 '옵션' 버킷명으로 뭉개져 후보를 이름으로 보여줄 수 없다.
-@Riverpod(keepAlive: true)
-Future<List<ShopOptionGroupModel>> shopOptionGroupList(Ref ref) async =>
-    (await ref.watch(shopCatalogProvider.future)).optionGroups;
 
 @Riverpod(keepAlive: true)
 class Product extends _$Product {

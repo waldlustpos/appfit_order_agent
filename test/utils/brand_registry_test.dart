@@ -48,9 +48,20 @@ void main() {
   });
 
   group('capability 매핑 (사운드그래프 크로스-브랜드 누수 차단의 근거)', () {
+    test('라벨 sub-info 분류는 TPCP 만', () {
+      expect(BrandRegistry.byKey(BrandKey.tpcp).has(BrandFeature.labelSubInfo),
+          isTrue);
+      expect(
+          BrandRegistry.byKey(BrandKey.mammoth).has(BrandFeature.labelSubInfo),
+          isFalse);
+      expect(BrandRegistry.byKey(BrandKey.mata).has(BrandFeature.labelSubInfo),
+          isFalse);
+    });
+
     test('사운드그래프 전송은 매머드 만 (TPCP/MATA 는 false → 누수 차단)', () {
       expect(
-          BrandRegistry.byKey(BrandKey.mammoth).has(BrandFeature.soundGraphSend),
+          BrandRegistry.byKey(BrandKey.mammoth)
+              .has(BrandFeature.soundGraphSend),
           isTrue);
       expect(
           BrandRegistry.byKey(BrandKey.tpcp).has(BrandFeature.soundGraphSend),
@@ -91,8 +102,8 @@ void main() {
     test('테마 매핑', () {
       expect(
           BrandRegistry.byKey(BrandKey.tpcp).theme, BrandTheme.appfitDefault);
-      expect(
-          BrandRegistry.byKey(BrandKey.mammoth).theme, BrandTheme.mammothCoffee);
+      expect(BrandRegistry.byKey(BrandKey.mammoth).theme,
+          BrandTheme.mammothCoffee);
       expect(BrandRegistry.byKey(BrandKey.mata).theme, BrandTheme.mata);
     });
 
@@ -138,10 +149,10 @@ void main() {
     });
 
     test('타 브랜드 ID 를 넘기면 대표 프리픽스 환경으로 폴백', () {
-      expect(
-          BrandRegistry.byKey(BrandKey.mammoth).environmentFor('TPCP0001'),
+      expect(BrandRegistry.byKey(BrandKey.mammoth).environmentFor('TPCP0001'),
           'live');
-      expect(BrandRegistry.byKey(BrandKey.mammoth).environmentFor(null), 'live');
+      expect(
+          BrandRegistry.byKey(BrandKey.mammoth).environmentFor(null), 'live');
     });
 
     test('미등록 prefix 는 여전히 null (환경 폴백은 호출 측 책임)', () {

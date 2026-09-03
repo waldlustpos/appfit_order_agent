@@ -27,8 +27,9 @@ class ContinuousLabelPainter extends CustomPainter with LabelDrawOps {
   /// 헤더 중앙에 찍는 날짜 텍스트. `'M/d HH:mm:ss'` 1줄 포맷 — 목업 기준.
   final String? headerDateText;
 
-  /// 서브정보 문자열들 — **목록 순서 그대로** 좌측 정렬 1줄로 이어 붙인다.
-  final List<String> subInfo;
+  final String? beanType;
+  final String? temperature;
+  final String? sizeOption;
   final String? memo;
   final String? qrData;
   final ui.Image? logoImage;
@@ -42,7 +43,9 @@ class ContinuousLabelPainter extends CustomPainter with LabelDrawOps {
     required this.options,
     this.shopOrderNo,
     this.headerDateText,
-    this.subInfo = const [],
+    this.beanType,
+    this.temperature,
+    this.sizeOption,
     this.memo,
     this.qrData,
     this.logoImage,
@@ -214,7 +217,9 @@ class ContinuousLabelPainter extends CustomPainter with LabelDrawOps {
     y += gapQrToSubInfo;
 
     // ── 서브정보 (좌측, 1줄) ─────────────────────────────────────────────
-    final subInfoText = subInfo.where((s) => s.isNotEmpty).join(' / ');
+    final subInfoText = [beanType, temperature, sizeOption]
+        .where((s) => s != null && s.isNotEmpty)
+        .join(' / ');
     if (subInfoText.isNotEmpty) {
       final probe = TextPainter(
         text: TextSpan(
@@ -362,7 +367,9 @@ class ContinuousLabelPainter extends CustomPainter with LabelDrawOps {
     String? shopOrderNo,
     DateTime? orderedAt,
     String? legacyOrderTime,
-    List<String> subInfo = const [],
+    String? beanType,
+    String? temperature,
+    String? sizeOption,
     String? memo,
     String? qrData,
     int? orderIndex,
@@ -381,7 +388,9 @@ class ContinuousLabelPainter extends CustomPainter with LabelDrawOps {
       options: options,
       shopOrderNo: shopOrderNo,
       headerDateText: formatHeaderDate(orderedAt, legacyOrderTime),
-      subInfo: subInfo,
+      beanType: beanType,
+      temperature: temperature,
+      sizeOption: sizeOption,
       memo: memo,
       qrData: qrData,
       logoImage: logo,

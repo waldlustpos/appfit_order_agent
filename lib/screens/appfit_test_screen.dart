@@ -866,8 +866,9 @@ ${orders.length > 5 ? '...외 ${orders.length - 5}개 더 있음' : ''}
       ];
       final dummyOrderNo = '1234';
       final dummyTime = DateFormat('MM/dd\nHH:mm:ss').format(DateTime.now());
-      // 서브정보 3칸 — 실제로는 매장이 고른 옵션그룹 순서대로 채워진다.
-      const dummySubInfo = ['Standard', 'Ice', 'Large'];
+      const dummyBeanType = 'Standard';
+      const dummyTemp = 'Ice';
+      const dummySize = 'Large';
       const dummyQrData = 'QR_TEST_1234'; // QR 데이터 테스트
 
       // 이미지 생성
@@ -876,7 +877,9 @@ ${orders.length > 5 ? '...외 ${orders.length - 5}개 더 있음' : ''}
         options: dummyOptions,
         shopOrderNo: dummyOrderNo,
         orderTime: dummyTime,
-        subInfo: dummySubInfo,
+        beanType: dummyBeanType,
+        temperature: dummyTemp,
+        sizeOption: dummySize,
         qrData: dummyQrData,
         orderIndex: 1,
         orderTotal: 3,
@@ -891,7 +894,7 @@ ${orders.length > 5 ? '...외 ${orders.length - 5}개 더 있음' : ''}
 
 [테스트 데이터]
 메뉴: $dummyMenuName
-정보: ${dummySubInfo.join(' / ')}
+정보: $dummyBeanType / $dummyTemp / $dummySize
 주문번호: #$dummyOrderNo
 옵션: ${dummyOptions.length}개
 시간: $dummyTime

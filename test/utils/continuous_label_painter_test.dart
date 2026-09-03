@@ -69,8 +69,8 @@ void main() {
     // 금지) — 실물 튜닝으로 gap 값이 또 바뀌어도 이 테스트가 검증하는 불변식
     // (섹션 gap 을 빠짐없이 합산한다)은 그대로 유지된다.
     //
-    // gapSubInfoToMenuName 은 여기 포함하지 않는다 — subInfo 를 비워 두므로
-    // 그 gap 은 조건부로 스킵된다
+    // gapSubInfoToMenuName 은 여기 포함하지 않는다 — subInfo(beanType/
+    // temperature/sizeOption) 를 전부 비워 두므로 그 gap 은 조건부로 스킵된다
     // (subInfo 없을 때 QR→메뉴명 간격은 gapQrToSubInfo 하나만 담당하도록
     // 바뀐 설계, 2026-08-21).
     const double emptyBaseline = ContinuousLabelPainter.topMargin +

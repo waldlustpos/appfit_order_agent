@@ -200,12 +200,6 @@
             "desc_selected": "Printing {count} of {total} categories — {names}",
             "btn_configure": "Select categories"
         },
-        "label_subinfo": {
-            "title": "Label sub-info",
-            "desc_none": "Leaves the sub-info area on the label empty. Pick option groups to highlight things like temperature or size.",
-            "desc_selected": "Shown in the order you picked — {names}",
-            "btn_configure": "Select option groups"
-        },
         "label_paper": {
             "title": "Label Paper Size",
             "desc_40": "Prints with the 40mm paper layout.",
@@ -668,16 +662,6 @@
         "select_all": "Select all",
         "clear_all": "Clear all",
         "empty_catalog": "Could not load product categories. Every category is printed in this state.",
-        "save_failed": "Could not save — store information is unavailable."
-    },
-    "label_subinfo_select": {
-        "title": "Label sub-info",
-        "guide": "Pick up to {max} option groups to show prominently at the top of the label. They print left to right in the order you pick, and are removed from the option list at the bottom of the label.",
-        "max_notice": "You can pick up to {max}.",
-        "preview": "Preview",
-        "none": "Not set",
-        "clear_all": "Clear all",
-        "empty_catalog": "Could not load option groups.",
         "save_failed": "Could not save — store information is unavailable."
     }
 }

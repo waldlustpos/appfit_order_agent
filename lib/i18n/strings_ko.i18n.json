@@ -200,12 +200,6 @@
             "desc_selected": "{total}개 중 {count}개 카테고리만 출력합니다 — {names}",
             "btn_configure": "카테고리 선택"
         },
-        "label_subinfo": {
-            "title": "라벨 서브정보 표시",
-            "desc_none": "라벨 위쪽 서브정보 영역을 비웁니다. 온도·사이즈처럼 크게 보여야 하는 옵션이 있으면 옵션 그룹을 지정하세요.",
-            "desc_selected": "고른 순서대로 표시합니다 — {names}",
-            "btn_configure": "옵션 그룹 선택"
-        },
         "label_paper": {
             "title": "라벨 용지 사이즈",
             "desc_40": "40mm 용지 레이아웃으로 출력합니다.",
@@ -659,16 +653,6 @@
         "select_all": "전체 선택",
         "clear_all": "전체 해제",
         "empty_catalog": "상품 카테고리를 불러오지 못했습니다. 이 상태에서는 모든 카테고리가 출력됩니다.",
-        "save_failed": "매장 정보를 확인할 수 없어 저장하지 못했습니다."
-    },
-    "label_subinfo_select": {
-        "title": "라벨 서브정보",
-        "guide": "라벨 위쪽에 크게 표시할 옵션 그룹을 최대 {max}개까지 고릅니다. 고른 순서대로 왼쪽부터 인쇄되고, 여기서 지정한 옵션은 라벨 아래쪽 옵션 목록에서 빠집니다.",
-        "max_notice": "최대 {max}개까지 지정할 수 있습니다.",
-        "preview": "미리보기",
-        "none": "지정 안 함",
-        "clear_all": "전체 해제",
-        "empty_catalog": "옵션 그룹을 불러오지 못했습니다.",
         "save_failed": "매장 정보를 확인할 수 없어 저장하지 못했습니다."
     }
 }

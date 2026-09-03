@@ -4,9 +4,10 @@
 // LabelPainter 에 라벨 1장씩 전달한다.
 //
 // fromOrder() 가 단일 진입점:
-// - 메뉴 카테고리 필터링 + 서브정보 옵션 추출은 매장이 설정 화면에서 고른
-//   LabelOutputPolicy 가 결정한다. products 카탈로그 필요(주문 응답에 카테고리가
-//   없어 조인해야 한다).
+// - 메뉴 카테고리 필터링은 매장이 설정 화면에서 고른 LabelOutputPolicy 가,
+//   옵션 카테고리 분류(원두/온도/사이즈)는 브랜드별 LabelSubInfoStrategy 가
+//   결정한다(TPCP=Tpcp…, 그 외=NoOp). 둘 다 products 카탈로그 필요 — 주문 응답에
+//   카테고리가 없어 조인해야 한다.
 // - 메뉴 qty 만큼 라벨 펼치기
 // - QR 페이로드 생성 — 라벨마다 다름. QrPayloadStrategy 에 위임
 //   (고정 DisplayNumIndexQrPayloadStrategy = "{DisplayNum}-{CupIdx}").
@@ -18,6 +19,7 @@ import 'package:appfit_order_agent/models/menu_option_model.dart';
 import 'package:appfit_order_agent/models/order_model.dart';
 import 'package:appfit_order_agent/models/product_model.dart';
 import 'package:appfit_order_agent/services/label_printer/label_output_policy.dart';
+import 'package:appfit_order_agent/services/label_printer/label_subinfo_strategy.dart';
 import 'package:appfit_order_agent/services/label_printer/qr_payload_strategy.dart';
 import 'package:appfit_order_agent/utils/common_util.dart';
 
@@ -124,7 +126,9 @@ class LabelPrintData {
     required this.orderTotal,
     this.shopOrderNo,
     this.orderTime,
-    this.subInfo = const [],
+    this.beanType,
+    this.temperature,
+    this.sizeOption,
     this.memo,
     this.qrData,
     this.orderInfo,
@@ -140,10 +144,10 @@ class LabelPrintData {
   /// "MM/dd\nHH:mm:ss" 포맷 권장.
   final String? orderTime;
 
-  /// sub-info 영역에 인쇄할 문자열들 — **설정에서 고른 옵션그룹 순서 그대로**이고
-  /// 세 painter 모두 이 목록 순서대로 좌→우로 그린다. 최대 [kLabelSubInfoMaxCount].
-  /// 지정한 그룹이 없거나 주문에 해당 옵션이 없으면 빈 목록.
-  final List<String> subInfo;
+  /// sub-info 영역 (원두/온도/사이즈). 분류 룰이 없는 브랜드는 항상 null.
+  final String? beanType;
+  final String? temperature;
+  final String? sizeOption;
 
   final String? memo;
 
@@ -165,8 +169,10 @@ class LabelPrintData {
   /// appfit [OrderModel] 을 라벨 묶음(메뉴 1개당 qty 장 반복) 으로 변환.
   ///
   /// [products]: 카테고리/옵션그룹 조인용 카탈로그. 주문 응답에는 카테고리가 없다.
-  /// [policy]: 매장이 설정 화면에서 고른 출력 카테고리 + 서브정보 옵션그룹.
-  ///           기본 [LabelOutputPolicy.disabled] 는 전량 인쇄 + 서브정보 없음.
+  /// [policy]: 매장이 설정 화면에서 고른 출력 카테고리. 기본
+  ///           [LabelOutputPolicy.disabled] 는 전량 인쇄.
+  /// [subInfoStrategy]: 브랜드별 sub-info 옵션 분류. 기본
+  ///           [NoOpLabelSubInfoStrategy] 는 분류 없음(sub-info 영역이 빈다).
   /// [qrStrategy]: QR 페이로드 포맷. 기본 [DisplayNumIndexQrPayloadStrategy]
   ///              는 "{DisplayNum}-{CupIdx}".
   /// [isReprint]: true 면 카테고리 필터링 우회 (재출력은 전체 라벨 인쇄).
@@ -174,6 +180,7 @@ class LabelPrintData {
     OrderModel order, {
     List<ProductModel> products = const [],
     LabelOutputPolicy policy = LabelOutputPolicy.disabled,
+    LabelSubInfoStrategy subInfoStrategy = const NoOpLabelSubInfoStrategy(),
     QrPayloadStrategy qrStrategy = const DisplayNumIndexQrPayloadStrategy(),
     bool isReprint = false,
   }) {
@@ -215,14 +222,17 @@ class LabelPrintData {
     final result = <LabelPrintData>[];
 
     for (final menu in menusToPrint) {
-      // 서브정보 추출 — 매장이 고른 옵션그룹만, 고른 순서대로.
-      final sub = policy.buildSubInfo(menu, index);
+      // 옵션 카테고리 분류 — 브랜드 전략에 위임 (기본 NoOp = 분류 없음).
+      final cats = subInfoStrategy.classifyOptions(menu, products: products);
+      final String? beanType = cats.beanType;
+      final String? temperature = cats.temperature;
+      final String? sizeOption = cats.sizeOption;
 
       // 서브정보로 표시되는 옵션은 하단 옵션 리스트에서 제외.
-      // 이름 비교가 아니라 실제 소비된 옵션 집합으로 걸러야 동명 옵션이
+      // 이름 비교가 아니라 분류에 실제 소비된 옵션 집합으로 걸러야 동명 옵션이
       // 함께 빠지는 오제외가 생기지 않는다.
       final remainingOptions =
-          menu.options.where((opt) => !sub.consumed.contains(opt));
+          menu.options.where((opt) => !cats.classified.contains(opt));
 
       // 표시용 정규화(개행→공백)는 여기서만. QR/menuInfo 는 아래에서 원문을
       // 보존하므로 서버값 대조가 계속 가능하다.
@@ -254,7 +264,9 @@ class LabelPrintData {
           options: flatOptions,
           shopOrderNo: shopOrderNo.isNotEmpty ? shopOrderNo : null,
           orderTime: timeStr,
-          subInfo: sub.values,
+          beanType: beanType,
+          temperature: temperature,
+          sizeOption: sizeOption,
           memo: order.note,
           orderIndex: labelIndex,
           orderTotal: totalLabels,

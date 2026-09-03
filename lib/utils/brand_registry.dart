@@ -8,6 +8,12 @@ import 'package:appfit_order_agent/utils/currency_unit.dart';
 /// 게이팅(UI show/hide·로직 enable/disable)을 `brand.has(feature)` 로 선언적으로
 /// 통일한다. 산재된 `isTpcpStore`/`isMammothStore` prefix 분기를 대체하기 위한 것.
 enum BrandFeature {
+  /// TPCP 라벨 sub-info(원두/온도/사이즈) 옵션 분류.
+  ///
+  /// 라벨 **출력 카테고리 필터**는 여기 없다 — 그건 브랜드가 아니라 매장 설정이
+  /// 정한다(`LabelOutputPolicy`).
+  labelSubInfo,
+
   /// 매머드 사운드그래프 주문 전송(자동접수 성공 후 외부 통합).
   soundGraphSend,
 
@@ -149,6 +155,7 @@ class BrandRegistry {
       theme: BrandTheme.appfitDefault,
       currency: CurrencyUnit.jpy,
       features: {
+        BrandFeature.labelSubInfo,
         BrandFeature.japanEnvironment,
         BrandFeature.displayRotate,
       },

@@ -6,6 +6,7 @@ import 'package:appfit_order_agent/models/order_model.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
 import 'package:appfit_order_agent/providers/product_provider.dart';
 import 'package:appfit_order_agent/services/label_printer/label_output_policy.dart';
+import 'package:appfit_order_agent/services/label_printer/label_subinfo_strategy.dart';
 import 'package:appfit_order_agent/services/label_printer/label_print_data.dart';
 import 'package:appfit_order_agent/services/label_printer/qr_payload_strategy.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
@@ -185,7 +186,7 @@ class OutputService {
       logToFile(tag: LogTag.PLATFORM, message: entryMsg);
       final printService = ref.read(printServiceProvider);
 
-      // 라벨 묶음 생성 — 카테고리 필터링, 서브정보 추출, QR JSON 페이로드,
+      // 라벨 묶음 생성 — 카테고리 필터링, 옵션 분류, QR JSON 페이로드,
       // 메뉴별 라벨 번호 계산을 모두 LabelPrintData.fromOrder() 가 처리.
       // 정책은 **인쇄 시점마다 읽는다** → 설정 변경이 다음 주문부터 즉시 반영.
       final allProducts = await ref.read(productProvider.future);
@@ -194,6 +195,7 @@ class OutputService {
         orderToPrint,
         products: allProducts,
         policy: ref.read(labelOutputPolicyProvider),
+        subInfoStrategy: ref.read(labelSubInfoStrategyProvider),
         qrStrategy: const DisplayNumIndexQrPayloadStrategy(),
         isReprint: isReprint,
       );
@@ -256,7 +258,9 @@ class OutputService {
                 shopOrderNo: shopOrderNo,
                 orderedAt: data.orderInfo?.orderedAt,
                 legacyOrderTime: data.orderTime,
-                subInfo: data.subInfo,
+                beanType: data.beanType,
+                temperature: data.temperature,
+                sizeOption: data.sizeOption,
                 qrData: useQr ? data.qrData : null,
                 memo: data.memo,
                 orderIndex: data.orderIndex,
@@ -272,7 +276,9 @@ class OutputService {
                     shopOrderNo: shopOrderNo,
                     orderedAt: data.orderInfo?.orderedAt,
                     legacyOrderTime: data.orderTime,
-                    subInfo: data.subInfo,
+                    beanType: data.beanType,
+                    temperature: data.temperature,
+                    sizeOption: data.sizeOption,
                     qrData: useQr ? data.qrData : null,
                     memo: data.memo,
                     orderIndex: data.orderIndex,
@@ -286,7 +292,9 @@ class OutputService {
                     options: data.options,
                     shopOrderNo: shopOrderNo,
                     orderTime: data.orderTime,
-                    subInfo: data.subInfo,
+                    beanType: data.beanType,
+                    temperature: data.temperature,
+                    sizeOption: data.sizeOption,
                     qrData: useQr ? data.qrData : null,
                     memo: data.memo,
                     orderIndex: data.orderIndex,

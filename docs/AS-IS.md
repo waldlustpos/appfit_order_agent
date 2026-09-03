@@ -95,8 +95,8 @@ lib/
 | 계층 | 구성요소 | 역할 |
 | --- | --- | --- |
 | Layer 1 — SSOT 레지스트리 | `BrandRegistry` → `BrandMeta` | prefix → 자산 폴더·영수증 로고·테마·통화·서버환경·features 해석. `resolveOrNull()`(미매칭=null, capability·통화·환경용) vs `resolve()`(미매칭=fallback tpcp, 자산 경로 전용) 2단 해석 |
-| Layer 2 — Capability 게이팅 | `enum BrandFeature` | `soundGraphSend`·`japanEnvironment`·`sunmiAppStoreUpdate`·`displayRotate` — `brand.has(feature)`로 UI show/hide·로직 on/off |
-| Layer 3 — 동작 seam | Strategy/Hook 인터페이스 | 동작이 갈리는 소수 지점만 분리: `SoundGraphHook`(매머드 자동접수 후 전송), `qrPayloadStrategyProvider`(라벨 QR 페이로드) — 비대상 브랜드는 NoOp. 라벨 출력 카테고리/서브정보는 브랜드가 아니라 **매장 설정**이 정한다(`LabelOutputPolicy`) |
+| Layer 2 — Capability 게이팅 | `enum BrandFeature` | `labelSubInfo`·`soundGraphSend`·`japanEnvironment`·`sunmiAppStoreUpdate`·`displayRotate` — `brand.has(feature)`로 UI show/hide·로직 on/off |
+| Layer 3 — 동작 seam | Strategy/Hook 인터페이스 | 동작이 갈리는 소수 지점만 분리: `LabelSubInfoStrategy`(TPCP 라벨 sub-info 분류), `SoundGraphHook`(매머드 자동접수 후 전송), `qrPayloadStrategyProvider`(라벨 QR 페이로드) — 비대상 브랜드는 NoOp. 라벨 **출력 카테고리**는 브랜드가 아니라 매장 설정이 정한다(`LabelOutputPolicy`) |
 
 ### 3.2 등록 브랜드 (prefix 표)
 
@@ -105,7 +105,7 @@ lib/
 
 | BrandKey | prefix → 서버 환경 | 자산 폴더 | 테마 | 통화 | features |
 | --- | --- | --- | --- | --- | --- |
-| `tpcp` (fallback) | `TPCP`→japanLive | tokyoplatz | appfitDefault | JPY | japanEnvironment, displayRotate |
+| `tpcp` (fallback) | `TPCP`→japanLive | tokyoplatz | appfitDefault | JPY | labelSubInfo, japanEnvironment, displayRotate |
 | `mammoth` | `MMTH`→live, `MHST`→staging | mammoth | mammothCoffee | KRW | soundGraphSend, sunmiAppStoreUpdate |
 | `mata` | `MATA`→live | mahataste | mata | KRW | (없음) |
 | `paik` | `PAIK`→japanLive | paik | paik | JPY | japanEnvironment |

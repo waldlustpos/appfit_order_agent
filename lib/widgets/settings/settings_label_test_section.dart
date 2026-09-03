@@ -88,15 +88,14 @@ class _SettingsLabelTestSectionState
     'Cappuccino',
   ];
 
-  /// 라벨 sub-info 미리보기용 고정 샘플 (슬롯 3칸분).
+  /// 라벨 sub-info(원두/온도/사이즈) 미리보기용 고정 샘플.
   ///
-  /// 실제 라벨은 주문 응답의 `optionGroupPosId` 를 매장이 고른 옵션그룹과 대조해
-  /// 채우지만(`LabelOutputPolicy`), 이 테스트는 주문이 아닌 상품 카탈로그 기반이라
-  /// 같은 소스를 쓸 수 없다. 레이아웃·정렬 검증이 목적이므로 서버 응답·설정과
-  /// 무관하게 항상 채워지는 고정값을 쓴다.
-  static const List<String> _orderNoTestSampleSlot1 = ['다크', '산미'];
-  static const List<String> _orderNoTestSampleSlot2 = ['HOT', 'ICED'];
-  static const List<String> _orderNoTestSampleSlot3 = ['R', 'L'];
+  /// 실제 라벨은 주문 응답의 `optionGroupPosId` 로 분류하지만(v1), 이 테스트는
+  /// 주문이 아닌 상품 카탈로그 기반이라 같은 소스를 쓸 수 없다. 레이아웃·정렬
+  /// 검증이 목적이므로 서버 응답과 무관하게 항상 채워지는 고정값을 쓴다.
+  static const List<String> _orderNoTestSampleBeans = ['다크', '산미'];
+  static const List<String> _orderNoTestSampleTemps = ['HOT', 'ICED'];
+  static const List<String> _orderNoTestSampleSizes = ['R', 'L'];
 
   // 부하 테스트 진행 상태
   bool _isStressRunning = false;
@@ -470,9 +469,9 @@ class _SettingsLabelTestSectionState
     List<String> menuNames = const [];
     List<String> menuIds =
         const []; // 메뉴별 shopItemId(internalId) — QR 페이로드용 (menuNames 와 동일 순서)
-    const slot1Names = _orderNoTestSampleSlot1;
-    const slot2Names = _orderNoTestSampleSlot2;
-    const slot3Names = _orderNoTestSampleSlot3;
+    const beanNames = _orderNoTestSampleBeans;
+    const tempNames = _orderNoTestSampleTemps;
+    const sizeNames = _orderNoTestSampleSizes;
     List<String> etcOptionNames = const [];
     try {
       final products = await ref.read(productProvider.future);
@@ -500,8 +499,8 @@ class _SettingsLabelTestSectionState
 
     logToFile(
         tag: LogTag.PLATFORM,
-        message: '[OrderNoTest] 후보 subInfo1=${slot1Names.length}'
-            ' subInfo2=${slot2Names.length} subInfo3=${slot3Names.length}'
+        message: '[OrderNoTest] 후보 bean=${beanNames.length}'
+            ' temp=${tempNames.length} size=${sizeNames.length}'
             ' option=${etcOptionNames.length}');
 
     const numbers = _orderNoTestNumbers;
@@ -528,11 +527,10 @@ class _SettingsLabelTestSectionState
             etcOptionNames[(i + k) % etcOptionNames.length]
         ];
         final memo = _orderNoTestMemoPool[i % _orderNoTestMemoPool.length];
-        // subInfo 는 고정 샘플을 순환 사용 (비면 영역이 비어 그려진다).
-        final subInfo = <String>[
-          for (final names in [slot1Names, slot2Names, slot3Names])
-            if (names.isNotEmpty) names[i % names.length],
-        ];
+        // subinfo 는 실제 옵션에서 분류한 후보를 순환 사용 (없으면 null → 영역 비움).
+        final bean = beanNames.isEmpty ? null : beanNames[i % beanNames.length];
+        final temp = tempNames.isEmpty ? null : tempNames[i % tempNames.length];
+        final size = sizeNames.isEmpty ? null : sizeNames[i % sizeNames.length];
 
         // 같은 주문번호로 5장 — 내용 동일, 주문번호 뒤 숫자 접미사(-1,-5,-10,-15,-20)만 다름.
         for (final v in _orderNoTestPrintVersions) {
@@ -565,7 +563,9 @@ class _SettingsLabelTestSectionState
             options: options,
             shopOrderNo: labelOrderNo,
             orderTime: orderTime,
-            subInfo: subInfo,
+            beanType: bean,
+            temperature: temp,
+            sizeOption: size,
             // QR 토글 ON 이면 운영과 동일 포맷의 QR 동반 출력.
             qrData: useQr ? qrPayload : null,
             memo: memo,

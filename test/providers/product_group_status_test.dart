@@ -1,6 +1,5 @@
 import 'package:appfit_order_agent/models/product_model.dart';
 import 'package:appfit_order_agent/models/shop_category_model.dart';
-import 'package:appfit_order_agent/models/shop_option_group_model.dart';
 import 'package:appfit_order_agent/models/store_model.dart';
 import 'package:appfit_order_agent/providers/product_provider.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
@@ -40,18 +39,10 @@ class _FakeApiService implements ApiService {
   Object? updateThrows;
 
   @override
-  Future<
-      ({
-        List<ProductModel> products,
-        List<ShopCategoryModel> categories,
-        List<ShopOptionGroupModel> optionGroups,
-      })> getShopCatalog(String storeId) async {
+  Future<({List<ProductModel> products, List<ShopCategoryModel> categories})>
+      getShopCatalog(String storeId) async {
     catalogRequests.add(storeId);
-    return (
-      products: _products,
-      categories: <ShopCategoryModel>[],
-      optionGroups: <ShopOptionGroupModel>[],
-    );
+    return (products: _products, categories: <ShopCategoryModel>[]);
   }
 
   @override
