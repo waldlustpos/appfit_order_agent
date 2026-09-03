@@ -103,11 +103,14 @@ class LabelMediaSpec {
   /// 하드웨어에 고정돼 좌측 여백은 이미 하드웨어가 만들고 있고(소프트웨어가 더 얹으면
   /// 중복), 우측만 콘텐츠가 캔버스 끝에 붙어 보이지 않도록 둔다.
   ///
-  /// 세로 cap 640(80mm)은 40mm 과 동일. 옵션 2열 배치라 세로가 40mm 보다 짧아져
-  /// 하한은 300 으로 낮춘다.
+  /// 세로 cap 은 **800(100mm)** — 40mm/구 58mm 의 640(80mm)보다 크다. 옵션 2열을
+  /// 폐기하고 1열 8행으로 바꾸면서(2026-09-03) 최악 조합(옵션 8 + 메모 3줄)의 자연
+  /// 높이가 약 742dot 이 됐고, cap 은 초과분을 **말없이 잘라낸다**(높이를 clamp 한 뒤
+  /// 그 높이만 래스터화 — 메모부터 사라진다). 실제 소비 용지는 가변 높이라 콘텐츠가
+  /// 짧으면 종전과 같다. 하한 300 은 유지.
   static const continuous58 = LabelMediaSpec(
     widthDots: 412,
-    maxHeightDots: 640,
+    maxHeightDots: 800,
     minHeightDots: 300,
     sideMarginDots: 0,
     rightMarginDots: 16,

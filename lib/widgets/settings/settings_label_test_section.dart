@@ -377,7 +377,9 @@ class _SettingsLabelTestSectionState
                 options: g30Options[i - 1],
                 memo: g30Memos[i - 1],
                 shopOrderNo: '0000-$i',
-                legacyOrderTime: '03/26\n12:00:00',
+                // 58mm 헤더는 'yy/MM/dd' 포맷을 쓴다 — 하드코딩 문자열을 넘기면
+                // 테스트 출력만 옛 포맷으로 나와 검증이 무의미해진다.
+                orderedAt: DateTime.now(),
                 orderIndex: i,
                 orderTotal: 3,
               )

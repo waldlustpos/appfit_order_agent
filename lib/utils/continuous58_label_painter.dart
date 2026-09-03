@@ -20,7 +20,7 @@ import 'package:appfit_order_agent/utils/label_draw_ops.dart';
 /// | 헤더 | 로고 좌 / 날짜 1줄 중앙 / n·N 우 | 날짜 **2줄 좌** / 로고 중앙 / n·N 우 |
 /// | 표시번호·QR | 둘 다 중앙, 세로로 쌓임 | 번호 좌 + QR 우, **한 행에 나란히** |
 /// | 서브정보 | 평문 1줄 | **콘텐츠 폭 전체 검정 바 + 흰 굵은 글씨** |
-/// | 옵션 | 1열 | **2열** |
+/// | 옵션 | 1열 최대 5행 | 1열 최대 8행(2열은 2026-09-03 폐기) |
 ///
 /// 세로 가변 계약은 40mm 과 동일하다 — [paintAndMeasure] 가 콘텐츠 하단 Y 를
 /// 반환하고 [generateContinuous58LabelImage] 가 그 높이만 래스터화한다.
@@ -34,7 +34,7 @@ class Continuous58LabelPainter extends CustomPainter with LabelDrawOps {
   final List<String> options;
   final String? shopOrderNo;
 
-  /// 헤더 좌측에 찍는 날짜 텍스트. `'M/d\nHH:mm:ss'` **2줄** 포맷 — 목업 기준
+  /// 헤더 좌측에 찍는 날짜 텍스트. `'yy/MM/dd\nHH:mm:ss'` **2줄** 포맷 — 목업 기준
   /// (40mm 의 1줄 포맷과 다르다).
   final String? headerDateText;
 
@@ -138,14 +138,17 @@ class Continuous58LabelPainter extends CustomPainter with LabelDrawOps {
   static const double menuNameLineHeight = 1.25;
   static const int menuNameMaxLines = 2;
 
-  static const double optionFontSize = 20;
+  static const double optionFontSize = 22;
   static const double optionRowHeight = 28;
-  static const double optionColGutter = 16;
 
-  /// 이하면 1열(콘텐츠 폭 전체). 초과하면 2열.
-  static const int optionSingleColumnMax = 3;
-  static const int optionMaxRows = 4;
-  static const int optionMaxShown = optionMaxRows * 2;
+  /// 표시 최대 개수 = **행 수**(1열이라 같다). 초과분은 마지막 행을 `+N` 으로 쓴다.
+  ///
+  /// 2열 배치를 폐기했다(2026-09-03) — 폭 절반(약 190dot)에 옵션명이 들어가지 않아
+  /// `drawAutoFitText` 가 상시 축소로 동작했고, 좌우로 흩어진 항목을 훑는 것보다
+  /// 한 줄씩 읽는 편이 빠르다는 판단이다. 대신 8개를 다 쓰면 세로가 224dot(2열
+  /// 4행의 두 배) 늘어나므로 [LabelMediaSpec.continuous58] 의 `maxHeightDots` 를
+  /// 함께 올렸다 — 그 상한은 초과분을 **말없이 잘라내기** 때문이다.
+  static const int optionMaxShown = 8;
 
   static const double memoFontSize = 22;
   static const double memoLineHeight = 1.3;
@@ -361,7 +364,7 @@ class Continuous58LabelPainter extends CustomPainter with LabelDrawOps {
     return y + probe.height + gapUnit;
   }
 
-  /// 옵션 2열(개수가 적으면 1열). 기하는 [LabelDrawOps.optionCells] 공유.
+  /// 옵션 1열 나열(최대 [optionMaxShown] 행). 기하는 [LabelDrawOps.optionCells] 공유.
   double _drawOptions(
       Canvas canvas, double left, double contentWidth, double y) {
     if (options.isEmpty) return y;
@@ -413,6 +416,11 @@ class Continuous58LabelPainter extends CustomPainter with LabelDrawOps {
   }
 
   /// 이 레이아웃의 옵션 셀 기하 (렌더 없는 순수 함수 — 테스트 대상).
+  ///
+  /// **항상 1열**이다. 공유 헬퍼 [LabelDrawOps.optionCells] 는 `count` 가
+  /// `singleColumnMax` 이하일 때만 1열이고 초과하면 2열로 넘어가므로, 개수를 먼저
+  /// [optionMaxShown] 으로 자른 뒤 `singleColumnMax` 를 같은 값으로 줘서 2열 분기에
+  /// 도달하지 못하게 한다(헬퍼의 1열 경로는 `maxShown` 을 보지 않는다).
   @visibleForTesting
   static List<LabelOptionCell> optionCellsFor(
     int count, {
@@ -420,12 +428,12 @@ class Continuous58LabelPainter extends CustomPainter with LabelDrawOps {
     double left = 0,
   }) =>
       LabelDrawOps.optionCells(
-        count: count,
+        count: count > optionMaxShown ? optionMaxShown : count,
         left: left,
         contentWidth: contentWidth,
         rowHeight: optionRowHeight,
-        gutter: optionColGutter,
-        singleColumnMax: optionSingleColumnMax,
+        gutter: 0,
+        singleColumnMax: optionMaxShown,
         maxShown: optionMaxShown,
       );
 
@@ -455,7 +463,11 @@ class Continuous58LabelPainter extends CustomPainter with LabelDrawOps {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 
-  /// 주문 시각을 헤더용 **2줄** 포맷(`'M/d\nHH:mm:ss'`)으로.
+  /// 주문 시각을 헤더용 **2줄** 포맷(`'yy/MM/dd\nHH:mm:ss'`)으로.
+  ///
+  /// 연도까지 찍는다(2026-09-03) — 라벨이 컵에 붙은 채 다음 날/다음 해로 넘어가는
+  /// 경우가 있어 `M/d` 만으로는 언제 만든 컵인지 판별이 안 된다. 자리수가 고정이라
+  /// (`26/09/03`) 헤더 폭이 날짜에 따라 흔들리지도 않는다.
   ///
   /// [orderedAt] 이 없으면(예: `LabelPrintData.testSample`) 기존 2줄 포맷
   /// `orderTime`("MM/dd\nHH:mm:ss")을 **그대로** 쓴다 — 58mm 헤더도 2줄이라
@@ -463,7 +475,7 @@ class Continuous58LabelPainter extends CustomPainter with LabelDrawOps {
   static String? formatHeaderDate(
       DateTime? orderedAt, String? legacyOrderTime) {
     if (orderedAt != null) {
-      return DateFormat('M/d\nHH:mm:ss').format(orderedAt);
+      return DateFormat('yy/MM/dd\nHH:mm:ss').format(orderedAt);
     }
     return legacyOrderTime;
   }

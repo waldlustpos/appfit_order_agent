@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:appfit_order_agent/services/label_printer/label_media_spec.dart';
 import 'package:appfit_order_agent/utils/continuous58_label_painter.dart';
 
-/// `Continuous58LabelPainter` 의 세로 가변 계약 + 옵션 2열 기하 고정.
+/// `Continuous58LabelPainter` 의 세로 가변 계약 + 옵션 1열 기하 고정.
 ///
 /// **절대 픽셀값을 단언하지 말 것** — flutter test 환경에는 Pretendard 가 로드되지
 /// 않아 실기기와 advance 폭이 다르다(기존 continuous_label_painter_test.dart /
@@ -117,25 +117,26 @@ void main() {
       expect(h, floorSpec.minHeightDots);
     });
 
-    test('옵션 5개는 2열 3행 높이만큼만 더한다', () {
+    test('옵션 5개는 1열 5행 높이만큼 더한다', () {
       const spec = LabelMediaSpec.continuous58;
       final painter = Continuous58LabelPainter(
         spec: spec,
         menuName: '',
         options: const ['A', 'B', 'C', 'D', 'E'],
       );
-      // 5개 → 2열 3행. 1열 5행(=5행 높이)이 아니라는 것이 이 레이아웃의 핵심.
+      // 5개 → 1열 5행. 2열 3행(=3행 높이)으로 접지 않는 것이 이 레이아웃의 계약이다
+      // (2열은 2026-09-03 폐기).
       expect(
         measure(painter, spec),
         emptyBaseline +
-            3 * Continuous58LabelPainter.optionRowHeight +
+            5 * Continuous58LabelPainter.optionRowHeight +
             Continuous58LabelPainter.gapUnit,
       );
     });
 
     test('옵션이 많은 라벨은 그보다 작은 maxHeightDots 로 내림 clamp', () {
       const double eightOptionsBaseline = emptyBaseline +
-          4 * Continuous58LabelPainter.optionRowHeight +
+          8 * Continuous58LabelPainter.optionRowHeight +
           Continuous58LabelPainter.gapUnit;
       final ceilingSpec = LabelMediaSpec(
         widthDots: 384,
@@ -159,7 +160,7 @@ void main() {
     });
   });
 
-  group('optionCellsFor — 2열 기하', () {
+  group('optionCellsFor — 1열 기하', () {
     const double contentWidth = 368; // continuous58 의 콘텐츠 폭(384 - 0 - 16)
 
     List<dynamic> cells(int n) =>
@@ -169,8 +170,10 @@ void main() {
       expect(cells(0), isEmpty);
     });
 
-    test('3개 이하는 1열 — 셀 폭이 콘텐츠 폭 전체', () {
-      for (final n in [1, 2, 3]) {
+    test('개수와 무관하게 1열 — 셀 폭이 항상 콘텐츠 폭 전체', () {
+      // 2열이던 시절의 경계(3/4개)를 포함해 훑는다 — 여기서 폭이 반으로 접히면
+      // 2열 분기가 되살아난 것이다.
+      for (final n in [1, 2, 3, 4, 5, 8]) {
         final c = cells(n);
         expect(c.length, n);
         for (final cell in c) {
@@ -180,25 +183,13 @@ void main() {
       }
     });
 
-    test('4개부터 2열 — 우측 컬럼 끝이 구분선 끝과 정확히 일치', () {
-      final c = cells(4);
-      expect(c.length, 4);
-      final rightCell = c[1]; // row0 col1
-      expect(rightCell.x + rightCell.maxWidth, closeTo(contentWidth, 0.001));
-    });
-
-    test('2열 gutter 가 정확히 optionColGutter', () {
-      final c = cells(4);
-      final gap = c[1].x - (c[0].x + c[0].maxWidth);
-      expect(gap, closeTo(Continuous58LabelPainter.optionColGutter, 0.001));
-    });
-
-    test('좌→우, 위→아래 순서로 채운다', () {
+    test('위→아래 한 줄씩 — 행 간격이 정확히 optionRowHeight', () {
       final c = cells(6);
-      expect(c[0].x, lessThan(c[1].x)); // 같은 행의 좌 → 우
-      expect(c[0].y, c[1].y);
-      expect(c[2].y, greaterThan(c[0].y)); // 다음 행
-      expect(c[2].x, c[0].x);
+      for (int i = 1; i < c.length; i++) {
+        expect(c[i].x, c[0].x);
+        expect(c[i].y - c[i - 1].y,
+            closeTo(Continuous58LabelPainter.optionRowHeight, 0.001));
+      }
     });
 
     test('optionMaxShown 초과분은 잘라낸다(+N 은 호출부 책임)', () {
@@ -206,11 +197,10 @@ void main() {
       expect(c.length, Continuous58LabelPainter.optionMaxShown);
     });
 
-    test('마지막 행이 optionMaxRows 를 넘지 않는다', () {
+    test('1열이므로 행 수가 곧 표시 개수다', () {
       final c = cells(20);
       final lastRow = c.last.y / Continuous58LabelPainter.optionRowHeight;
-      expect(lastRow,
-          lessThanOrEqualTo(Continuous58LabelPainter.optionMaxRows - 1));
+      expect(lastRow, Continuous58LabelPainter.optionMaxShown - 1);
     });
 
     test('어떤 셀도 콘텐츠 폭을 벗어나지 않는다', () {

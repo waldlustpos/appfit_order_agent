@@ -71,7 +71,9 @@ void main() {
     // 남기도록 강제한다.
     test('실측 확정값(유효 인쇄폭 52.5mm=420dot 경계에서 8dot 여유)', () {
       expect(LabelMediaSpec.continuous58.widthDots, 412);
-      expect(LabelMediaSpec.continuous58.maxHeightDots, 640);
+      // cap 800(100mm) — 옵션 1열 8행 + 메모 3줄의 자연 높이(약 742dot)를 담는다.
+      // 640 이던 시절 값으로 되돌리면 긴 라벨의 메모가 말없이 잘린다.
+      expect(LabelMediaSpec.continuous58.maxHeightDots, 800);
       expect(LabelMediaSpec.continuous58.minHeightDots, 300);
       expect(LabelMediaSpec.continuous58.variableHeight, isTrue);
     });

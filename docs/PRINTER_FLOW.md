@@ -353,7 +353,7 @@ quiet zone(모듈 4개 폭 흰 배경)이 `clampQuietTopTo`/`clampQuietBottomTo`
 | 헤더 | 로고 좌 / 날짜 1줄 중앙 / n·N 우 | 날짜 **2줄 좌** / 로고 중앙 / n·N 우 |
 | 표시번호·QR | 둘 다 중앙, 세로로 쌓임 | 번호 좌 + QR 우, **한 행에 나란히** |
 | 서브정보 | 평문 1줄(원두/온도/사이즈 순) | **콘텐츠 폭 전체 검정 바 + 흰 굵은 글씨**(온도/사이즈/원두 순) |
-| 옵션 | 1열 최대 5행 | **2열 최대 4행**(3개 이하는 1열), 초과 시 `+N` |
+| 옵션 | 1열 최대 5행 | 1열 최대 8행, 초과 시 `+N`(2열은 2026-09-03 폐기 — 아래) |
 
 세로 가변 계약(`paintAndMeasure` → `Picture.toImage(w, h)` 1-pass)과 저수준 draw 프리미티브
 (`LabelDrawOps`)는 40mm 과 공유한다. `continuous40` 및 갭 라벨 경로는 **한 줄도 건드리지 않았다.**
@@ -362,7 +362,8 @@ quiet zone(모듈 4개 폭 흰 배경)이 `clampQuietTopTo`/`clampQuietBottomTo`
 
 목업 비례를 그대로 dot 으로 환산하면 메뉴명이 19dot 수준으로 나와 **40mm(26dot)보다 작아진다** —
 넓은 용지가 오히려 덜 보이는 역전이라 채택하지 않았다. 목업은 배치·비례의 기준으로만 쓰고,
-가독성이 걸린 폰트(메뉴명 26 / 옵션 20 / 메모 22)는 40mm 에서 실물 검증된 값을 그대로 가져왔다.
+가독성이 걸린 폰트(메뉴명 26 / 옵션 20 / 메모 22)는 40mm 에서 실물 검증된 값을 그대로 가져왔다
+(이후 실물 판정으로 메뉴명 29 / 옵션 22 로 올렸다 — 아래 재조정 절 참조).
 
 #### 선행 수정 — Java 전송폭 clamp 320 → 576 (이게 먼저여야 한다)
 
@@ -429,6 +430,27 @@ threshold 210 이진화를 그대로 재현해 후보를 비교한 결과가 결
 1차 결론: `subInfoFontSize` 20 → **24**, `subInfoBarHeight` 34 → **42**, `subInfoStrokeWidth`
 **1.0**(검증된 깨끗한 0.8 과 실패한 1.2 사이 — 실제 감열 번짐은 시뮬레이션보다 획을 더 얇게
 만들므로 0.8 보다 위를 택했다). **더 굵게 필요하면 stroke 가 아니라 fontSize 를 올릴 것.**
+
+##### 재조정 — 옵션 2열 폐기 + 날짜 연도 표기 (2026-09-03)
+
+옵션을 **1열 나열**로 되돌리고(`optionFontSize` 20 → **22**, +10%), 헤더 날짜를 **`yy/MM/dd`**
+(`26/09/03`)로 바꿨다. 2열은 콘텐츠 폭 절반(약 190dot)에 옵션명이 안 들어가 `drawAutoFitText` 가
+상시 축소로 동작했고, 좌우로 흩어진 항목보다 한 줄씩 읽는 편이 빠르다. `optionSingleColumnMax`·
+`optionMaxRows` 는 의미를 잃어 제거하고 **`optionMaxShown` 8** 하나만 남겼다(1열이라 표시 개수 =
+행 수). 공유 헬퍼 `LabelDrawOps.optionCells` 는 `count > singleColumnMax` 면 2열로 넘어가므로,
+**개수를 먼저 자른 뒤 `singleColumnMax` 를 같은 값으로** 줘서 2열 분기에 도달하지 못하게 한다
+(헬퍼 자체는 40mm·갭 라벨과 공유라 건드리지 않았다).
+
+**같이 올려야 했던 것 — `maxHeightDots` 640 → 800.** 8개를 다 쓰면 옵션 영역이 224dot(2열 4행의
+두 배)이 되고, 최악 조합(옵션 8 + 메모 3줄 + QR)의 자연 높이가 **743dot** 으로 측정됐다(임시 test
+계측). 기존 cap 640 은 초과분을 **에러 없이 잘라낸다** — `generateContinuous58LabelImage` 가
+높이를 clamp 한 뒤 그 높이만 래스터화하므로 **메모부터 조용히 사라진다.** cap 만 올리면 되고
+평소 소비 용지는 그대로다(가변 높이라 콘텐츠가 짧으면 종전과 동일).
+
+날짜에 연도를 넣은 건 라벨이 컵에 붙은 채 날짜가 넘어가는 경우 때문이다. 자리수가 고정이라
+헤더 폭이 흔들리지 않는다. 개발자 옵션의 테스트 출력은 하드코딩 문자열(`'03/26\n12:00:00'`)을
+넘기고 있어 새 포맷을 타지 않았다 — 58mm 분기만 `orderedAt: DateTime.now()` 로 바꿔 실제 포맷터를
+지나가게 했다(테스트 출력이 자동출력과 다른 결과를 내면 그 버튼으로 하는 검증이 무의미하다).
 
 ##### 재조정 — 헤더 확대 (2026-09-03)
 
@@ -553,6 +575,6 @@ flowchart LR
 | [BixolonPosDriver.java](../android/app/src/main/java/co/kr/waldlust/order/receive/util/print/BixolonPosDriver.java) | Android 라벨 프린터 (BIXOLON G30, UPOS/JavaPOS) — Windows 미이식 |
 | [label_media_spec.dart](../lib/services/label_printer/label_media_spec.dart) | 용지 규격 값 객체(`gap490x600`/`continuous40`/`continuous58`) — 캔버스 폭·높이·좌우여백 |
 | [continuous_label_painter.dart](../lib/utils/continuous_label_painter.dart) | G30 40mm 연속용지 세로 가변 레이아웃 painter |
-| [continuous58_label_painter.dart](../lib/utils/continuous58_label_painter.dart) | G30 58mm 연속용지 painter (번호+QR 가로 배치·검정 반전 바·옵션 2열) |
+| [continuous58_label_painter.dart](../lib/utils/continuous58_label_painter.dart) | G30 58mm 연속용지 painter (번호+QR 가로 배치·검정 반전 바·옵션 1열) |
 | [label_ruler_test_image.dart](../lib/utils/label_ruler_test_image.dart) | 유효 인쇄폭 실측용 mm 눈금자 진단 이미지 (개발자 옵션에서 출력) |
 | [label_draw_ops.dart](../lib/utils/label_draw_ops.dart) | 라벨 draw 프리미티브 mixin + 옵션 셀 기하(3개 painter 공유) |
