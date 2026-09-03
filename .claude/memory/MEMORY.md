@@ -84,6 +84,6 @@
 - [쿠폰란 전화번호 오입력 → Sentry 유출](project_coupon_input_phone_misentry.md) — 입력란 공유가 구조적 원인. 앱 차단 + core v1.4.0 마스킹/경로단위 benign. 배포 완료 (2026-08-27)
 - [모델 티어 최적화는 레버가 아니다](feedback_model_tier_lever.md) — 실효 절감 $200/프로젝트. 진짜 레버는 검증가능성 선투자. 판정 작업에 Fable 금지(raw CoT 없어 감사 불가)
 - [알림음이 매장 BGM을 죽임](project_alarm_audio_focus_bgm.md) — audioplayers 기본 AUDIOFOCUS_GAIN. 유령 플레이어의 "AudioContext 설정됨" 로그가 착시. setAudioContext는 playerId 단위 (2026-08-31)
-- [버블 복귀가 느린 5초 두 개](project_bubble_restore_transition_timeout.md) — ①onNewIntent 중복 moveTaskToFront=전환 타임아웃(수정) ②홈키 stopAppSwitches 5초(OS 정책, 수용·우회 반증). 계측은 sysui_action [319/320/322] (2026-09-02)
+- [버블 복귀가 느린 5초 두 개](project_bubble_restore_transition_timeout.md) — ①onNewIntent 중복 moveTaskToFront=전환 타임아웃(수정) ②홈키 stopAppSwitches 5초(OS 정책, 수용·우회 반증). 기준=마지막 홈키 시각(홈화면에서 또 눌러도 재무장), T2mini 한정·D3mini 무증상. 30시행 통제실험 확정 (2026-09-03)
 - [멤버십 미가입 접수](project_membership_unregistered_intake.md) — 서버 자동가입 정책(매머드 1차)이 근거. 내역 API는 건너뜀. Dio 인터셉터가 Sentry 선발화하는 함정 (2026-08-31)
 - [PREPARING 유입 출력 게이트](project_preparing_intake_output_gate.md) — 생성시점 PREPARING(NICE_KIOSK)이 일반 모드 무출력. KDS 게이트가 원인, isSourceNotifyEnabled 필수. 폴링은 서버 변경 없이 불가 (2026-09-01)
