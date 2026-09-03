@@ -49,6 +49,8 @@ class TranslationsEn extends Translations with BaseTranslations<AppLocale, Trans
 	@override late final _Translations$membership$en membership = _Translations$membership$en._(_root);
 	@override late final _Translations$kds$en kds = _Translations$kds$en._(_root);
 	@override late final _Translations$receipt$en receipt = _Translations$receipt$en._(_root);
+	@override late final _Translations$label_category_select$en label_category_select = _Translations$label_category_select$en._(_root);
+	@override late final _Translations$label_subinfo_select$en label_subinfo_select = _Translations$label_subinfo_select$en._(_root);
 }
 
 // Path: app
@@ -154,7 +156,8 @@ class _Translations$settings$en extends Translations$settings$ko {
 	@override late final _Translations$settings$order_source_color$en order_source_color = _Translations$settings$order_source_color$en._(_root);
 	@override late final _Translations$settings$kds_ignore_status$en kds_ignore_status = _Translations$settings$kds_ignore_status$en._(_root);
 	@override late final _Translations$settings$kds_accept_orders$en kds_accept_orders = _Translations$settings$kds_accept_orders$en._(_root);
-	@override late final _Translations$settings$label_filter$en label_filter = _Translations$settings$label_filter$en._(_root);
+	@override late final _Translations$settings$label_category_filter$en label_category_filter = _Translations$settings$label_category_filter$en._(_root);
+	@override late final _Translations$settings$label_subinfo$en label_subinfo = _Translations$settings$label_subinfo$en._(_root);
 	@override late final _Translations$settings$label_paper$en label_paper = _Translations$settings$label_paper$en._(_root);
 	@override late final _Translations$settings$developer_options$en developer_options = _Translations$settings$developer_options$en._(_root);
 	@override late final _Translations$settings$kiosk$en kiosk = _Translations$settings$kiosk$en._(_root);
@@ -473,6 +476,40 @@ class _Translations$receipt$en extends Translations$receipt$ko {
 	@override String get test_port => 'Port';
 	@override String get test_board => 'Baud';
 	@override String get test_ok => 'Printer is working';
+}
+
+// Path: label_category_select
+class _Translations$label_category_select$en extends Translations$label_category_select$ko {
+	_Translations$label_category_select$en._(TranslationsEn root) : this._root = root, super.internal(root);
+
+	final TranslationsEn _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'Label print categories';
+	@override String get guide => 'Only items in the selected categories are printed as labels. Reprinting from the order detail always prints the whole order, regardless of this setting.';
+	@override String summary({required Object count, required Object total}) => '${count} of ${total} selected';
+	@override String get empty_means_all => 'No category is selected, so every category is printed. To stop printing labels entirely, turn off \'Use label printer\' in settings.';
+	@override String get select_all => 'Select all';
+	@override String get clear_all => 'Clear all';
+	@override String get empty_catalog => 'Could not load product categories. Every category is printed in this state.';
+	@override String get save_failed => 'Could not save — store information is unavailable.';
+}
+
+// Path: label_subinfo_select
+class _Translations$label_subinfo_select$en extends Translations$label_subinfo_select$ko {
+	_Translations$label_subinfo_select$en._(TranslationsEn root) : this._root = root, super.internal(root);
+
+	final TranslationsEn _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'Label sub-info';
+	@override String guide({required Object max}) => 'Pick up to ${max} option groups to show prominently at the top of the label. They print left to right in the order you pick, and are removed from the option list at the bottom of the label.';
+	@override String max_notice({required Object max}) => 'You can pick up to ${max}.';
+	@override String get preview => 'Preview';
+	@override String get none => 'Not set';
+	@override String get clear_all => 'Clear all';
+	@override String get empty_catalog => 'Could not load option groups.';
+	@override String get save_failed => 'Could not save — store information is unavailable.';
 }
 
 // Path: common.api_error
@@ -795,20 +832,31 @@ class _Translations$settings$kds_accept_orders$en extends Translations$settings$
 	@override String get confirm_content => 'Kitchen Display (KDS) will automatically accept incoming orders directly.\nBe sure NOT to run another main order-receiving program in parallel.\nEnable this option?';
 }
 
-// Path: settings.label_filter
-class _Translations$settings$label_filter$en extends Translations$settings$label_filter$ko {
-	_Translations$settings$label_filter$en._(TranslationsEn root) : this._root = root, super.internal(root);
+// Path: settings.label_category_filter
+class _Translations$settings$label_category_filter$en extends Translations$settings$label_category_filter$ko {
+	_Translations$settings$label_category_filter$en._(TranslationsEn root) : this._root = root, super.internal(root);
 
 	final TranslationsEn _root; // ignore: unused_field
 
 	// Translations
-	@override String get title => 'Label Print Filter';
-	@override String get desc_all => 'Print labels for all order items.';
-	@override String get desc_waffle_only => 'Print labels for dessert (waffle) items only.';
-	@override String get desc_waffle_exclude => 'Print labels for all items except dessert (waffle).';
-	@override String get btn_all => 'All Orders';
-	@override String get btn_waffle_only => 'Waffle Only';
-	@override String get btn_waffle_exclude => 'Exclude Waffle';
+	@override String get title => 'Label print categories';
+	@override String get desc_off => 'Prints labels for every category. Turn on to print only selected categories.';
+	@override String get desc_none => 'No category selected — every category is printed.';
+	@override String desc_selected({required Object count, required Object total, required Object names}) => 'Printing ${count} of ${total} categories — ${names}';
+	@override String get btn_configure => 'Select categories';
+}
+
+// Path: settings.label_subinfo
+class _Translations$settings$label_subinfo$en extends Translations$settings$label_subinfo$ko {
+	_Translations$settings$label_subinfo$en._(TranslationsEn root) : this._root = root, super.internal(root);
+
+	final TranslationsEn _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'Label sub-info';
+	@override String get desc_none => 'Leaves the sub-info area on the label empty. Pick option groups to highlight things like temperature or size.';
+	@override String desc_selected({required Object names}) => 'Shown in the order you picked — ${names}';
+	@override String get btn_configure => 'Select option groups';
 }
 
 // Path: settings.label_paper

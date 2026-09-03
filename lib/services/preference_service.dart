@@ -107,10 +107,21 @@ class PreferenceService {
       "KOKONUT_LABEL_USE_BACK_TO_PRINT"; // bool (기본 true)
   static const String KEY_LABEL_USE_CALIBRATE =
       "KOKONUT_LABEL_USE_CALIBRATE"; // bool (기본 false)
-  static const String KEY_LABEL_FILTER_MODE =
-      "KOKONUT_LABEL_FILTER_MODE"; // int (0: 전체, 1: 와플만, 2: 와플제외)
   static const String KEY_LABEL_USE_QR_PRINT =
       "KOKONUT_LABEL_USE_QR_PRINT"; // bool (기본 false)
+
+  // ── 라벨 출력 카테고리 / 서브정보 지정 (매장 범위 키) ─────────────────────
+  //
+  // 값이 카테고리 POS 코드·옵션그룹 POS 코드라 **매장마다 의미가 다르다**. 기기
+  // 전역 키로 두면 다른 매장으로 로그인했을 때 이전 매장의 코드가 그대로 적용돼
+  // 엉뚱한 상품이 걸러진다. 실제 키는 `<접두사><매장ID>` 형태이고 매장 ID 는
+  // [getActiveStoreId] 가 정본이다.
+  static const String KEY_LABEL_CATEGORY_FILTER_ON_PREFIX =
+      "APPFIT_LABEL_CAT_FILTER_ON_"; // bool (기본 false)
+  static const String KEY_LABEL_CATEGORY_KEYS_PREFIX =
+      "APPFIT_LABEL_CAT_KEYS_"; // JSON array (정렬 저장)
+  static const String KEY_LABEL_SUBINFO_GROUPS_PREFIX =
+      "APPFIT_LABEL_SUBINFO_GROUPS_"; // JSON array (선택 순서 = 인쇄 순서)
 
   /// 장착한 라벨 용지 폭(mm). 현재 의미가 있는 기종은 BIXOLON G30 하나 —
   /// 한 대가 가이드 부품 교체만으로 40/58 을 겸용하는데 SDK 가 로드된 용지 폭을
@@ -768,11 +779,85 @@ class PreferenceService {
       _prefs.getBool(KEY_LABEL_USE_CALIBRATE) ?? false;
   bool getLabelUseQrPrint() => _prefs.getBool(KEY_LABEL_USE_QR_PRINT) ?? false;
 
-  /// 라벨 필터 모드 (0: 전체, 1: 와플만, 2: 와플제외)
-  int getLabelFilterMode() => _prefs.getInt(KEY_LABEL_FILTER_MODE) ?? 0;
-
   /// 장착한 라벨 용지 폭(mm). 기본 40 — [KEY_LABEL_PAPER_SIZE] 참조.
   int getLabelPaperSizeMm() => _prefs.getInt(KEY_LABEL_PAPER_SIZE) ?? 40;
+
+  // ── 라벨 출력 카테고리 / 서브정보 지정 ────────────────────────────────────
+  //
+  // 세 값 모두 매장 범위다. 매장이 확정되지 않았으면(로그인 전/세션 소실) 저장은
+  // **false 를 반환**하고 조회는 기본값으로 수렴한다 — 조용히 성공한 척하면
+  // 설정이 사라진 이유를 점주가 알 수 없다.
+  //
+  // SharedPreferences 는 변경 알림이 없다. 저장한 화면이
+  // `ref.invalidate(labelOutputPolicyProvider)` 를 호출하는 것이 계약이다.
+
+  String? _storeScopedKey(String prefix) {
+    final storeId = getActiveStoreId();
+    if (storeId == null || storeId.isEmpty) return null;
+    return '$prefix$storeId';
+  }
+
+  /// JSON 배열 문자열 → `List<String>`. 손상된 값은 빈 목록으로 흡수한다
+  /// (라벨 설정에서 빈 목록 = 전체 출력 = 라벨 소실 0).
+  List<String> _readJsonStringList(String? key) {
+    if (key == null) return const [];
+    final raw = _prefs.getString(key);
+    if (raw == null || raw.isEmpty) return const [];
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return const [];
+      return decoded
+          .map((e) => e?.toString() ?? '')
+          .where((e) => e.isNotEmpty)
+          .toList();
+    } catch (e) {
+      logger.w('[라벨설정] JSON 파싱 실패 — 빈 목록으로 처리 ($key)', error: e);
+      return const [];
+    }
+  }
+
+  Future<bool> _writeJsonStringList(String? key, List<String> values) async {
+    if (key == null) return false;
+    final cleaned = values.where((v) => v.trim().isNotEmpty).toList();
+    await _prefs.setString(key, jsonEncode(cleaned));
+    return true;
+  }
+
+  /// 라벨 출력 카테고리 지정 ON/OFF. OFF 면 모든 카테고리가 출력 대상.
+  bool getLabelCategoryFilterOn() {
+    final key = _storeScopedKey(KEY_LABEL_CATEGORY_FILTER_ON_PREFIX);
+    if (key == null) return false;
+    return _prefs.getBool(key) ?? false;
+  }
+
+  Future<bool> setLabelCategoryFilterOn(bool value) async {
+    final key = _storeScopedKey(KEY_LABEL_CATEGORY_FILTER_ON_PREFIX);
+    if (key == null) return false;
+    await _prefs.setBool(key, value);
+    return true;
+  }
+
+  /// 출력 대상 카테고리 키 집합. 순서에 의미가 없어 정렬 저장한다
+  /// (같은 선택이 항상 같은 문자열 → 로그/diff 안정).
+  Set<String> getLabelCategoryKeys() =>
+      _readJsonStringList(_storeScopedKey(KEY_LABEL_CATEGORY_KEYS_PREFIX))
+          .toSet();
+
+  Future<bool> setLabelCategoryKeys(Set<String> keys) => _writeJsonStringList(
+        _storeScopedKey(KEY_LABEL_CATEGORY_KEYS_PREFIX),
+        keys.toList()..sort(),
+      );
+
+  /// 라벨 서브정보로 인쇄할 옵션그룹 POS 코드. **순서가 곧 인쇄 순서**라
+  /// 정렬하지 않고 저장된 순서를 그대로 보존한다.
+  List<String> getLabelSubInfoGroups() =>
+      _readJsonStringList(_storeScopedKey(KEY_LABEL_SUBINFO_GROUPS_PREFIX));
+
+  Future<bool> setLabelSubInfoGroups(List<String> groupCodes) =>
+      _writeJsonStringList(
+        _storeScopedKey(KEY_LABEL_SUBINFO_GROUPS_PREFIX),
+        groupCodes,
+      );
 
   // 영업 상태 저장
   Future<void> setOrderOn(bool value) async {
@@ -893,10 +978,6 @@ class PreferenceService {
 
   Future<void> setLabelUseQrPrint(bool value) async {
     await _prefs.setBool(KEY_LABEL_USE_QR_PRINT, value);
-  }
-
-  Future<void> setLabelFilterMode(int value) async {
-    await _prefs.setInt(KEY_LABEL_FILTER_MODE, value);
   }
 
   Future<void> setLabelPaperSizeMm(int value) async {

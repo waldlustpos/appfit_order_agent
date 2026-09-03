@@ -1,5 +1,6 @@
 import 'package:appfit_order_agent/models/product_model.dart';
 import 'package:appfit_order_agent/models/shop_category_model.dart';
+import 'package:appfit_order_agent/models/shop_option_group_model.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 
 /// `GET /v0/shops/{shopCode}/categories/items` 응답 → 앱 모델 변환.
@@ -8,12 +9,15 @@ import 'package:appfit_order_agent/utils/logger.dart';
 /// (`product_grouping.dart` 와 같은 규약).
 ///
 /// 응답은 `카테고리 > 상품 > 옵션그룹 > 옵션` 4단 중첩이다. 앱의 상품 목록은
-/// 평면이라 두 가지 변환이 필요하다.
+/// 평면이라 세 가지 변환이 필요하다.
 ///  - 카테고리는 상품과 **분리해** 함께 반환한다. 소속 상품이 0개인 카테고리는
 ///    평탄화하면 흔적이 남지 않아 사라지기 때문이다(상품관리 좌측 목록 정본).
 ///  - 옵션은 **상품×옵션그룹마다 반복 등장**한다. 구 `/categories` 의 매장 전역
 ///    `options[]` 와 달리 같은 `optionId` 가 여러 번 나오므로, 앱의 인공 카테고리
 ///    '옵션' 버킷을 만들 때 반드시 중복을 접어야 한다.
+///  - 옵션그룹도 카테고리와 같은 이유로 **분리해** 반환한다. 옵션을 '옵션' 버킷으로
+///    접으면 그룹의 표시명이 유실되는데(옵션의 `categoryName` 은 버킷명 고정),
+///    라벨 서브정보 설정 화면이 그룹을 이름으로 보여주려면 그 이름이 필요하다.
 
 /// 옵션 전용 인공 카테고리명. 서버가 내려주는 카테고리가 아니라 앱이 만드는
 /// 버킷이라 `categories[]` 에는 없고 상품 쪽에만 존재한다.
@@ -45,15 +49,23 @@ ProductStatus productStatusFromAppFit(String appFitStatus) {
   }
 }
 
-/// 응답 본문(`response.data['data']`)을 상품/카테고리 목록으로 변환한다.
-({List<ProductModel> products, List<ShopCategoryModel> categories})
-    parseShopCatalog(Map<String, dynamic> data) {
+/// 응답 본문(`response.data['data']`)을 상품/카테고리/옵션그룹 목록으로 변환한다.
+({
+  List<ProductModel> products,
+  List<ShopCategoryModel> categories,
+  List<ShopOptionGroupModel> optionGroups,
+}) parseShopCatalog(Map<String, dynamic> data) {
   final products = <ProductModel>[];
   final categories = <ShopCategoryModel>[];
 
   // 삽입 순서를 보존하는 Map(LinkedHashMap) — 옵션 버킷의 표시 순서가 된다.
   final options = <String, _OptionAccumulator>{};
   var optionOccurrences = 0;
+
+  // 옵션그룹 dedupe. 같은 그룹이 상품마다 반복 등장하므로 POS 코드로 접고,
+  // **첫 등장 이름이 정본**이다(옵션 dedupe 와 같은 규약). 삽입 순서가 설정
+  // 화면의 표시 순서가 된다.
+  final optionGroups = <String, ShopOptionGroupModel>{};
 
   final rawCategories = (data['categories'] as List<dynamic>?) ?? const [];
   for (final rawCategory in rawCategories) {
@@ -86,6 +98,22 @@ ProductStatus productStatusFromAppFit(String appFitStatus) {
         if (rawGroup is! Map<String, dynamic>) continue;
         // 그룹의 POS 코드가 옵션의 categoryCode 가 된다(구 migration 조인 대체).
         final groupPosId = rawGroup['optionGroupPosId']?.toString() ?? '';
+        // 그룹 자체도 보존한다 — POS 코드가 있어야 주문 응답의
+        // optionGroupPosId 와 조인되므로 빈 코드는 스킵(고를 수 없는 후보).
+        if (groupPosId.isNotEmpty) {
+          optionGroups.putIfAbsent(
+            groupPosId,
+            () => ShopOptionGroupModel(
+              groupCode: groupPosId,
+              // 신규 응답의 그룹명 키는 `name`. 구 응답 호환으로
+              // `optionGroupName` 도 본다.
+              groupName: rawGroup['name']?.toString() ??
+                  rawGroup['optionGroupName']?.toString() ??
+                  '',
+              displayOrder: (rawGroup['displayOrder'] as num?)?.toInt() ?? 0,
+            ),
+          );
+        }
         final rawOptions = (rawGroup['options'] as List<dynamic>?) ?? const [];
         for (final rawOption in rawOptions) {
           if (rawOption is! Map<String, dynamic>) continue;
@@ -106,9 +134,14 @@ ProductStatus productStatusFromAppFit(String appFitStatus) {
   _logDivergence(options.values);
   logger.i('[카탈로그] 파싱 완료: 카테고리 ${categories.length}개 / '
       '상품 ${products.length - options.length}건 / '
-      '옵션 원본 $optionOccurrences건 → 고유 ${options.length}건');
+      '옵션 원본 $optionOccurrences건 → 고유 ${options.length}건 / '
+      '옵션그룹 ${optionGroups.length}개');
 
-  return (products: products, categories: categories);
+  return (
+    products: products,
+    categories: categories,
+    optionGroups: optionGroups.values.toList(),
+  );
 }
 
 /// 상품 1건. 식별자가 없으면 상태 변경도 매칭도 불가능하므로 해당 건만 버린다.

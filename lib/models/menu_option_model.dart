@@ -6,8 +6,8 @@ class MenuOptionModel {
 
   /// 옵션 그룹(= 옵션 카테고리) 정보. **v1 주문상세 응답에만 존재**하므로 nullable.
   ///
-  /// [optionGroupPosId] 가 라벨 sub-info 분류(원두/온도/사이즈)의 정본이다
-  /// (`OrderCategoryCodes` 와 같은 네임스페이스: TKP001/TKP004/TKP012 …).
+  /// [optionGroupPosId] 가 라벨 sub-info 분류의 정본이다 — 매장이 설정 화면에서
+  /// 고른 옵션그룹 코드(`LabelOutputPolicy.subInfoGroupCodes`)와 같은 네임스페이스.
   /// 과거에는 상품마스터의 categoryCode 를 조인해 얻었으나, 서버가 상품 경로로
   /// 옵션 카테고리를 더 이상 내려주지 않아 주문 응답 기반으로 전환했다.
   final String? optionGroupId;

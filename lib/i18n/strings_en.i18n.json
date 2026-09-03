@@ -193,14 +193,18 @@
             "confirm_title": "Enable Order Acceptance",
             "confirm_content": "Kitchen Display (KDS) will automatically accept incoming orders directly.\nBe sure NOT to run another main order-receiving program in parallel.\nEnable this option?"
         },
-        "label_filter": {
-            "title": "Label Print Filter",
-            "desc_all": "Print labels for all order items.",
-            "desc_waffle_only": "Print labels for dessert (waffle) items only.",
-            "desc_waffle_exclude": "Print labels for all items except dessert (waffle).",
-            "btn_all": "All Orders",
-            "btn_waffle_only": "Waffle Only",
-            "btn_waffle_exclude": "Exclude Waffle"
+        "label_category_filter": {
+            "title": "Label print categories",
+            "desc_off": "Prints labels for every category. Turn on to print only selected categories.",
+            "desc_none": "No category selected — every category is printed.",
+            "desc_selected": "Printing {count} of {total} categories — {names}",
+            "btn_configure": "Select categories"
+        },
+        "label_subinfo": {
+            "title": "Label sub-info",
+            "desc_none": "Leaves the sub-info area on the label empty. Pick option groups to highlight things like temperature or size.",
+            "desc_selected": "Shown in the order you picked — {names}",
+            "btn_configure": "Select option groups"
         },
         "label_paper": {
             "title": "Label Paper Size",
@@ -655,5 +659,25 @@
         "test_port": "Port",
         "test_board": "Baud",
         "test_ok": "Printer is working"
+    },
+    "label_category_select": {
+        "title": "Label print categories",
+        "guide": "Only items in the selected categories are printed as labels. Reprinting from the order detail always prints the whole order, regardless of this setting.",
+        "summary": "{count} of {total} selected",
+        "empty_means_all": "No category is selected, so every category is printed. To stop printing labels entirely, turn off 'Use label printer' in settings.",
+        "select_all": "Select all",
+        "clear_all": "Clear all",
+        "empty_catalog": "Could not load product categories. Every category is printed in this state.",
+        "save_failed": "Could not save — store information is unavailable."
+    },
+    "label_subinfo_select": {
+        "title": "Label sub-info",
+        "guide": "Pick up to {max} option groups to show prominently at the top of the label. They print left to right in the order you pick, and are removed from the option list at the bottom of the label.",
+        "max_notice": "You can pick up to {max}.",
+        "preview": "Preview",
+        "none": "Not set",
+        "clear_all": "Clear all",
+        "empty_catalog": "Could not load option groups.",
+        "save_failed": "Could not save — store information is unavailable."
     }
 }

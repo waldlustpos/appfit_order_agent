@@ -39,9 +39,7 @@ void main() {
         menuName: '아이스 바닐라 라떼 (레귤러 사이즈)',
         options: const ['옵션A', '옵션B', '옵션C', '옵션D', '옵션E'],
         shopOrderNo: '0001-1',
-        temperature: 'ICE',
-        sizeOption: 'R',
-        beanType: '다크',
+        subInfo: const ['다크', 'ICE', 'R'],
         memo: '얼음 적게 주세요 감사합니다 오늘도 좋은 하루 되세요',
       );
 
@@ -69,7 +67,7 @@ void main() {
         spec: spec,
         menuName: '',
         options: const [],
-        temperature: 'ICE',
+        subInfo: const ['ICE'],
       );
       expect(
         measure(with_, spec) - measure(without, spec),

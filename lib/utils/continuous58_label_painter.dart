@@ -38,9 +38,8 @@ class Continuous58LabelPainter extends CustomPainter with LabelDrawOps {
   /// (40mm 의 1줄 포맷과 다르다).
   final String? headerDateText;
 
-  final String? beanType;
-  final String? temperature;
-  final String? sizeOption;
+  /// 서브정보 문자열들 — **목록 순서 그대로** 검정 바 안에 이어 붙인다.
+  final List<String> subInfo;
   final String? memo;
   final String? qrData;
   final ui.Image? logoImage;
@@ -54,9 +53,7 @@ class Continuous58LabelPainter extends CustomPainter with LabelDrawOps {
     required this.options,
     this.shopOrderNo,
     this.headerDateText,
-    this.beanType,
-    this.temperature,
-    this.sizeOption,
+    this.subInfo = const [],
     this.memo,
     this.qrData,
     this.logoImage,
@@ -283,13 +280,13 @@ class Continuous58LabelPainter extends CustomPainter with LabelDrawOps {
   /// [LabelDrawOps.drawText] 의 `backgroundColor` 는 **텍스트 폭에 맞춘 라운드
   /// 박스**라 목업(폭 전체·직각)과 다르다 — 여기서 직접 그린다.
   ///
-  /// 조합 순서는 목업대로 **온도 / 사이즈 / 원두**. 40mm 은 원두/온도/사이즈 순이지만
-  /// 별개 레이아웃이라 맞추지 않는다.
+  /// 조합 순서는 [subInfo] 목록 순서 그대로다(설정에서 고른 옵션그룹 순서).
+  ///
+  /// **`maxLines: 1` 검정 바라 넘치면 조용히 잘린다** — 서브정보 개수를
+  /// `kLabelSubInfoMaxCount`(3) 로 제한하는 실제 근거가 여기다.
   double _drawSubInfoBar(
       Canvas canvas, double left, double contentWidth, double y) {
-    final text = [temperature, sizeOption, beanType]
-        .where((s) => s != null && s.isNotEmpty)
-        .join(' / ');
+    final text = subInfo.where((s) => s.isNotEmpty).join(' / ');
     if (text.isEmpty) return y;
 
     canvas.drawRect(
@@ -456,9 +453,7 @@ class Continuous58LabelPainter extends CustomPainter with LabelDrawOps {
     String? shopOrderNo,
     DateTime? orderedAt,
     String? legacyOrderTime,
-    String? beanType,
-    String? temperature,
-    String? sizeOption,
+    List<String> subInfo = const [],
     String? memo,
     String? qrData,
     int? orderIndex,
@@ -477,9 +472,7 @@ class Continuous58LabelPainter extends CustomPainter with LabelDrawOps {
       options: options,
       shopOrderNo: shopOrderNo,
       headerDateText: formatHeaderDate(orderedAt, legacyOrderTime),
-      beanType: beanType,
-      temperature: temperature,
-      sizeOption: sizeOption,
+      subInfo: subInfo,
       memo: memo,
       qrData: qrData,
       logoImage: logo,

@@ -193,14 +193,18 @@
             "confirm_title": "주문 접수 활성화",
             "confirm_content": "주방모니터(KDS)에서 직접 주문 자동접수를 수행합니다.\n반드시 다른 메인주문 접수 프로그램과 중복 사용 되지 않도록 확인해주세요.\n활성화 하시겠습니까?"
         },
-        "label_filter": {
-            "title": "라벨 출력 필터",
-            "desc_all": "모든 주문 상품을 라벨 출력합니다.",
-            "desc_waffle_only": "디저트(와플) 상품만 라벨 출력합니다.",
-            "desc_waffle_exclude": "디저트(와플) 상품을 제외하고 라벨 출력합니다.",
-            "btn_all": "모든 주문 출력",
-            "btn_waffle_only": "와플상품만 출력",
-            "btn_waffle_exclude": "와플상품 제외"
+        "label_category_filter": {
+            "title": "라벨 출력 카테고리 지정",
+            "desc_off": "모든 카테고리의 상품을 라벨 출력합니다. 특정 카테고리만 출력하려면 켜세요.",
+            "desc_none": "지정된 카테고리가 없어 모든 카테고리를 출력합니다.",
+            "desc_selected": "{total}개 중 {count}개 카테고리만 출력합니다 — {names}",
+            "btn_configure": "카테고리 선택"
+        },
+        "label_subinfo": {
+            "title": "라벨 서브정보 표시",
+            "desc_none": "라벨 위쪽 서브정보 영역을 비웁니다. 온도·사이즈처럼 크게 보여야 하는 옵션이 있으면 옵션 그룹을 지정하세요.",
+            "desc_selected": "고른 순서대로 표시합니다 — {names}",
+            "btn_configure": "옵션 그룹 선택"
         },
         "label_paper": {
             "title": "라벨 용지 사이즈",
@@ -646,5 +650,25 @@
         "test_port": "포트",
         "test_board": "보드",
         "test_ok": "이 영수증이 보이면 정상"
+    },
+    "label_category_select": {
+        "title": "라벨 출력 카테고리",
+        "guide": "선택한 카테고리의 상품만 라벨로 출력합니다. 주문 상세에서 라벨을 다시 뽑을 때(재출력)는 이 설정과 무관하게 주문 전체가 출력됩니다.",
+        "summary": "전체 {total}개 · 선택 {count}개",
+        "empty_means_all": "선택된 카테고리가 없어 모든 카테고리를 출력합니다. 라벨을 아예 내지 않으려면 설정에서 '라벨 프린터 사용'을 꺼주세요.",
+        "select_all": "전체 선택",
+        "clear_all": "전체 해제",
+        "empty_catalog": "상품 카테고리를 불러오지 못했습니다. 이 상태에서는 모든 카테고리가 출력됩니다.",
+        "save_failed": "매장 정보를 확인할 수 없어 저장하지 못했습니다."
+    },
+    "label_subinfo_select": {
+        "title": "라벨 서브정보",
+        "guide": "라벨 위쪽에 크게 표시할 옵션 그룹을 최대 {max}개까지 고릅니다. 고른 순서대로 왼쪽부터 인쇄되고, 여기서 지정한 옵션은 라벨 아래쪽 옵션 목록에서 빠집니다.",
+        "max_notice": "최대 {max}개까지 지정할 수 있습니다.",
+        "preview": "미리보기",
+        "none": "지정 안 함",
+        "clear_all": "전체 해제",
+        "empty_catalog": "옵션 그룹을 불러오지 못했습니다.",
+        "save_failed": "매장 정보를 확인할 수 없어 저장하지 못했습니다."
     }
 }

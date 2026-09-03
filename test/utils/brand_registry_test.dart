@@ -48,21 +48,6 @@ void main() {
   });
 
   group('capability 매핑 (사운드그래프 크로스-브랜드 누수 차단의 근거)', () {
-    test('라벨 카테고리 필터는 TPCP 만', () {
-      expect(
-          BrandRegistry.byKey(BrandKey.tpcp)
-              .has(BrandFeature.labelCategoryFilter),
-          isTrue);
-      expect(
-          BrandRegistry.byKey(BrandKey.mammoth)
-              .has(BrandFeature.labelCategoryFilter),
-          isFalse);
-      expect(
-          BrandRegistry.byKey(BrandKey.mata)
-              .has(BrandFeature.labelCategoryFilter),
-          isFalse);
-    });
-
     test('사운드그래프 전송은 매머드 만 (TPCP/MATA 는 false → 누수 차단)', () {
       expect(
           BrandRegistry.byKey(BrandKey.mammoth).has(BrandFeature.soundGraphSend),

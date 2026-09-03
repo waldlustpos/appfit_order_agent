@@ -4,9 +4,9 @@
 // LabelPainter 에 라벨 1장씩 전달한다.
 //
 // fromOrder() 가 단일 진입점:
-// - 메뉴 카테고리 필터링 + 옵션 카테고리 분류(원두/온도/사이즈)는 브랜드별
-//   LabelFilterStrategy 에 위임 (TPCP=TpcpLabelFilterStrategy, 그 외=NoOp).
-//   products 카탈로그 필요.
+// - 메뉴 카테고리 필터링 + 서브정보 옵션 추출은 매장이 설정 화면에서 고른
+//   LabelOutputPolicy 가 결정한다. products 카탈로그 필요(주문 응답에 카테고리가
+//   없어 조인해야 한다).
 // - 메뉴 qty 만큼 라벨 펼치기
 // - QR 페이로드 생성 — 라벨마다 다름. QrPayloadStrategy 에 위임
 //   (고정 DisplayNumIndexQrPayloadStrategy = "{DisplayNum}-{CupIdx}").
@@ -17,7 +17,7 @@ import 'package:intl/intl.dart';
 import 'package:appfit_order_agent/models/menu_option_model.dart';
 import 'package:appfit_order_agent/models/order_model.dart';
 import 'package:appfit_order_agent/models/product_model.dart';
-import 'package:appfit_order_agent/services/label_printer/label_filter_strategy.dart';
+import 'package:appfit_order_agent/services/label_printer/label_output_policy.dart';
 import 'package:appfit_order_agent/services/label_printer/qr_payload_strategy.dart';
 import 'package:appfit_order_agent/utils/common_util.dart';
 
@@ -124,9 +124,7 @@ class LabelPrintData {
     required this.orderTotal,
     this.shopOrderNo,
     this.orderTime,
-    this.beanType,
-    this.temperature,
-    this.sizeOption,
+    this.subInfo = const [],
     this.memo,
     this.qrData,
     this.orderInfo,
@@ -142,10 +140,10 @@ class LabelPrintData {
   /// "MM/dd\nHH:mm:ss" 포맷 권장.
   final String? orderTime;
 
-  /// sub-info 영역 (원두/온도/사이즈). kokonut 은 분류 룰이 없어 항상 null.
-  final String? beanType;
-  final String? temperature;
-  final String? sizeOption;
+  /// sub-info 영역에 인쇄할 문자열들 — **설정에서 고른 옵션그룹 순서 그대로**이고
+  /// 세 painter 모두 이 목록 순서대로 좌→우로 그린다. 최대 [kLabelSubInfoMaxCount].
+  /// 지정한 그룹이 없거나 주문에 해당 옵션이 없으면 빈 목록.
+  final List<String> subInfo;
 
   final String? memo;
 
@@ -166,32 +164,36 @@ class LabelPrintData {
 
   /// appfit [OrderModel] 을 라벨 묶음(메뉴 1개당 qty 장 반복) 으로 변환.
   ///
-  /// [products]: 옵션 카테고리 분류용 카탈로그.
-  /// [filterMode]: 0=전체, 1=와플만, 2=와플제외 (필터를 쓰는 브랜드에서만 의미).
-  /// [strategy]: 브랜드별 메뉴 필터/옵션 분류 동작. 기본 [NoOpLabelFilterStrategy]
-  ///             는 필터 없이 단순 평면화 (기존 kokonut 등 동작 유지).
+  /// [products]: 카테고리/옵션그룹 조인용 카탈로그. 주문 응답에는 카테고리가 없다.
+  /// [policy]: 매장이 설정 화면에서 고른 출력 카테고리 + 서브정보 옵션그룹.
+  ///           기본 [LabelOutputPolicy.disabled] 는 전량 인쇄 + 서브정보 없음.
   /// [qrStrategy]: QR 페이로드 포맷. 기본 [DisplayNumIndexQrPayloadStrategy]
   ///              는 "{DisplayNum}-{CupIdx}".
   /// [isReprint]: true 면 카테고리 필터링 우회 (재출력은 전체 라벨 인쇄).
   static List<LabelPrintData> fromOrder(
     OrderModel order, {
     List<ProductModel> products = const [],
-    int filterMode = 0,
-    LabelFilterStrategy strategy = const NoOpLabelFilterStrategy(),
+    LabelOutputPolicy policy = LabelOutputPolicy.disabled,
     QrPayloadStrategy qrStrategy = const DisplayNumIndexQrPayloadStrategy(),
     bool isReprint = false,
   }) {
-    // 1) 메뉴 카테고리 필터링 — 브랜드 전략에 위임 (기본 NoOp = 전체).
-    final menusToPrint = strategy.selectMenus(
-      order,
-      products: products,
-      filterMode: filterMode,
-      isReprint: isReprint,
-    );
+    // 카탈로그 조회 인덱스 — 주문당 1회만 만들어 메뉴/옵션 조인에 재사용.
+    final index = LabelProductIndex.build(products);
+
+    // 1) 메뉴 카테고리 필터링. 재출력은 필터를 우회해 전체를 인쇄한다 — 점주가
+    //    라벨을 다시 뽑는 시점의 의도는 "그 주문 전부"이기 때문.
+    final menusToPrint = isReprint
+        ? order.menus
+        : order.menus.where((m) => policy.shouldPrintMenu(m, index)).toList();
 
     if (menusToPrint.isEmpty) return const [];
 
-    // 2) 전체 라벨 수는 필터 무관 전체 메뉴 수량 합산 (기존 동작 보존)
+    // 2) 전체 라벨 수는 **필터 무관 전체 메뉴 수량 합산**이다.
+    //    orderIndex/orderTotal 은 인쇄 매수 카운터가 아니라 **컵 식별자**이고,
+    //    QR 페이로드({DisplayNum}-{CupIdx})와 QR ON 시 주문번호 접미사의 정본이다.
+    //    필터로 일부가 빠지면 라벨에 "2/5", "4/5" 처럼 건너뛴 번호가 찍히는 것이
+    //    정상 동작 — 남은 것만으로 다시 채번하면 같은 컵이 설정에 따라 다른 번호를
+    //    갖게 돼 주문↔컵 대조가 깨진다.
     final totalLabels = order.menus.fold<int>(0, (sum, m) => sum + m.qty);
     if (totalLabels == 0) return const [];
 
@@ -213,17 +215,14 @@ class LabelPrintData {
     final result = <LabelPrintData>[];
 
     for (final menu in menusToPrint) {
-      // 옵션 카테고리 분류 — 브랜드 전략에 위임 (기본 NoOp = 분류 없음).
-      final cats = strategy.classifyOptions(menu, products: products);
-      final String? beanType = cats.beanType;
-      final String? temperature = cats.temperature;
-      final String? sizeOption = cats.sizeOption;
+      // 서브정보 추출 — 매장이 고른 옵션그룹만, 고른 순서대로.
+      final sub = policy.buildSubInfo(menu, index);
 
       // 서브정보로 표시되는 옵션은 하단 옵션 리스트에서 제외.
-      // 이름 비교가 아니라 분류에 실제 소비된 옵션 집합으로 걸러야 동명 옵션이
+      // 이름 비교가 아니라 실제 소비된 옵션 집합으로 걸러야 동명 옵션이
       // 함께 빠지는 오제외가 생기지 않는다.
       final remainingOptions =
-          menu.options.where((opt) => !cats.classified.contains(opt));
+          menu.options.where((opt) => !sub.consumed.contains(opt));
 
       // 표시용 정규화(개행→공백)는 여기서만. QR/menuInfo 는 아래에서 원문을
       // 보존하므로 서버값 대조가 계속 가능하다.
@@ -255,9 +254,7 @@ class LabelPrintData {
           options: flatOptions,
           shopOrderNo: shopOrderNo.isNotEmpty ? shopOrderNo : null,
           orderTime: timeStr,
-          beanType: beanType,
-          temperature: temperature,
-          sizeOption: sizeOption,
+          subInfo: sub.values,
           memo: order.note,
           orderIndex: labelIndex,
           orderTotal: totalLabels,

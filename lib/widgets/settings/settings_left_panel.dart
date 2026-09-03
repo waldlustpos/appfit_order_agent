@@ -16,6 +16,7 @@ import 'package:appfit_order_agent/widgets/custom_switch.dart';
 import 'package:appfit_order_agent/i18n/strings.g.dart';
 import 'package:appfit_order_agent/widgets/settings/settings_section_card.dart';
 import 'package:appfit_order_agent/widgets/settings/settings_item_widget.dart';
+import 'package:appfit_order_agent/widgets/settings/settings_label_output_items.dart';
 import 'package:appfit_order_agent/widgets/settings/settings_mode_switch.dart';
 import 'package:appfit_order_agent/widgets/settings/builtin_printer_sub_settings.dart';
 import 'package:appfit_order_agent/widgets/settings/external_printer_sub_settings.dart';
@@ -43,7 +44,6 @@ class SettingsLeftPanel extends ConsumerStatefulWidget {
     required this.externalPrintReceipt,
     required this.builtinPrintCall,
     required this.externalPrintCall,
-    required this.labelFilterMode,
     required this.labelPaperSizeMm,
     required this.isShowOrderTypeBadge,
     required this.isOrderSourceColor,
@@ -65,7 +65,6 @@ class SettingsLeftPanel extends ConsumerStatefulWidget {
     required this.onExternalPrintReceiptChanged,
     required this.onBuiltinPrintCallChanged,
     required this.onExternalPrintCallChanged,
-    required this.onLabelFilterModeChanged,
     required this.onLabelPaperSizeChanged,
     required this.onShowOrderTypeBadgeChanged,
     required this.onOrderSourceColorChanged,
@@ -93,7 +92,6 @@ class SettingsLeftPanel extends ConsumerStatefulWidget {
   final bool externalPrintReceipt;
   final bool builtinPrintCall;
   final bool externalPrintCall;
-  final int labelFilterMode;
 
   /// 장착한 라벨 용지 폭(mm). G30 전용 — 40 | 58.
   final int labelPaperSizeMm;
@@ -118,7 +116,6 @@ class SettingsLeftPanel extends ConsumerStatefulWidget {
   final void Function(bool) onExternalPrintReceiptChanged;
   final void Function(bool) onBuiltinPrintCallChanged;
   final void Function(bool) onExternalPrintCallChanged;
-  final void Function(int) onLabelFilterModeChanged;
   final void Function(int) onLabelPaperSizeChanged;
   final void Function(bool) onShowOrderTypeBadgeChanged;
   final void Function(bool) onOrderSourceColorChanged;
@@ -209,36 +206,6 @@ class _SettingsLeftPanelState extends ConsumerState<SettingsLeftPanel> {
     );
   }
 
-  // ── 라벨 필터 버튼 ────────────────────────────────────────────────────────
-
-  Widget _buildFilterModeButton(String label, int mode) {
-    final isSelected = widget.labelFilterMode == mode;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () {
-          widget.onLabelFilterModeChanged(mode);
-          logToFile(tag: LogTag.UI_ACTION, message: '라벨 출력 필터 모드 변경 -> $mode');
-        },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.s12),
-          decoration: BoxDecoration(
-            color: isSelected ? AppStyles.kMainColor : AppStyles.gray2,
-            borderRadius: AppRadius.bSm,
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            label,
-            style: AppTextStyles.bodySm.copyWith(
-              color: isSelected ? Colors.white : AppStyles.gray9,
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   // ── 화면 회전 처리 ────────────────────────────────────────────────────────
 
   Future<void> _handleRotationChange(bool value) async {
@@ -278,16 +245,13 @@ class _SettingsLeftPanelState extends ConsumerState<SettingsLeftPanel> {
     // currentBrandProvider(일반 Provider)는 세션 첫 값을 캐시해 브랜드 전환 시
     // stale 된다. 매장 ID 를 즉석에서 읽는 currentBrandMeta() 로 현재 브랜드 해석.
     final brand = currentBrandMeta();
-    final canLabelFilter =
-        brand?.has(BrandFeature.labelCategoryFilter) ?? false;
     final canSoundGraph = brand?.has(BrandFeature.soundGraphSend) ?? false;
     // 화면 상하 반전은 OS 회전 설정이 없는 특정 기기 구성을 쓰는 브랜드(TPCP)에만 노출.
     final canRotate = brand?.has(BrandFeature.displayRotate) ?? false;
-    // 라벨프린터 하위 아이템(필터/QR) 가시성. 라벨프린터 + 하위 아이템은
-    // divider 없이 한 그룹으로 묶이므로(기존 디자인), 하위가 하나라도 있으면
-    // 라벨프린터 아이템의 하단 divider 를 끈다.
-    final showFilterItem = widget.isUseLabelPrinter && canLabelFilter;
-    final showQrItem = widget.isUseLabelPrinter;
+    // 라벨프린터 하위 아이템(QR/카테고리/서브정보) 가시성. 라벨프린터 + 하위
+    // 아이템은 divider 없이 한 그룹으로 묶이므로(기존 디자인), 하위가 하나라도
+    // 있으면 라벨프린터 아이템의 하단 divider 를 끈다.
+    final showLabelSubItems = widget.isUseLabelPrinter;
 
     return Scrollbar(
       controller: _scrollController,
@@ -620,32 +584,10 @@ class _SettingsLeftPanelState extends ConsumerState<SettingsLeftPanel> {
                     labelPaperSizeMm: widget.labelPaperSizeMm,
                     onLabelPaperSizeChanged: widget.onLabelPaperSizeChanged,
                   ),
-                  showDivider: !(showFilterItem || showQrItem),
+                  showDivider: !showLabelSubItems,
                 ),
-                if (showFilterItem)
-                  SettingsItemWidget(
-                    title: t.settings.label_filter.title,
-                    description: switch (widget.labelFilterMode) {
-                      0 => t.settings.label_filter.desc_all,
-                      1 => t.settings.label_filter.desc_waffle_only,
-                      _ => t.settings.label_filter.desc_waffle_exclude,
-                    },
-                    isVertical: true,
-                    showDivider: false,
-                    trailing: Row(
-                      children: [
-                        _buildFilterModeButton(
-                            t.settings.label_filter.btn_all, 0),
-                        const SizedBox(width: AppSpacing.s8),
-                        _buildFilterModeButton(
-                            t.settings.label_filter.btn_waffle_only, 1),
-                        const SizedBox(width: AppSpacing.s8),
-                        _buildFilterModeButton(
-                            t.settings.label_filter.btn_waffle_exclude, 2),
-                      ],
-                    ),
-                  ),
-                if (showQrItem)
+                if (showLabelSubItems) const SettingsLabelOutputItems(),
+                if (showLabelSubItems)
                   SettingsItemWidget(
                     title: t.settings.label_qr.title,
                     description: t.settings.label_qr.desc,

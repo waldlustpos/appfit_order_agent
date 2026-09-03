@@ -49,6 +49,8 @@ class TranslationsJa extends Translations with BaseTranslations<AppLocale, Trans
 	@override late final _Translations$membership$ja membership = _Translations$membership$ja._(_root);
 	@override late final _Translations$kds$ja kds = _Translations$kds$ja._(_root);
 	@override late final _Translations$receipt$ja receipt = _Translations$receipt$ja._(_root);
+	@override late final _Translations$label_category_select$ja label_category_select = _Translations$label_category_select$ja._(_root);
+	@override late final _Translations$label_subinfo_select$ja label_subinfo_select = _Translations$label_subinfo_select$ja._(_root);
 }
 
 // Path: app
@@ -154,7 +156,8 @@ class _Translations$settings$ja extends Translations$settings$ko {
 	@override late final _Translations$settings$order_source_color$ja order_source_color = _Translations$settings$order_source_color$ja._(_root);
 	@override late final _Translations$settings$kds_ignore_status$ja kds_ignore_status = _Translations$settings$kds_ignore_status$ja._(_root);
 	@override late final _Translations$settings$kds_accept_orders$ja kds_accept_orders = _Translations$settings$kds_accept_orders$ja._(_root);
-	@override late final _Translations$settings$label_filter$ja label_filter = _Translations$settings$label_filter$ja._(_root);
+	@override late final _Translations$settings$label_category_filter$ja label_category_filter = _Translations$settings$label_category_filter$ja._(_root);
+	@override late final _Translations$settings$label_subinfo$ja label_subinfo = _Translations$settings$label_subinfo$ja._(_root);
 	@override late final _Translations$settings$label_paper$ja label_paper = _Translations$settings$label_paper$ja._(_root);
 	@override late final _Translations$settings$developer_options$ja developer_options = _Translations$settings$developer_options$ja._(_root);
 	@override late final _Translations$settings$kiosk$ja kiosk = _Translations$settings$kiosk$ja._(_root);
@@ -464,6 +467,40 @@ class _Translations$receipt$ja extends Translations$receipt$ko {
 	@override String get test_port => 'ポート';
 	@override String get test_board => 'ボーレート';
 	@override String get test_ok => '印刷正常';
+}
+
+// Path: label_category_select
+class _Translations$label_category_select$ja extends Translations$label_category_select$ko {
+	_Translations$label_category_select$ja._(TranslationsJa root) : this._root = root, super.internal(root);
+
+	final TranslationsJa _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'ラベル出力カテゴリ';
+	@override String get guide => '選択したカテゴリの商品だけをラベル出力します。注文詳細からラベルを再発行する場合は、この設定に関係なく注文全体が出力されます。';
+	@override String summary({required Object total, required Object count}) => '全${total}件 · 選択${count}件';
+	@override String get empty_means_all => '選択されたカテゴリがないため、すべてのカテゴリを出力します。ラベルを出力しない場合は設定の「ラベルプリンター使用」をオフにしてください。';
+	@override String get select_all => 'すべて選択';
+	@override String get clear_all => 'すべて解除';
+	@override String get empty_catalog => '商品カテゴリを読み込めませんでした。この状態ではすべてのカテゴリが出力されます。';
+	@override String get save_failed => '店舗情報を確認できないため保存できませんでした。';
+}
+
+// Path: label_subinfo_select
+class _Translations$label_subinfo_select$ja extends Translations$label_subinfo_select$ko {
+	_Translations$label_subinfo_select$ja._(TranslationsJa root) : this._root = root, super.internal(root);
+
+	final TranslationsJa _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'ラベルサブ情報';
+	@override String guide({required Object max}) => 'ラベル上部に大きく表示するオプショングループを最大${max}件まで選びます。選んだ順に左から印刷され、ここで指定したオプションはラベル下部のオプション一覧から除外されます。';
+	@override String max_notice({required Object max}) => '最大${max}件まで指定できます。';
+	@override String get preview => 'プレビュー';
+	@override String get none => '指定なし';
+	@override String get clear_all => 'すべて解除';
+	@override String get empty_catalog => 'オプショングループを読み込めませんでした。';
+	@override String get save_failed => '店舗情報を確認できないため保存できませんでした。';
 }
 
 // Path: common.api_error
@@ -786,20 +823,31 @@ class _Translations$settings$kds_accept_orders$ja extends Translations$settings$
 	@override String get confirm_content => 'キッチンモニター(KDS)で注文の自動受付を直接実行します。\n他のメイン注文受付プログラムと併用しないよう必ずご確認ください。\n有効にしますか?';
 }
 
-// Path: settings.label_filter
-class _Translations$settings$label_filter$ja extends Translations$settings$label_filter$ko {
-	_Translations$settings$label_filter$ja._(TranslationsJa root) : this._root = root, super.internal(root);
+// Path: settings.label_category_filter
+class _Translations$settings$label_category_filter$ja extends Translations$settings$label_category_filter$ko {
+	_Translations$settings$label_category_filter$ja._(TranslationsJa root) : this._root = root, super.internal(root);
 
 	final TranslationsJa _root; // ignore: unused_field
 
 	// Translations
-	@override String get title => 'ラベル印刷フィルター';
-	@override String get desc_all => '全注文商品のラベルを印刷します。';
-	@override String get desc_waffle_only => 'デザート(ワッフル)商品のみラベルを印刷します。';
-	@override String get desc_waffle_exclude => 'デザート(ワッフル)商品を除いてラベルを印刷します。';
-	@override String get btn_all => '全注文印刷';
-	@override String get btn_waffle_only => 'ワッフルのみ';
-	@override String get btn_waffle_exclude => 'ワッフル除外';
+	@override String get title => 'ラベル出力カテゴリ指定';
+	@override String get desc_off => 'すべてのカテゴリの商品をラベル出力します。特定のカテゴリだけ出力する場合はオンにしてください。';
+	@override String get desc_none => '指定されたカテゴリがないため、すべてのカテゴリを出力します。';
+	@override String desc_selected({required Object total, required Object count, required Object names}) => '${total}件中${count}件のカテゴリのみ出力します — ${names}';
+	@override String get btn_configure => 'カテゴリを選択';
+}
+
+// Path: settings.label_subinfo
+class _Translations$settings$label_subinfo$ja extends Translations$settings$label_subinfo$ko {
+	_Translations$settings$label_subinfo$ja._(TranslationsJa root) : this._root = root, super.internal(root);
+
+	final TranslationsJa _root; // ignore: unused_field
+
+	// Translations
+	@override String get title => 'ラベルサブ情報の表示';
+	@override String get desc_none => 'ラベル上部のサブ情報欄を空にします。温度・サイズなど大きく表示したいオプションがあればオプショングループを指定してください。';
+	@override String desc_selected({required Object names}) => '選んだ順に表示します — ${names}';
+	@override String get btn_configure => 'オプショングループを選択';
 }
 
 // Path: settings.label_paper

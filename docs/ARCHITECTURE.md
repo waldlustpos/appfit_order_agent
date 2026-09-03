@@ -279,10 +279,11 @@ WebSocket 푸시 / 폴링 / 자정 새로고침으로 주문 상태가 빈번히
 - `BrandRegistry.resolve(id)` → 미매칭이면 **fallback=tokyoplatz** (라벨/영수증 로고는 항상 필요하므로 자산 경로 전용).
 - `currentBrandProvider`(`lib/providers/brand_provider.dart`)는 무상태로 매번 prefs를 읽어 `BrandMeta?`를 반환 → 로그아웃/서버전환 시 outdated 문제 없음.
 
-**Layer 2 — Capability 게이팅**: `enum BrandFeature`(`labelCategoryFilter`, `soundGraphSend`, `japanEnvironment`, `sunmiAppStoreUpdate`)로 UI show/hide·로직 enable/disable을 `brand.has(feature)`로 일관 처리. 산재된 `isTpcpStore`/`isMammothStore` 분기를 대체합니다. `sunmiAppStoreUpdate`(현재 매머드 — `MMTH`/`MHST` 프리픽스 둘 다)는 Sunmi 기기에서 앱내 자동 OTA 체크를 끄고 Sunmi App Store 채널로 업데이트를 유도합니다.
+**Layer 2 — Capability 게이팅**: `enum BrandFeature`(`soundGraphSend`, `japanEnvironment`, `sunmiAppStoreUpdate`, `displayRotate`)로 UI show/hide·로직 enable/disable을 `brand.has(feature)`로 일관 처리. 산재된 `isTpcpStore`/`isMammothStore` 분기를 대체합니다. `sunmiAppStoreUpdate`(현재 매머드 — `MMTH`/`MHST` 프리픽스 둘 다)는 Sunmi 기기에서 앱내 자동 OTA 체크를 끄고 Sunmi App Store 채널로 업데이트를 유도합니다.
 
 **Layer 3 — 동작 seam**: 게이팅이 아니라 **동작이 갈리는** 소수 지점만 얇은 인터페이스로 분리(비대상 브랜드는 NoOp).
-- 파이프라인 **변환** → `LabelFilterStrategy`(`lib/services/label_printer/label_filter_strategy.dart`). `labelFilterStrategyProvider`가 capability로 `TpcpLabelFilterStrategy`/`NoOpLabelFilterStrategy` 선택. `LabelPrintData.fromOrder(strategy: ...)`가 메뉴 필터/옵션 분류를 위임.
+- 파이프라인 **변환** → `QrPayloadStrategy`(`lib/services/label_printer/qr_payload_strategy.dart`). `qrPayloadStrategyProvider`가 브랜드별 라벨 QR 페이로드 포맷을 고른다.
+  - 라벨의 **출력 카테고리 필터 + 서브정보 지정**은 2026-09 에 브랜드 seam 에서 빠졌다. TPCP 전용이던 `LabelFilterStrategy`/`BrandFeature.labelCategoryFilter` 가 매장이 설정 화면에서 고르는 `LabelOutputPolicy` 로 대체됐다 — 상세는 [docs/PRINTER_FLOW.md](PRINTER_FLOW.md) §3.7.
 - 라이프사이클 **외부 통합** → `SoundGraphHook`(`lib/services/soundgraph_hook.dart`). `soundGraphHookProvider`가 capability로 `MhstSoundGraphHook`/`NoOpSoundGraphHook` 선택(클래스명은 역사적 이름 그대로 — `BrandKey.mammoth` capability 로 선택됨). `OrderProvider`의 자동접수 성공 후 `onAutoAccepted(order)` 호출. 비-매머드 매장은 NoOp → 크로스-브랜드 전송 누수 차단.
 
 **빌드 아티팩트 티어**(런타임 레지스트리와는 별개 축): 대부분의 브랜드는 Tier 0(공통 아티팩트)이며 applicationId·런처 이름/아이콘도 공유합니다. 승격 조건 3개(자체 유통 경로/전용 함대/계약상 요구)를 전부 충족하면 Tier 1(전용 아티팩트)로 승격할 수 있습니다 — 현재 매머드가 유일한 사례(`co.kr.waldlust.order.receive.appfit.mammoth`). Tier 1 은 OS 셸 아이덴티티와 OTA 채널만 다르고 이 3계층 런타임 모델은 그대로 공유합니다. 상세: [docs/RELEASE.md](RELEASE.md) 대원칙, [docs/BUILD_VARIANTS.md](BUILD_VARIANTS.md).

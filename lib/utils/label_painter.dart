@@ -12,9 +12,10 @@ class LabelPainter extends CustomPainter with LabelDrawOps {
   final List<String> options;
   final String? shopOrderNo;
   final String? orderTime;
-  final String? beanType; // 원두 타입 (예: Standard)
-  final String? temperature; // 온도 정보 (예: HOT)
-  final String? sizeOption; // 사이즈 정보 (예: Regular)
+
+  /// 서브정보 문자열들 — **목록 순서 그대로 좌→우**로 그린다(설정에서 고른
+  /// 옵션그룹 순서). 최대 3개, 초과분은 그리지 않는다.
+  final List<String> subInfo;
   final String? qrData; // QR 데이터 (Body 영역 좌측에 그려짐)
   final String? memo; // 주문 메모 (note)
   final ui.Image? logoImage; // 로고 이미지
@@ -43,9 +44,7 @@ class LabelPainter extends CustomPainter with LabelDrawOps {
     required this.options,
     this.shopOrderNo,
     this.orderTime,
-    this.beanType,
-    this.temperature,
-    this.sizeOption,
+    this.subInfo = const [],
     this.qrData,
     this.memo,
     this.logoImage,
@@ -423,19 +422,24 @@ class LabelPainter extends CustomPainter with LabelDrawOps {
     return menuSlotTop + menuSlotHeight + bodyV2MenuBottomGap;
   }
 
+  /// 실제로 그려지는 순서 — 이 painter 는 **오른쪽부터** 왼쪽으로 그리므로
+  /// 목록을 뒤집어야 화면상 좌→우가 [subInfo] 순서가 된다.
+  ///
+  /// 캔버스 없이 순서만 검증할 수 있게 분리했다(연속용지 painter 2종은 단순
+  /// `join` 이라 뒤집을 일이 없다 — 이 반전은 여기에만 있는 함정이다).
+  @visibleForTesting
+  static List<String> subInfoDrawOrder(List<String> subInfo) => [
+        for (final text in subInfo.reversed)
+          if (text.isNotEmpty) text
+      ];
+
   void _drawSubInfo(Canvas canvas, Size size, double y) {
     double currentRightX = size.width - defaultMargin;
 
-    final items = <_SubInfoItem>[];
-    if (sizeOption != null && sizeOption!.isNotEmpty) {
-      items.add(_SubInfoItem(text: sizeOption!, isHighlighted: false));
-    }
-    if (temperature != null && temperature!.isNotEmpty) {
-      items.add(_SubInfoItem(text: temperature!, isHighlighted: false));
-    }
-    if (beanType != null && beanType!.isNotEmpty) {
-      items.add(_SubInfoItem(text: beanType!, isHighlighted: false));
-    }
+    final items = <_SubInfoItem>[
+      for (final text in subInfoDrawOrder(subInfo))
+        _SubInfoItem(text: text, isHighlighted: false),
+    ];
 
     for (int i = 0; i < items.length; i++) {
       final item = items[i];
@@ -725,9 +729,7 @@ class LabelPainter extends CustomPainter with LabelDrawOps {
     required List<String> options,
     String? shopOrderNo,
     String? orderTime,
-    String? beanType,
-    String? temperature,
-    String? sizeOption,
+    List<String> subInfo = const [],
     String? qrData,
     String? memo,
     int? orderIndex,
@@ -751,9 +753,7 @@ class LabelPainter extends CustomPainter with LabelDrawOps {
       options: options,
       shopOrderNo: shopOrderNo,
       orderTime: orderTime,
-      beanType: beanType,
-      temperature: temperature,
-      sizeOption: sizeOption,
+      subInfo: subInfo,
       qrData: qrData, // QR 인쇄는 일단 보류
       memo: memo,
       logoImage: logo,

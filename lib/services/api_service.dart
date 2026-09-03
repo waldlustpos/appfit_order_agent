@@ -14,6 +14,7 @@ import 'package:appfit_order_agent/models/menu_option_model.dart';
 import 'package:appfit_order_agent/models/store_model.dart';
 import 'package:appfit_order_agent/models/product_model.dart';
 import 'package:appfit_order_agent/models/shop_category_model.dart';
+import 'package:appfit_order_agent/models/shop_option_group_model.dart';
 import 'package:appfit_order_agent/models/membership_model.dart';
 import 'package:appfit_order_agent/models/force_bulk_done_model.dart';
 // import 'api_service_interface.dart'; // Removed
@@ -729,15 +730,20 @@ class ApiService {
   Future<List<ProductModel>> getShopCategories(String storeId) async =>
       (await getShopCatalog(storeId)).products;
 
-  /// 매장 카테고리 + 상품 + 옵션 조회.
+  /// 매장 카테고리 + 상품 + 옵션 + 옵션그룹 조회.
   ///
   /// 서버 `categories[]` 는 소속 상품(`items`)이 0개인 카테고리도 내려준다. 상품
   /// 목록으로 평탄화하면 빈 카테고리는 흔적이 남지 않아 사라지므로, 카테고리를
-  /// 상품과 분리해 함께 반환한다(상품관리 좌측 목록 정본).
+  /// 상품과 분리해 함께 반환한다(상품관리 좌측 목록 정본). 옵션그룹도 같은 이유로
+  /// 분리한다 — 옵션을 '옵션' 버킷으로 접으면 그룹 표시명이 유실된다.
   ///
   /// 응답 → 모델 변환은 [parseShopCatalog] (순수 함수)가 담당한다.
-  Future<({List<ProductModel> products, List<ShopCategoryModel> categories})>
-      getShopCatalog(String storeId) async {
+  Future<
+      ({
+        List<ProductModel> products,
+        List<ShopCategoryModel> categories,
+        List<ShopOptionGroupModel> optionGroups,
+      })> getShopCatalog(String storeId) async {
     try {
       final dio = _ref.read(appFitDioProvider);
       // AppFit: /v0/shops/{shopCode}/categories/items

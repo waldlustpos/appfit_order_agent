@@ -51,6 +51,8 @@ class Translations with BaseTranslations<AppLocale, Translations> {
 	late final Translations$membership$ko membership = Translations$membership$ko.internal(_root);
 	late final Translations$kds$ko kds = Translations$kds$ko.internal(_root);
 	late final Translations$receipt$ko receipt = Translations$receipt$ko.internal(_root);
+	late final Translations$label_category_select$ko label_category_select = Translations$label_category_select$ko.internal(_root);
+	late final Translations$label_subinfo_select$ko label_subinfo_select = Translations$label_subinfo_select$ko.internal(_root);
 }
 
 // Path: app
@@ -245,7 +247,8 @@ class Translations$settings$ko {
 	late final Translations$settings$order_source_color$ko order_source_color = Translations$settings$order_source_color$ko.internal(_root);
 	late final Translations$settings$kds_ignore_status$ko kds_ignore_status = Translations$settings$kds_ignore_status$ko.internal(_root);
 	late final Translations$settings$kds_accept_orders$ko kds_accept_orders = Translations$settings$kds_accept_orders$ko.internal(_root);
-	late final Translations$settings$label_filter$ko label_filter = Translations$settings$label_filter$ko.internal(_root);
+	late final Translations$settings$label_category_filter$ko label_category_filter = Translations$settings$label_category_filter$ko.internal(_root);
+	late final Translations$settings$label_subinfo$ko label_subinfo = Translations$settings$label_subinfo$ko.internal(_root);
 	late final Translations$settings$label_paper$ko label_paper = Translations$settings$label_paper$ko.internal(_root);
 	late final Translations$settings$developer_options$ko developer_options = Translations$settings$developer_options$ko.internal(_root);
 	late final Translations$settings$kiosk$ko kiosk = Translations$settings$kiosk$ko.internal(_root);
@@ -880,6 +883,72 @@ class Translations$receipt$ko {
 	String get test_ok => '이 영수증이 보이면 정상';
 }
 
+// Path: label_category_select
+class Translations$label_category_select$ko {
+	Translations$label_category_select$ko.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// ko: '라벨 출력 카테고리'
+	String get title => '라벨 출력 카테고리';
+
+	/// ko: '선택한 카테고리의 상품만 라벨로 출력합니다. 주문 상세에서 라벨을 다시 뽑을 때(재출력)는 이 설정과 무관하게 주문 전체가 출력됩니다.'
+	String get guide => '선택한 카테고리의 상품만 라벨로 출력합니다. 주문 상세에서 라벨을 다시 뽑을 때(재출력)는 이 설정과 무관하게 주문 전체가 출력됩니다.';
+
+	/// ko: '전체 {total}개 · 선택 {count}개'
+	String summary({required Object total, required Object count}) => '전체 ${total}개 · 선택 ${count}개';
+
+	/// ko: '선택된 카테고리가 없어 모든 카테고리를 출력합니다. 라벨을 아예 내지 않으려면 설정에서 '라벨 프린터 사용'을 꺼주세요.'
+	String get empty_means_all => '선택된 카테고리가 없어 모든 카테고리를 출력합니다. 라벨을 아예 내지 않으려면 설정에서 \'라벨 프린터 사용\'을 꺼주세요.';
+
+	/// ko: '전체 선택'
+	String get select_all => '전체 선택';
+
+	/// ko: '전체 해제'
+	String get clear_all => '전체 해제';
+
+	/// ko: '상품 카테고리를 불러오지 못했습니다. 이 상태에서는 모든 카테고리가 출력됩니다.'
+	String get empty_catalog => '상품 카테고리를 불러오지 못했습니다. 이 상태에서는 모든 카테고리가 출력됩니다.';
+
+	/// ko: '매장 정보를 확인할 수 없어 저장하지 못했습니다.'
+	String get save_failed => '매장 정보를 확인할 수 없어 저장하지 못했습니다.';
+}
+
+// Path: label_subinfo_select
+class Translations$label_subinfo_select$ko {
+	Translations$label_subinfo_select$ko.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// ko: '라벨 서브정보'
+	String get title => '라벨 서브정보';
+
+	/// ko: '라벨 위쪽에 크게 표시할 옵션 그룹을 최대 {max}개까지 고릅니다. 고른 순서대로 왼쪽부터 인쇄되고, 여기서 지정한 옵션은 라벨 아래쪽 옵션 목록에서 빠집니다.'
+	String guide({required Object max}) => '라벨 위쪽에 크게 표시할 옵션 그룹을 최대 ${max}개까지 고릅니다. 고른 순서대로 왼쪽부터 인쇄되고, 여기서 지정한 옵션은 라벨 아래쪽 옵션 목록에서 빠집니다.';
+
+	/// ko: '최대 {max}개까지 지정할 수 있습니다.'
+	String max_notice({required Object max}) => '최대 ${max}개까지 지정할 수 있습니다.';
+
+	/// ko: '미리보기'
+	String get preview => '미리보기';
+
+	/// ko: '지정 안 함'
+	String get none => '지정 안 함';
+
+	/// ko: '전체 해제'
+	String get clear_all => '전체 해제';
+
+	/// ko: '옵션 그룹을 불러오지 못했습니다.'
+	String get empty_catalog => '옵션 그룹을 불러오지 못했습니다.';
+
+	/// ko: '매장 정보를 확인할 수 없어 저장하지 못했습니다.'
+	String get save_failed => '매장 정보를 확인할 수 없어 저장하지 못했습니다.';
+}
+
 // Path: common.api_error
 class Translations$common$api_error$ko {
 	Translations$common$api_error$ko.internal(this._root);
@@ -1371,34 +1440,49 @@ class Translations$settings$kds_accept_orders$ko {
 	String get confirm_content => '주방모니터(KDS)에서 직접 주문 자동접수를 수행합니다.\n반드시 다른 메인주문 접수 프로그램과 중복 사용 되지 않도록 확인해주세요.\n활성화 하시겠습니까?';
 }
 
-// Path: settings.label_filter
-class Translations$settings$label_filter$ko {
-	Translations$settings$label_filter$ko.internal(this._root);
+// Path: settings.label_category_filter
+class Translations$settings$label_category_filter$ko {
+	Translations$settings$label_category_filter$ko.internal(this._root);
 
 	final Translations _root; // ignore: unused_field
 
 	// Translations
 
-	/// ko: '라벨 출력 필터'
-	String get title => '라벨 출력 필터';
+	/// ko: '라벨 출력 카테고리 지정'
+	String get title => '라벨 출력 카테고리 지정';
 
-	/// ko: '모든 주문 상품을 라벨 출력합니다.'
-	String get desc_all => '모든 주문 상품을 라벨 출력합니다.';
+	/// ko: '모든 카테고리의 상품을 라벨 출력합니다. 특정 카테고리만 출력하려면 켜세요.'
+	String get desc_off => '모든 카테고리의 상품을 라벨 출력합니다. 특정 카테고리만 출력하려면 켜세요.';
 
-	/// ko: '디저트(와플) 상품만 라벨 출력합니다.'
-	String get desc_waffle_only => '디저트(와플) 상품만 라벨 출력합니다.';
+	/// ko: '지정된 카테고리가 없어 모든 카테고리를 출력합니다.'
+	String get desc_none => '지정된 카테고리가 없어 모든 카테고리를 출력합니다.';
 
-	/// ko: '디저트(와플) 상품을 제외하고 라벨 출력합니다.'
-	String get desc_waffle_exclude => '디저트(와플) 상품을 제외하고 라벨 출력합니다.';
+	/// ko: '{total}개 중 {count}개 카테고리만 출력합니다 — {names}'
+	String desc_selected({required Object total, required Object count, required Object names}) => '${total}개 중 ${count}개 카테고리만 출력합니다 — ${names}';
 
-	/// ko: '모든 주문 출력'
-	String get btn_all => '모든 주문 출력';
+	/// ko: '카테고리 선택'
+	String get btn_configure => '카테고리 선택';
+}
 
-	/// ko: '와플상품만 출력'
-	String get btn_waffle_only => '와플상품만 출력';
+// Path: settings.label_subinfo
+class Translations$settings$label_subinfo$ko {
+	Translations$settings$label_subinfo$ko.internal(this._root);
 
-	/// ko: '와플상품 제외'
-	String get btn_waffle_exclude => '와플상품 제외';
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// ko: '라벨 서브정보 표시'
+	String get title => '라벨 서브정보 표시';
+
+	/// ko: '라벨 위쪽 서브정보 영역을 비웁니다. 온도·사이즈처럼 크게 보여야 하는 옵션이 있으면 옵션 그룹을 지정하세요.'
+	String get desc_none => '라벨 위쪽 서브정보 영역을 비웁니다. 온도·사이즈처럼 크게 보여야 하는 옵션이 있으면 옵션 그룹을 지정하세요.';
+
+	/// ko: '고른 순서대로 표시합니다 — {names}'
+	String desc_selected({required Object names}) => '고른 순서대로 표시합니다 — ${names}';
+
+	/// ko: '옵션 그룹 선택'
+	String get btn_configure => '옵션 그룹 선택';
 }
 
 // Path: settings.label_paper

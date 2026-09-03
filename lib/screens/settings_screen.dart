@@ -57,7 +57,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _labelUseBackToPrint = true;
   bool _labelUseCalibrate = false;
   bool _labelUseQrPrint = false;
-  int _labelFilterMode = 0;
   int _labelPaperSizeMm = 40;
 
   bool _isKioskOrderVisible = false;
@@ -130,7 +129,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _labelUseBackToPrint = _preferenceService.getLabelUseBackToPrint();
       _labelUseCalibrate = _preferenceService.getLabelUseCalibrate();
       _labelUseQrPrint = _preferenceService.getLabelUseQrPrint();
-      _labelFilterMode = _preferenceService.getLabelFilterMode();
       _labelPaperSizeMm = _preferenceService.getLabelPaperSizeMm();
 
       _isKioskOrderVisible = _preferenceService.getShowKioskOrder();
@@ -178,7 +176,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await _preferenceService.setLabelUseBackToPrint(_labelUseBackToPrint);
       await _preferenceService.setLabelUseCalibrate(_labelUseCalibrate);
       await _preferenceService.setLabelUseQrPrint(_labelUseQrPrint);
-      await _preferenceService.setLabelFilterMode(_labelFilterMode);
       await _preferenceService.setLabelPaperSizeMm(_labelPaperSizeMm);
       await _preferenceService.setShowKioskOrder(_isKioskOrderVisible);
       await _preferenceService.setKioskPrintAndSound(_isKioskOrderSoundEnabled);
@@ -577,7 +574,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               externalPrintReceipt: _externalPrintReceipt,
               builtinPrintCall: _builtinPrintCall,
               externalPrintCall: _externalPrintCall,
-              labelFilterMode: _labelFilterMode,
               labelPaperSizeMm: _labelPaperSizeMm,
               isShowOrderTypeBadge: _isShowOrderTypeBadge,
               isOrderSourceColor: _isOrderSourceColor,
@@ -621,8 +617,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   _setAndSave(() => _builtinPrintCall = v),
               onExternalPrintCallChanged: (v) =>
                   _setAndSave(() => _externalPrintCall = v),
-              onLabelFilterModeChanged: (v) =>
-                  _setAndSave(() => _labelFilterMode = v),
               onLabelPaperSizeChanged: (v) =>
                   _setAndSave(() => _labelPaperSizeMm = v),
               onShowOrderTypeBadgeChanged: (v) =>
