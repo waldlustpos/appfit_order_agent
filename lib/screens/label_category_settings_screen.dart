@@ -8,7 +8,9 @@ import 'package:appfit_order_agent/providers/preference_provider.dart';
 import 'package:appfit_order_agent/providers/product_provider.dart';
 import 'package:appfit_order_agent/services/label_printer/label_output_policy.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
-import 'package:appfit_order_agent/widgets/settings/label_pick_tile.dart';
+import 'package:appfit_order_agent/widgets/common/app_empty_view.dart';
+import 'package:appfit_order_agent/widgets/common/app_loading_indicator.dart';
+import 'package:appfit_order_agent/widgets/settings/label_category_card.dart';
 
 /// 라벨로 출력할 상품 카테고리를 고르는 화면.
 ///
@@ -24,12 +26,27 @@ class LabelCategorySettingsScreen extends ConsumerStatefulWidget {
 
 class _LabelCategorySettingsScreenState
     extends ConsumerState<LabelCategorySettingsScreen> {
+  /// 카드 셀 높이(px). 폭이 달라져도 **높이는 고정**한다 — 상수 aspectRatio 를
+  /// 쓰면 폭이 좁은 기기(Windows 1200)에서 카드가 같이 낮아져 2줄 이름이 잘린다.
+  static const double _cellHeight = 112;
+
+  /// 한 줄에 놓을 카드 수. 카테고리명은 한글 긴 이름이 흔해 가로로 넓은 카드가
+  /// 유리하다.
+  static const int _columns = 4;
+
   late Set<String> _selected;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
     _selected = {...ref.read(preferenceServiceProvider).getLabelCategoryKeys()};
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _save() async {
@@ -88,41 +105,58 @@ class _LabelCategorySettingsScreenState
         elevation: 0,
       ),
       body: categoriesAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, __) => _buildNotice(t.label_category_select.empty_catalog),
+        loading: () => const Center(child: AppLoadingIndicator()),
+        error: (_, __) => _buildNotice(),
         data: (categories) {
-          if (categories.isEmpty) {
-            return _buildNotice(t.label_category_select.empty_catalog);
-          }
+          if (categories.isEmpty) return _buildNotice();
           return Column(
             children: [
               _buildHeader(categories),
               const Divider(height: 1, color: AppStyles.gray2),
-              Expanded(
-                child: ListView.separated(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.s8, vertical: AppSpacing.s8),
-                  itemCount: categories.length,
-                  separatorBuilder: (_, __) =>
-                      const Divider(height: 1, color: AppStyles.gray2),
-                  itemBuilder: (_, i) {
-                    final c = categories[i];
-                    final key =
-                        labelCategoryKeyOf(c.categoryCode, c.categoryName);
-                    return LabelPickTile(
-                      title: c.categoryName,
-                      subtitle: c.categoryCode.isEmpty ? null : c.categoryCode,
-                      selected: _selected.contains(key),
-                      onTap: () => _toggle(key),
-                    );
-                  },
-                ),
-              ),
+              Expanded(child: _buildGrid(categories)),
             ],
           );
         },
       ),
     );
+  }
+
+  Widget _buildGrid(List<ShopCategoryModel> categories) {
+    // 가용 폭에서 셀 폭을 구해 목표 높이로 나눈다 — 폭이 달라도 카드 높이가
+    // 일정해진다. numeric_keypad_widget 과 같은 수법.
+    return LayoutBuilder(builder: (context, constraints) {
+      final cellWidth = (constraints.maxWidth -
+              AppSpacing.s8 * 2 -
+              AppSpacing.s8 * (_columns - 1)) /
+          _columns;
+      return RawScrollbar(
+        controller: _scrollController,
+        radius: const Radius.circular(AppRadius.sm),
+        thumbColor: AppStyles.gray4,
+        fadeDuration: const Duration(milliseconds: 300),
+        child: GridView.builder(
+          controller: _scrollController,
+          padding: const EdgeInsets.all(AppSpacing.s8),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: _columns,
+            childAspectRatio: cellWidth / _cellHeight,
+            crossAxisSpacing: AppSpacing.s8,
+            mainAxisSpacing: AppSpacing.s8,
+          ),
+          itemCount: categories.length,
+          itemBuilder: (_, i) {
+            final c = categories[i];
+            final key = labelCategoryKeyOf(c.categoryCode, c.categoryName);
+            return LabelCategoryCard(
+              name: c.categoryName,
+              code: c.categoryCode.isEmpty ? null : c.categoryCode,
+              selected: _selected.contains(key),
+              onTap: () => _toggle(key),
+            );
+          },
+        ),
+      );
+    });
   }
 
   Widget _buildHeader(List<ShopCategoryModel> categories) {
@@ -200,14 +234,8 @@ class _LabelCategorySettingsScreenState
       .map((c) => c.categoryName)
       .join(', ');
 
-  Widget _buildNotice(String message) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.s24),
-          child: Text(
-            message,
-            textAlign: TextAlign.center,
-            style: AppTextStyles.body.copyWith(color: AppStyles.gray6),
-          ),
-        ),
+  Widget _buildNotice() => AppEmptyView(
+        message: t.label_category_select.empty_catalog,
+        icon: Icons.category_outlined,
       );
 }
