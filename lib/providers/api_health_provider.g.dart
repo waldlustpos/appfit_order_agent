@@ -6,10 +6,11 @@ part of 'api_health_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$apiHealthNotifierHash() => r'3eba5779ad94b1c3e74c600caec819db159ef682';
+String _$apiHealthNotifierHash() => r'c5885893bdca5cbb9b8bdf18e7e0f78cbd9a2fc4';
 
 /// HTTP 계층 건강도. [ApiService] 가 요청 결과마다 기록하고,
-/// UI(동기화 배너)와 복구 트리거가 구독한다.
+/// 복구 트리거(회복 시 즉시 재동기화)와 원격 관제가 구독한다.
+/// 화면에 지연을 알리던 동기화 배너는 제거돼 UI 구독자는 없다.
 ///
 /// 앱 전역 상태이므로 keepAlive. 화면 전환으로 리셋되면 안 된다.
 ///

@@ -7,7 +7,7 @@ part of 'lifecycle_provider.dart';
 // **************************************************************************
 
 String _$appLifecycleObserverHash() =>
-    r'0c09aa8518c741279d22e4e330c2ebc7e67a8b21';
+    r'6135f06d972ffe88b08c6f0a98f47c284cded109';
 
 /// See also [AppLifecycleObserver].
 @ProviderFor(AppLifecycleObserver)
