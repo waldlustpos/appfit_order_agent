@@ -83,8 +83,23 @@ class ExternalPrinterTarget {
   final String? hardwareId;
 
   /// 이 대상의 알려진 컬럼 수. 모르는 기종이면 null.
-  int? get knownColumns => knownColumnsForDeviceString(
-      kind == ExternalPrinterKind.usbPrint ? id : hardwareId);
+  int? get knownColumns => knownColumnsForDeviceString(_deviceString);
+
+  /// 이 대상이 가리키는 물리 장치의 `VID:PID`. 못 뽑으면 null.
+  ///
+  /// **종류가 달라도 같은 물리 장치면 같은 값이 나온다** — PR800 은 복합 장치라
+  /// `MI_00` 은 usbprint 로, `MI_01` 은 CDC→COM 으로 각각 잡히지만 VID/PID 는
+  /// 하나다. [dedupeSameDevicePreferringCom] 이 이 성질을 쓴다.
+  String? get usbIdKeyOrNull {
+    final s = _deviceString;
+    if (s == null || s.isEmpty) return null;
+    final ids = parseUsbIdsFromDevicePath(s);
+    return usbIdKey(vendorId: ids.vendorId, productId: ids.productId);
+  }
+
+  /// VID/PID 를 품고 있는 문자열. usbprint 는 장치 경로 자체, COM 은 hardwareId.
+  String? get _deviceString =>
+      kind == ExternalPrinterKind.usbPrint ? id : hardwareId;
 
   /// DropdownButton 의 value — 종류가 다르면 id 가 겹칠 일이 없지만, 두 목록을
   /// 한 드롭다운에 합치므로 종류를 접두어로 붙여 충돌 가능성을 원천 차단한다.
@@ -104,16 +119,66 @@ class ExternalPrinterTarget {
   String toString() => 'ExternalPrinterTarget(${kind.prefValue}:$id, $label)';
 }
 
+/// 같은 물리 장치가 COM 과 usbprint 양쪽에 잡히면 **usbprint 쪽을 버린다.**
+///
+/// PR800 은 복합 USB 장치라 `MI_00`(usbprint) 과 `MI_01`(CDC→COM) 으로 **두 번**
+/// 열거된다. 손대지 않으면 드롭다운에 같은 프린터가 두 줄로 나오고, 재연결 스캔이
+/// usbprint 쪽을 채택해 설정에 `COM3` 대신 장치 경로가 박힌다.
+///
+/// **COM 을 남기는 이유는 기술이 아니라 운영이다.** 현장 설치는 오래도록 COM 포트
+/// (`COM3` 등)를 보고 세팅해 왔고, 설치 담당자가 익숙한 표기가 그대로 보여야 한다.
+/// PR800 이 일반 설치고 A8 같은 usbprint 전용 기종이 예외라, 예외 때문에 일반이
+/// 낯설어지면 안 된다. usbprint 전용 기종은 짝이 되는 COM 후보가 없으므로 그대로
+/// 남는다 — 이 함수는 **선택지를 줄이지 않고 중복만 없앤다.**
+///
+/// VID/PID 를 못 뽑는 후보(물리 RS-232 등)는 짝을 판정할 수 없으므로 건드리지 않는다.
+///
+/// [keep] 은 **지금 설정에 저장된 대상**이며 절대 버리지 않는다. 이미 usbprint 로
+/// 잡아 쓰고 있던 단말에서 그 항목을 목록에서 지우면 드롭다운이 "미선택" 으로
+/// 보인다 — 실제로는 멀쩡히 그 경로로 출력되고 있는데도. **쓰고 있는 것은 항상
+/// 보여야 한다.** (저장값을 COM 으로 말없이 옮기지도 않는다: 같은 프린터라도
+/// COM 쪽 드라이버가 죽어 있을 수 있어, 동작 중인 설정을 자동으로 바꾸면
+/// "설정을 만진 적 없는데 출력이 끊긴다" 가 된다.)
+///
+/// 순수 함수 — Windows 없이 테스트 가능.
+List<ExternalPrinterTarget> dedupeSameDevicePreferringCom(
+  List<ExternalPrinterTarget> targets, {
+  ExternalPrinterTarget? keep,
+}) {
+  final comKeys = <String>{};
+  for (final t in targets) {
+    if (t.kind != ExternalPrinterKind.com) continue;
+    final k = t.usbIdKeyOrNull;
+    if (k != null) comKeys.add(k);
+  }
+  if (comKeys.isEmpty) return targets;
+
+  return targets.where((t) {
+    if (t.kind != ExternalPrinterKind.usbPrint) return true;
+    if (t.sameAs(keep)) return true;
+    final k = t.usbIdKeyOrNull;
+    return k == null || !comKeys.contains(k);
+  }).toList(growable: false);
+}
+
 /// 재연결 스캔이 probe 할 후보 순서를 정한다.
 ///
 /// - [saved] 가 있으면 항상 맨 앞 (직전에 쓰던 장치를 먼저 존중).
 /// - [saved] 가 [targets] 에 없어도 후보에 포함한다. 열거 소스가 순간적으로
 ///   장치를 놓치는 경우(USB re-enumerate lag)가 있어, 실제로 열어보는 편이
 ///   목록만 믿는 것보다 정확하다. ([orderProbeCandidates] 와 같은 판단.)
-/// - 그 다음은 **usbPrint 먼저, com 나중**. usbprint 후보는 USB Printer class 라
-///   프린터임이 확실하고 probe 가 수 ms 로 끝나지만, COM 후보에는 캐시드로어 ·
-///   저울 같은 무관한 장비가 섞여 있고 probe 가 포트당 수백 ms 걸린다. 무관한
-///   장비를 최대한 안 건드리려면 확실한 쪽을 먼저 훑어 조기 종료해야 한다.
+/// - 그 다음은 **com 먼저, usbPrint 나중**. 현장 설치가 COM 표기에 맞춰져 있고
+///   일반 설치 기종(PR800)이 COM 이라, 애매할 때 COM 으로 수렴시키는 것이 맞다.
+///   (같은 장치가 양쪽에 잡히는 중복 자체는 [dedupeSameDevicePreferringCom] 이
+///   먼저 없애므로, 이 순서가 실제로 갈리는 건 **서로 다른 장치**가 두 경로에
+///   하나씩 있을 때다.)
+///
+///   대가를 알고 택한 순서다: COM 후보에는 캐시드로어 · 저울 같은 무관한 장비가
+///   섞여 있고 probe 가 포트당 수백 ms 라, usbprint 를 먼저 훑어 조기 종료할
+///   때보다 스캔이 느리고 무관한 장비를 더 건드린다. 다만 usbprint 가 못 잡으면
+///   어차피 COM 을 전부 훑던 구조라 **건드리는 대상 자체가 늘지는 않는다** —
+///   순서만 바뀐다. 재연결은 사용자가 버튼을 눌렀을 때만 도는 수동 동작이라
+///   이 정도 지연은 받는다.
 /// - 같은 (종류, id) 는 한 번만.
 ///
 /// 순수 함수 — Windows 없이 테스트 가능.
@@ -132,10 +197,10 @@ List<ExternalPrinterTarget> orderScanCandidates(
 
   add(saved);
   for (final t in targets) {
-    if (t.kind == ExternalPrinterKind.usbPrint) add(t);
+    if (t.kind == ExternalPrinterKind.com) add(t);
   }
   for (final t in targets) {
-    if (t.kind == ExternalPrinterKind.com) add(t);
+    if (t.kind == ExternalPrinterKind.usbPrint) add(t);
   }
   return result;
 }

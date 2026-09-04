@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'dart:ffi';
+import 'dart:io';
 import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
 import 'package:win32/win32.dart';
 
+import 'package:appfit_order_agent/services/label_printer/windows/escpos_realtime_status.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/services/usb_print_descriptor.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
@@ -70,6 +72,12 @@ class UsbPrintService {
   /// 영향이 없어 생존 확인용 write 로 쓴다.
   static const List<int> _escInit = [0x1B, 0x40];
 
+  /// 실시간 상태 조회 1회 I/O 타임아웃. G30 실측은 즉답(수 ms)이라 넉넉하다.
+  static const int _kStatusIoTimeoutMs = 1000;
+
+  /// 드레인 read 타임아웃. 버릴 바이트가 없으면 매번 이만큼 기다리므로 짧게 둔다.
+  static const int _kStatusDrainMs = 120;
+
   /// 직전 false 반환의 사유. `WindowsTransport` 가 결과 분류에 사용한다.
   /// 값 도메인은 [ComPortPrintService.lastFailureReason] 과 같은 이유로 문자열이다:
   /// - 'not-enumerated'    : 진입 시 usbprint 열거 결과에 해당 경로가 없음
@@ -80,14 +88,26 @@ class UsbPrintService {
   static String? get lastFailureReason => _lastFailureReason;
 
   /// 장치 오픈~클로즈 임계구역 직렬화 락 (Future 체이닝 mutex).
-  /// [sendRaw] 와 [probeConnection] 이 같은 장치를 동시에 열지 않도록 보장한다.
-  /// [ComPortPrintService] 와 같은 idiom — 단일 isolate 라 일반 필드로 충분.
-  static Future<void> _lock = Future<void>.value();
+  /// [sendRaw] / [probeConnection] / [queryGateStatus] 가 같은 장치를 동시에
+  /// 열지 않도록 보장한다. [ComPortPrintService] 와 같은 idiom — 단일 isolate 라
+  /// 일반 필드로 충분하다.
+  ///
+  /// ★ **장치별로 나눠 잡는다.** 배타 오픈 충돌은 같은 devnode 안에서만 일어나는데,
+  /// 전역 락 하나로 묶으면 G30 이 용지없음으로 수 분간 복구대기하는 동안 그 폴링이
+  /// 락을 반복 점유해 **다른 usbprint 프린터(POSBANK A8 영수증)의 출력을 굶긴다.**
+  /// 키는 devnode 경로(소문자) — SetupAPI 표기가 OS/드라이버 버전마다 갈려서
+  /// 대소문자를 무시해야 같은 장치를 같은 락으로 본다.
+  ///
+  /// 엔트리는 장치 수만큼만 늘어난다(usbprint 프린터 몇 대). 지우지 않는 이유는
+  /// 지우는 순간 대기 중인 체인을 끊을 수 있어서다.
+  static final Map<String, Future<void>> _locks = {};
 
-  static Future<T> _synchronized<T>(Future<T> Function() action) {
+  static Future<T> _synchronized<T>(
+      String devicePath, Future<T> Function() action) {
+    final key = devicePath.toLowerCase();
     final completer = Completer<void>();
-    final prev = _lock;
-    _lock = completer.future;
+    final prev = _locks[key] ?? Future<void>.value();
+    _locks[key] = completer.future;
     return prev.then((_) => action()).whenComplete(completer.complete);
   }
 
@@ -95,11 +115,15 @@ class UsbPrintService {
 
   /// 라벨 프린터 제조사 VID. **영수증 경로가 절대 잡으면 안 되는 장치**다.
   ///
+  /// 이 집합은 이 파일 안에서 **극성 반대로 두 번 쓰인다** — [enumerate] 는
+  /// 제외하고 [enumerateLabelPrinters] 는 이것만 남긴다. 정의가 한 곳이라
+  /// 영수증/라벨 두 목록이 어긋날 수 없다.
+  ///
   /// ★ 이 목록은 세 곳에 흩어져 있고 함께 유지해야 한다 (2026-09-01 에 G30 이
   /// 한 곳만 갱신돼 영수증 경로가 라벨 프린터를 선점한 사고가 있었다):
   ///   - `windows_label_printer_backend.dart` `_kUsbPortCandidates` (Windows 라벨)
   ///   - `UsbReceiptPrinter.isLabelPrinter` (Android 영수증)
-  ///   - 여기 (Windows 영수증)
+  ///   - 여기 (Windows 영수증 + Windows 라벨 검출)
   ///
   /// 주의: 범용 USB-Serial 브리지 칩(PL2303 = 0x067B 등)은 절대 넣지 말 것 —
   /// 영수증 프린터가 그 칩으로 붙으면 라벨로 오인돼 목록에서 사라진다.
@@ -112,11 +136,30 @@ class UsbPrintService {
   static bool _isLabelPrinterVendor(int? vid) =>
       vid != null && _labelPrinterVendors.contains(vid);
 
-  /// 현재 연결된 usbprint 장치 목록. 라벨 프린터는 제외된다.
+  /// 영수증 경로가 쓰는 usbprint 장치 목록. **라벨 프린터는 제외된다.**
   ///
   /// `DIGCF_PRESENT` 라서 **지금 꽂혀 있고 전원이 들어온 장치만** 나온다 —
   /// 이 목록에 있다는 사실 자체가 1차 생존 신호다.
-  static List<UsbPrintDescriptor> enumerate() {
+  static List<UsbPrintDescriptor> enumerate() => _enumerateAll()
+      .where((d) => !_isLabelPrinterVendor(d.vendorId))
+      .toList(growable: false);
+
+  /// 라벨 경로가 쓰는 usbprint 장치 목록 — [enumerate] 와 **극성만 반대**다.
+  ///
+  /// BIXOLON G30 은 Windows 에서 전용 SDK 없이 usbprint devnode 로 잡히고
+  /// ESC/POS 를 그대로 받는다. 그 전송 계층
+  /// (`label_printer/windows/bixolon_g30_windows_backend.dart`)이 장치를 찾는
+  /// 자리가 여기다. 벤더 집합 정의는 [_labelPrinterVendors] 한 곳뿐이므로
+  /// 영수증/라벨 양쪽이 절대 어긋나지 않는다.
+  static List<UsbPrintDescriptor> enumerateLabelPrinters() => _enumerateAll()
+      .where((d) => _isLabelPrinterVendor(d.vendorId))
+      .toList(growable: false);
+
+  /// 필터 없는 원본 열거. 영수증/라벨 wrapper 와 [_isPresent] 가 공유한다.
+  ///
+  /// [_isPresent] 가 이걸 쓰는 것이 중요하다 — 영수증용 필터를 쓰면 라벨
+  /// 프린터로의 [sendRaw] 가 항상 `not-enumerated` 로 즉시 실패한다.
+  static List<UsbPrintDescriptor> _enumerateAll() {
     final guid = GUIDFromString(guidDevInterfaceUsbPrint);
     final hDevInfo = SetupDiGetClassDevs(
       guid,
@@ -137,7 +180,8 @@ class UsbPrintService {
     try {
       iface.ref.cbSize = sizeOf<SP_DEVICE_INTERFACE_DATA>();
       for (int index = 0;; index++) {
-        if (SetupDiEnumDeviceInterfaces(hDevInfo, nullptr, guid, index, iface) ==
+        if (SetupDiEnumDeviceInterfaces(
+                hDevInfo, nullptr, guid, index, iface) ==
             0) {
           break; // ERROR_NO_MORE_ITEMS
         }
@@ -168,15 +212,12 @@ class UsbPrintService {
           if (path.isEmpty) continue;
 
           final ids = parseUsbIdsFromDevicePath(path);
-          if (_isLabelPrinterVendor(ids.vendorId)) {
-            logger.d('[UsbPrint] 라벨 프린터 제외: $path');
-            continue;
-          }
 
           result.add(UsbPrintDescriptor(
             devicePath: path,
-            friendlyName: _registryString(hDevInfo, devInfo, SPDRP_FRIENDLYNAME) ??
-                _registryString(hDevInfo, devInfo, SPDRP_DEVICEDESC),
+            friendlyName:
+                _registryString(hDevInfo, devInfo, SPDRP_FRIENDLYNAME) ??
+                    _registryString(hDevInfo, devInfo, SPDRP_DEVICEDESC),
             vendorId: ids.vendorId,
             productId: ids.productId,
           ));
@@ -248,7 +289,7 @@ class UsbPrintService {
     Uint8List data, {
     required String devicePath,
   }) {
-    return _synchronized(() => _sendRawLocked(data, devicePath));
+    return _synchronized(devicePath, () => _sendRawLocked(data, devicePath));
   }
 
   static Future<bool> _sendRawLocked(Uint8List data, String devicePath) async {
@@ -280,9 +321,13 @@ class UsbPrintService {
 
   /// 열거 결과에 [devicePath] 가 있는지. 경로 비교는 대소문자 무시 —
   /// SetupAPI 가 돌려주는 표기가 OS/드라이버 버전에 따라 갈린다.
+  ///
+  /// **필터 없는 [_enumerateAll] 을 쓴다** — 라벨 프린터(G30)로의 [sendRaw] 도
+  /// 이 게이트를 지나야 하기 때문이다. 어느 장치를 보낼지의 판단은 호출부가
+  /// 이미 끝냈고, 여기서는 "지금 실제로 꽂혀 있는가" 만 본다.
   static bool _isPresent(String devicePath) {
     final target = devicePath.toLowerCase();
-    return enumerate().any((d) => d.devicePath.toLowerCase() == target);
+    return _enumerateAll().any((d) => d.devicePath.toLowerCase() == target);
   }
 
   static void _logFailure(_WriteOutcome r, String devicePath) {
@@ -302,7 +347,8 @@ class UsbPrintService {
       default:
         logToFile(
           tag: LogTag.WARNING,
-          message: '[UsbPrint] open 실패 (win32=${r.win32}) — 점유 외 원인. $devicePath',
+          message:
+              '[UsbPrint] open 실패 (win32=${r.win32}) — 점유 외 원인. $devicePath',
         );
     }
   }
@@ -375,6 +421,132 @@ class UsbPrintService {
     }
   }
 
+  // ---- 실시간 상태 조회 (라벨 진입 게이트용) --------------------------------
+
+  /// 라벨 프린터의 커버열림·용지없음을 `DLE EOT` 로 읽는다. 못 읽으면 **null**.
+  ///
+  /// `null` 과 "이상 없음" 을 반드시 구분할 것 — 호출부는 `null` 을 만나면
+  /// **통과시켜야 한다**(fail-open). 상태를 못 읽는 개체에서 대기하면 라벨이
+  /// 영영 안 나온다.
+  ///
+  /// ## 왜 [sendRaw] 와 별도 오픈인가
+  ///
+  /// 읽기에는 `GENERIC_READ` 가 필요한데, 출력 경로에 그걸 얹으면 읽기를
+  /// 지원하지 않는 장치(단방향 `Prot_01` 프린터)에서 open 자체가 깨진다.
+  /// 영수증 경로 회귀를 막기 위해 [sendRaw] 는 쓰기 전용을 유지한다.
+  ///
+  /// ## 한 번의 open 안에서 두 질의를 끝낸다
+  ///
+  /// 질의마다 open/close 하면 첫 질의 외에 0바이트가 돌아오는 것이 실측됐다
+  /// (G30, 2026-09-03). 대신 핸들을 오래 붙들면 배타 오픈이라 [sendRaw] 가
+  /// 막히므로, 게이트는 "poll 1회 = open→2질의→close" 로 돈다.
+  static Future<EscPosGateStatus?> queryGateStatus({
+    required String devicePath,
+  }) {
+    return _synchronized(devicePath, () async {
+      if (!_isPresent(devicePath)) return null;
+      final raw = await Isolate.run(() => _queryGateStatusSync(devicePath));
+      if (raw == null) return null;
+      final offline = decodeOfflineStatus(raw.offlineByte);
+      final paper = decodePaperStatus(raw.paperByte);
+      if (offline == null || paper == null) return null;
+      return EscPosGateStatus(
+        coverOpen: offline.coverOpen,
+        paperEnd: paper.paperEnd,
+      );
+    });
+  }
+
+  /// **Isolate 안에서만 실행된다** — 로깅/플랫폼 채널 금지.
+  static _GateBytes? _queryGateStatusSync(String devicePath) {
+    final pathPtr = devicePath.toNativeUtf16();
+    int handle = INVALID_HANDLE_VALUE;
+    int hEvent = 0;
+    final ov = calloc<OVERLAPPED>();
+    final xferred = calloc<Uint32>();
+    final wbuf = calloc<Uint8>(8);
+    final rbuf = calloc<Uint8>(8);
+    try {
+      handle = CreateFile(pathPtr, GENERIC_READ | GENERIC_WRITE, 0, nullptr,
+          OPEN_EXISTING, FILE_FLAG_OVERLAPPED, 0);
+      if (handle == INVALID_HANDLE_VALUE) return null;
+      hEvent = CreateEvent(nullptr, TRUE, FALSE, nullptr);
+      if (hEvent == 0) return null;
+
+      int? query(int n) {
+        // 질의 전 드레인 — 앞 질의의 응답이 남아 있으면 한 칸씩 밀린 값을
+        // 읽는다. 그 오정렬이 곧 "엉뚱한 바이트를 용지없음으로 오독" 이다.
+        for (var i = 0; i < 8; i++) {
+          if (!_overlappedIo(handle, hEvent, ov, xferred, _kStatusDrainMs,
+              () => ReadFile(handle, rbuf, 1, nullptr, ov))) {
+            break;
+          }
+          if (xferred.value < 1) break;
+        }
+        final cmd = dleEot(n);
+        wbuf.asTypedList(cmd.length).setAll(0, cmd);
+        if (!_overlappedIo(handle, hEvent, ov, xferred, _kStatusIoTimeoutMs,
+            () => WriteFile(handle, wbuf, cmd.length, nullptr, ov))) {
+          return null;
+        }
+        for (var i = 0; i < 3; i++) {
+          if (!_overlappedIo(handle, hEvent, ov, xferred, _kStatusIoTimeoutMs,
+              () => ReadFile(handle, rbuf, 1, nullptr, ov))) {
+            return null;
+          }
+          if (xferred.value >= 1) return rbuf.value;
+          sleep(const Duration(milliseconds: 30));
+        }
+        return null;
+      }
+
+      final offline = query(kDleEotOffline);
+      if (offline == null) return null;
+      final paper = query(kDleEotPaper);
+      if (paper == null) return null;
+      return _GateBytes(offlineByte: offline, paperByte: paper);
+    } catch (_) {
+      return null;
+    } finally {
+      if (hEvent != 0) CloseHandle(hEvent);
+      if (handle != INVALID_HANDLE_VALUE) CloseHandle(handle);
+      calloc.free(rbuf);
+      calloc.free(wbuf);
+      calloc.free(xferred);
+      calloc.free(ov);
+      calloc.free(pathPtr);
+    }
+  }
+
+  /// overlapped I/O 1회. 성공하면 true.
+  ///
+  /// **타임아웃은 선택이 아니다** — 응답하지 않는 장치에서 `ReadFile` 이 무기한
+  /// 블로킹되면 isolate 와 핸들이 함께 샌다(`Isolate.run` 은 취소할 수 없다).
+  /// 타임아웃 시 `CancelIo` 로 걷어내야 버퍼를 안전하게 해제할 수 있다.
+  static bool _overlappedIo(int handle, int hEvent, Pointer<OVERLAPPED> ov,
+      Pointer<Uint32> xferred, int timeoutMs, int Function() io) {
+    ResetEvent(hEvent);
+    ov.ref.hEvent = hEvent;
+    ov.ref.Internal = 0;
+    ov.ref.InternalHigh = 0;
+    xferred.value = 0;
+
+    if (io() == 0) {
+      final err = GetLastError();
+      // err==0 은 "완료했는데 FALSE 를 돌려준" 경우다 — overlapped 핸들에
+      // lpNumberOfBytes=NULL 로 호출하면 일부 드라이버가 이렇게 동작한다.
+      // 실패로 단정하지 말고 GetOverlappedResult 로 진짜 결과를 묻는다.
+      if (err != ERROR_IO_PENDING && err != NO_ERROR) return false;
+      if (err == ERROR_IO_PENDING &&
+          WaitForSingleObject(hEvent, timeoutMs) != WAIT_OBJECT_0) {
+        CancelIo(handle);
+        GetOverlappedResult(handle, ov, xferred, TRUE);
+        return false;
+      }
+    }
+    return GetOverlappedResult(handle, ov, xferred, TRUE) != 0;
+  }
+
   // ---- 생존 확인 ----------------------------------------------------------
 
   /// [devicePath] 장치가 실제로 쓰기 가능한지 검증한다.
@@ -383,7 +555,7 @@ class UsbPrintService {
   /// `UsbReceiptPrinter.verifyConnection` 과 같은 신호이며 출력물에 영향이 없다.
   /// [sendRaw] 와 락을 공유하므로 출력 중에는 검증이 대기한다.
   static Future<bool> probeConnection({required String devicePath}) {
-    return _synchronized(() async {
+    return _synchronized(devicePath, () async {
       if (!_isPresent(devicePath)) {
         logToFile(
           tag: LogTag.PLATFORM,
@@ -410,6 +582,17 @@ class UsbPrintService {
   /// `ComPortPrintService.printTestPage` 와 달리 큐 우회 경로를 늘리지 않기 위함.
   static String describe(String? devicePath) =>
       devicePath == null || devicePath.isEmpty ? '(미선택)' : devicePath;
+}
+
+/// [UsbPrintService._queryGateStatusSync] 가 돌려주는 원시 응답 바이트.
+///
+/// 해독은 isolate 밖에서 한다 — isolate 경계를 넘는 건 단순 값이어야 하고,
+/// 원문 바이트를 그대로 넘겨야 진단 로그에 실측값을 남길 수 있다.
+class _GateBytes {
+  const _GateBytes({required this.offlineByte, required this.paperByte});
+
+  final int offlineByte;
+  final int paperByte;
 }
 
 /// [UsbPrintService._openWriteClose] 의 결과. isolate 경계를 넘으므로 단순 값만

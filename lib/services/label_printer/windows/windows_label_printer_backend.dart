@@ -15,6 +15,9 @@ import 'package:ffi/ffi.dart';
 import 'package:appfit_order_agent/utils/logger.dart';
 
 import 'package:appfit_order_agent/services/label_printer/label_printer_options.dart';
+// 값 객체·순수 함수만 있는 leaf 파일이라 native 의존이 없다 (win32 를 끌고 오는
+// usb_print_service.dart 와 구분할 것).
+import 'package:appfit_order_agent/services/usb_print_descriptor.dart';
 import 'package:appfit_order_agent/services/label_printer/windows/autoreplyprint_bindings.dart';
 import 'package:appfit_order_agent/services/label_printer/windows/autoreplyprint_constants.dart';
 
@@ -478,6 +481,38 @@ class WindowsLabelPrinterBackend {
     'VID:0x0FE6,PID:0x811E', // REXOD RXLA-561 (운영 모델)
   ];
 
+  /// [_kUsbPortCandidates] 에서 파생한 (VID, PID) 집합. 화이트리스트 정본은
+  /// 위 리스트 하나이고 이건 대조용 파생물이다 — 둘이 어긋날 수 없다.
+  static final Set<String> _kAllowedVidPidKeys = _kUsbPortCandidates
+      .map((s) {
+        final ids = parseUsbIdsFromDevicePath(s.replaceAll(':0x', '_'));
+        return usbIdKey(vendorId: ids.vendorId, productId: ids.productId);
+      })
+      .whereType<String>()
+      .toSet();
+
+  /// `CP_Port_EnumUsb` 결과 중 **이 백엔드가 열어도 되는 것**만 남긴다.
+  ///
+  /// 두 표기를 모두 받는다:
+  /// - OS 디바이스 인스턴스 경로 `\\?\usb#vid_4b43&pid_3538#...`
+  /// - 짧은 형식 `VID:0x4B43,PID:0x3538`
+  ///
+  /// VID/PID 를 못 읽는 이름은 **버린다**. 열어봐서 확인하는 것이 곧 남의
+  /// 프린터에 바이트를 쓰는 행위라 "모르면 시도" 가 성립하지 않는다.
+  static List<String> _allowedUsbPortNames(List<String> names) {
+    final out = <String>[];
+    for (final name in names) {
+      final ids = parseUsbIdsFromDevicePath(name);
+      final key = usbIdKey(vendorId: ids.vendorId, productId: ids.productId);
+      if (key != null && _kAllowedVidPidKeys.contains(key)) {
+        out.add(name);
+        continue;
+      }
+      if (_kUsbPortCandidates.contains(name)) out.add(name);
+    }
+    return out;
+  }
+
   Future<bool> _ensurePortOpen(int autoReplyMode) async {
     final bindings = AutoReplyPrintBindings.tryGet();
     if (bindings == null) return false;
@@ -519,10 +554,27 @@ class WindowsLabelPrinterBackend {
     logger.i(
         '[LabelPrinter] CP_Port_EnumUsb 결과(${enumeratedNames.length}): $enumeratedNames');
 
+    // ★ 열기 전에 VID/PID 게이트를 통과시킨다.
+    //
+    // `CP_Port_EnumUsb` 는 Caysn 장치만 내놓지 않는다 — usbprint 로 잡히는 다른
+    // 프린터도 함께 나온다. usbprint devnode 는 `CreateFile` 이 성공하므로
+    // 그대로 열면 SDK 가 **남의 프린터에 Caysn 핸드셰이크 바이트를 써 넣는다.**
+    // 2026-09-03 실기 관측: BIXOLON G30 이 이 경로로 열려 깨진 문자를 한 줄
+    // 인쇄했고, Caysn 응답이 없어 `portIsOpened` 가 0 이 되면서 설정 화면에는
+    // "연결안됨" 으로 표시됐다(두 증상이 같은 뿌리).
+    //
+    // 허용 집합은 `_kUsbPortCandidates` 에서 파생시켜 정본을 한 곳으로 유지한다.
+    final candidates = _allowedUsbPortNames(enumeratedNames);
+    final rejected = enumeratedNames.length - candidates.length;
+    if (rejected > 0) {
+      logger.i('[LabelPrinter] 라벨 화이트리스트 밖 $rejected건 제외 — '
+          '${enumeratedNames.where((n) => !candidates.contains(n)).toList()}');
+    }
+
     // OS 디바이스 인스턴스 경로(`\\?\usb#...`)가 SDK 의 OpenUsb 가 실제로 받아
     // 들이는 형식이다. 짧은 `VID:0xXXXX,PID:0xYYYY` 형식은 enumerate 결과로
     // 노출되지만 OpenUsb 에서는 거부되는 환경이 있어 OS 경로를 먼저 시도한다.
-    final ordered = [...enumeratedNames]..sort((a, b) {
+    final ordered = [...candidates]..sort((a, b) {
         final aOs = a.startsWith(r'\\?\');
         final bOs = b.startsWith(r'\\?\');
         if (aOs == bOs) return 0;

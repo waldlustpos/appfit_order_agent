@@ -74,6 +74,7 @@
 - [appfit-fleet 백엔드 구조](project_appfit_fleet_backend.md) — Cloudflare Workers+D1, 이미 배포됨. 중첩 미추적 하위디렉터리 함정 주의 (2026-08-20)
 - [Fleet 저장공간/메모리 현황 추가 설계](project_fleet_resource_monitoring_plan.md) — 네이티브 코드 방식 확정(system_info2 게시자 미검증으로 기각), 앱+백엔드 계획 완료·구현 미착수 (2026-08-20)
 - [BIXOLON G30 40mm+58mm 레이아웃](project_bixolon_g30_40mm_layout.md) — 인쇄시작위치 하드웨어고정 / 측정경로 320 clamp가 가짜 실측값 생성 / 반전인쇄는 stroke 아닌 fontSize가 지렛대. 58mm=52.5mm 실측확정, Windows 남음 (2026-08-26)
+- [G30 Windows 이식 = usbprint 직결 ESC/POS](project_g30_windows_escpos_port.md) — BXLPAPI 불필요. 화이트리스트 폴백 버그 수정 + DLE EOT 복구대기 게이트(Prot_02·드레인·err==0 함정) (2026-09-04)
 - [BIXOLON XD5-40d 지원 종료 — 남은 자산은 전부 G30 소유](project_bixolon_xd5_removal_residue.md) — libbxl_common.so/libcommon/pdflib 스텁은 G30 현역(오삭제 시 release 전용 크래시). 삭제 경계는 벤더가 아니라 심볼. 버저 SDK 조사만 승계, 하드웨어 결론은 미승계 (2026-09-01)
 - [G30 exclusive claim 고착](reference_g30_usb_claim_stuck.md) — 해결은 프린터 전원 재인가(앱 재시작 무효). usblp 바인딩·UsbProtectControlService·영수증 선점은 정상시에도 관측되는 착시 증거. 코드 차이 없는데 증상 있으면 환경을 볼 것
 - [Sunmi App Store 패키지](reference_sunmi_app_store_package.md) — woyou.market 단일. market:// 는 Play 로 샘. <queries> 검증은 dumpsys package queries, 판정 기기는 D3MINI(A13).
@@ -90,3 +91,4 @@
 - [멤버십 미가입 접수](project_membership_unregistered_intake.md) — 서버 자동가입 정책(매머드 1차)이 근거. 내역 API는 건너뜀. Dio 인터셉터가 Sentry 선발화하는 함정 (2026-08-31)
 - [PREPARING 유입 출력 게이트](project_preparing_intake_output_gate.md) — 생성시점 PREPARING(NICE_KIOSK)이 일반 모드 무출력. KDS 게이트가 원인, isSourceNotifyEnabled 필수. 폴링은 서버 변경 없이 불가 (2026-09-01)
 - [Windows usbprint 경로 + 영수증 폭 기종별](project_external_printer_usbprint_and_width.md) — A8=usbprint 단독(COM 없음), PR800=CDC. 기본폭 42는 "안전한 실패방향". 실기 검증 대기·미커밋 (2026-09-02)
+- [Windows 외부 영수증 COM 우선](project_windows_external_printer_com_first.md) — PR800은 복합장치라 usbprint에도 중복 열거됨. VID:PID로 접고 COM 남김. 자동 이전 금지 (2026-09-04)

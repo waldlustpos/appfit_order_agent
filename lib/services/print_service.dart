@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:appfit_order_agent/services/external_receipt_printer.dart';
 import 'package:appfit_order_agent/services/label_printer/label_print_outcome.dart';
+import 'package:appfit_order_agent/services/label_printer/label_printer_models.dart';
 import 'package:appfit_order_agent/services/label_printer/label_printer_options.dart';
 import 'package:appfit_order_agent/services/label_printer/label_warmup_starter.dart';
 import 'package:appfit_order_agent/services/label_printer/windows/windows_label_router.dart';
@@ -57,12 +58,6 @@ class PrinterStatus {
   }
 }
 
-/// 라벨 프린터 표시명 중 G30 — [OutputService] 가 이 값으로 연속용지 레이아웃
-/// ([Continuous58LabelPainter] / [LabelMediaSpec.continuous58]) 분기를 탄다.
-/// 40mm 는 서비스 대상이 아니라 용지 사이즈 분기는 없다(2026-09-03).
-/// 문자열을 여기저기 새로 쓰지 말고 항상 이 상수를 참조할 것.
-const String kBixolonG30ModelName = 'BIXOLON G30';
-
 /// 라벨 프린터 VID/PID → 사용자 표시용 기종명. 지원 대상이 아니면 null.
 /// LabelPrinter.java / BixolonPosDriver.java 화이트리스트와 동기 유지.
 ///
@@ -82,8 +77,8 @@ String? labelPrinterModelName({
   if (vendorId == 0x4B43 && productId == 0x3538) return 'Caysn D2';
   if (vendorId == 0x4B43 && productId == 0x3830) return 'Caysn D3';
   if (vendorId == 0x0FE6 && productId == 0x811E) return 'REXOD RXLA-561';
-  if (vendorId == 0x1504) {
-    if (productId == 0x0147) return kBixolonG30ModelName;
+  if (vendorId == kBixolonVendorId) {
+    if (productId == kBixolonG30ProductId) return kBixolonG30ModelName;
     if (productName != null && productName.toUpperCase().contains('G30')) {
       return kBixolonG30ModelName;
     }
@@ -372,20 +367,14 @@ class PrintService {
       bool? newExternal;
       try {
         if (label && _cachedLabelPrinter == true) {
-          final backend = WindowsLabelRouter.instance;
-          bool open = false;
-          try {
-            open = backend.isOpen;
-          } catch (e, s) {
-            logger.w('[PrintService] backend.isOpen 예외',
-                error: e, stackTrace: s);
-          }
-          if (open) {
-            newLabel = true;
-          } else {
-            final mode = _preferenceService.getLabelAutoReplyMode();
-            newLabel = await backend.warmupOpen(autoReplyMode: mode);
-          }
+          // `isOpen` 으로 먼저 걸러내지 않고 **매번 warmupOpen 으로 재평가**한다.
+          // G30 은 열린 핸들이 없어 검출 결과를 캐시로 들고 있는데, 캐시를
+          // 그대로 믿으면 프린터를 뽑아도 연결 배지가 초록으로 굳는다.
+          // Caysn 경로에서도 낭비가 아니다 — `_ensurePortOpen` 이 포트가 이미
+          // 유효하면 즉시 true 로 빠져나오고, 콜백 등록도 플래그로 멱등하다.
+          final mode = _preferenceService.getLabelAutoReplyMode();
+          newLabel = await WindowsLabelRouter.instance
+              .warmupOpen(autoReplyMode: mode);
         } else if (label) {
           newLabel = false;
         }

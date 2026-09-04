@@ -282,11 +282,19 @@ class _ExternalPrinterSubSettingsState
       logToFile(tag: LogTag.WARNING, message: 'COM 포트 열거 실패: $e');
     }
 
-    final all = [...usb, ...com];
+    // COM 을 앞에 둔다 — 드롭다운에서 먼저 보이는 것이 현장 설치가 익숙한 표기다.
+    // 이어서 같은 물리 장치의 usbprint 중복을 걷어낸다(PR800 은 복합 장치라 COM 과
+    // usbprint 양쪽에 잡힌다). 짝이 없는 usbprint 전용 기종(A8)은 그대로 남는다.
+    final merged = [...com, ...usb];
+    // 이미 usbprint 로 잡아 쓰고 있던 단말에서 그 항목까지 지우면 드롭다운이
+    // "미선택" 으로 보인다 — 저장된 대상은 예외로 남긴다.
+    final all = dedupeSameDevicePreferringCom(merged, keep: _savedTarget());
     if (mounted) setState(() => _targets = all);
+    final dropped = merged.length - all.length;
     logToFile(
       tag: LogTag.PLATFORM,
-      message: '외부 프린터 후보 열거: USB ${usb.length}개 + COM ${com.length}개 '
+      message: '외부 프린터 후보 열거: COM ${com.length}개 + USB ${usb.length}개'
+          '${dropped > 0 ? " (COM 과 같은 장치인 usbprint $dropped개 제외)" : ""} '
           '[${all.map((t) => t.displayLabel).join(' | ')}], '
           '저장=${_savedTarget()?.uiValue ?? "(미설정)"}',
     );
@@ -342,12 +350,6 @@ class _ExternalPrinterSubSettingsState
     final saved = _savedTarget();
     final candidates = orderScanCandidates(targets, saved);
 
-    if (candidates.isEmpty) {
-      setState(() => _reconnectResult = '프린터를 찾을 수 없습니다. 전원·케이블과 '
-          'USB-Serial 드라이버를 확인하세요. (라벨 프린터는 목록에서 제외됩니다)');
-      return;
-    }
-
     ExternalPrinterTarget? hit;
     for (final t in candidates) {
       final ok = await _probeTarget(t, isSaved: t.sameAs(saved));
@@ -362,8 +364,15 @@ class _ExternalPrinterSubSettingsState
     if (hit == null) {
       // 저장값은 그대로 둔다 — 프린터 전원이 잠깐 꺼진 것뿐일 수 있고,
       // 쓰던 대상을 말없이 지우면 나중에 더 혼란스럽다.
-      setState(() => _reconnectResult =
-          '프린터를 찾지 못했습니다 (${candidates.length}개 후보 확인). '
+      //
+      // 문구는 **후보 수가 아니라 열거된 장치 수**로 가른다. 후보에는 지금 안
+      // 보이는 저장 대상이 항상 끼어 있어(USB 재열거 lag 대응), 아무것도 안
+      // 꽂힌 상태에서도 "1개 후보 확인" 이 떠서 마치 장치가 있는 것처럼 읽힌다.
+      // 실제로 케이블이 빠진 상황이 그렇게 보이면 점주가 엉뚱한 데를 본다.
+      setState(() => _reconnectResult = targets.isEmpty
+          ? '연결된 프린터가 없습니다. 전원·케이블과 USB-Serial 드라이버를 확인하세요. '
+              '(라벨 프린터는 목록에서 제외됩니다)'
+          : '프린터를 찾지 못했습니다 (${targets.length}개 확인). '
               '전원·케이블을 확인하거나, 시리얼 프린터라면 BAUD RATE 를 바꿔 다시 시도하세요.');
       return;
     }

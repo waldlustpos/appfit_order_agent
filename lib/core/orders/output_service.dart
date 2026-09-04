@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:appfit_order_agent/models/order_model.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
 import 'package:appfit_order_agent/providers/product_provider.dart';
+import 'package:appfit_order_agent/services/label_printer/label_printer_models.dart';
 import 'package:appfit_order_agent/services/label_printer/label_output_policy.dart';
 import 'package:appfit_order_agent/services/label_printer/label_subinfo_strategy.dart';
 import 'package:appfit_order_agent/services/label_printer/label_print_data.dart';

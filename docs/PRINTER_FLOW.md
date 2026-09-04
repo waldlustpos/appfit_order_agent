@@ -76,7 +76,7 @@ flowchart TD
 | `PrinterNoDevice(reason)` | 디바이스 없음/미연결 | O |
 | `PrinterTransportError(reason)` | 전송 실패 | O |
 
-- **Windows 2경로 + 통합 자동 스캔**: 같은 USB 영수증 프린터라도 드라이버 바인딩이 갈려서 COM(가상 시리얼/물리 RS-232)과 usbprint(USB 프린터 클래스) 두 갈래가 필요하다. 사용자는 종류를 고르지 않고, **재연결이 양쪽을 훑어 응답하는 장치를 채택**한다 (§2.2). 저장은 "종류 + 종류별 식별자" 쌍이며 기본값은 `com`이라 기존 현장 단말은 그대로 동작한다.
+- **Windows 2경로 + 통합 자동 스캔, COM 우선**: 같은 USB 영수증 프린터라도 드라이버 바인딩이 갈려서 COM(가상 시리얼/물리 RS-232)과 usbprint(USB 프린터 클래스) 두 갈래가 필요하다. 사용자는 종류를 고르지 않고, **재연결이 양쪽을 훑어 응답하는 장치를 채택**한다 (§2.2). 다만 **애매하면 COM으로 수렴시킨다** — 현장 설치가 COM 표기에 맞춰져 있고 일반 설치 기종(PR800)이 COM이기 때문. 저장은 "종류 + 종류별 식별자" 쌍이며 기본값은 `com`이라 기존 현장 단말은 그대로 동작한다.
 - **Windows deferred import**: `serial_port_win32` / `win32`의 정적 initializer가 Android 런타임에서 `kernel32.dll`을 찾으려다 크래시하는 것을 막기 위해 Windows transport를 지연 로드. `usb_print_service.dart`도 같은 규율 아래 있으며, native 의존이 없는 값 객체만 `usb_print_descriptor.dart` / `com_port_descriptor.dart`로 분리해 UI가 참조한다.
 - **DLE EOT 1 프로브**: USB-Serial CDC 칩이 프린터 전원 OFF에도 bus power로 살아 있어 발생하는 false-positive("연결됨" 오판)를 차단. `_probeTimeout`(300ms), `_probeMaxAttempts`(5) 등으로 생존을 직접 확인 — 자세한 권위 판정은 메모리 `external_printer_liveness` 참조.
 - **Android VID 화이트/블랙리스트**: Posbank(0x1552)·NXP(0x0D28) 허용, ASIX Ethernet(0x0B95) 제외. 청크 `CHUNK_SIZE` 8KB, 타임아웃 5000ms.
@@ -128,7 +128,17 @@ Windows COM 경로는 **두 가지 물리 연결을 동일 코드로 지원**한
 
 **연결 대상은 통합 자동 스캔이 고른다** ([external_printer_target.dart](../lib/services/external_printer_target.dart) + `ExternalPrinterSubSettings._reconnectWindows`). 두 경로는 **서로소 집합**이라 — 물리 RS-232 프린터는 USB 장치가 아니라 usbprint에 안 나오고, usbprint.sys에 바인딩된 프린터는 CDC가 없어 COM을 안 만든다 — "어느 쪽이 더 낫다"가 아니라 둘 다 필요하다. 그래서 사용자에게 종류를 묻지 않는다.
 
-재연결 스캔 순서(`orderScanCandidates`, 순수 함수·테스트로 고정): **저장 대상 → usbprint 후보 → COM 후보**. usbprint를 먼저 훑는 이유는 성능이 아니라 안전이다 — usbprint 후보는 USB Printer class라 프린터임이 확실하고 probe가 수 ms지만, COM 후보에는 캐시드로어·저울 같은 무관한 장비가 섞여 있고 probe가 포트당 수백 ms 걸린다. 확실한 쪽을 먼저 훑어 조기 종료하면 무관한 장비를 덜 건드린다. 스캔은 **재연결 버튼을 눌렀을 때만** 돈다(화면 진입 시 자동 스캔 없음).
+**같은 물리 장치의 중복은 COM 쪽만 남긴다** (`dedupeSameDevicePreferringCom`, 2026-09-04). PR800은 복합 USB 장치라 `MI_00`이 usbprint로, `MI_01`이 CDC→COM으로 **두 번** 열거된다. 손대지 않으면 드롭다운에 같은 프린터가 두 줄로 나오고 스캔이 usbprint를 채택해 설정에 `COM3` 대신 장치 경로가 박힌다. 짝 판정은 VID:PID로 하며(usbprint는 장치 경로에서, COM은 `hardwareId`에서 — `parseUsbIdsFromDevicePath`가 두 표기를 모두 받는다), VID/PID를 못 뽑는 후보(물리 RS-232)는 건드리지 않는다. **usbprint 전용 기종(A8)은 짝이 없어 그대로 남는다 — 중복만 없애고 선택지는 줄이지 않는다.**
+
+재연결 스캔 순서(`orderScanCandidates`, 순수 함수·테스트로 고정): **저장 대상 → COM 후보 → usbprint 후보**.
+
+> **COM을 먼저 두는 이유는 기술이 아니라 운영이다.** 현장 설치는 오래도록 COM 표기(`COM3` 등)를 보고 세팅해 왔고, 일반 설치 기종이 PR800(COM)이며 usbprint 전용(A8)은 예외 설치다. 예외 때문에 일반이 낯설어지면 안 된다.
+>
+> **대가를 알고 택한 순서다.** COM 후보에는 캐시드로어·저울 같은 무관한 장비가 섞여 있고 probe가 포트당 수백 ms라, usbprint를 먼저 훑어 조기 종료할 때보다 스캔이 느리고 무관한 장비를 더 건드린다. 다만 usbprint가 못 잡으면 어차피 COM을 전부 훑던 구조라 **건드리는 대상 자체가 늘지는 않는다 — 순서만 바뀐다.** 재연결은 사용자가 버튼을 눌렀을 때만 도는 수동 동작이라 이 지연은 받는다.
+>
+> **저장 대상은 여전히 맨 앞이고, 자동 이전(migration)은 하지 않는다.** 이미 usbprint로 잡아 쓰는 단말은 그대로 둔다 — 같은 프린터라도 COM 쪽 드라이버가 죽어 있을 수 있어, 동작 중인 설정을 말없이 바꾸면 "설정을 만진 적 없는데 출력이 끊긴다"가 된다. 그 경우 중복 제거에서도 저장 항목만은 남긴다(`keep` 인자) — 지우면 드롭다운이 "미선택"으로 보이는데 실제로는 멀쩡히 출력되고 있어 더 혼란스럽다.
+
+스캔은 **재연결 버튼을 눌렀을 때만** 돈다(화면 진입 시 자동 스캔 없음).
 
 **Winspool 금지 정책과의 관계 — 이 경로는 그 금지에 해당하지 않는다.** 금지의 실질은 "사용자가 고르지 않은 OS 기본 프린터로 영수증이 새어나가는 사고"다. 자동 채택 자체는 COM 경로가 예전부터 하던 일이고, 위험했던 건 *무엇이든 가리킬 수 있는 추상*(기본 프린터 = PDF 라이터·네트워크 프린터·라벨)이었다. 다음 세 조건이 그 추상을 대신한다 — **하나라도 무너지면 그때는 금지에 저촉된다**:
 
@@ -176,10 +186,12 @@ Windows COM 경로는 **두 가지 물리 연결을 동일 코드로 지원**한
 ```mermaid
 flowchart TD
     LBL["LabelPrintData<br/>BMP 비트맵 + QR 인코드"]
-    LBL -->|Windows| WRT{"WindowsLabelRouter<br/>벤더 seam (현재 분기 1개)"}
+    LBL -->|Windows| WRT{"WindowsLabelRouter<br/>벤더 seam (G30 우선)"}
     LBL -->|Android| LMC["MethodChannel printLabel"]
 
-    WRT -->|"Caysn/REXOD (G30 Windows 미이식)"| WB["WindowsLabelPrinterBackend<br/>autoreplyprint FFI"]
+    WRT -->|"BIXOLON G30"| WG30["BixolonG30WindowsBackend<br/>usbprint 직결 ESC/POS"]
+    WG30 --> WGR["GS v 0 래스터 + GS V 66 0 커터<br/>WriteFile 성공 = 완료 (최소 판정)"]
+    WRT -->|"Caysn/REXOD"| WB["WindowsLabelPrinterBackend<br/>autoreplyprint FFI"]
     WB --> FFI["autoreplyprint SDK (C DLL)"]
     FFI --> CB["NativeCallable 상태 콜백<br/>비콘 캐시 갱신"]
     CB --> QPR["QueryPrintResult<br/>타임아웃 1000ms"]
@@ -192,7 +204,7 @@ flowchart TD
 ```
 
 - **지원 기종은 2종**: **REXOD RXLA-561**(Caysn autoreplyprint SDK, 갭 라벨) + **BIXOLON G30**(UPOS/JavaPOS SDK, 연속 용지). Caysn D2/D3 는 화이트리스트에 남아 있으나 판매 모델은 아니다. BIXOLON XD5-40d 지원은 2026-09 종료 — §3.4 참조.
-- **Windows**: `WindowsLabelRouter`는 지금 분기가 하나뿐이지만 **벤더 seam 으로 의도적으로 유지**한다(G30 Windows 이식 시 두 번째 분기가 그 자리에 들어온다 — §3.5 "남은 작업"). 실제 출력은 `WindowsLabelPrinterBackend`(AutoReplyPrint SDK FFI, Java 패턴 1:1 포팅, `NativeCallable.listener` 상태/완료 콜백, `QueryPrintResult` 타임아웃 1000ms, 라벨 모드는 포트 닫힐 때까지 유지). Android 와 동일한 에러 의미론(복구대기·submit-wins) 공유. **G30 은 Windows 미이식** — 꽂아도 Caysn 화이트리스트에 걸러져 인쇄되지 않는다.
+- **Windows**: `WindowsLabelRouter`가 **G30 우선**으로 벤더를 가른다(Android `NativeMethodHandler` 와 대칭). G30 은 벤더 DLL 없이 usbprint devnode 직결 ESC/POS(`BixolonG30WindowsBackend` — §3.8), 그 외(Caysn D2/D3 · REXOD)는 `WindowsLabelPrinterBackend`(AutoReplyPrint SDK FFI, Java 패턴 1:1 포팅, `NativeCallable.listener` 상태/완료 콜백, `QueryPrintResult` 타임아웃 1000ms, 라벨 모드는 포트 닫힐 때까지 유지). Caysn 경로는 Android 와 동일한 에러 의미론(복구대기·submit-wins)을 공유하지만 **G30 경로는 완료 판정이 최소 범위**다(§3.8 "알려진 한계").
 - **Android**: MethodChannel `printLabel` → `NativeMethodHandler` 가 연결된 USB VID/PID 로 벤더 분기 — **G30(VID 0x1504 + PID 0x0147, 또는 제품명 "G30")을 먼저 체크**하고(`BixolonPosDriver.isG30Attached`), 나머지는 `LabelPrinter.java`(Caysn autoreplyprint). G30 판정은 **좁다** — VID 만 맞는 미식별 BIXOLON 기기는 Caysn 화이트리스트에 걸러져 **어느 드라이버로도 인쇄되지 않는다**(XD5-40d 종료로 0x1504 의 폴백 대상이 없어졌고, 이는 의도된 동작이다). G30 은 UPOS/JavaPOS SDK(`com.bxl.**`/`jpos.**`) 기반이고 `setAsyncMode(false)` 동기 모드라 `transactionPrint(PTR_TP_NORMAL)` 자체가 물리 인쇄 완료까지 블로킹하므로 Caysn 처럼 별도 완료 폴링 루프가 없다. 인자 `autoReplyMode`/`useFeedToTear`/`useBackToPrint`/`useCalibrate` 는 Caysn 전용(G30 경로는 전부 무시), `orderNo`/`labelIndex`/`totalLabels` 는 공통. 두 드라이버 모두 동일한 에러 의미론 공유: 용지없음/커버열림=무한 복구대기, 기타 에러=0.5s 게이트 후 false(Dart 재시도), 전송 완료 후는 submit-wins(중복 인쇄 방지) — G30 은 `PTR_TP_TRANSACTION`(버퍼링)→`PTR_TP_NORMAL`(flush)이 그 경계.
 - **QR 페이로드**: `qrPayloadStrategyProvider`가 브랜드별 전략 선택(현재 모두 `DefaultQrPayloadStrategy` = `{OrderNo}-{ShopItemId}-{CupIdx}`). 자세한 흐름은 [docs/BRAND_I18N_FLOW.md](BRAND_I18N_FLOW.md).
 - FFI Isolate boxing·hot-reload 주의는 메모리 `ffi_isolate_boxing`, `hot_reload_cold_restart` 참조.
@@ -410,17 +422,9 @@ quiet zone(모듈 4개 폭 흰 배경)이 `clampQuietTopTo`/`clampQuietBottomTo`
 번호/QR, QR/subInfo 양쪽 다 겪음) — QR 박스 안으로 clamp 하도록 고쳐 gap 크기와 무관하게
 항상 안전하게 만들었다.
 
-#### 남은 작업
+#### Windows 이식
 
-- **Windows(BXLPAPI) 이식 — 미착수.** Android UPOS 와는 별도 명령셋(BXLPAPI). 레이아웃(PNG
-  생성)은 `ContinuousLabelPainter`/`Continuous58LabelPainter`+`LabelMediaSpec`을 그대로 재사용
-  가능 — 이식 대상은 순수 전송 계층뿐. 할 일 두 가지:
-  ① `print_service.dart` 가 Windows 경로에 `LabelPainter.width/height`(490/600)를
-  하드코딩하는 지점을 실제 생성 이미지 크기로 교체(연속용지는 세로 가변).
-  ② `windows_label_router.dart` 에 **G30 분기를 신규 추가**(기존 하드코딩 수정이 아니다 —
-  XD5-40d 의 `'BIXOLON XD5-40d'` 하드코딩은 §3.4 에서 이미 제거됐고, 라우터 파일은 바로
-  이 분기가 들어올 자리로 남겨 둔 것이다). `connectedModelName` / `printPng` /
-  `warmupOpen` 세 지점이 대상.
+§3.8 참조. **BXLPAPI 가 아니라 ESC/POS 직결로 이식했다** — 벤더 DLL 없이 끝났다.
 
 ### 3.6 BIXOLON G30 — 58mm 연속용지 레이아웃 (2026-08-26)
 
@@ -626,6 +630,127 @@ LabelPrintData.fromOrder(policy:, subInfoStrategy:)
 
 ---
 
+### 3.8 BIXOLON G30 — Windows 이식 (2026-09-03)
+
+**벤더 SDK 없이 끝났다.** 계획 문서(구 §3.5 "남은 작업")는 BXLPAPI DLL 을 전제했지만,
+G30 은 Windows 에서 `usbprint.sys` devnode 로 잡히고 **ESC/POS 를 그대로 받는다.**
+그래서 POSBANK A8 영수증으로 이미 검증된 usbprint 직결 경로를 재사용한다.
+
+```
+Continuous58LabelPainter  →  PNG (412 × 300~800dot, 세로 가변)
+        ↓  bixolon_g30_windows_backend._encodeLabel  (dart:ui 디코드)
+   RGBA
+        ↓  g30_escpos_raster.encodeG30RasterFromRgba  (순수 Dart)
+   ESC @  +  GS v 0 (밴드 분할)  +  GS V 66 0
+        ↓  UsbPrintService.sendRaw
+   \\?\usb#vid_1504&pid_0147#...        (CreateFile/WriteFile, 스풀러 미경유)
+```
+
+#### 왜 ESC/POS 인가 (판단 근거)
+
+- Android 드라이버가 G30 을 `DEVICE_CATEGORY_POS_PRINTER` 로 등록하고 UPOS escape
+  `ESC|90fP`(feed & partial cut)를 쓴다 — wire 프로토콜이 ESC/POS 계열이라는 정황.
+- 이식 전 실기 증상(아래 §3.8 "동시에 고친 버그")에서 **임의 바이트가 글리프로 인쇄**됐다.
+  이건 G30 이 ESC/POS 텍스트 모드로 동작 중이라는 직접 증거다.
+- `tool/g30_windows_probe.dart` 로 앱 빌드 없이 확정했다 — 앱과 **같은 인코더·같은 전송
+  방식**을 쓰는 standalone 스크립트다. 향후 기종 추가/펌웨어 변경 시 첫 번째 판별 도구.
+
+#### 동시에 고친 버그 — Caysn SDK 가 G30 에 바이트를 써 넣던 문제
+
+이식 전 실기에서 **"연결안됨" 인데 깨진 문자가 한 줄 인쇄**되는 증상이 있었다. 두 증상이
+같은 뿌리다:
+
+1. `_ensurePortOpen` 이 `CP_Port_EnumUsb` 결과를 **VID/PID 필터 없이 전부 열어봤다.**
+   `_kUsbPortCandidates` 화이트리스트는 게이트가 아니라 열거 실패 시의 **폴백**이었다.
+2. Caysn SDK 열거에는 usbprint 로 잡히는 남의 프린터도 섞여 나오고, usbprint devnode 는
+   `CreateFile` 이 성공한다 → SDK 가 G30 에 Caysn 핸드셰이크 바이트를 씀 → **깨진 문자**.
+3. G30 은 Caysn 응답을 못 주므로 `portIsOpened` 가 0 → **연결안됨**.
+
+수정: `_allowedUsbPortNames()` 로 **열기 전에** VID/PID 게이트를 통과시킨다. VID/PID 를 못
+읽는 이름은 버린다 — 열어봐서 확인하는 것이 곧 남의 프린터에 바이트를 쓰는 행위라
+"모르면 시도" 가 성립하지 않는다. 라우터가 G30 검출 시 Caysn 백엔드를 아예 부르지 않는
+것과 **이중으로** 막는다.
+
+#### 불변식
+
+| 규칙 | 이유 |
+|---|---|
+| **이진화 임계 210 · luminance `(r*299+g*587+b*114)/1000`** | Android `BixolonPosDriver.BINARIZE_THRESHOLD` 와 같은 값이어야 두 플랫폼 출력물이 시각적으로 같다. 실기로 확정된 승계 결론 — 재유도 금지 |
+| **`g30_escpos_raster.dart` 는 `dart:ui`·win32 의존 0** | ① standalone `dart run`(프로브)에서 같은 인코더를 쓰기 위해 ② Android import 그래프에서 도달 가능하므로 win32 를 끌면 kernel32 lookup 크래시. `EscPos.init`/`cutPaper` 를 import 하지 않고 **값을 복제**한 것도 같은 이유(`escpos_builder.dart` 가 win32 를 끈다) |
+| **백엔드는 `usb_print_service` 를 `deferred as` 로만 import** | 위와 같은 이유. `UsbPrintDescriptor`/`parseUsbIdsFromDevicePath` 는 native 의존 없는 `usb_print_descriptor.dart` 에 있어 일반 import 가능 — 그 파일이 분리돼 있는 이유가 이것 |
+| **치수는 디코드 결과에서 얻는다** | 연속용지는 장마다 높이가 다르다. Caysn 경로가 `LabelPainter.width/height`(490/600)를 하드코딩하던 부채가 여기서는 발생하지 않는다 |
+| **`GS v 0` 밴드 분할(기본 256행)** | 한 장을 단일 래스터로 보내면 펌웨어 입력 버퍼를 넘길 수 있다. 대형 라벨이 깨지면 이 상수를 낮추는 것이 첫 조정 지점 |
+| **연결 판정은 매번 `warmupOpen` 재평가** | G30 은 열린 핸들이 없어 검출 결과를 캐시로 든다. `isOpen` 으로 먼저 걸러내면 프린터를 뽑아도 배지가 초록으로 굳는다 |
+| **커터가 장 구분의 유일한 수단** | 연속용지라 갭 센서가 없다. 떼기 대기·PAPERNOFETCH 로직이 이 경로에는 존재하지 않는다 |
+| **G30 우선** | Android `NativeMethodHandler` 의 `isG30Attached()` 우선순위와 대칭 |
+
+#### 진입 게이트 — DLE EOT 복구대기 (2026-09-04)
+
+인쇄 전에 커버열림·용지없음을 확인하고 해소될 때까지 **무한 대기**한다. Android
+`BixolonPosDriver.waitEntryGateLocked` 와 폴링 간격·로그 어휘·60초 heartbeat 까지 동일하다
+(두 플랫폼 로그를 같은 눈으로 읽기 위함). 이로써 게이트가 없는 경로는 사라졌다 —
+Android G30 / Android Caysn / Windows Caysn / Windows G30 넷 모두 같은 정책이다.
+
+**G30 실시간 상태 실측 정본** (2026-09-04, usbprint, 각 상태 5/5 재현):
+
+| 상태 | n=1 프린터 | n=2 오프라인원인 | n=4 용지센서 |
+|---|---|---|---|
+| 정상 | `0x16` | `0x12` | `0x12` |
+| 커버 열림 | `0x1E` | **`0x16`** (bit2 cover) | `0x12` |
+| 용지 없음(커버 닫힘) | `0x1E` | **`0x32`** (bit5 stopped) | **`0x72`** (bit5+6 END) |
+
+인터페이스는 `USB\Class_07&SubClass_01&Prot_02` = **양방향**이라 상태 조회가 가능하다.
+(`Prot_01` 이면 IN 엔드포인트가 없어 원천 불가 — 다른 기종 검토 시 이걸 먼저 볼 것.)
+
+**함정 3개 — 전부 실측으로 드러났다:**
+
+1. **커버가 열려 있으면 용지 센서는 보고되지 않는다.** 커버열림+용지없음 상태에서도
+   `n=4` 는 `0x12`(용지 있음)를 준다. 두 신호를 각각 읽어 OR 로 막아야 하며,
+   "용지 비트만 보면 된다" 로 단순화하면 커버열림을 놓친다.
+2. **질의 전에 드레인해야 한다.** 앞 질의의 응답이 버퍼에 남아 있으면 한 칸씩 밀린 값을
+   읽는다. 이 오정렬이 곧 "엉뚱한 바이트를 용지없음으로 오독" 이고, 없는 용지없음으로
+   무한 대기하는 길이다.
+3. **overlapped I/O 가 `FALSE` + `GetLastError()==0` 을 돌려주는 경우가 있다.**
+   실패로 단정하면 첫 질의가 항상 무응답이 된다 — `GetOverlappedResult` 로 진짜 결과를
+   물어야 한다. `ERROR_IO_PENDING` 만 처리하면 부족하다.
+
+**응답 유효성은 고정 비트로 검증한다** — bit0=0, bit1=1, bit4=1, bit7=0
+(`b & 0x93 == 0x12`). 쓰레기 바이트를 상태로 오독하면 라벨이 영영 안 나온다.
+검증 실패는 `null`(상태 모름)이고, 호출부는 이를 **통과**시킨다(fail-open):
+게이트가 없던 시절에도 출력은 됐으므로 게이트 도입이 출력을 막는 회귀를 만들면 안 된다.
+잘못된 통과는 최악이 "도입 전과 같음" 이지만, 잘못된 대기는 없던 장애를 새로 만든다.
+
+폴링 중에는 핸들을 붙들지 않는다 — 배타 오픈이라 `sendRaw` 가 막힌다. poll 1회 =
+open → (드레인 + n=2 + n=4) → close 다. 질의마다 open/close 하면 첫 질의 외에 0바이트가
+돌아오는 것이 실측됐으므로 **두 질의는 반드시 한 open 안에서** 끝낸다.
+
+#### 남은 한계 — 완료 판정은 여전히 최소 범위다
+
+`WriteFile` 성공 = 출력 성공으로 본다. Android(UPOS 동기 모드)는 물리 인쇄 완료까지
+블로킹하지만 Windows 는 **프린터 버퍼에 적재된 시점**에 성공을 돌려준다.
+
+**의도적으로 맞추지 않았다.** ESC/POS 실시간 상태에는 "이 작업이 끝났는가" 신호가 없어
+busy/idle 근사로 판정하면 라벨을 두 번 뽑을 수 있고, 이 레포에는 이미 그 사고 이력이 있다
+(`docs/INCIDENT_2026-08-03_LABEL_DUPLICATE.md` — ACK timeout 오판으로 라벨 2장).
+**중복은 유실보다 나쁘다** — 유실은 재발행으로 복구되지만 중복은 손님에게 나간다.
+진입 게이트만으로도 실질 유실 창은 크게 닫힌다(여러 장 주문이 다음 장에서 멈춘다).
+
+#### 핵심 파일
+
+| 파일 | 역할 |
+|---|---|
+| `lib/services/label_printer/windows/g30_escpos_raster.dart` | ESC/POS 래스터 인코더 (순수 Dart, 단위 테스트 대상) |
+| `lib/services/label_printer/windows/escpos_realtime_status.dart` | DLE EOT 명령·응답 디코더 (순수 Dart, 고정 비트 검증) |
+| `lib/services/label_printer/windows/bixolon_g30_windows_backend.dart` | 검출 + 진입 게이트 + PNG 디코드 + 전송 |
+| `lib/services/label_printer/windows/windows_label_router.dart` | 벤더 분기 (G30 / Caysn) |
+| `lib/services/label_printer/label_printer_models.dart` | 기종 상수 (순환 import 회피용 leaf) |
+| `lib/services/usb_print_service.dart` | `enumerate`(영수증) / `enumerateLabelPrinters`(라벨) — 같은 벤더 집합을 극성 반대로 사용. `queryGateStatus`(상태 조회, 읽기 전용 오픈) |
+| `tool/g30_windows_probe.dart` | 실기 프로브 — `--print`(전송 경로) / `--status`(상태 조회 + 인터페이스 Prot 확인). 앱 빌드 없이 수 초에 판별 |
+| `test/services/g30_escpos_raster_test.dart` | 인코더 단위 테스트 |
+| `test/services/escpos_realtime_status_test.dart` | 상태 디코더 단위 테스트 (실측값 고정) |
+
+---
+
 ## 4. PrintService 초기화·연결 점검
 
 ```mermaid
@@ -654,15 +779,18 @@ flowchart LR
 | [com_port_print_service.dart](../lib/services/com_port_print_service.dart) | COM 포트·DLE EOT 1 프로브·`serial_port_win32` |
 | [receipt_escpos_builder.dart](../lib/services/receipt_escpos_builder.dart) | CP949 ESC/POS 바이트 빌드 |
 | [print_service.dart](../lib/services/print_service.dart) | transport 주입·연결 점검·MethodChannel 호스트 |
-| [windows_label_router.dart](../lib/services/label_printer/windows/windows_label_router.dart) | 라벨 Windows 벤더 seam — 현재 Caysn 단일, G30 이식 대기 |
+| [windows_label_router.dart](../lib/services/label_printer/windows/windows_label_router.dart) | 라벨 Windows 벤더 seam — G30 우선, 그 외 Caysn/REXOD |
 | [windows_label_printer_backend.dart](../lib/services/label_printer/windows/windows_label_printer_backend.dart) | 라벨 Windows FFI 백엔드 (Caysn/REXOD) |
+| [bixolon_g30_windows_backend.dart](../lib/services/label_printer/windows/bixolon_g30_windows_backend.dart) | 라벨 Windows G30 백엔드 (usbprint 직결, 벤더 DLL 없음) — §3.8 |
+| [g30_escpos_raster.dart](../lib/services/label_printer/windows/g30_escpos_raster.dart) | G30 ESC/POS 래스터 인코더 (순수 Dart, `dart:ui`·win32 의존 0) — §3.8 |
+| [label_printer_models.dart](../lib/services/label_printer/label_printer_models.dart) | 라벨 기종 상수 (순환 import 회피용 leaf) |
 | [qr_payload_strategy.dart](../lib/services/label_printer/qr_payload_strategy.dart) | 라벨 QR 페이로드 브랜드 전략 |
 | [label_output_policy.dart](../lib/services/label_printer/label_output_policy.dart) | 라벨 출력 카테고리 필터 정책(매장 설정) — §3.7 |
 | [label_subinfo_strategy.dart](../lib/services/label_printer/label_subinfo_strategy.dart) | 라벨 sub-info 옵션 분류(브랜드 전략, TPCP 전용) — §3.7 |
 | [label_category_settings_screen.dart](../lib/screens/label_category_settings_screen.dart) | 출력 카테고리 선택 화면 |
 | [UsbReceiptPrinter.java](../android/app/src/main/java/co/kr/waldlust/order/receive/util/print/UsbReceiptPrinter.java) | Android USB bulkTransfer·`WriteResult` |
 | [LabelPrinter.java](../android/app/src/main/java/co/kr/waldlust/order/receive/util/print/LabelPrinter.java) | Android 라벨 프린터 (Caysn/REXOD) |
-| [BixolonPosDriver.java](../android/app/src/main/java/co/kr/waldlust/order/receive/util/print/BixolonPosDriver.java) | Android 라벨 프린터 (BIXOLON G30, UPOS/JavaPOS) — Windows 미이식 |
+| [BixolonPosDriver.java](../android/app/src/main/java/co/kr/waldlust/order/receive/util/print/BixolonPosDriver.java) | Android 라벨 프린터 (BIXOLON G30, UPOS/JavaPOS). Windows 는 별도 경로 — §3.8 |
 | [label_media_spec.dart](../lib/services/label_printer/label_media_spec.dart) | 용지 규격 값 객체(`gap490x600`/`continuous40`/`continuous58`) — 캔버스 폭·높이·좌우여백 |
 | [continuous_label_painter.dart](../lib/utils/continuous_label_painter.dart) | G30 40mm 연속용지 세로 가변 레이아웃 painter — **호출부 없음**(40mm 서비스 종료, §3.5 상단) |
 | [continuous58_label_painter.dart](../lib/utils/continuous58_label_painter.dart) | G30 58mm 연속용지 painter (번호+QR 가로 배치·검정 반전 바·옵션 1열) |
