@@ -15,6 +15,7 @@ import 'package:appfit_order_agent/utils/logger.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/services/windows_bubble_service.dart';
 import 'package:appfit_order_agent/services/preference_service.dart';
+import 'package:appfit_order_agent/services/shutdown_signal_service.dart';
 import 'package:appfit_order_agent/utils/brand_registry.dart';
 import 'package:appfit_order_agent/providers/brand_provider.dart';
 import 'package:appfit_order_agent/services/migration/v2_migration_service.dart';
@@ -1264,6 +1265,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       environment: newEnvironment,
       requestSource: 'ORDER_AGENT',
     );
+
+    // 전원종료 계측이 찔러볼 호스트도 새 서버로 맞춘다.
+    await ShutdownSignalService.syncProbeHost();
 
     // Sentry environment 태그는 부팅 시 1회만 세팅되므로, 런타임 환경 전환 시
     // 여기서 다시 반영하지 않으면 알림에 이전 환경이 그대로 찍힌다.

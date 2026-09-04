@@ -12,6 +12,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:appfit_order_agent/services/label_printer/windows/windows_label_router.dart';
 import 'package:appfit_order_agent/services/platform_service.dart';
 import 'package:appfit_order_agent/services/preference_service.dart';
+import 'package:appfit_order_agent/services/shutdown_signal_service.dart';
 import 'package:appfit_order_agent/services/windows_bubble_service.dart';
 import 'package:appfit_order_agent/services/windows_log_file_writer.dart';
 import 'package:appfit_order_agent/dev/rebuild_counter_observer.dart';
@@ -32,6 +33,7 @@ import 'package:appfit_order_agent/config/app_env.dart'; // AppEnv 추가
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:appfit_order_agent/i18n/strings.g.dart';
 import 'package:appfit_order_agent/providers/fleet_provider.dart';
+import 'package:appfit_order_agent/providers/sales_off_provider.dart';
 import 'package:appfit_order_agent/providers/locale_provider.dart';
 import 'package:appfit_order_agent/providers/rotation_provider.dart';
 import 'package:appfit_order_agent/services/monitoring/monitoring_context_builder.dart';
@@ -135,6 +137,10 @@ void main() async {
   );
 
   logger.i(AppFitConfig.getConfigSummary());
+
+  // 전원종료 영업 OFF 경로의 진단 호스트 등록(Android 전용). 채널 핸들러는
+  // ProviderScope 안의 salesOffSyncProvider 가 건다.
+  await ShutdownSignalService.syncProbeHost();
 
   if (!AppEnv.hasKey) {
     logger
@@ -444,6 +450,10 @@ class MyApp extends ConsumerWidget {
     // 머무는 기기(설치했는데 로그인 안 된 기기)도 관제에 보여야 하기 때문이다.
     // 실제 기동 여부는 대상 매장 화이트리스트가 가른다(fleetEnabledProvider).
     ref.watch(fleetSyncProvider);
+    // 기기 전원종료·앱 종료 시 매장 CLOSED 전환. fleet 과 같은 이유로 여기다 —
+    // 로그인 전 기기도 배선은 되어 있어야 하고(가드는 서비스 안에 있다), 화면
+    // 전환에 따라 리스너가 붙었다 떨어졌다 하면 안 된다.
+    ref.watch(salesOffSyncProvider);
 
     // Windows 버블 모드 처리.
     // _buildMainApp 을 ValueListenableBuilder 의 child 로 전달해 한 번만 빌드,

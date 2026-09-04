@@ -92,3 +92,4 @@
 - [PREPARING 유입 출력 게이트](project_preparing_intake_output_gate.md) — 생성시점 PREPARING(NICE_KIOSK)이 일반 모드 무출력. KDS 게이트가 원인, isSourceNotifyEnabled 필수. 폴링은 서버 변경 없이 불가 (2026-09-01)
 - [Windows usbprint 경로 + 영수증 폭 기종별](project_external_printer_usbprint_and_width.md) — A8=usbprint 단독(COM 없음), PR800=CDC. 기본폭 42는 "안전한 실패방향". 실기 검증 대기·미커밋 (2026-09-02)
 - [Windows 외부 영수증 COM 우선](project_windows_external_printer_com_first.md) — PR800은 복합장치라 usbprint에도 중복 열거됨. VID:PID로 접고 COM 남김. 자동 이전 금지 (2026-09-04)
+- [전원종료→영업OFF](project_shutdown_sales_off_probe.md) — T2mini·D3mini 구현·실기검증·커밋 완료. "종료 시 네트워크 끊김" 기존 진단 반증. adb reboot/am broadcast/온디바이스 grep 함정 4건 (2026-09-04)

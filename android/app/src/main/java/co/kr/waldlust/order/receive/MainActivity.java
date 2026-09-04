@@ -172,10 +172,20 @@ public class MainActivity extends FlutterActivity {
 
     private BroadcastReceiver usbPermissionReceiver;
 
+    // Sales OFF on device power off. Created in configureFlutterEngine (it needs
+    // the BinaryMessenger), registered here once super.onCreate() has attached
+    // the engine.
+    private ShutdownSalesOffBridge shutdownSalesOff;
+
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         setNativeCrashHandler();
         super.onCreate(savedInstanceState);
+
+        // configureFlutterEngine already ran inside super.onCreate().
+        if (shutdownSalesOff != null) {
+            shutdownSalesOff.register();
+        }
 
         // Register USB permission / detach receiver for the receipt printer.
         usbPermissionReceiver = new BroadcastReceiver() {
@@ -318,6 +328,12 @@ public class MainActivity extends FlutterActivity {
 
         MethodChannel channel = new MethodChannel(flutterEngine.getDartExecutor().getBinaryMessenger(), CHANNEL);
         channel.setMethodCallHandler(new NativeMethodHandler(this));
+
+        // Own channel, not the one above: MembershipScreen installs its own
+        // handler on CHANNEL and a channel keeps only one, so a native -> Dart
+        // call there would be swallowed.
+        shutdownSalesOff =
+                new ShutdownSalesOffBridge(this, flutterEngine.getDartExecutor().getBinaryMessenger());
     }
 
     public boolean hasScanner(Context ctx) {
@@ -413,6 +429,13 @@ public class MainActivity extends FlutterActivity {
     @Override
     protected void onDestroy() {
         Log.d("MainActivity", "onDestroy called");
+
+        // Mark this path before anything else so its log ordering against
+        // [SHUTDOWN_BCAST] stays meaningful.
+        if (shutdownSalesOff != null) {
+            shutdownSalesOff.onActivityDestroy();
+            shutdownSalesOff = null;
+        }
 
         // Tear down the front display so no content (e.g. white image) lingers on exit.
         if (dualMonitorPresentation != null) {
@@ -546,6 +569,13 @@ public class MainActivity extends FlutterActivity {
     private static final Object LOG_FILE_LOCK = new Object();
 
     private boolean appendLogToFileDirectIO(String text, String fileName) {
+        return appendLogToFileDirectIO(text, fileName, false);
+    }
+
+    // fsync variant: pass true from paths whose whole purpose is to survive the
+    // event they are describing (device power off). A plain flush() only hands
+    // the bytes to the page cache, which an abrupt power cut can still drop.
+    private boolean appendLogToFileDirectIO(String text, String fileName, boolean fsync) {
         synchronized (LOG_FILE_LOCK) {
             try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !Environment.isExternalStorageManager()) {
@@ -580,6 +610,9 @@ public class MainActivity extends FlutterActivity {
                     }
                     writer.append(text);
                     writer.flush();
+                    if (fsync) {
+                        fos.getFD().sync();
+                    }
                 }
                 return true;
             } catch (Exception e) {
@@ -615,6 +648,10 @@ public class MainActivity extends FlutterActivity {
     }
 
     private void writeLogToAppFolder(String text, String fileName) {
+        writeLogToAppFolder(text, fileName, false);
+    }
+
+    private void writeLogToAppFolder(String text, String fileName, boolean fsync) {
         synchronized (LOG_FILE_LOCK) {
             try {
                 File logDir = getExternalFilesDir("logs");
@@ -632,6 +669,9 @@ public class MainActivity extends FlutterActivity {
                     }
                     writer.append(text);
                     writer.flush();
+                    if (fsync) {
+                        fos.getFD().sync();
+                    }
                 }
             } catch (Exception e) {
                 Log.e("FileWriter", "App folder logging failed", e);
@@ -1361,6 +1401,18 @@ public class MainActivity extends FlutterActivity {
 
         if (!appendLogToFileDirectIO(timestampedText, fileName)) {
             writeLogToAppFolder(timestampedText, fileName);
+        }
+    }
+
+    // Same as appendLogToFile() but fsync'd, for callers that are racing the
+    // death of the device (see ShutdownSalesOffBridge).
+    public void appendLogToFileSynced(String text) {
+        SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault());
+        String timestampedText = "[" + sdf.format(new Date()) + "] " + text + "\n";
+        String fileName = "appfit_" + getDate(System.currentTimeMillis()) + ".txt";
+
+        if (!appendLogToFileDirectIO(timestampedText, fileName, true)) {
+            writeLogToAppFolder(timestampedText, fileName, true);
         }
     }
 
