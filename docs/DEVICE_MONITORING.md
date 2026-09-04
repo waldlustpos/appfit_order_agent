@@ -18,6 +18,8 @@
 
 이 문서의 이전 버전은 "수신단 미정 / 구현 미착수" 설계안이었다. 실제 구현에서 달라진 결정은 §7 에 정리했다.
 
+> **Sentry 기기 대장과 구분**: Fleet 은 **Windows 대상 매장 한정**의 실시간 관제(heartbeat·원격 명령)다. **전 기기**(Android 포함)를 덮는 정보성 자산 대장은 별개로 있다 — §6-2. 기기 식별 정본(`DeviceIdentityService`)만 둘이 공유한다.
+
 ## 배경
 
 주력 디바이스가 매장에 다수 배포돼 있지만 어떤 기기가 지금 켜져 있고 어떤 앱/OS 버전으로 도는지 원격에서 볼 방법이 없었다. 게다가 로그를 받으려면 현장 직원에게 설정화면 조작을 안내해야 했는데, 그 "로그 전송" 버튼은 `AppEnv.showInternalUi = !kReleaseMode` 뒤라 **매장 출고본에서는 아예 보이지 않는다**. 즉 원격으로 로그를 받아낼 경로가 없었다.
@@ -234,6 +236,101 @@ fleetTargetedProvider ──▶ fleetEnabledProvider = hasFleetConfig && targete
 **`fleet_reporter.dart` 의 `maxIntervalSeconds = 600` 은 서버 지시 간격의 클라이언트측 상한이다.** 즉 서버가 10분보다 긴 간격을 지시해도 앱이 10분으로 깎는다. 500대를 넘겨 간격을 더 늘려야 하는 시점에 이 값이 걸리는데, 그때는 이미 매장에 나가 있는 **전 기기의 앱을 업데이트해야** 한다.
 
 값을 3600 정도로 미리 올려두면 지금 동작은 전혀 바뀌지 않으면서(서버가 60초를 보내면 60초로 돈다) 이후 간격 조절이 서버 상수 한 줄로 끝난다. **기기가 매장에 나가기 전에 결정할 것.** 대가는 서버가 잘못된 값을 보냈을 때 기기가 최대 1시간 조용해질 수 있다는 점이다(현재는 최대 10분).
+
+## 6-2. Sentry 기기 대장 (Fleet 과 별개)
+
+`lib/services/monitoring/device_inventory_reporter.dart`. **관제가 아니라 자산 대장이다** — 명령도 실시간성도 없고, `매장ID·매장명·시리얼·앱버전`을 Sentry 에서 조회 가능하게 남기는 것이 전부다.
+
+**왜 Fleet 으로 안 하나**: Fleet 은 `FleetConfig.enabled AND .env AND Platform.isWindows AND 화이트리스트` 4중 게이트라 **Android Sunmi 기기가 통째로 빠진다** — 그런데 시리얼이 실제로 존재하는 모집단은 거기뿐이다. Sentry 는 전 기기에 이미 붙어 있다. 둘은 중복이 아니라 상보다. **"둘 중 하나 지우자" 는 판단을 하기 전에 이 문단을 읽을 것.**
+
+### 무엇이 언제 나가나
+
+| | 대상 | 시점 |
+|---|---|---|
+| scope 태그 | **모든** Sentry 이벤트 | 로그인 후 1회(+ `main()` 에서 로그인 전 선반영) |
+| 정보 이벤트 1건 | 대장 행 | 서명(`매장ID\|시리얼\|앱버전`) 변경 시 **또는** 7일 경과 |
+
+7일 경과를 물어보는 주체는 `monitoringSyncProvider` 의 6시간 타이머다. `storeProvider` 이벤트만으로는 **계속 켜둔 기기가 영원히 안 걸린다**(상시가동 Windows POS). 판정은 캐시된 identity + prefs 2회 읽기라 틱 비용은 없다.
+
+### 태그 사전
+
+| 태그 | 값 | 비고 |
+|---|---|---|
+| `device_serial` | `TN11211U40325` | **단말 SN**(아래 참고). 시리얼이 없으면 **키 자체가 없다** — 빈 값을 심으면 "시리얼 없음" 과 "미보고" 가 섞인다 → 조회는 `!has:device_serial` |
+| `device_id` | 시리얼 > 설치 UUID | `DeviceIdentity.deviceId` 와 같은 우선순위 |
+| `install_id` | 설치 UUID | 시리얼 유무와 무관하게 싣는다. 시리얼 취득에 **실패한 실행과 성공한 실행이 대장에 두 행으로 남을 때 유일한 조인 키** |
+| `device_model` | Android=`제조사 모델` / Windows=`컴퓨터이름` | ⚠️ 플랫폼별로 의미가 다르다. `id_source`·`os.name` 과 함께 읽을 것 |
+| `id_source` | `serial` \| `installId` | `installId`+Windows=설계상 정상, `installId`+Android=시리얼 취득 실패(조사 대상) |
+| `device_platform` | `android` \| `windows` | ⚠️ `platform` 은 Sentry **예약 필드**(전 이벤트가 `other`)라 그 이름을 쓰면 검색에서 가려진다 |
+| `os_version` | `13` / `22H2` | Sentry 기본 `os.version` 은 실측상 비어 있어 따로 심는다 |
+| `app_version` | `3.0.0+197` | 정본은 Sentry 기본 `release`(`order_agent@3.0.0+197`). 이 태그는 접두사 없는 사본 |
+| `report_type` | `device_inventory` | Slack 알림 제외 필터 키 → [SENTRY_ALERTS.md](SENTRY_ALERTS.md) §알림 제외 |
+
+매장 태그(`store_id`/`store_name`)와 `environment`/`device_manufacturer` 는 appfit_core `MonitoringService` 가 이미 심는다.
+
+### 시리얼은 "단말 SN" 이다 — 프린터 SN 과 다르다 (2026-09-04 실측)
+
+Android 에는 시리얼 취득 경로가 **둘** 있고, 기종에 따라 **다른 값**이 나온다.
+
+| 경로 | T2mini_s | D3 MINI |
+|---|---|---|
+| **단말 SN** — `ro.serialno`(= adb 시리얼 = 기기 라벨 = Sunmi 파트너 포털) | `TN11211U40325` | `DE33256H10784` |
+| Sunmi 프린터 서비스 `getPrinterSerialNo()` — **프린터 보드** SN | `4308425239384D5305D5FF30` (칩 UID) | `DE33256H10784` (우연히 동일) |
+
+예전 네이티브는 Sunmi 기기에서 **프린터 서비스를 먼저** 봤다. D3 MINI 는 두 값이 같아 문제가 드러나지 않았지만, T2mini_s 는 프린터 보드가 따로라 24자리 칩 UID 가 나왔다. 게다가 프린터 서비스 바인딩이 늦으면(최대 1.5초 폴링) 폴백으로 단말 SN 이 나와서, **같은 기기가 실행마다 다른 값을 기록**했다.
+
+지금은 순서를 뒤집어 **단말 SN 이 정본**이고 프린터 서비스는 폴백이다(`NativeMethodHandler.getDeviceSerial`). 부수 효과로 흔한 경로에서 1.5초 폴링이 사라져 `main()` 의 1초 타임아웃이 더 이상 동전던지기가 아니다.
+
+- T2mini_s 는 `/proc/cmdline` 에 `androidboot.serialno` 토큰이 **없다** — `getprop ro.serialno`(exec) 단계에서 잡힌다. 0단계만 보고 "안 된다" 고 판단하지 말 것.
+- 구 캐시에 프린터 SN 이 굳어 있으므로 `KEY_DEVICE_SERIAL` 키 문자열을 `_V2` 로 갈아 1회 재조회하게 했다. **Android 는 Fleet 대상이 아니라** 이 값 변경이 관제 D1 행을 쪼개지 않는다(§8 의 위험은 Windows 한정).
+- 대장에서는 값이 바뀌면 서명이 달라져 새 행이 생긴다. 구 행과의 연결은 `install_id` 태그로 한다 — 그래서 시리얼이 있어도 항상 싣는다.
+
+### 조회 (Discover, dataset=errors)
+
+`captureMessage` 는 `event.type:default` 다 — **`event.type:error` 로 필터하면 안 나온다.**
+
+```
+# 대장 본표(매장별 기기 목록). 7일 주기이므로 14d 가 안전 마진
+query : report_type:device_inventory
+fields: store_id, store_name, device_serial, install_id, id_source,
+        device_model, release, last_seen(), count()
+
+# 매장당 기기 대수
+query : report_type:device_inventory environment:live
+fields: store_id, store_name, count_unique(device_id)
+
+# 시리얼로 매장 역추적 — scope 태그라 대장 이벤트가 없어도 에러 이벤트로 찾힌다
+query : device_serial:H092W24A1G00862
+fields: store_id, store_name, release, last_seen()
+
+# 시리얼 미취득(Windows 는 정상, Android 면 조사 대상)
+query : report_type:device_inventory !has:device_serial os.name:Android
+
+# 대장에서 사라진 기기(이설·철거·방치 후보) — last_seen 오름차순
+query : report_type:device_inventory
+fields: store_id, device_id, last_seen()
+sort  : last_seen()
+```
+
+### 로그로 확인하기 (Sentry 없이)
+
+기기 로그 파일에 `[INVENTORY]` 로 매 호출의 판정 결과가 남는다. **Sentry 쿼터가 소진돼도(429) 이 로그는 그대로** 남으므로, 이벤트가 Discover 에 없을 때 "앱이 안 보냈다" 와 "Sentry 가 안 받았다" 를 구분하는 유일한 수단이다.
+
+```
+[INVENTORY] 보고 시도 — 첫 보고 · MMTH00101|H092W24A1G00862|3.0.0+197 (serial=..., source=serial)
+[INVENTORY] 전송 완료 — MMTH00101|...
+[INVENTORY] 전송 드롭 — Sentry 미수용 · MMTH00101|...     ← 쿼터 소진·DSN 미주입·큐 포화
+[INVENTORY] 스킵 — 서명 동일, 다음 보고 예정 2026-09-11T10:00:00.000
+[INVENTORY] 스킵 — 매장 미확정
+```
+
+`[INVENTORY]` 는 `logger.dart` 의 **파일 기록 화이트리스트에 등록된 태그**다. 이 앱의 `logger.i` 는 기본적으로 콘솔에만 뜨고 파일에는 안 남으므로, 태그를 바꾸면 로그가 조용히 사라진다(`test/utils/log_file_whitelist_test.dart` 가 이 규약을 고정한다).
+
+### 배포 시 1회 수동 조치
+
+첫 대장 이벤트가 들어오면 그 이슈를 **Archive forever(무기한 보관)** 처리한다. 보관해도 이벤트 수집과 Discover 조회는 그대로이고 알림만 안 나가므로, `routes.json` 제외 필터와 독립적인 2중 안전장치가 된다. **Resolve 는 쓰지 말 것** — 다음 이벤트가 regression 으로 되살린다.
+
+Windows 에 시리얼이 없는 것은 버그가 아니라 §8 사고로 확정된 결정이다. BIOS 시리얼(`Win32_BIOS.SerialNumber`)로 메우려 들지 말 것 — 화이트박스 POS 에서 `Default string` 으로 충돌해 §8 을 이름만 바꿔 재현한다.
 
 ## 7. 이전 설계안에서 바뀐 것
 

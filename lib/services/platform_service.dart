@@ -339,10 +339,13 @@ class PlatformService {
     }
   }
 
-  /// 기기 고유 시리얼(Sunmi 단말 한정, 예: `DE33256H10784`).
+  /// 단말 시리얼 = `ro.serialno`(adb 시리얼·기기 라벨과 같은 값).
+  /// 예: T2mini_s `TN11211U40325`, D3 MINI `DE33256H10784`.
   ///
-  /// 비-Sunmi 단말이거나 프린터 서비스 미바인딩 시 null. Windows 는 noop 채널이
-  /// null 을 반환한다. 호출 측은 null 일 때 deviceId/installId 로 fallback 한다.
+  /// 네이티브는 단말 프로퍼티를 먼저 읽고, 실패한 Sunmi 기기에서만 프린터
+  /// 서비스 SN 으로 폴백한다 — 프린터 보드 SN 은 T2mini_s 에서 단말 SN 과
+  /// 다르기 때문이다. 둘 다 실패하면 null(Windows 는 noop 채널이라 항상 null).
+  /// 호출 측은 null 일 때 installId 로 fallback 한다.
   static Future<String?> getDeviceSerial() async {
     try {
       return await platform.invokeMethod<String>('getDeviceSerial');

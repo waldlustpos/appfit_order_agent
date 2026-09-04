@@ -678,18 +678,31 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
                 break;
 
             case "getDeviceSerial": {
-                // Sunmi: device serial via the bound printer service (e.g. D3 MINI
-                // "DE33256H10784"). Non-Sunmi (e.g. IM H092W "H092W24A1G00862") and
-                // any Sunmi fallback: SystemProperties/Build serial via getDeviceSerial().
+                // Source of truth is the DEVICE serial (ro.serialno == the adb serial
+                // == the label on the unit), read by getDeviceSerial().
+                //
+                // The Sunmi printer service is only a fallback. Its
+                // getPrinterSerialNo() returns the PRINTER BOARD serial, which is not
+                // always the device serial: on D3 MINI both are "DE33256H10784", but
+                // on T2mini_s the device is "TN11211U40325" while the printer board
+                // reports a 24-hex chip uid ("4308425239384D5305D5FF30"). Only the
+                // device serial matches the Sunmi partner portal, so it wins.
+                //
+                // Reading the property is also immediate, so the common path no
+                // longer waits on the printer service bind (up to 1.5s below).
+                String deviceSn = activity.getDeviceSerial();
+                if (deviceSn != null && !deviceSn.isEmpty()) {
+                    result.success(deviceSn);
+                    break;
+                }
                 if (!activity.isSunmiDevice()) {
-                    result.success(activity.getDeviceSerial());
+                    result.success(null);
                     break;
                 }
                 final SunmiPrintHelper snHelper = SunmiPrintHelper.getInstance();
                 if (snHelper.isReady()) {
                     String sn = snHelper.getPrinterSerialNo();
-                    result.success((sn != null && !sn.isEmpty())
-                            ? sn : activity.getDeviceSerial());
+                    result.success((sn != null && !sn.isEmpty()) ? sn : null);
                     break;
                 }
                 final java.util.concurrent.atomic.AtomicBoolean snReplied =
@@ -707,15 +720,17 @@ public class NativeMethodHandler implements MethodChannel.MethodCallHandler {
                             if (snReplied.compareAndSet(false, true)) {
                                 String sn = snHelper.getPrinterSerialNo();
                                 result.success((sn != null && !sn.isEmpty())
-                                        ? sn : activity.getDeviceSerial());
+                                        ? sn : null);
                             }
                             return;
                         }
                         snTries[0]++;
                         if (snTries[0] >= snMaxTries) {
                             if (snReplied.compareAndSet(false, true)) {
+                                // The device serial already failed above, so there is
+                                // nothing left to try. Dart falls back to installId.
                                 Log.w(TAG, "getDeviceSerial: Sunmi service bind timeout");
-                                result.success(activity.getDeviceSerial());
+                                result.success(null);
                             }
                             return;
                         }

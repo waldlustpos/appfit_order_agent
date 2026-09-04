@@ -64,7 +64,18 @@ class PreferenceService {
 
   // 관재(원격관리) 기기 식별 키
   static const String KEY_INSTALL_ID = "KOKONUT_INSTALL_ID";
-  static const String KEY_DEVICE_SERIAL = "KOKONUT_DEVICE_SERIAL";
+  // ⚠️ 키 문자열에 _V2 가 붙은 이유 — 구 키에는 **틀린 값이 캐시돼 있다.**
+  // 예전 네이티브는 Sunmi 프린터 서비스의 `getPrinterSerialNo()` 를 먼저 봤는데,
+  // 그건 프린터 보드 SN 이라 T2mini_s 에서 단말 SN(TN11211U40325)이 아닌 칩 UID
+  // (4308425239384D5305D5FF30)를 돌려줬다(D3 MINI 는 둘이 같아 안 드러났다).
+  // 키를 갈아 기존 설치가 다음 실행에 한 번 다시 읽게 한다. 구 키는 건드리지
+  // 않는다(읽는 코드가 없어 그대로 사장된다).
+  static const String KEY_DEVICE_SERIAL = "KOKONUT_DEVICE_SERIAL_V2";
+
+  // Sentry 기기 대장(매장-시리얼-앱버전) 전송 디듀프 키. **기기 전역**이다 —
+  // 매장 전환 자체가 재전송 사유라 매장 범위로 두면 감지하지 못한다.
+  static const String KEY_SENTRY_INVENTORY_SIG = "KEY_SENTRY_INVENTORY_SIG";
+  static const String KEY_SENTRY_INVENTORY_AT = "KEY_SENTRY_INVENTORY_AT";
 
   // New Printer Setting Keys
   static const String KEY_USE_BUILTIN_PRINTER = "KOKONUT_USE_BUILTIN_PRINTER";
@@ -670,11 +681,31 @@ class PreferenceService {
     return id;
   }
 
+  /// 이미 만들어진 설치 UUID 만 읽는다. 없으면 null — **만들지 않는다.**
+  ///
+  /// 시리얼이 멀쩡한 기기에까지 UUID 를 새로 찍지 않으려는 것이다. 식별자로
+  /// 쓸 값이 필요하면 [getOrCreateInstallId] 를 쓰고, 이 게터는 "있으면 같이
+  /// 보고" 하는 보조 정보용이다.
+  String? getInstallIdOrNull() => _prefs.getString(KEY_INSTALL_ID);
+
   /// 캐시된 기기 시리얼(네이티브 조회 1회 후 보관). 없으면 null.
   String? getCachedDeviceSerial() => _prefs.getString(KEY_DEVICE_SERIAL);
 
   Future<void> setCachedDeviceSerial(String serial) async =>
       _prefs.setString(KEY_DEVICE_SERIAL, serial);
+
+  /// 마지막으로 Sentry 에 보낸 기기 대장 서명(`매장ID|시리얼|앱버전`). 없으면 null.
+  String? getSentryInventorySignature() =>
+      _prefs.getString(KEY_SENTRY_INVENTORY_SIG);
+
+  /// 마지막 기기 대장 전송 시각(epoch ms). 없으면 null.
+  int? getSentryInventorySentAt() => _prefs.getInt(KEY_SENTRY_INVENTORY_AT);
+
+  /// 기기 대장 전송 기록. 서명과 시각은 **함께** 갱신해야 디듀프가 어긋나지 않는다.
+  Future<void> setSentryInventorySent(String signature, DateTime at) async {
+    await _prefs.setString(KEY_SENTRY_INVENTORY_SIG, signature);
+    await _prefs.setInt(KEY_SENTRY_INVENTORY_AT, at.millisecondsSinceEpoch);
+  }
 
   /// AppFit Project ID 조회 (보안 저장소)
   Future<String?> getProjectId() async {
@@ -1290,13 +1321,17 @@ class PreferenceService {
 
   String getExternalPrinterConnection() {
     final v = _prefs.getString(_keyExtPrinterConn);
-    return v == extPrinterConnUsbPrint ? extPrinterConnUsbPrint : extPrinterConnCom;
+    return v == extPrinterConnUsbPrint
+        ? extPrinterConnUsbPrint
+        : extPrinterConnCom;
   }
 
   Future<void> setExternalPrinterConnection(String mode) async =>
       _prefs.setString(
         _keyExtPrinterConn,
-        mode == extPrinterConnUsbPrint ? extPrinterConnUsbPrint : extPrinterConnCom,
+        mode == extPrinterConnUsbPrint
+            ? extPrinterConnUsbPrint
+            : extPrinterConnCom,
       );
 
   /// usbprint 경로의 장치 인터페이스 경로. 재연결 스캔이 채택했거나 사용자가

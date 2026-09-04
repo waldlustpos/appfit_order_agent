@@ -17,6 +17,9 @@ Issue Alert 규칙을 routes.json 대로 **멱등** 생성/갱신한다. Claude 
                채널로 보내는 파생 규칙(스크립트가 자동 생성). catchall 은 브랜드를
                store_id 로 통째 제외하므로, 이게 없으면 그 이벤트들이 어느 규칙에도
                안 걸려 무음 폐기된다.
+- exclude_tags: **모든** 규칙(branded/spillover/catchall)에 공통으로 붙는 제외
+               필터. 알림 대상이 아닌 정보성 이벤트를 태그로 걸러낸다.
+               (예: report_type ne device_inventory — 기기 대장 수집 이벤트)
 - legacy      : 정리 대상 구(舊) 규칙 id (delete-legacy 로 제거).
 
 각 규칙 이름은 `"[auto] <label> -> #<channel>"` 규약으로, 재실행 시 이름으로
@@ -74,6 +77,10 @@ SLACK_ACTION = "sentry.integrations.slack.notify_action.SlackNotifyServiceAction
 #   ew=ends-with new=not-ends-with co=contains nc=not-contains
 NEGATE_MATCH = {"eq": "ne", "sw": "nsw", "ew": "new", "co": "nc"}
 
+# TaggedEventFilter 가 받는 전체 match 어휘. exclude_tags 검증용으로, branded 가
+# 쓰는 긍정 어휘(NEGATE_MATCH 의 키)보다 넓다 — 부정형과 is/ns(태그 유무)까지.
+TAG_MATCHES = set(NEGATE_MATCH) | set(NEGATE_MATCH.values()) | {"is", "ns"}
+
 
 def die(msg):
     print("[sentry_alerts] 오류:", msg, file=sys.stderr)
@@ -120,7 +127,15 @@ def load_routes():
             die(f"routes.json 에 '{k}' 필수.")
     cfg.setdefault("frequency", 30)
     cfg.setdefault("branded", [])
+    cfg.setdefault("exclude_tags", [])
     cfg.setdefault("legacy", {})
+    for i, x in enumerate(cfg["exclude_tags"]):
+        for k in ("key", "match", "value"):
+            if not x.get(k):
+                die(f"exclude_tags[{i}] 에 '{k}' 필수.")
+        if x["match"] not in TAG_MATCHES:
+            die(f"exclude_tags[{i}] match '{x['match']}' 미지원 "
+                f"(허용: {sorted(TAG_MATCHES)}).")
     if not cfg.get("catchall"):
         die("routes.json 에 'catchall' 필수.")
     for i, r in enumerate(cfg["branded"]):
@@ -237,6 +252,19 @@ def slack_action(cfg, route):
     }
 
 
+def exclude_filters(cfg):
+    """모든 규칙에 공통으로 붙는 제외 필터 — 알림 대상이 아닌 정보성 이벤트 차단.
+
+    `filterMatch: "all"` 이라 기존 필터와 AND 로 누적된다. TaggedEventFilter 의
+    부정 match(ne/nsw/...)는 **태그가 아예 없는 이벤트도 통과**시킨다(실측:
+    로그인 전 store_id 없는 이벤트가 catch-all 의 ne 필터에 걸려 test 채널로 감).
+    따라서 일반 에러 알림은 이 필터의 영향을 받지 않는다.
+    """
+    return [{"id": TAGGED_FILTER, "key": x["key"],
+             "match": x["match"], "value": x["value"]}
+            for x in cfg.get("exclude_tags", [])]
+
+
 def branded_payload(cfg, route):
     """전용 채널 규칙: store_id <match> value 를 만족하면 해당 채널로.
 
@@ -253,7 +281,7 @@ def branded_payload(cfg, route):
         "filters": [{
             "id": TAGGED_FILTER, "key": "store_id",
             "match": route["match"], "value": route["value"],
-        }],
+        }] + exclude_filters(cfg),
         "actions": [slack_action(cfg, route)],
     }
 
@@ -280,7 +308,7 @@ def spillover_payload(cfg, route):
              "match": route["match"], "value": route["value"]},
             {"id": TAGGED_FILTER, "key": "environment", "match": "ne",
              "value": env},
-        ],
+        ] + exclude_filters(cfg),
         "actions": [slack_action(cfg, ca)],
     }
 
@@ -291,7 +319,7 @@ def catchall_payload(cfg):
     filters = [{
         "id": TAGGED_FILTER, "key": "store_id",
         "match": NEGATE_MATCH[r["match"]], "value": r["value"],
-    } for r in cfg["branded"]]
+    } for r in cfg["branded"]] + exclude_filters(cfg)
     label = ca.get("label", "catch-all")
     return {
         "name": f"{NAME_PREFIX} {label} -> #{ca['channel']}",

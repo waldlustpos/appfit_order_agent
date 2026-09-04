@@ -17,7 +17,13 @@ class DeviceIdentity {
   /// Windows computerName.
   final String deviceModel;
 
-  /// 하드웨어 시리얼(예: "H092W24A1G00862"). 취득 실패 시 null.
+  /// 하드웨어 시리얼 = **단말 SN**(`ro.serialno` = adb 시리얼 = 기기 라벨/Sunmi
+  /// 파트너 포털 값). 예: T2mini_s "TN11211U40325", D3 MINI "DE33256H10784".
+  /// 취득 실패 시 null.
+  ///
+  /// Sunmi 프린터 서비스의 `getPrinterSerialNo()` 는 **프린터 보드** SN 이라
+  /// T2mini_s 에서 다른 값(칩 UID)이 나온다 — 그래서 네이티브가 단말 SN 을
+  /// 먼저 보고 프린터 서비스는 폴백으로만 쓴다(`NativeMethodHandler`).
   final String? serial;
 
   /// 명령 타겟팅용 안정 식별자 = Android 시리얼 > 설치 UUID.

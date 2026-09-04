@@ -46,6 +46,30 @@ branded 항목마다 자동 생성한다.
   이 메시지에 바로 노출. 두 태그 모두 appfit_core `MonitoringService` 가 심으므로
   **앱 변경 불필요**(`store_name` 태그는 v1.0.16 에서 추가됨).
 
+## 알림 제외 (exclude_tags)
+
+`routes.json` 의 최상위 `exclude_tags` 는 **모든 규칙**(branded·spillover·catch-all)에
+공통으로 붙는 제외 필터다. `filterMatch: "all"` 이라 기존 store_id 필터와 AND 로 누적된다.
+
+| 태그 | match | 값 | 왜 |
+|---|---|---|---|
+| `report_type` | `ne` | `device_inventory` | 기기 대장 수집 이벤트(매장↔시리얼↔앱버전)는 정보성이라 알림 대상이 아니다 |
+
+- **level 로 거르지 않는 이유**: 네트워크 회복 알림(`api_health_provider`)이 의도적으로
+  `level=info` 다. info 를 통째로 막으면 그 알림이 같이 죽는다. 그래서 태그로만 거른다.
+- 부정 match(`ne`/`nsw`...)는 **그 태그가 아예 없는 이벤트도 통과**시킨다(위 §주의의
+  store_id 미설정 이벤트와 같은 동작). 즉 일반 에러 알림은 영향을 받지 않는다.
+- 앱이 심는 태그이므로 **앱과 값이 한 벌**이다 —
+  `lib/services/monitoring/device_inventory_reporter.dart` 의
+  `kDeviceInventoryReportType` 과 함께 바꿔야 한다.
+- **적용 순서**: 제외 필터를 먼저 `apply` 한 뒤 앱을 배포한다. 반대로 하면 먼저
+  업데이트된 기기의 대장 이벤트가 브랜드 채널로 그대로 나간다(롤아웃 직후에는
+  서명이 전부 바뀌어 **전 기기가 동시에 1건씩** 보낸다).
+- `apply --dry-run` 으로 **6개 payload(branded 4 + spillover 1 + catch-all 1) 전부**에
+  필터가 붙었는지 확인하고 `apply` 한다. 규칙 이름은 안 바뀌므로 PUT 으로 갱신된다.
+- 2중 안전장치로 첫 대장 이슈를 **Archive forever** 처리한다
+  ([DEVICE_MONITORING.md](DEVICE_MONITORING.md) §6-2).
+
 ## 운영 방법
 
 `SENTRY_AUTH_TOKEN`(스코프 `alerts:write`, `project:read`) 을 `.env` 에 넣고:

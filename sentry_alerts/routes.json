@@ -37,6 +37,13 @@
       "channel_id": "C0BTUPM420Y"
     }
   ],
+  "exclude_tags": [
+    {
+      "key": "report_type",
+      "match": "ne",
+      "value": "device_inventory"
+    }
+  ],
   "catchall": {
     "label": "catch-all",
     "channel": "appfit-alert-test",

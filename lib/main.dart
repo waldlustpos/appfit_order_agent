@@ -27,6 +27,7 @@ import 'package:appfit_order_agent/screens/login_screen.dart';
 import 'package:appfit_order_agent/screens/settings_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:launch_at_startup/launch_at_startup.dart';
+import 'package:sentry_flutter/sentry_flutter.dart' show Sentry;
 import 'package:window_manager/window_manager.dart';
 
 import 'package:appfit_order_agent/config/app_env.dart'; // AppEnv 추가
@@ -155,6 +156,11 @@ void main() async {
   try {
     deviceSerial = await PlatformService.getDeviceSerial()
         .timeout(const Duration(seconds: 1), onTimeout: () => null);
+    // 읽었으면 캐시에 남긴다 — 안 남기면 DeviceIdentityService 가 같은 네이티브
+    // 조회를 한 번 더 해서 부팅 경로가 Sunmi 프린터 서비스를 두 번 두드린다.
+    if (deviceSerial != null && deviceSerial.isNotEmpty) {
+      await preferenceServiceForEnv.setCachedDeviceSerial(deviceSerial);
+    }
   } catch (_) {}
   _logStartupInfo(monitoringContext, deviceSerial);
 
@@ -165,6 +171,21 @@ void main() async {
       context: monitoringContext,
     );
     logger.i('MonitoringService 초기화 완료');
+
+    // 로그인 전 이벤트도 기기를 특정할 수 있게 식별 태그를 먼저 심는다. Windows
+    // 는 시리얼이 없어 설치 UUID 가 유일한 식별자이고, 로그인 전 구간에는 OTA
+    // 자가 업데이트(runStartupUpdateFlow)가 있어 실제로 사고가 나는 자리다.
+    // 로그인 후에는 DeviceInventoryReporter 가 같은 정본으로 다시 심는다.
+    final serial = deviceSerial;
+    if (serial != null && serial.isNotEmpty) {
+      Sentry.configureScope((scope) {
+        scope.setTag('device_serial', serial);
+        scope.setTag('device_id', serial); // DeviceIdentity 와 같은 우선순위
+      });
+    } else {
+      final installId = await preferenceServiceForEnv.getOrCreateInstallId();
+      Sentry.configureScope((scope) => scope.setTag('device_id', installId));
+    }
 
     // Flutter UI 오류 (치명적 오류 자동 수집)
     FlutterError.onError = (details) {

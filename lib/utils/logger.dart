@@ -126,6 +126,12 @@ class CustomLogOutput extends LogOutput {
       else if (line.contains('[SOUNDGRAPH]')) {
         shouldLogToFile = true;
       }
+      // 기기 대장(Sentry) 판정·전송 — 같은 이유로 **스킵까지** 기록한다.
+      // 대장은 7일에 1건이라 조용한 게 정상인데, 로그가 없으면 "스킵됐다" 와
+      // "아예 호출이 안 됐다" 가 구분되지 않는다. 하루 5줄 안팎이다.
+      else if (line.contains('[INVENTORY]')) {
+        shouldLogToFile = true;
+      }
 
       // Notifier(WebSocket) 메시지 수신 로그
       else if (line.contains('[Notifier]')) {
