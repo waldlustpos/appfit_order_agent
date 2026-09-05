@@ -530,7 +530,7 @@
         "title": "Membership Search",
         "search": {
             "hint": "Please enter phone number or coupon number.",
-            "hint_searched": "Please enter number of stamps. (Up to 20)",
+            "hint_searched": "Please enter number of stamps. (Up to {max})",
             "hint_unregistered": "Enter a stamp count or coupon number.",
             "btn_search": "Search Member",
             "btn_other_member": "Reset Search",
@@ -591,7 +591,7 @@
             "store_info_missing": "Store info missing. Please login again.",
             "input_error_title": "Input Error",
             "stamp_input_error": "Please enter 1 or more stamps.",
-            "stamp_limit_error": "20 stamps or less.",
+            "stamp_limit_error": "{max} stamps or less.",
             "processing_complete": "Complete",
             "notification": "Notification"
         },

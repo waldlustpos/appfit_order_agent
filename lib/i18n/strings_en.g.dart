@@ -1080,7 +1080,7 @@ class _Translations$membership$search$en extends Translations$membership$search$
 
 	// Translations
 	@override String get hint => 'Please enter phone number or coupon number.';
-	@override String get hint_searched => 'Please enter number of stamps. (Up to 20)';
+	@override String hint_searched({required Object max}) => 'Please enter number of stamps. (Up to ${max})';
 	@override String get hint_unregistered => 'Enter a stamp count or coupon number.';
 	@override String get btn_search => 'Search Member';
 	@override String get btn_other_member => 'Reset Search';
@@ -1169,7 +1169,7 @@ class _Translations$membership$dialog$en extends Translations$membership$dialog$
 	@override String get store_info_missing => 'Store info missing. Please login again.';
 	@override String get input_error_title => 'Input Error';
 	@override String get stamp_input_error => 'Please enter 1 or more stamps.';
-	@override String get stamp_limit_error => '20 stamps or less.';
+	@override String stamp_limit_error({required Object max}) => '${max} stamps or less.';
 	@override String get processing_complete => 'Complete';
 	@override String get notification => 'Notification';
 }

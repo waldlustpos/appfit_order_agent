@@ -523,7 +523,7 @@
         "title": "멤버십 조회",
         "search": {
             "hint": "전화번호 또는 쿠폰번호를 입력해주세요.",
-            "hint_searched": "스탬프 개수를 입력해주세요. (최대 20개까지)",
+            "hint_searched": "스탬프 개수를 입력해주세요. (최대 {max}개까지)",
             "hint_unregistered": "스탬프 개수 또는 쿠폰번호를 입력해주세요.",
             "btn_search": "회원조회",
             "btn_other_member": "검색 초기화",
@@ -584,7 +584,7 @@
             "store_info_missing": "매장 정보가 없습니다. 다시 로그인해주세요.",
             "input_error_title": "입력 오류",
             "stamp_input_error": "스탬프 개수는 1 이상의 숫자로 입력해주세요.",
-            "stamp_limit_error": "스탬프 개수는 20개 이하로 입력해주세요.",
+            "stamp_limit_error": "스탬프 개수는 {max}개 이하로 입력해주세요.",
             "processing_complete": "처리 완료",
             "notification": "알림"
         },

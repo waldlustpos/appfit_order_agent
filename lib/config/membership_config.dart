@@ -75,4 +75,23 @@ class MembershipConfig {
       shopGroupId == null ||
       shopGroupId.isEmpty ||
       !blockedIds.contains(shopGroupId);
+
+  // ─── 1회 적립 개수 상한 ──────────────────────────────────────────────────
+
+  /// 한 번의 [스탬프 적립]으로 넣을 수 있는 개수 상한.
+  ///
+  /// 이 값 하나가 세 곳을 동시에 지배한다 — 입력란 힌트 문구, 초과 시 에러
+  /// 문구(둘 다 i18n `{max}` 파라미터로 이 상수를 받는다), 그리고 키패드
+  /// 입력 차단([allowsStampDigit]). 리터럴로 흩뿌리면 문구와 실제 동작이
+  /// 조용히 어긋난다(실제로 문구는 20, 키패드는 99까지 받던 시절이 있었다).
+  static const int maxStampPerAccrual = 10;
+
+  /// 현재 입력값 [current] 뒤에 숫자 [digit] 을 붙여도 상한을 넘지 않는지.
+  ///
+  /// 자릿수가 아니라 **값**으로 판정한다. 상한 10 은 `"1"+"0"`(=10)은 받고
+  /// `"1"+"1"`(=11)은 막아야 해서 자릿수 제한으로는 표현되지 않는다.
+  static bool allowsStampDigit(String current, String digit) {
+    final candidate = int.tryParse('$current$digit');
+    return candidate != null && candidate <= maxStampPerAccrual;
+  }
 }

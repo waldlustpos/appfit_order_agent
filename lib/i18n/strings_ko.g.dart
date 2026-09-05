@@ -1924,8 +1924,8 @@ class Translations$membership$search$ko {
 	/// ko: '전화번호 또는 쿠폰번호를 입력해주세요.'
 	String get hint => '전화번호 또는 쿠폰번호를 입력해주세요.';
 
-	/// ko: '스탬프 개수를 입력해주세요. (최대 20개까지)'
-	String get hint_searched => '스탬프 개수를 입력해주세요. (최대 20개까지)';
+	/// ko: '스탬프 개수를 입력해주세요. (최대 {max}개까지)'
+	String hint_searched({required Object max}) => '스탬프 개수를 입력해주세요. (최대 ${max}개까지)';
 
 	/// ko: '스탬프 개수 또는 쿠폰번호를 입력해주세요.'
 	String get hint_unregistered => '스탬프 개수 또는 쿠폰번호를 입력해주세요.';
@@ -2119,8 +2119,8 @@ class Translations$membership$dialog$ko {
 	/// ko: '스탬프 개수는 1 이상의 숫자로 입력해주세요.'
 	String get stamp_input_error => '스탬프 개수는 1 이상의 숫자로 입력해주세요.';
 
-	/// ko: '스탬프 개수는 20개 이하로 입력해주세요.'
-	String get stamp_limit_error => '스탬프 개수는 20개 이하로 입력해주세요.';
+	/// ko: '스탬프 개수는 {max}개 이하로 입력해주세요.'
+	String stamp_limit_error({required Object max}) => '스탬프 개수는 ${max}개 이하로 입력해주세요.';
 
 	/// ko: '처리 완료'
 	String get processing_complete => '처리 완료';

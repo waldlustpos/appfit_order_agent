@@ -1071,7 +1071,7 @@ class _Translations$membership$search$ja extends Translations$membership$search$
 
 	// Translations
 	@override String get hint => '電話番号またはクーポン番号を入力してください。';
-	@override String get hint_searched => 'スタンプの個数を入力してください。(最大20個まで)';
+	@override String hint_searched({required Object max}) => 'スタンプの個数を入力してください。(最大${max}個まで)';
 	@override String get hint_unregistered => 'スタンプ数またはクーポン番号を入力してください。';
 	@override String get btn_search => '会員照会';
 	@override String get btn_other_member => '検索リセット';
@@ -1160,7 +1160,7 @@ class _Translations$membership$dialog$ja extends Translations$membership$dialog$
 	@override String get store_info_missing => '店舗情報がありません。再度ログインしてください。';
 	@override String get input_error_title => '入力エラー';
 	@override String get stamp_input_error => 'スタンプ個数は1以上の数字で入力してください。';
-	@override String get stamp_limit_error => 'スタンプ個数は20個以下で入力してください。';
+	@override String stamp_limit_error({required Object max}) => 'スタンプ個数は${max}個以下で入力してください。';
 	@override String get processing_complete => '完了';
 	@override String get notification => '通知';
 }

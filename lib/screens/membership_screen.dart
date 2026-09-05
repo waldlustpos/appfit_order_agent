@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:appfit_order_agent/widgets/common/app_loading_indicator.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:appfit_order_agent/config/membership_config.dart';
 import 'package:appfit_order_agent/providers/providers.dart';
 import 'package:appfit_order_agent/models/membership_model.dart';
 import 'package:appfit_order_agent/utils/common_util.dart';
@@ -354,7 +355,10 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
                 ? t.membership.search.hint_unregistered
                 : t.membership.dialog.enter_coupon_code)
             : isCustomerSearched
-                ? (stampAccrualEnabled ? t.membership.search.hint_searched : '')
+                ? (stampAccrualEnabled
+                    ? t.membership.search
+                        .hint_searched(max: MembershipConfig.maxStampPerAccrual)
+                    : '')
                 : t.membership.search.hint;
 
         return Stack(
@@ -482,7 +486,7 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
             // 미가입은 [회원조회] 자리를 [스탬프 적립]으로 바꾼다 — 이미 조회를
             // 마친 번호라 다시 조회할 일이 없고, 그 번호 그대로 적립해야 한다.
             // 잘못된 값으로 눌러도 기존 가드가 받는다([적립]은 _saveStamp 의
-            // 1~20 검증, [쿠폰사용]은 _useCouponDirectly 의 전화번호 차단).
+            // 1~10 검증, [쿠폰사용]은 _useCouponDirectly 의 전화번호 차단).
             final leftButton = isUnregistered
                 ? _primaryActionButton(
                     label: t.membership.search.btn_save_stamp,
@@ -782,9 +786,12 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
       return;
     }
 
+    // 상한(1회 10개) 초과는 버튼을 누른 뒤 에러로 알리지 않고 입력 단계에서
+    // 막는다. 자릿수가 아니라 값으로 판정한다 — "10" 은 받고 "11" 은 막아야 해
+    // 자릿수 제한으로는 표현되지 않는다.
     if (isCustomerSearched &&
         rewardType == 'STAMP' &&
-        currentText.length >= 2) {
+        !MembershipConfig.allowsStampDigit(currentText, value)) {
       return;
     }
 
@@ -825,7 +832,7 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
   /// 화면을 감싼 Focus 의 onKeyEvent 핸들러.
   /// 외부 물리 키보드와 HID 키보드 모드 바코드 스캐너(문자를 빠르게 입력 후 Enter
   /// 전송)의 키를 처리한다. 숫자는 키패드 로직(_onKeypadPressed)을 그대로 재사용해
-  /// stamp-mode 규칙(선행 0 거부·2자리 제한)이 동일하게 적용된다.
+  /// stamp-mode 규칙(선행 0 거부·상한 초과 거부)이 동일하게 적용된다.
   KeyEventResult _handleKeyEvent(KeyEvent event) {
     // KeyDownEvent 만 처리(KeyRepeat/KeyUp 무시) → 키 홀드/스캐너 중복 입력 방지.
     if (event is! KeyDownEvent) {
@@ -1101,11 +1108,13 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
       return;
     }
 
-    if (stampCount > 20) {
+    if (stampCount > MembershipConfig.maxStampPerAccrual) {
       CommonDialog.showInfoDialog(
         context: context,
         title: t.membership.dialog.input_error_title,
-        content: t.membership.dialog.stamp_limit_error,
+        content: t.membership.dialog.stamp_limit_error(
+          max: MembershipConfig.maxStampPerAccrual,
+        ),
       );
       FocusScope.of(context).requestFocus(_keyboardFocusNode);
       return;

@@ -523,7 +523,7 @@
         "title": "メンバーシップ照会",
         "search": {
             "hint": "電話番号またはクーポン番号を入力してください。",
-            "hint_searched": "スタンプの個数を入力してください。(最大20個まで)",
+            "hint_searched": "スタンプの個数を入力してください。(最大{max}個まで)",
             "hint_unregistered": "スタンプ数またはクーポン番号を入力してください。",
             "btn_search": "会員照会",
             "btn_other_member": "検索リセット",
@@ -584,7 +584,7 @@
             "store_info_missing": "店舗情報がありません。再度ログインしてください。",
             "input_error_title": "入力エラー",
             "stamp_input_error": "スタンプ個数は1以上の数字で入力してください。",
-            "stamp_limit_error": "スタンプ個数は20個以下で入力してください。",
+            "stamp_limit_error": "スタンプ個数は{max}個以下で入力してください。",
             "processing_complete": "完了",
             "notification": "通知"
         },
