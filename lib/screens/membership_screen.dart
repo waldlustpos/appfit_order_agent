@@ -771,8 +771,6 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
 
     final customerName =
         ref.read(membershipProvider.select((state) => state.customerName));
-    final rewardType =
-        ref.read(membershipProvider.select((state) => state.rewardType));
     final isCustomerSearched = customerName.isNotEmpty;
 
     // 스탬프 미운영 매장에서 회원 조회 후에는 입력 자체를 받지 않는다.
@@ -789,8 +787,15 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
     // 상한(1회 10개) 초과는 버튼을 누른 뒤 에러로 알리지 않고 입력 단계에서
     // 막는다. 자릿수가 아니라 값으로 판정한다 — "10" 은 받고 "11" 은 막아야 해
     // 자릿수 제한으로는 표현되지 않는다.
+    //
+    // ⚠️ 여기에 `rewardType == 'STAMP'` 를 다시 붙이지 말 것. state.rewardType
+    // 은 실제로 채워지는 경로가 없어(로그인이 항상 null 을 돌려주고
+    // StoreModel.fromJson 도 파싱하지 않아 `''` 로 남는다) 이 조건을 붙이면
+    // 가드 전체가 죽는다 — 실제로 그 상태로 배포돼 개수 제한이 한 번도
+    // 동작하지 않았다. 회원 조회가 끝난 상태의 입력란은 오직 적립 개수이며
+    // (쿠폰 사용은 입력란이 아니라 쿠폰 카드로 한다), 스탬프 미운영 매장은
+    // 위 _isInputDisabled 가 이미 입력 자체를 막는다.
     if (isCustomerSearched &&
-        rewardType == 'STAMP' &&
         !MembershipConfig.allowsStampDigit(currentText, value)) {
       return;
     }
